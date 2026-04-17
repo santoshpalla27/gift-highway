@@ -7,7 +7,6 @@ import { AvatarUploader } from '../components/AvatarUploader'
 export function ProfileSettingsPage() {
   const { user, setAuth, accessToken, refreshToken } = useAuthStore()
   const qc = useQueryClient()
-  // Holds a fresh signed URL after a new upload (overrides the fetched one temporarily)
   const [freshSignedUrl, setFreshSignedUrl] = useState<string | null>(null)
 
   const { data: profile, isLoading } = useQuery({
@@ -23,10 +22,7 @@ export function ProfileSettingsPage() {
   })
 
   const avatarDisplayUrl = freshSignedUrl ?? signedUrl ?? undefined
-
-  const initials = user
-    ? `${user.first_name?.[0] ?? ''}${user.last_name?.[0] ?? ''}`
-    : '??'
+  const initials = user ? `${user.first_name?.[0] ?? ''}${user.last_name?.[0] ?? ''}` : '??'
 
   const handleAvatarUploaded = (newSignedUrl: string) => {
     setFreshSignedUrl(newSignedUrl)
@@ -38,71 +34,176 @@ export function ProfileSettingsPage() {
   }
 
   return (
-    <div className="screen active">
-      <div className="page-header">
-        <div>
-          <h1>Profile</h1>
-          <p>Manage your account</p>
-        </div>
-      </div>
+    <div className="screen active" style={{ background: '#F9FAFB', minHeight: '100%', padding: '40px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <style>{`
+        .profile-max-width {
+          width: 100%;
+          max-width: 680px;
+          display: flex;
+          flex-direction: column;
+        }
 
-      <div style={{ maxWidth: '640px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        .premium-card {
+          background: #FFFFFF;
+          border: 1px solid #E5E7EB;
+          border-radius: 16px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+          margin-bottom: 24px;
+          overflow: hidden;
+          transition: all 0.2s ease;
+        }
+        .premium-card:hover {
+          border-color: #D1D5DB;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        .card-header {
+          padding: 24px 32px 0 32px;
+          margin-bottom: 24px;
+        }
+        .card-label {
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #9CA3AF;
+          letter-spacing: 0.05em;
+        }
+        .card-body {
+          padding: 0 32px 32px 32px;
+        }
+        .hero-layout {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          gap: 24px;
+        }
+        .detail-row {
+          display: flex;
+          justify-content: space-between;
+          padding: 16px 0;
+          border-bottom: 1px solid #F3F4F6;
+        }
+        .detail-row:last-child {
+          border-bottom: none;
+        }
+        .detail-label {
+          font-size: 14px;
+          font-weight: 500;
+          color: #6B7280;
+        }
+        .detail-value {
+          font-size: 14px;
+          font-weight: 600;
+          color: #111827;
+        }
+        .badge-status {
+          display: inline-flex;
+          align-items: center;
+          padding: 4px 10px;
+          border-radius: 999px;
+          font-size: 11px;
+          font-weight: 700;
+          background: #ECFDF5;
+          color: #059669;
+          border: 1px solid #D1FAE5;
+        }
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        .skeleton {
+          background: linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+          border-radius: 4px;
+        }
+      `}</style>
 
-        {/* Profile Card */}
-        <div className="card" style={{ padding: '32px' }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px', marginBottom: '24px' }}>
-            Identity
-          </div>
+      <div className="profile-max-width">
+        <header style={{ marginBottom: '40px', textAlign: 'center' }}>
 
-          {isLoading ? (
-            <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-              <div style={{ width: '88px', height: '88px', borderRadius: '50%', background: 'var(--surface-2)' }} />
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ height: '18px', width: '160px', background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)' }} />
-                <div style={{ height: '14px', width: '200px', background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)' }} />
+          <h1 style={{ fontSize: '32px', fontWeight: 800, color: '#111827', margin: 0, letterSpacing: '-0.025em' }}>Profile Settings</h1>
+          <p style={{ fontSize: '15px', color: '#6B7280', marginTop: '4px' }}>Update your identity and workspace preferences.</p>
+        </header>
+
+        {/* HERO CARD */}
+        <div className="premium-card">
+          <div className="card-body" style={{ padding: '40px 32px' }}>
+            {isLoading ? (
+              <div className="hero-layout">
+                <div className="skeleton" style={{ width: '110px', height: '110px', borderRadius: '50%' }} />
+                <div style={{ flex: 1 }}>
+                  <div className="skeleton" style={{ height: '32px', width: '200px', marginBottom: '8px' }} />
+                  <div className="skeleton" style={{ height: '18px', width: '240px' }} />
+                </div>
               </div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: '32px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <AvatarUploader
-                currentUrl={avatarDisplayUrl}
-                initials={initials}
-                onUploaded={handleAvatarUploaded}
-              />
-
-              <div style={{ flex: 1, minWidth: '180px' }}>
-                <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {profile?.first_name} {profile?.last_name}
-                </div>
-                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                  {profile?.email}
-                </div>
-                <div style={{ marginTop: '10px' }}>
-                  <span className={`badge badge-${profile?.role === 'admin' ? 'review' : 'new'}`} style={{ textTransform: 'capitalize' }}>
-                    {profile?.role}
-                  </span>
+            ) : (
+              <div className="hero-layout">
+                <AvatarUploader
+                  currentUrl={avatarDisplayUrl}
+                  initials={initials}
+                  onUploaded={handleAvatarUploaded}
+                />
+                <div style={{ flex: 1 }}>
+                  <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#111827', margin: 0 }}>{profile?.first_name} {profile?.last_name}</h2>
+                  <p style={{ fontSize: '14px', color: '#6B7280', margin: '4px 0 0 0' }}>{profile?.email}</p>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                    <span className="badge-status">
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', marginRight: '6px' }} />
+                      Account Active
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Preferences placeholder */}
-        <div className="card" style={{ padding: '32px' }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px', marginBottom: '16px' }}>
-            Preferences
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 0', gap: '8px' }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5">
-              <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41-1.41M19.07 19.07l-1.41-1.41M5.34 5.34L3.93 6.75M21 12h-2M5 12H3M12 21v-2M12 5V3"/>
-            </svg>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Preferences coming soon</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', textAlign: 'center' }}>
-              Notification settings and theme preferences will appear here.
-            </div>
+            )}
           </div>
         </div>
 
+        {/* DETAILS CARD */}
+        <div className="premium-card">
+          <div className="card-header">
+            <span className="card-label">Account details</span>
+          </div>
+          <div className="card-body">
+            {isLoading ? (
+              [...Array(3)].map((_, i) => (
+                <div key={i} className="detail-row">
+                  <div className="skeleton" style={{ height: '20px', width: '100px' }} />
+                  <div className="skeleton" style={{ height: '20px', width: '180px' }} />
+                </div>
+              ))
+            ) : (
+              <>
+                <div className="detail-row">
+                  <span className="detail-label">Full Name</span>
+                  <span className="detail-value">{profile?.first_name} {profile?.last_name}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Email Address</span>
+                  <span className="detail-value">{profile?.email}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Role</span>
+                  <span className="detail-value" style={{ textTransform: 'capitalize' }}>{profile?.role}</span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* PREFERENCES PLACEHOLDER */}
+        <div className="premium-card" style={{ background: '#FAFAFA' }}>
+          <div className="card-header">
+            <span className="card-label">Preferences</span>
+          </div>
+          <div className="card-body" style={{ textAlign: 'center', padding: '48px 32px' }}>
+            <div style={{ width: '48px', height: '48px', background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            </div>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#111827', marginBottom: '4px' }}>Workspace Preferences</h3>
+            <p style={{ fontSize: '14px', color: '#6B7280', margin: 0, maxWidth: '280px', margin: '0 auto' }}>Notification settings and personal workspace preferences will appear here soon.</p>
+          </div>
+        </div>
       </div>
     </div>
   )
