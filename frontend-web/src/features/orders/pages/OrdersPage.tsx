@@ -260,11 +260,11 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
           <thead>
             <tr>
               <th style={{ width: '90px' }}>Order ID</th>
-              <th>Title</th>
               <th>Customer</th>
+              <th>Title</th>
               <th>Status</th>
-              <th>Delivery</th>
               <th>Assigned</th>
+              <th>Delivery</th>
               <th>Activity</th>
             </tr>
           </thead>
@@ -297,22 +297,15 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                     </span>
                   </td>
                   <td>
-                    <span style={{ fontWeight: 500, fontSize: '13px', color: '#111827' }}>{order.title}</span>
+                    <span style={{ fontWeight: 600, fontSize: '13.5px', color: '#111827' }}>
+                      {order.customer_name}
+                    </span>
                   </td>
-                  <td style={{ fontWeight: 500, fontSize: '13px', color: '#111827' }}>
-                    {order.customer_name}
+                  <td>
+                    <span style={{ fontWeight: 400, fontSize: '13.5px', color: '#374151' }}>{order.title}</span>
                   </td>
                   <td>
                     <StatusDropdown order={order} onChanged={msg => setToast(msg)} />
-                  </td>
-                  <td>
-                    {due ? (
-                      <span style={{ fontWeight: due.isOverdue ? 600 : 500, color: due.isOverdue ? '#EF4444' : '#111827' }}>
-                        {due.formatted} {due.isOverdue && '(Overdue)'}
-                      </span>
-                    ) : (
-                      <span style={{ color: '#9CA3AF' }}>—</span>
-                    )}
                   </td>
                   <td>
                     {order.assigned_name ? (
@@ -324,6 +317,15 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                       </div>
                     ) : (
                       <span style={{ fontSize: '13px', color: '#9CA3AF' }}>Unassigned</span>
+                    )}
+                  </td>
+                  <td>
+                    {due ? (
+                      <span style={{ fontWeight: due.isOverdue ? 600 : 500, color: due.isOverdue ? '#EF4444' : '#111827' }}>
+                        {due.formatted} {due.isOverdue && '(Overdue)'}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#9CA3AF' }}>—</span>
                     )}
                   </td>
                   <td style={{ fontSize: '12.5px', color: dateColor, fontWeight: dateColor === '#111827' ? 500 : 400 }}>
