@@ -48,6 +48,7 @@ function formatDueDate(dateStr: string | null): { text: string; overdue: boolean
   return { text, overdue }
 }
 
+
 // ─── Order Form Modal ─────────────────────────────────────────────────────────
 
 interface OrderFormProps {
@@ -269,7 +270,7 @@ function OrderCard({ order, onEdit, onStatusPress }: { order: Order; onEdit: () 
         </View>
 
         <View style={C.bottomRight}>
-          {due && <Text style={[C.metaText, due.overdue && { color: '#DC2626', fontWeight: '500' }]}>{due.text}</Text>}
+          {due && <Text style={[C.metaText, due.overdue && { color: '#EF4444', fontWeight: '600' }]}>{due.text}</Text>}
         </View>
       </View>
     </TouchableOpacity>
@@ -395,7 +396,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: AllOrdersScree
       ) : (
         <ScrollView 
           style={S.list} 
-          contentContainerStyle={{ paddingBottom: 40, backgroundColor: '#FFFFFF' }}
+          contentContainerStyle={{ paddingBottom: 40, padding: 12, backgroundColor: '#F8FAFC' }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F172A" />}
         >
           {orders.map(o => (
@@ -448,21 +449,21 @@ const S = StyleSheet.create({
   filterScroll: { marginTop: 8, marginBottom: 4 },
   filterChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
   filterChipActive: { backgroundColor: '#F1F5F9', borderColor: '#CBD5E1' },
-  filterChipText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
-  filterChipTextActive: { color: '#0F172A' },
+  filterChipText: { fontSize: 13, fontWeight: '600', color: '#475569' },
+  filterChipTextActive: { color: '#0F172A', fontWeight: '800' },
   filterDivider: { width: 1, height: 20, backgroundColor: '#E2E8F0', alignSelf: 'center', marginHorizontal: 4 },
   
   countBar: { paddingHorizontal: 16, paddingVertical: 12 },
-  countText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+  countText: { fontSize: 13, fontWeight: '700', color: '#334155' },
   
   list: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   centerList: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   emptyIconWrap: { width: 64, height: 64, borderRadius: 16, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
-  emptySub: { fontSize: 14, color: '#64748B', textAlign: 'center', marginTop: 6, lineHeight: 20 },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
+  emptySub: { fontSize: 14, color: '#475569', textAlign: 'center', marginTop: 6, lineHeight: 20 },
   emptyBtn: { marginTop: 24, backgroundColor: '#FFFFFF', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' },
-  emptyBtnText: { color: '#0F172A', fontSize: 14, fontWeight: '600' },
+  emptyBtnText: { color: '#0F172A', fontSize: 14, fontWeight: '700' },
   fab: {
     position: 'absolute', right: 20, bottom: 24,
     width: 60, height: 60, borderRadius: 30, backgroundColor: '#0F172A',
@@ -473,20 +474,23 @@ const S = StyleSheet.create({
 
 const C = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 14,
+    marginBottom: 8,
   },
-  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  orderNum: { fontSize: 16, fontWeight: '600', color: '#0F172A', flex: 1, marginRight: 8 },
-  title: { fontWeight: '400', color: '#64748B', fontSize: 15 },
-  statusText: { fontSize: 14, fontWeight: '600' },
+  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  orderNum: { fontSize: 15, fontWeight: '700', color: '#0F172A', flex: 1, marginRight: 8 },
+  title: { fontWeight: '400', color: '#475569', fontSize: 15 },
+  statusText: { fontSize: 13, fontWeight: '600' },
   
   rowBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   bottomLeft: { flex: 1, alignItems: 'flex-start' },
   bottomCenter: { flex: 1, alignItems: 'center' },
   bottomRight: { flex: 1, alignItems: 'flex-end' },
   
-  metaText: { fontSize: 13, color: '#94A3B8' },
+  metaText: { fontSize: 13, color: '#64748B' },
   priorityText: { fontSize: 13, fontWeight: '500' },
 })
 
