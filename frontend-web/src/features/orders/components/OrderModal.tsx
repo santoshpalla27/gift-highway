@@ -5,11 +5,12 @@ import type { Order } from '../../../services/orderService'
 interface Props {
   order?: Order | null
   onClose: () => void
+  onSuccess?: (message: string) => void
 }
 
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const
 
-export function OrderModal({ order, onClose }: Props) {
+export function OrderModal({ order, onClose, onSuccess }: Props) {
   const isEdit = !!order
   const { mutate: createOrder, isPending: creating } = useCreateOrder()
   const { mutate: updateOrder, isPending: updating } = useUpdateOrder()
@@ -54,9 +55,15 @@ export function OrderModal({ order, onClose }: Props) {
       due_date: dueDate || null,
     }
     if (isEdit) {
-      updateOrder({ id: order!.id, data: payload }, { onSuccess: onClose })
+      updateOrder({ id: order!.id, data: payload }, {
+        onSuccess: () => { onClose(); onSuccess?.('Order updated successfully') },
+        onError: () => setError('Failed to update order. Please try again.'),
+      })
     } else {
-      createOrder(payload, { onSuccess: onClose })
+      createOrder(payload, {
+        onSuccess: () => { onClose(); onSuccess?.('Order created successfully') },
+        onError: () => setError('Failed to create order. Please try again.'),
+      })
     }
   }
 
@@ -64,105 +71,136 @@ export function OrderModal({ order, onClose }: Props) {
     <div style={{
       position: 'fixed', inset: 0, zIndex: 500,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(3px)',
+      background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
+      animation: 'fadeIn 0.2s ease',
     }} onClick={onClose}>
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: translateY(0) } }
+        .modal-input {
+          width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #E2E8F0;
+          font-size: 14px; color: #0F172A; background: #FFFFFF; box-sizing: border-box;
+          outline: none; transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .modal-input:focus { border-color: #94A3B8; box-shadow: 0 0 0 2px rgba(226,232,240,0.5); }
+        .modal-input::placeholder { color: #94A3B8; }
+        .modal-label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+      `}</style>
+      
       <div style={{
-        background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '520px',
-        maxHeight: '90vh', overflow: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.2)',
-        margin: '16px',
+        background: '#FFFFFF', borderRadius: '16px', width: '100%', maxWidth: '560px',
+        maxHeight: '90vh', overflow: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+        margin: '16px', animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        display: 'flex', flexDirection: 'column'
       }} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div style={{ padding: '24px 28px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '24px 32px 20px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: '#111827' }}>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: '#0F172A', letterSpacing: '-0.01em' }}>
               {isEdit ? 'Edit Order' : 'Create Order'}
             </div>
-            <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '2px' }}>
-              {isEdit ? `Editing #${order!.order_number}` : 'Fill in the details below'}
+            <div style={{ fontSize: '14px', color: '#64748B', marginTop: '4px' }}>
+              {isEdit ? `Updating order #${order!.order_number}` : 'Fill in the operational details'}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#9CA3AF' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <button 
+            onClick={onClose} 
+            style={{ 
+              background: '#F8FAFC', padding: '6px', border: '1px solid #E2E8F0', borderRadius: '8px', 
+              cursor: 'pointer', color: '#64748B', display: 'flex', alignItems: 'center', transition: 'all 0.15s ease' 
+            }}
+            onMouseOver={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.color = '#0F172A' }}
+            onMouseOut={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.color = '#64748B' }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
 
         {/* Body */}
-        <div style={{ padding: '20px 28px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {error && (
-            <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#DC2626' }}>
+            <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '8px', padding: '12px 16px', fontSize: '13px', color: '#B91C1C', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               {error}
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={labelStyle}>Title *</label>
-              <input style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Wedding Banner" />
+              <label className="modal-label">Title *</label>
+              <input className="modal-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Website Redesign" />
             </div>
             <div>
-              <label style={labelStyle}>Customer Name *</label>
-              <input style={inputStyle} value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="e.g. Rahul Sharma" />
+              <label className="modal-label">Customer Name *</label>
+              <input className="modal-input" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="e.g. Acme Corp" />
             </div>
             <div>
-              <label style={labelStyle}>Contact Number</label>
-              <input style={inputStyle} value={contactNumber} onChange={e => setContactNumber(e.target.value)} placeholder="e.g. +91 98765 43210" type="tel" />
+              <label className="modal-label">Contact Number</label>
+              <input className="modal-input" value={contactNumber} onChange={e => setContactNumber(e.target.value)} placeholder="e.g. +91 98765 43210" type="tel" />
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={labelStyle}>Description</label>
+              <label className="modal-label">Description</label>
               <textarea
-                style={{ ...inputStyle, minHeight: '72px', resize: 'vertical' }}
+                className="modal-input"
+                style={{ minHeight: '80px', resize: 'vertical' }}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                placeholder="Additional details..."
+                placeholder="Include any specific operational requirements..."
               />
             </div>
             <div>
-              <label style={labelStyle}>Priority</label>
-              <select style={inputStyle} value={priority} onChange={e => setPriority(e.target.value)}>
+              <label className="modal-label">Priority</label>
+              <select className="modal-input" value={priority} onChange={e => setPriority(e.target.value)}>
                 {PRIORITIES.map(p => (
                   <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Due Date</label>
-              <input style={inputStyle} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+              <label className="modal-label">Due Date</label>
+              <input className="modal-input" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={labelStyle}>Assign To</label>
-              <select style={inputStyle} value={assignedTo} onChange={e => setAssignedTo(e.target.value)}>
+              <label className="modal-label">Assign To</label>
+              <select className="modal-input" value={assignedTo} onChange={e => setAssignedTo(e.target.value)}>
                 <option value="">— Unassigned —</option>
                 {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             </div>
           </div>
+        </div>
 
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '4px' }}>
-            <button onClick={onClose} disabled={isPending} style={cancelBtnStyle}>Cancel</button>
-            <button onClick={handleSubmit} disabled={isPending} style={submitBtnStyle}>
-              {isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Order'}
-            </button>
-          </div>
+        {/* Footer */}
+        <div style={{ padding: '20px 32px', borderTop: '1px solid #F1F5F9', background: '#FAFAFA', display: 'flex', gap: '12px', justifyContent: 'flex-end', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
+          <button 
+            onClick={onClose} 
+            disabled={isPending} 
+            style={{
+              padding: '10px 20px', borderRadius: '8px', border: '1px solid #E2E8F0',
+              background: '#FFFFFF', color: '#475569', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+              transition: 'background 0.15s ease'
+            }}
+            onMouseOver={e => e.currentTarget.style.background = '#F8FAFC'}
+            onMouseOut={e => e.currentTarget.style.background = '#FFFFFF'}
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={handleSubmit} 
+            disabled={isPending} 
+            style={{
+              padding: '10px 24px', borderRadius: '8px', border: 'none',
+              background: '#0F172A', color: '#FFFFFF', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+              transition: 'background 0.15s ease', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+            onMouseOver={e => e.currentTarget.style.background = '#1E293B'}
+            onMouseOut={e => e.currentTarget.style.background = '#0F172A'}
+          >
+            {isPending ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Order'}
+          </button>
         </div>
       </div>
     </div>
   )
-}
-
-const labelStyle: React.CSSProperties = {
-  display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px',
-}
-const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #D1D5DB',
-  fontSize: '14px', color: '#111827', background: '#fff', boxSizing: 'border-box',
-  outline: 'none',
-}
-const cancelBtnStyle: React.CSSProperties = {
-  padding: '9px 18px', borderRadius: '8px', border: '1px solid #E5E7EB',
-  background: '#fff', color: '#374151', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-}
-const submitBtnStyle: React.CSSProperties = {
-  padding: '9px 18px', borderRadius: '8px', border: 'none',
-  background: '#4F46E5', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
 }
