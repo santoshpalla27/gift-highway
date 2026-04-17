@@ -139,3 +139,20 @@ func (r *UserRepository) EmailExists(ctx context.Context, email, excludeID strin
 	}
 	return count > 0, err
 }
+
+func (r *UserRepository) UpdateAvatarURL(ctx context.Context, userID string, avatarURL string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE users SET avatar_url=$1, updated_at=NOW() WHERE id=$2`, avatarURL, userID)
+	return err
+}
+
+func (r *UserRepository) GetProfile(ctx context.Context, userID string) (*models.User, error) {
+	user := &models.User{}
+	err := r.db.GetContext(ctx, user, `
+		SELECT id, email, password_hash, first_name, last_name, role, is_active, avatar_url, created_at, updated_at, last_login_at
+		FROM users WHERE id=$1
+	`, userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return user, err
+}

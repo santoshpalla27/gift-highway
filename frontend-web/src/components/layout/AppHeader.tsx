@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useLogout } from '../../features/auth/hooks/useLogout'
 import { useAuthStore } from '../../store/authStore'
 
@@ -9,6 +10,7 @@ interface AppHeaderProps {
 export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const { user } = useAuthStore()
   const { mutate: logout, isPending } = useLogout()
+  const navigate = useNavigate()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const initials = user ? `${user.first_name[0]}${user.last_name[0]}` : '??'
@@ -77,7 +79,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
               {/* Menu items */}
               <div style={{ padding: '6px' }}>
                 <button
-                  onClick={() => setDropdownOpen(false)}
+                  onClick={() => { setDropdownOpen(false); navigate('/settings/profile') }}
                   style={{
                     width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
                     padding: '8px 10px', borderRadius: 'var(--radius)', border: 'none',

@@ -30,9 +30,11 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret, cfg.JWTExpiry)
 	authSvc := services.NewAuthService(userRepo, jwtManager, cfg.RefreshExpiry)
 	adminSvc := services.NewAdminService(userRepo)
+	profileSvc := services.NewProfileService(userRepo, cfg)
 
 	authHandler := v1.NewAuthHandler(authSvc)
 	adminHandler := v1.NewAdminHandler(adminSvc)
+	profileHandler := v1.NewProfileHandler(profileSvc)
 
 	// Health
 	r.GET("/health", v1.HealthCheck)
@@ -63,6 +65,15 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				adminGroup.PATCH("/users/:id", adminHandler.UpdateUser)
 				adminGroup.PATCH("/users/:id/password", adminHandler.ChangePassword)
 				adminGroup.DELETE("/users/:id", adminHandler.DeleteUser)
+			}
+
+			// Profile routes
+			profileGroup := protected.Group("/profile")
+			{
+				profileGroup.GET("/me", profileHandler.GetProfile)
+				profileGroup.GET("/avatar/signed-url", profileHandler.GetAvatarSignedURL)
+				profileGroup.POST("/avatar/upload-url", profileHandler.GetAvatarUploadURL)
+				profileGroup.PATCH("/avatar", profileHandler.UpdateAvatarURL)
 			}
 		}
 	}

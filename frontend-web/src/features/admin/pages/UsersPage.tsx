@@ -22,8 +22,18 @@ function useClickOutside(ref: React.RefObject<HTMLElement>, handler: () => void)
 
 function DropdownMenu({ user, onEdit, onPassword, onDelete }: { user: AdminUser, onEdit: () => void, onPassword: () => void, onDelete: () => void }) {
   const [open, setOpen] = useState(false)
+  const [openUpwards, setOpenUpwards] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useClickOutside(ref, () => setOpen(false))
+
+  useEffect(() => {
+    if (open && ref.current) {
+      const rect = ref.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      const dropdownHeight = 200 // Increased threshold for safety
+      setOpenUpwards(spaceBelow < dropdownHeight)
+    }
+  }, [open])
 
   return (
     <div className="relative" ref={ref} style={{ position: 'relative' }}>
@@ -38,7 +48,9 @@ function DropdownMenu({ user, onEdit, onPassword, onDelete }: { user: AdminUser,
       </button>
       
       {open && (
-        <div className="premium-dropdown">
+        <div 
+          className={`premium-dropdown ${openUpwards ? 'dropdown-up' : 'dropdown-down'}`}
+        >
           <button onClick={() => { setOpen(false); onEdit(); }} className="premium-menu-item">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
             Edit User
@@ -138,7 +150,8 @@ export function UsersPage() {
           border: 1px solid #E5E7EB;
           border-radius: 12px;
           box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-          overflow: hidden;
+          /* overflow: visible to allow dropdowns to pop out */
+          overflow: visible;
         }
         .premium-table {
           width: 100%;
@@ -229,16 +242,25 @@ export function UsersPage() {
         .premium-dropdown {
           position: absolute;
           right: 0;
-          top: calc(100% + 4px);
           background: #FFFFFF;
           border: 1px solid #E5E7EB;
           border-radius: 8px;
           box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
           padding: 6px;
           min-width: 180px;
-          z-index: 50;
-          animation: slideDown 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+          z-index: 100;
         }
+        .dropdown-down {
+          top: calc(100% + 4px);
+          animation: slideDown 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+          transform-origin: top right;
+        }
+        .dropdown-up {
+          bottom: calc(100% + 4px);
+          animation: slideUp 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+          transform-origin: bottom right;
+        }
+
         .premium-menu-item {
           width: 100%;
           text-align: left;
@@ -270,7 +292,11 @@ export function UsersPage() {
           margin: 4px 0;
         }
         @keyframes slideDown {
-          from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+          from { opacity: 0; transform: translateY(-8px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(8px) scale(0.95); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes pulseSkeleton {
@@ -345,10 +371,7 @@ export function UsersPage() {
 
       <div className="premium-header">
         <div>
-          <div className="premium-breadcrumb">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
-            Orbit / Admin / Users
-          </div>
+
           <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>Users</h1>
           <p style={{ fontSize: '14px', color: '#6B7280', margin: '4px 0 0 0' }}>Manage access and team accounts.</p>
         </div>

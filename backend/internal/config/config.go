@@ -20,6 +20,11 @@ type Config struct {
 	AllowedOrigins []string
 	RateLimitRPS   int
 	RateLimitBurst int
+	R2AccountID    string
+	R2AccessKey    string
+	R2SecretKey    string
+	R2Bucket       string
+	R2PublicURL    string
 }
 
 func Load() *Config {
@@ -40,6 +45,11 @@ func Load() *Config {
 		AllowedOrigins: splitComma(getEnv("ALLOWED_ORIGINS", "http://localhost:5173")),
 		RateLimitRPS:   rlRPS,
 		RateLimitBurst: rlBurst,
+		R2AccountID:    getEnv("R2_ACCOUNT_ID", ""),
+		R2AccessKey:    getEnv("R2_ACCESS_KEY", ""),
+		R2SecretKey:    getEnv("R2_SECRET_KEY", ""),
+		R2Bucket:       getEnv("R2_BUCKET", "user-assets"),
+		R2PublicURL:    getEnv("R2_PUBLIC_URL", ""),
 	}
 
 	if cfg.AppEnv == "production" && cfg.JWTSecret == "change-me-in-production-use-32-chars-min" {

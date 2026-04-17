@@ -6,6 +6,7 @@ import { LoginPage } from '../features/auth/pages/LoginPage'
 import { DashboardPage } from '../features/dashboard/pages/DashboardPage'
 import { NotFoundPage } from '../components/NotFoundPage'
 import { UsersPage } from '../features/admin/pages/UsersPage'
+import { ProfileSettingsPage } from '../features/profile/pages/ProfileSettingsPage'
 
 export default function App() {
   return (
@@ -20,7 +21,8 @@ export default function App() {
           <Route path="/orders" element={<DashboardPage />} />
           <Route path="/my-orders" element={<DashboardPage />} />
           <Route path="/notifications" element={<DashboardPage />} />
-          <Route path="/settings" element={<DashboardPage />} />
+          <Route path="/settings/profile" element={<ProfileSettingsPage />} />
+          <Route path="/settings" element={<ProfileSettingsPage />} />
           <Route path="/admin/users" element={<UsersPage />} />
         </Route>
       </Route>

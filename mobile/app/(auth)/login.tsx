@@ -89,7 +89,7 @@ export default function LoginScreen() {
               <View style={styles.passwordHeader}>
                 <Text style={styles.label}>Password</Text>
                 <TouchableOpacity>
-                  <Text style={styles.forgotText}>Forgot?</Text>
+
                 </TouchableOpacity>
               </View>
               <TextInput

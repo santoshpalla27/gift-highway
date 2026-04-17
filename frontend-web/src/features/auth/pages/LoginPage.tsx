@@ -80,7 +80,7 @@ export function LoginPage() {
                 <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>
                   Password
                 </label>
-                <a href="#" style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>Forgot?</a>
+
               </div>
               <input
                 type="password"
