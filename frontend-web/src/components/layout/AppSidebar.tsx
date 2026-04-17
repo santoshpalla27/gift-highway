@@ -13,14 +13,29 @@ export function AppSidebar({ isOpen, setIsOpen }: AppSidebarProps) {
   return (
     <aside className={`sidebar ${isOpen ? '' : 'collapsed'}`} id="sidebar">
       <div className="sidebar-logo">
-        <div className="logo-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-            <path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/>
-            <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
-            <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg viewBox="0 0 100 100" style={{ width: '36px', height: '36px', flexShrink: 0, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }} fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="50" fill="#F0914A" />
+            <g stroke="#1e1b4b" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M 16 28 H 25 L 34 62 H 70 L 78 38 H 28" />
+              <circle cx="40" cy="75" r="5" fill="none" />
+              <circle cx="64" cy="75" r="5" fill="none" />
+              <path d="M 38 32 H 68 V 39 H 38 Z" fill="#F0914A" />
+              <path d="M 42 39 V 56 H 64 V 39" fill="#F0914A" />
+              <path d="M 53 32 V 56" />
+              <path d="M 53 32 C 45 18 36 24 44 32" fill="#F0914A" />
+              <path d="M 53 32 C 61 18 70 24 62 32" fill="#F0914A" />
+            </g>
           </svg>
         </div>
-        <span className="logo-text">Gift<span>Flow</span></span>
+        <div className="logo-text" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', transform: 'translateY(1px)' }}>
+          <span style={{ fontSize: '22px', fontWeight: 800, letterSpacing: '-0.05em', lineHeight: 1, fontFamily: "'Outfit', sans-serif" }}>
+            <span style={{ color: '#F0914A' }}>Gift</span> Highway
+          </span>
+          <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 700, color: 'var(--text-tertiary)', marginTop: '2px' }}>
+            Enriching Every Moment
+          </span>
+        </div>
       </div>
 
       <nav className="sidebar-nav">
@@ -70,6 +85,20 @@ export function AppSidebar({ isOpen, setIsOpen }: AppSidebarProps) {
             <span className="nav-label">Settings</span>
           </NavLink>
         </div>
+        {user?.role === 'admin' && (
+          <div className="sidebar-section">
+            <div className="sidebar-section-label">Admin</div>
+            <NavLink to="/admin/users" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }}>
+              <div className="nav-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <span className="nav-label">Users</span>
+            </NavLink>
+          </div>
+        )}
       </nav>
 
       <div className="sidebar-footer">

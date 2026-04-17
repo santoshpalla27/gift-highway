@@ -5,6 +5,7 @@ import { ProtectedRoute } from '../routes/ProtectedRoute'
 import { LoginPage } from '../features/auth/pages/LoginPage'
 import { DashboardPage } from '../features/dashboard/pages/DashboardPage'
 import { NotFoundPage } from '../components/NotFoundPage'
+import { UsersPage } from '../features/admin/pages/UsersPage'
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/my-orders" element={<DashboardPage />} />
           <Route path="/notifications" element={<DashboardPage />} />
           <Route path="/settings" element={<DashboardPage />} />
+          <Route path="/admin/users" element={<UsersPage />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFoundPage />} />

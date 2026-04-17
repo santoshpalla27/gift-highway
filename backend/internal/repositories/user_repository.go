@@ -83,3 +83,59 @@ func (r *UserRepository) RevokeAllUserTokens(ctx context.Context, userID string)
 	`, userID)
 	return err
 }
+
+func (r *UserRepository) ListUsers(ctx context.Context) ([]*models.User, error) {
+	var users []*models.User
+	err := r.db.SelectContext(ctx, &users, `
+		SELECT id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at, last_login_at
+		FROM users ORDER BY created_at DESC
+	`)
+	return users, err
+}
+
+func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) error {
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO users (id, email, password_hash, first_name, last_name, role, is_active)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, user.ID, user.Email, user.PasswordHash, user.FirstName, user.LastName, user.Role, user.IsActive)
+	return err
+}
+
+func (r *UserRepository) UpdateUser(ctx context.Context, id string, email, firstName, lastName, role string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE users SET email=$1, first_name=$2, last_name=$3, role=$4, updated_at=NOW()
+		WHERE id=$5
+	`, email, firstName, lastName, role, id)
+	return err
+}
+
+func (r *UserRepository) UpdatePassword(ctx context.Context, id, passwordHash string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE users SET password_hash=$1, updated_at=NOW() WHERE id=$2
+	`, passwordHash, id)
+	return err
+}
+
+func (r *UserRepository) DeleteUser(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE users SET is_active=false, updated_at=NOW() WHERE id=$1
+	`, id)
+	return err
+}
+
+func (r *UserRepository) CountAdmins(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM users WHERE role='admin' AND is_active=true`)
+	return count, err
+}
+
+func (r *UserRepository) EmailExists(ctx context.Context, email, excludeID string) (bool, error) {
+	var count int
+	var err error
+	if excludeID == "" {
+		err = r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM users WHERE email=$1`, email)
+	} else {
+		err = r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM users WHERE email=$1 AND id != $2`, email, excludeID)
+	}
+	return count > 0, err
+}

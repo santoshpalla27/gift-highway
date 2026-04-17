@@ -29,8 +29,10 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 	userRepo := repositories.NewUserRepository(db)
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret, cfg.JWTExpiry)
 	authSvc := services.NewAuthService(userRepo, jwtManager, cfg.RefreshExpiry)
+	adminSvc := services.NewAdminService(userRepo)
 
 	authHandler := v1.NewAuthHandler(authSvc)
+	adminHandler := v1.NewAdminHandler(adminSvc)
 
 	// Health
 	r.GET("/health", v1.HealthCheck)
@@ -51,6 +53,17 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 		{
 			protected.POST("/auth/logout", authHandler.Logout)
 			protected.GET("/auth/me", authHandler.Me)
+
+			// Admin routes (require admin role)
+			adminGroup := protected.Group("/admin")
+			adminGroup.Use(middleware.RequireRole("admin"))
+			{
+				adminGroup.GET("/users", adminHandler.ListUsers)
+				adminGroup.POST("/users", adminHandler.CreateUser)
+				adminGroup.PATCH("/users/:id", adminHandler.UpdateUser)
+				adminGroup.PATCH("/users/:id/password", adminHandler.ChangePassword)
+				adminGroup.DELETE("/users/:id", adminHandler.DeleteUser)
+			}
 		}
 	}
 

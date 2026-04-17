@@ -6,7 +6,7 @@ import Svg, { Circle, Path, G } from 'react-native-svg'
 function GiftHighwayHeaderLogo() {
   return (
     <View style={headerStyles.logoWrap}>
-      <Svg viewBox="0 0 100 100" width={28} height={28} fill="none">
+      <Svg viewBox="0 0 100 100" width={32} height={32} fill="none">
         <Circle cx="50" cy="50" r="50" fill="#F0914A" />
         <G stroke="#1e1b4b" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
           <Path d="M 16 28 H 25 L 34 62 H 70 L 78 38 H 28" />
@@ -19,9 +19,14 @@ function GiftHighwayHeaderLogo() {
           <Path d="M 53 32 C 61 18 70 24 62 32" fill="#F0914A" />
         </G>
       </Svg>
-      <Text style={headerStyles.logoText}>
-        <Text style={{ color: '#F0914A' }}>Gift</Text> Highway
-      </Text>
+      <View style={headerStyles.textWrap}>
+        <Text style={headerStyles.logoText}>
+          <Text style={{ color: '#F0914A' }}>Gift</Text> Highway
+        </Text>
+        <Text style={headerStyles.logoSubText}>
+          ENRICHING EVERY MOMENT
+        </Text>
+      </View>
     </View>
   )
 }
@@ -109,11 +114,23 @@ const headerStyles = StyleSheet.create({
     paddingLeft: 16,
     gap: 8,
   },
+  textWrap: {
+    justifyContent: 'center',
+    transform: [{ translateY: 1 }],
+  },
   logoText: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#111827',
+    color: '#1e1b4b',
     letterSpacing: -0.5,
+    lineHeight: 20,
+  },
+  logoSubText: {
+    fontSize: 8.5,
+    fontWeight: '700',
+    color: '#6B7280',
+    letterSpacing: 1.5,
+    marginTop: 1,
   },
   iconBtn: {
     paddingRight: 16,
