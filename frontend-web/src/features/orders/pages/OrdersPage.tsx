@@ -7,27 +7,29 @@ import type { Order } from '../../../services/orderService'
 const STATUS_OPTIONS = ['new', 'in_progress', 'completed'] as const
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'urgent'] as const
 
+// Match exact order-app colors
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  new:         { label: 'Yet to Start', color: '#0F172A', bg: '#F1F5F9' },
-  in_progress: { label: 'Working',      color: '#2563EB', bg: '#EFF6FF' },
-  completed:   { label: 'Done',         color: '#16A34A', bg: '#F0FDF4' },
+  new:         { label: 'Yet to Start', color: '#6B7280', bg: '#F3F4F6' },
+  in_progress: { label: 'Working',      color: '#3B82F6', bg: '#EFF6FF' },
+  completed:   { label: 'Done',         color: '#10B981', bg: '#ECFDF5' },
 }
 
 const PRIORITY_META: Record<string, { label: string; color: string; bg: string }> = {
-  low:    { label: 'Low',    color: '#475569', bg: '#F1F5F9' },
-  medium: { label: 'Medium', color: '#92400E', bg: '#FEF3C7' },
-  high:   { label: 'High',   color: '#86198F', bg: '#FAE8FF' },
-  urgent: { label: 'Urgent', color: '#991B1B', bg: '#FEE2E2' },
+  low:    { label: 'Low',    color: '#6B7280', bg: '#F3F4F6' },
+  medium: { label: 'Medium', color: '#F59E0B', bg: '#FFFBEB' },
+  high:   { label: 'High',   color: '#8B5CF6', bg: '#F3E8FF' },
+  urgent: { label: 'Urgent', color: '#EF4444', bg: '#FEF2F2' },
 }
 
 function StatusBadge({ status }: { status: string }) {
   const m = STATUS_META[status] ?? STATUS_META.new
   return (
     <span style={{
-      display: 'inline-block', padding: '2px 8px',
-      borderRadius: '99px', fontSize: '11px', fontWeight: 700,
-      color: m.color, background: m.bg, letterSpacing: '0.2px'
+      display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 9px',
+      borderRadius: '9999px', fontSize: '11.5px', fontWeight: 600,
+      color: m.color, background: m.bg, whiteSpace: 'nowrap'
     }}>
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor' }} />
       {m.label}
     </span>
   )
@@ -37,9 +39,9 @@ function PriorityBadge({ priority }: { priority: string }) {
   const m = PRIORITY_META[priority] ?? PRIORITY_META.medium
   return (
     <span style={{
-      display: 'inline-flex', alignItems: 'center', padding: '2px 8px',
-      borderRadius: '99px', fontSize: '11px', fontWeight: 600,
-      color: m.color, background: m.bg, letterSpacing: '0.2px'
+      display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 9px',
+      borderRadius: '9999px', fontSize: '11.5px', fontWeight: 600,
+      color: m.color, background: m.bg, whiteSpace: 'nowrap'
     }}>{m.label}</span>
   )
 }
@@ -59,18 +61,15 @@ function StatusDropdown({ order, onChanged }: { order: Order; onChanged?: (msg: 
 
   return (
     <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
-      <div
-        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        style={{ cursor: 'pointer' }}
-      >
+      <div onClick={(e) => { e.stopPropagation(); setOpen(!open); }} style={{ cursor: 'pointer' }}>
         <StatusBadge status={order.status} />
       </div>
       {open && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, zIndex: 50, marginTop: '4px',
-          background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px',
-          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',
-          padding: '4px', minWidth: '120px',
+          background: '#FFFFFF', border: '1px solid #E4E6EF', borderRadius: '10px',
+          boxShadow: '0 4px 16px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04)',
+          padding: '4px', minWidth: '130px',
         }}>
           {STATUS_OPTIONS.map(s => (
             <div
@@ -86,10 +85,10 @@ function StatusDropdown({ order, onChanged }: { order: Order; onChanged?: (msg: 
                 }
               }}
               style={{
-                padding: '6px 12px', fontSize: '12px', fontWeight: order.status === s ? 700 : 500,
-                color: order.status === s ? '#0F172A' : '#475569',
-                background: order.status === s ? '#F8FAFC' : 'transparent',
-                borderRadius: '4px', cursor: 'pointer', transition: 'background 0.1s'
+                padding: '8px 12px', fontSize: '12px', fontWeight: order.status === s ? 600 : 500,
+                color: order.status === s ? '#111827' : '#6B7280',
+                background: order.status === s ? '#F5F6FA' : 'transparent',
+                borderRadius: '6px', cursor: 'pointer', transition: 'background 0.15s ease'
               }}
             >
               {STATUS_META[s]?.label}
@@ -146,35 +145,44 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
   const handleEdit = (order: Order) => { setEditOrder(order); setModalKey(k => k + 1); setShowModal(true) }
 
   return (
-    <div className="screen active" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', padding: '24px', background: '#FAFAFA', boxSizing: 'border-box' }}>
+    <div className="screen active" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', padding: '24px', background: '#F5F6FA', boxSizing: 'border-box' }}>
       <style>{`
         .orders-table { width: 100%; border-collapse: collapse; }
         .orders-table th {
-          text-align: left; padding: 10px 16px;
-          font-size: 11.5px; font-weight: 700; color: #94A3B8;
-          text-transform: uppercase; letter-spacing: 0.5px;
-          border-bottom: 1px solid #E2E8F0; background: #F8FAFC;
-          white-space: nowrap; user-select: none;
+          padding: 10px 16px;
+          text-align: left;
+          font-size: 11.5px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: .5px;
+          color: #9CA3AF;
+          background: #F0F1F5;
+          border-bottom: 1px solid #E4E6EF;
+          white-space: nowrap;
+          user-select: none;
         }
         .orders-table td {
-          padding: 11px 16px; font-size: 13px; color: #0F172A;
+          padding: 11px 16px;
+          font-size: 13px;
+          color: #111827;
           vertical-align: middle;
         }
         .orders-table tr {
-          border-bottom: 1px solid #E2E8F0;
-          transition: background 0.15s ease; cursor: pointer;
+          border-bottom: 1px solid #E4E6EF;
+          transition: background 200ms cubic-bezier(.4,0,.2,1);
+          cursor: pointer;
           background: #FFFFFF;
         }
-        .orders-table tr:hover { background: #F8FAFC; }
+        .orders-table tr:hover { background: #F0F1F5; }
         .orders-table tr:last-child { border-bottom: none; }
         
         .toolbar-item {
-          padding: 8px 12px; border: 1px solid #E2E8F0; border-radius: 6px;
-          font-size: 13px; color: #1E293B; background: #FFFFFF; cursor: pointer;
-          outline: none; transition: all 0.15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+          padding: 6px 10px; border: 1.5px solid #E4E6EF; border-radius: 10px;
+          font-size: 13px; color: #111827; background: #FFFFFF; cursor: pointer;
+          outline: none; transition: border-color 150ms cubic-bezier(.4,0,.2,1);
+          font-family: inherit;
         }
-        .toolbar-item:focus { border-color: #94A3B8; box-shadow: 0 0 0 2px rgba(226,232,240,0.5); }
-        .toolbar-item:hover { border-color: #CBD5E1; }
+        .toolbar-item:hover, .toolbar-item:focus { border-color: #6366F1; }
         
         @keyframes slideInToast { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
       `}</style>
@@ -182,10 +190,10 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
       {/* Page Header (Order-App styling) */}
       <div style={{ padding: '0 0 16px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div style={{ marginTop: '-8px' }}>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#0F172A', margin: '0 0 2px 0', letterSpacing: '-0.3px' }}>
+          <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#111827', margin: '0 0 2px 0', letterSpacing: '-0.5px' }}>
             {myOrdersOnly ? 'My Orders' : 'All Orders'}
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>
+          <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>
             {myOrdersOnly ? `${total} orders assigned to you` : `${total} total orders`}
           </p>
         </div>
@@ -195,12 +203,14 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
             onClick={handleOpenCreate}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '6px',
-              padding: '7px 14px', borderRadius: '6px', border: 'none',
-              background: '#2563EB', color: '#FFFFFF', fontSize: '13px', fontWeight: 600,
-              cursor: 'pointer', transition: 'all 0.15s ease', boxShadow: '0 1px 2px rgba(37,99,235,0.2)'
+              padding: '7px 14px', borderRadius: '10px', border: '1.5px solid transparent',
+              background: '#6366F1', color: '#FFFFFF', fontSize: '13px', fontWeight: 600,
+              cursor: 'pointer', transition: 'all 150ms cubic-bezier(.4,0,.2,1)', boxShadow: '0 2px 8px rgba(99, 102, 241, 0.15)',
+              whiteSpace: 'nowrap'
             }}
-            onMouseOver={e => e.currentTarget.style.background = '#1D4ED8'}
-            onMouseOut={e => e.currentTarget.style.background = '#2563EB'}
+            onMouseOver={e => { e.currentTarget.style.background = '#4F46E5'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.15)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseOut={e => { e.currentTarget.style.background = '#6366F1'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(99, 102, 241, 0.15)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+            onMouseDown={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Create Order
@@ -209,25 +219,25 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
       </div>
 
       {/* Toolbar */}
-      <div style={{ padding: '0 0 16px 0', display: 'flex', gap: '12px', alignItems: 'center' }}>
+      <div style={{ padding: '0 0 16px 0', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{
-          display: 'flex', alignItems: 'center', background: '#FFFFFF',
-          border: '1px solid #E2E8F0', borderRadius: '6px', padding: '0 10px',
-          width: '280px', boxShadow: '0 1px 2px rgba(0,0,0,0.02)', transition: 'border-color 0.15s ease',
+          display: 'flex', alignItems: 'center', background: '#F0F1F5',
+          border: '1.5px solid transparent', borderRadius: '10px', padding: '6px 12px',
+          width: '220px', transition: 'all 150ms cubic-bezier(.4,0,.2,1)', cursor: 'text'
         }}
-        onFocusCapture={e => e.currentTarget.style.borderColor = '#94A3B8'}
-        onBlurCapture={e => e.currentTarget.style.borderColor = '#E2E8F0'}
+        onFocusCapture={e => { e.currentTarget.style.borderColor = '#6366F1'; e.currentTarget.style.background = '#FFFFFF'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.15)'; e.currentTarget.style.width = '320px'; }}
+        onBlurCapture={e => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = '#F0F1F5'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.width = '220px'; }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input
             type="text"
             placeholder="Search orders..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ border: 'none', background: 'transparent', padding: '8px 8px', fontSize: '13px', outline: 'none', width: '100%', color: '#0F172A' }}
+            style={{ border: 'none', background: 'transparent', padding: '2px 8px', fontSize: '13px', outline: 'none', width: '100%', color: '#111827' }}
           />
           {search && (
-            <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', padding: 0 }}>
+            <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', padding: 0 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           )}
@@ -245,7 +255,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
       </div>
 
       {/* Table Container */}
-      <div style={{ margin: '0 0 24px 0', background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+      <div style={{ margin: '0 0 24px 0', background: '#FFFFFF', border: '1px solid #E4E6EF', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
         <table className="orders-table">
           <thead>
             <tr>
@@ -260,12 +270,12 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px 0', color: '#94A3B8' }}>Loading orders...</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px 0', color: '#9CA3AF' }}>Loading orders...</td></tr>
             ) : orders.length === 0 ? (
               <tr style={{ background: '#FFFFFF', cursor: 'default' }}>
                 <td colSpan={7} style={{ padding: '60px 20px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0F172A', marginBottom: '4px' }}>No orders found</div>
-                  <div style={{ fontSize: '13px', color: '#64748B' }}>Try adjusting your search or filters.</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827', marginBottom: '4px' }}>No orders found</div>
+                  <div style={{ fontSize: '13px', color: '#6B7280' }}>Try adjusting your search or filters.</div>
                 </td>
               </tr>
             ) : orders.map(order => {
@@ -277,19 +287,19 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
               const hoursDiff = Math.round((now.getTime() - updateDate.getTime()) / (1000 * 60 * 60))
               const isRecent = hoursDiff < 24
               const updatedText = isRecent ? (hoursDiff === 0 ? 'Just now' : `${hoursDiff} hr ago`) : updateDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-              const dateColor = isRecent && hoursDiff < 5 ? '#0F172A' : '#64748B'
+              const dateColor = isRecent && hoursDiff < 5 ? '#111827' : '#6B7280'
 
               return (
                 <tr key={order.id} onClick={() => handleEdit(order)}>
                   <td>
-                    <span style={{ fontWeight: 700, color: '#2563EB', fontSize: '12.5px', fontFamily: 'monospace' }}>
+                    <span style={{ fontWeight: 700, color: '#6366F1', fontSize: '12.5px', fontFamily: '"JetBrains Mono", "Fira Code", monospace' }}>
                       #{order.order_number}
                     </span>
                   </td>
                   <td>
-                    <span style={{ fontWeight: 600, fontSize: '13.5px', color: '#0F172A' }}>{order.title}</span>
+                    <span style={{ fontWeight: 500, fontSize: '13px', color: '#111827' }}>{order.title}</span>
                   </td>
-                  <td style={{ fontWeight: 500, fontSize: '13px', color: '#334155' }}>
+                  <td style={{ fontWeight: 500, fontSize: '13px', color: '#111827' }}>
                     {order.customer_name}
                   </td>
                   <td>
@@ -297,26 +307,26 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                   </td>
                   <td>
                     {due ? (
-                      <span style={{ fontWeight: due.isOverdue ? 600 : 400, color: due.isOverdue ? '#DC2626' : '#334155' }}>
+                      <span style={{ fontWeight: due.isOverdue ? 600 : 500, color: due.isOverdue ? '#EF4444' : '#111827' }}>
                         {due.formatted} {due.isOverdue && '(Overdue)'}
                       </span>
                     ) : (
-                      <span style={{ color: '#94A3B8' }}>—</span>
+                      <span style={{ color: '#9CA3AF' }}>—</span>
                     )}
                   </td>
                   <td>
                     {order.assigned_name ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700 }}>
+                        <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#EEF2FF', color: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700 }}>
                           {getInitials(order.assigned_name)}
                         </div>
-                        <span style={{ fontSize: '13px', color: '#334155', fontWeight: 500 }}>{order.assigned_name.split(' ')[0]}</span>
+                        <span style={{ fontSize: '13px', color: '#111827', fontWeight: 500 }}>{order.assigned_name.split(' ')[0]}</span>
                       </div>
                     ) : (
-                      <span style={{ fontSize: '13px', color: '#94A3B8' }}>Unassigned</span>
+                      <span style={{ fontSize: '13px', color: '#9CA3AF' }}>Unassigned</span>
                     )}
                   </td>
-                  <td style={{ fontSize: '12.5px', color: dateColor, fontWeight: dateColor === '#0F172A' ? 600 : 400 }}>
+                  <td style={{ fontSize: '12.5px', color: dateColor, fontWeight: dateColor === '#111827' ? 500 : 400 }}>
                     {updatedText}
                   </td>
                 </tr>
@@ -338,13 +348,13 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
       {toast && (
         <div style={{
           position: 'fixed', bottom: '28px', right: '28px', zIndex: 1000,
-          background: '#0F172A', color: '#fff', padding: '12px 20px',
+          background: '#111827', color: '#FFFFFF', padding: '12px 20px',
           borderRadius: '10px', fontSize: '14px', fontWeight: 500,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.06)',
           display: 'flex', alignItems: 'center', gap: '10px',
-          animation: 'slideInToast 0.25s cubic-bezier(0.16,1,0.3,1)',
+          animation: 'slideInToast 200ms cubic-bezier(.4,0,.2,1)',
         }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ADE80" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
           {toast}
         </div>
       )}
