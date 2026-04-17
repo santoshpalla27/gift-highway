@@ -51,7 +51,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 
 		// Protected routes
 		protected := api.Group("")
-		protected.Use(middleware.RequireAuth(jwtManager))
+		protected.Use(middleware.RequireAuth(jwtManager, userRepo))
 		{
 			protected.POST("/auth/logout", authHandler.Logout)
 			protected.GET("/auth/me", authHandler.Me)

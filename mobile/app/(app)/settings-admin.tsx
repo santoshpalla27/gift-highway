@@ -15,6 +15,38 @@ import { Ionicons } from '@expo/vector-icons'
 import { adminService, AdminUser } from '../../services/adminService'
 import { router } from 'expo-router'
 
+// ─── Confirm Modal ────────────────────────────────────────────────────────────
+interface ConfirmModalProps {
+  visible: boolean
+  title: string
+  message: string
+  confirmLabel: string
+  confirmColor?: string
+  onConfirm: () => void
+  onCancel: () => void
+}
+
+function ConfirmModal({ visible, title, message, confirmLabel, confirmColor = '#EF4444', onConfirm, onCancel }: ConfirmModalProps) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={SC.overlay}>
+        <View style={SC.dialog}>
+          <Text style={SC.dialogTitle}>{title}</Text>
+          <Text style={SC.dialogMessage}>{message}</Text>
+          <View style={SC.dialogActions}>
+            <TouchableOpacity style={SC.cancelBtn} onPress={onCancel}>
+              <Text style={SC.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[SC.confirmBtn, { backgroundColor: confirmColor }]} onPress={onConfirm}>
+              <Text style={SC.confirmBtnText}>{confirmLabel}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  )
+}
+
 // ─── Modals ───────────────────────────────────────────────────────────────────
 
 function FormField({ label, value, onChangeText, secureTextEntry, autoCapitalize }: any) {
@@ -213,6 +245,7 @@ export default function AdminScreen() {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchFocused, setIsSearchFocused] = useState(false)
+  const [confirmModal, setConfirmModal] = useState<Omit<ConfirmModalProps, 'visible'> | null>(null)
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
@@ -231,27 +264,40 @@ export default function AdminScreen() {
     fetchUsers()
   }, [fetchUsers])
 
+  const handleToggleActive = (u: AdminUser) => {
+    setActiveMenuId(null)
+    if (u.is_active) {
+      setConfirmModal({
+        title: 'Disable User',
+        message: `Disable ${u.name}? They will be logged out and won't be able to log in.`,
+        confirmLabel: 'Disable',
+        confirmColor: '#D97706',
+        onConfirm: async () => {
+          setConfirmModal(null)
+          try { await adminService.disableUser(u.id); fetchUsers() }
+          catch { Alert.alert('Error', 'Could not disable user') }
+        },
+        onCancel: () => setConfirmModal(null),
+      })
+    } else {
+      adminService.enableUser(u.id).then(fetchUsers).catch(() => Alert.alert('Error', 'Could not enable user'))
+    }
+  }
+
   const handleDelete = (u: AdminUser) => {
     setActiveMenuId(null)
-    const performDelete = async () => {
-      try {
-        await adminService.deleteUser(u.id)
-        fetchUsers()
-      } catch {
-        Alert.alert('Error', 'Could not disable user')
-      }
-    }
-
-    if (Platform.OS === 'web') {
-      if (window.confirm(`Disable ${u.name}? This will prevent them from logging in.`)) {
-        performDelete()
-      }
-    } else {
-      Alert.alert('Disable User', `Disable ${u.name}? This will prevent them from logging in.`, [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Disable', style: 'destructive', onPress: performDelete },
-      ])
-    }
+    setConfirmModal({
+      title: 'Delete User',
+      message: `Permanently delete ${u.name}? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      confirmColor: '#EF4444',
+      onConfirm: async () => {
+        setConfirmModal(null)
+        try { await adminService.deleteUser(u.id); fetchUsers() }
+        catch { Alert.alert('Error', 'Could not delete user') }
+      },
+      onCancel: () => setConfirmModal(null),
+    })
   }
 
   const getInitials = (name: string) =>
@@ -358,14 +404,14 @@ export default function AdminScreen() {
                {/* Dropdown Menu */}
                {activeMenuId === u.id && (
                  <View style={S.menuDropdown}>
-                   <TouchableOpacity 
+                   <TouchableOpacity
                      style={S.menuDropdownItem}
                      onPress={() => { setActiveMenuId(null); setEditUser(u); }}
                    >
                      <Ionicons name="pencil" size={16} color="#374151" />
                      <Text style={S.menuDropdownText}>Edit User</Text>
                    </TouchableOpacity>
-                   <TouchableOpacity 
+                   <TouchableOpacity
                      style={S.menuDropdownItem}
                      onPress={() => { setActiveMenuId(null); setPwdUser(u); }}
                    >
@@ -373,12 +419,29 @@ export default function AdminScreen() {
                      <Text style={S.menuDropdownText}>Change Password</Text>
                    </TouchableOpacity>
                    <View style={S.menuDivider} />
-                   <TouchableOpacity 
+                   {u.is_active ? (
+                     <TouchableOpacity
+                       style={S.menuDropdownItem}
+                       onPress={() => handleToggleActive(u)}
+                     >
+                       <Ionicons name="ban" size={16} color="#D97706" />
+                       <Text style={[S.menuDropdownText, { color: '#D97706' }]}>Disable User</Text>
+                     </TouchableOpacity>
+                   ) : (
+                     <TouchableOpacity
+                       style={S.menuDropdownItem}
+                       onPress={() => handleToggleActive(u)}
+                     >
+                       <Ionicons name="checkmark-circle" size={16} color="#059669" />
+                       <Text style={[S.menuDropdownText, { color: '#059669' }]}>Enable User</Text>
+                     </TouchableOpacity>
+                   )}
+                   <TouchableOpacity
                      style={S.menuDropdownItem}
                      onPress={() => handleDelete(u)}
                    >
-                     <Ionicons name="close-circle" size={16} color="#EF4444" />
-                     <Text style={[S.menuDropdownText, { color: '#EF4444' }]}>Disable User</Text>
+                     <Ionicons name="trash" size={16} color="#EF4444" />
+                     <Text style={[S.menuDropdownText, { color: '#EF4444' }]}>Delete Permanently</Text>
                    </TouchableOpacity>
                  </View>
                )}
@@ -393,9 +456,73 @@ export default function AdminScreen() {
       <CreateUserModal visible={showCreate} onClose={() => setShowCreate(false)} onRefresh={fetchUsers} />
       <EditUserModal user={editUser} onClose={() => setEditUser(null)} onRefresh={fetchUsers} />
       <ChangePasswordModal user={pwdUser} onClose={() => setPwdUser(null)} />
+      <ConfirmModal visible={!!confirmModal} {...(confirmModal ?? { title: '', message: '', confirmLabel: '', onConfirm: () => {}, onCancel: () => {} })} />
     </View>
   )
 }
+
+// ─── Confirm Modal Styles ─────────────────────────────────────────────────────
+const SC = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  dialog: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 360,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+  dialogTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  dialogMessage: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 21,
+    marginBottom: 24,
+  },
+  dialogActions: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'flex-end',
+  },
+  cancelBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  cancelBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  confirmBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  confirmBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+})
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const S = StyleSheet.create({

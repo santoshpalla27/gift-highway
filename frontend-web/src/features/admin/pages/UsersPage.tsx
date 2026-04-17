@@ -5,6 +5,49 @@ import { EditUserModal } from '../components/EditUserModal'
 import { ChangePasswordModal } from '../components/ChangePasswordModal'
 import type { AdminUser } from '../../../services/adminService'
 
+interface ConfirmDialogProps {
+  title: string
+  message: string
+  confirmLabel: string
+  confirmColor?: string
+  onConfirm: () => void
+  onCancel: () => void
+}
+
+function ConfirmDialog({ title, message, confirmLabel, confirmColor = '#EF4444', onConfirm, onCancel }: ConfirmDialogProps) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)',
+    }} onClick={onCancel}>
+      <div style={{
+        background: '#fff', borderRadius: '12px', padding: '28px 28px 24px',
+        maxWidth: '400px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{ fontSize: '17px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>{title}</div>
+        <div style={{ fontSize: '14px', color: '#6B7280', lineHeight: '1.5', marginBottom: '24px' }}>{message}</div>
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+          <button
+            onClick={onCancel}
+            style={{
+              padding: '8px 16px', borderRadius: '8px', border: '1px solid #E5E7EB',
+              background: '#fff', color: '#374151', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+            }}
+          >Cancel</button>
+          <button
+            onClick={onConfirm}
+            style={{
+              padding: '8px 16px', borderRadius: '8px', border: 'none',
+              background: confirmColor, color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+            }}
+          >{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function useClickOutside(ref: React.RefObject<HTMLElement>, handler: () => void) {
   useEffect(() => {
     const listener = (event: MouseEvent | TouchEvent) => {
@@ -93,6 +136,7 @@ export function UsersPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [editUser, setEditUser] = useState<AdminUser | null>(null)
   const [pwdUser, setPwdUser] = useState<AdminUser | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogProps | null>(null)
 
   const filtered = users.filter(u =>
     u.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -101,18 +145,28 @@ export function UsersPage() {
 
   const handleToggleActive = (user: AdminUser) => {
     if (user.is_active) {
-      if (window.confirm(`Disable ${user.name}? They will not be able to log in.`)) {
-        disableUser(user.id)
-      }
+      setConfirmDialog({
+        title: 'Disable User',
+        message: `Disable ${user.name}? They will be logged out and won't be able to log in.`,
+        confirmLabel: 'Disable',
+        confirmColor: '#D97706',
+        onConfirm: () => { setConfirmDialog(null); disableUser(user.id) },
+        onCancel: () => setConfirmDialog(null),
+      })
     } else {
       enableUser(user.id)
     }
   }
 
   const handleDelete = (user: AdminUser) => {
-    if (window.confirm(`Permanently delete ${user.name}? This cannot be undone.`)) {
-      deleteUser(user.id)
-    }
+    setConfirmDialog({
+      title: 'Delete User',
+      message: `Permanently delete ${user.name}? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      confirmColor: '#EF4444',
+      onConfirm: () => { setConfirmDialog(null); deleteUser(user.id) },
+      onCancel: () => setConfirmDialog(null),
+    })
   }
 
   return (
@@ -505,6 +559,7 @@ export function UsersPage() {
       {showCreate && <CreateUserModal onClose={() => setShowCreate(false)} />}
       {editUser && <EditUserModal user={editUser} onClose={() => setEditUser(null)} />}
       {pwdUser && <ChangePasswordModal user={pwdUser} onClose={() => setPwdUser(null)} />}
+      {confirmDialog && <ConfirmDialog {...confirmDialog} />}
     </div>
   )
 }

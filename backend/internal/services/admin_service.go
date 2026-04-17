@@ -119,7 +119,10 @@ func (s *AdminService) DisableUser(ctx context.Context, id, requestorID string) 
 		}
 	}
 
-	return s.userRepo.DisableUser(ctx, id)
+	if err := s.userRepo.DisableUser(ctx, id); err != nil {
+		return err
+	}
+	return s.userRepo.RevokeAllUserTokens(ctx, id)
 }
 
 func (s *AdminService) EnableUser(ctx context.Context, id string) error {

@@ -5,10 +5,11 @@ import (
 	"strings"
 
 	"github.com/company/app/backend/internal/auth"
+	"github.com/company/app/backend/internal/repositories"
 	"github.com/gin-gonic/gin"
 )
 
-func RequireAuth(jwtManager *auth.JWTManager) gin.HandlerFunc {
+func RequireAuth(jwtManager *auth.JWTManager, userRepo *repositories.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		header := c.GetHeader("Authorization")
 		if header == "" || !strings.HasPrefix(header, "Bearer ") {
@@ -21,6 +22,13 @@ func RequireAuth(jwtManager *auth.JWTManager) gin.HandlerFunc {
 		claims, err := jwtManager.Verify(tokenStr)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+			c.Abort()
+			return
+		}
+
+		user, err := userRepo.FindByID(c.Request.Context(), claims.UserID)
+		if err != nil || !user.IsActive {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "account disabled"})
 			c.Abort()
 			return
 		}
