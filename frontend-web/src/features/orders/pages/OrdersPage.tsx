@@ -103,11 +103,13 @@ function StatusDropdown({ order, onChanged }: { order: Order; onChanged?: (msg: 
 function formatDueDate(dateStr: string | null) {
   if (!dateStr) return null
   const d = new Date(dateStr)
+  d.setHours(0, 0, 0, 0)
   const now = new Date()
   now.setHours(0, 0, 0, 0)
   const isOverdue = d < now
-  const formatted = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
-  return { formatted, isOverdue }
+  const isToday = d.getTime() === now.getTime()
+  const formatted = isToday ? 'Today' : d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+  return { formatted, isOverdue, isToday }
 }
 
 function getInitials(name: string) {
@@ -321,7 +323,10 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                   </td>
                   <td>
                     {due ? (
-                      <span style={{ fontWeight: due.isOverdue ? 600 : 500, color: due.isOverdue ? '#EF4444' : '#111827' }}>
+                      <span style={{ 
+                        fontWeight: (due.isOverdue || due.isToday) ? 600 : 500, 
+                        color: due.isOverdue ? '#EF4444' : due.isToday ? '#F59E0B' : '#111827' 
+                      }}>
                         {due.formatted} {due.isOverdue && '(Overdue)'}
                       </span>
                     ) : (
