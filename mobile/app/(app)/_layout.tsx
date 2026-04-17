@@ -98,6 +98,13 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
+        name="settings-admin"
+        options={{
+          href: null,
+          title: 'Admin Panel',
+        }}
+      />
+      <Tabs.Screen
         name="index"
         options={{
           href: null,
