@@ -1,0 +1,22 @@
+package middleware
+
+import (
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+)
+
+func CORS(allowedOrigins []string) gin.HandlerFunc {
+	cfg := cors.Config{
+		AllowMethods:  []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:  []string{"Origin", "Content-Type", "Authorization", "X-Request-ID"},
+		ExposeHeaders: []string{"Content-Length", "X-Request-ID"},
+		MaxAge:        12 * 3600,
+	}
+	if len(allowedOrigins) == 1 && allowedOrigins[0] == "*" {
+		cfg.AllowAllOrigins = true
+	} else {
+		cfg.AllowOrigins = allowedOrigins
+		cfg.AllowCredentials = true
+	}
+	return cors.New(cfg)
+}

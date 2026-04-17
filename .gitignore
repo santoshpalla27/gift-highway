@@ -49,6 +49,5 @@ Thumbs.db
 *.log
 logs/
 
-
-order-kanban-app
-frontend-sample
+/order-kanban-app/
+/frontend-sample/

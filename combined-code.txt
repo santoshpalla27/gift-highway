@@ -1,0 +1,2911 @@
+================================================================
+DIRECTORY STRUCTURE
+================================================================
+.claude
+  settings.local.json
+.env.example
+.github
+  workflows
+    ci.yml
+Makefile
+backend
+  .env
+  .env.example
+  Dockerfile
+  cmd
+    server
+      main.go
+  go.mod
+  go.sum
+  internal
+    api
+      router.go
+      v1
+        auth.go
+        health.go
+    auth
+      jwt.go
+      password.go
+    config
+      config.go
+    db
+      postgres.go
+    middleware
+      auth_middleware.go
+      cors.go
+      logger.go
+      ratelimit.go
+      security.go
+    models
+      token.go
+      user.go
+    repositories
+      user_repository.go
+    services
+      auth_service.go
+  migrations
+    000001_create_users_table.down.sql
+    000001_create_users_table.up.sql
+    000002_create_roles_table.down.sql
+    000002_create_roles_table.up.sql
+    000003_create_refresh_tokens_table.down.sql
+    000003_create_refresh_tokens_table.up.sql
+combine-code.sh
+combined-code.txt
+docker-compose.yml
+docs
+  crds.txt
+frontend-web
+  .env.example
+  Dockerfile
+  index.html
+  nginx.conf
+  node_modules
+  package-lock.json
+  package.json
+  postcss.config.js
+  src
+    app
+      App.tsx
+      AppShell.tsx
+    components
+      NotFoundPage.tsx
+      layout
+        Sidebar.tsx
+        TopBar.tsx
+    features
+      auth
+        hooks
+          useLogin.ts
+          useLogout.ts
+        pages
+          LoginPage.tsx
+      dashboard
+        pages
+          DashboardPage.tsx
+    main.tsx
+    routes
+      ProtectedRoute.tsx
+      PublicRoute.tsx
+    services
+      apiClient.ts
+      authService.ts
+      queryClient.ts
+    store
+      authStore.ts
+    styles
+      globals.css
+    types
+      index.ts
+    utils
+      cn.ts
+  tailwind.config.js
+  tsconfig.app.json
+  tsconfig.json
+  tsconfig.node.json
+  vite.config.ts
+infra
+  nginx
+    nginx.conf
+mobile
+  .expo
+    README.md
+    devices.json
+  app
+  app.json
+    (app)
+      _layout.tsx
+      index.tsx
+    (auth)
+      _layout.tsx
+      login.tsx
+    _layout.tsx
+  node_modules
+  package-lock.json
+  package.json
+  services
+    apiClient.ts
+    authService.ts
+  store
+    authStore.ts
+  tsconfig.json
+
+
+================================================================
+FILE CONTENTS
+================================================================
+
+----------------------------------------------------------------
+FILE: .claude/settings.local.json
+----------------------------------------------------------------
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x /Users/vamsy/Downloads/hmmm/combine-code.sh)",
+      "Bash(bash combine-code.sh)",
+      "Bash(bash /Users/vamsy/Downloads/hmmm/combine-code.sh)",
+      "Bash(go mod tidy)",
+      "Bash(go build ./...)",
+      "Bash(grep -v \"^/Users/vamsy/Downloads/hmmm$\")"
+    ]
+  }
+}
+
+
+----------------------------------------------------------------
+FILE: .env.example
+----------------------------------------------------------------
+# Backend
+APP_ENV=development
+PORT=8080
+DATABASE_URL=postgres://app:secret@localhost:5432/appdb?sslmode=disable
+JWT_SECRET=change-me-in-production-use-32-chars-minimum
+JWT_EXPIRY=15m
+REFRESH_EXPIRY=720h
+ALLOWED_ORIGINS=http://localhost:5173
+
+# Frontend
+VITE_API_URL=/api/v1
+
+# Mobile
+EXPO_PUBLIC_API_URL=http://localhost:8080/api/v1
+
+
+----------------------------------------------------------------
+FILE: .github/workflows/ci.yml
+----------------------------------------------------------------
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+      - name: Vet
+        working-directory: ./backend
+        run: go vet ./...
+      - name: Build
+        working-directory: ./backend
+        run: go build ./...
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend-web/package-lock.json
+      - name: Install
+        working-directory: ./frontend-web
+        run: npm ci
+      - name: Lint
+        working-directory: ./frontend-web
+        run: npm run lint
+      - name: Build
+        working-directory: ./frontend-web
+        run: npm run build
+
+
+----------------------------------------------------------------
+FILE: Makefile
+----------------------------------------------------------------
+.PHONY: dev dev-backend dev-frontend db-up db-down migrate lint
+
+dev:
+	docker compose up -d postgres
+	@echo "Starting backend and frontend in parallel..."
+	@make -j2 dev-backend dev-frontend
+
+dev-backend:
+	cd backend && go run ./cmd/server
+
+dev-frontend:
+	cd frontend-web && npm run dev
+
+db-up:
+	docker compose up -d postgres
+
+db-down:
+	docker compose down postgres
+
+db-migrate:
+	cd backend && go run -tags migrate ./cmd/migrate
+
+docker-up:
+	docker compose up --build
+
+docker-down:
+	docker compose down
+
+lint-backend:
+	cd backend && go vet ./...
+
+lint-frontend:
+	cd frontend-web && npm run lint
+
+lint: lint-backend lint-frontend
+
+
+----------------------------------------------------------------
+FILE: backend/.env
+----------------------------------------------------------------
+APP_ENV=development
+PORT=8080
+DATABASE_URL=postgres://kanban:kanban@43.205.236.122:5432/kanban?sslmode=disable
+JWT_SECRET=644f1998cdcf93dae9a392627f36684983a60c5f1c384b81db896c7213bd71a0
+JWT_EXPIRY=15m
+REFRESH_EXPIRY=720h
+ALLOWED_ORIGINS=http://localhost:5173
+RATE_LIMIT_RPS=100
+RATE_LIMIT_BURST=200
+
+
+----------------------------------------------------------------
+FILE: backend/.env.example
+----------------------------------------------------------------
+APP_ENV=development
+PORT=8080
+DATABASE_URL=postgres://app:secret@localhost:5432/appdb?sslmode=disable
+JWT_SECRET=change-me-in-production-use-32-chars-minimum
+JWT_EXPIRY=15m
+REFRESH_EXPIRY=720h
+ALLOWED_ORIGINS=http://localhost:5173
+RATE_LIMIT_RPS=100
+RATE_LIMIT_BURST=200
+
+
+----------------------------------------------------------------
+FILE: backend/Dockerfile
+----------------------------------------------------------------
+FROM golang:1.22-alpine AS builder
+WORKDIR /app
+RUN apk add --no-cache git ca-certificates
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o server ./cmd/server
+
+FROM scratch
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /app/server /server
+COPY --from=builder /app/migrations /migrations
+EXPOSE 8080
+ENTRYPOINT ["/server"]
+
+
+----------------------------------------------------------------
+FILE: backend/cmd/server/main.go
+----------------------------------------------------------------
+package main
+
+import (
+	"context"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/company/app/backend/internal/api"
+	"github.com/company/app/backend/internal/config"
+	"github.com/company/app/backend/internal/db"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+)
+
+func main() {
+	// Structured logging
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	if os.Getenv("APP_ENV") != "production" {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	}
+
+	cfg := config.Load()
+
+	database, err := db.Connect(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to connect to database")
+	}
+	defer database.Close()
+
+	router := api.NewRouter(cfg, database)
+
+	srv := &http.Server{
+		Addr:         ":" + cfg.Port,
+		Handler:      router,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	go func() {
+		log.Info().Str("port", cfg.Port).Msg("server starting")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal().Err(err).Msg("server failed")
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Info().Msg("shutting down server...")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal().Err(err).Msg("server forced to shutdown")
+	}
+	log.Info().Msg("server exited")
+}
+
+
+----------------------------------------------------------------
+FILE: backend/go.mod
+----------------------------------------------------------------
+module github.com/company/app/backend
+
+go 1.22
+
+require (
+	github.com/gin-contrib/cors v1.7.2
+	github.com/gin-gonic/gin v1.10.0
+	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/google/uuid v1.6.0
+	github.com/jmoiron/sqlx v1.4.0
+	github.com/joho/godotenv v1.5.1
+	github.com/lib/pq v1.10.9
+	github.com/rs/zerolog v1.33.0
+	golang.org/x/crypto v0.24.0
+)
+
+require (
+	github.com/bytedance/sonic v1.11.6 // indirect
+	github.com/bytedance/sonic/loader v0.1.1 // indirect
+	github.com/cloudwego/base64x v0.1.4 // indirect
+	github.com/cloudwego/iasm v0.2.0 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
+	github.com/gin-contrib/sse v0.1.0 // indirect
+	github.com/go-playground/locales v0.14.1 // indirect
+	github.com/go-playground/universal-translator v0.18.1 // indirect
+	github.com/go-playground/validator/v10 v10.20.0 // indirect
+	github.com/goccy/go-json v0.10.2 // indirect
+	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
+	github.com/kr/text v0.2.0 // indirect
+	github.com/leodido/go-urn v1.4.0 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
+	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
+	github.com/ugorji/go/codec v1.2.12 // indirect
+	golang.org/x/arch v0.8.0 // indirect
+	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
+	google.golang.org/protobuf v1.34.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
+
+----------------------------------------------------------------
+FILE: backend/go.sum
+----------------------------------------------------------------
+filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
+filippo.io/edwards25519 v1.1.0/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
+github.com/bytedance/sonic v1.11.6 h1:oUp34TzMlL+OY1OUWxHqsdkgC/Zfc85zGqw9siXjrc0=
+github.com/bytedance/sonic v1.11.6/go.mod h1:LysEHSvpvDySVdC2f87zGWf6CIKJcAvqab1ZaiQtds4=
+github.com/bytedance/sonic/loader v0.1.1 h1:c+e5Pt1k/cy5wMveRDyk2X4B9hF4g7an8N3zCYjJFNM=
+github.com/bytedance/sonic/loader v0.1.1/go.mod h1:ncP89zfokxS5LZrJxl5z0UJcsk4M4yY2JpfqGeCtNLU=
+github.com/cloudwego/base64x v0.1.4 h1:jwCgWpFanWmN8xoIUHa2rtzmkd5J2plF/dnLS6Xd/0Y=
+github.com/cloudwego/base64x v0.1.4/go.mod h1:0zlkT4Wn5C6NdauXdJRhSKRlJvmclQ1hhJgA0rcu/8w=
+github.com/cloudwego/iasm v0.2.0 h1:1KNIy1I1H9hNNFEEH3DVnI4UujN+1zjpuk6gwHLTssg=
+github.com/cloudwego/iasm v0.2.0/go.mod h1:8rXZaNYT2n95jn+zTI1sDr+IgcD2GVs0nlbbQPiEFhY=
+github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
+github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
+github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
+github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/gabriel-vasile/mimetype v1.4.3 h1:in2uUcidCuFcDKtdcBxlR0rJ1+fsokWf+uqxgUFjbI0=
+github.com/gabriel-vasile/mimetype v1.4.3/go.mod h1:d8uq/6HKRL6CGdk+aubisF/M5GcPfT7nKyLpA0lbSSk=
+github.com/gin-contrib/cors v1.7.2 h1:oLDHxdg8W/XDoN/8zamqk/Drgt4oVZDvaV0YmvVICQw=
+github.com/gin-contrib/cors v1.7.2/go.mod h1:SUJVARKgQ40dmrzgXEVxj2m7Ig1v1qIboQkPDTQ9t2E=
+github.com/gin-contrib/sse v0.1.0 h1:Y/yl/+YNO8GZSjAhjMsSuLt29uWRFHdHYUb5lYOV9qE=
+github.com/gin-contrib/sse v0.1.0/go.mod h1:RHrZQHXnP2xjPF+u1gW/2HnVO7nvIa9PG3Gm+fLHvGI=
+github.com/gin-gonic/gin v1.10.0 h1:nTuyha1TYqgedzytsKYqna+DfLos46nTv2ygFy86HFU=
+github.com/gin-gonic/gin v1.10.0/go.mod h1:4PMNQiOhvDRa013RKVbsiNwoyezlm2rm0uX/T7kzp5Y=
+github.com/go-playground/assert/v2 v2.2.0 h1:JvknZsQTYeFEAhQwI4qEt9cyV5ONwRHC+lYKSsYSR8s=
+github.com/go-playground/assert/v2 v2.2.0/go.mod h1:VDjEfimB/XKnb+ZQfWdccd7VUvScMdVu0Titje2rxJ4=
+github.com/go-playground/locales v0.14.1 h1:EWaQ/wswjilfKLTECiXz7Rh+3BjFhfDFKv/oXslEjJA=
+github.com/go-playground/locales v0.14.1/go.mod h1:hxrqLVvrK65+Rwrd5Fc6F2O76J/NuW9t0sjnWqG1slY=
+github.com/go-playground/universal-translator v0.18.1 h1:Bcnm0ZwsGyWbCzImXv+pAJnYK9S473LQFuzCbDbfSFY=
+github.com/go-playground/universal-translator v0.18.1/go.mod h1:xekY+UJKNuX9WP91TpwSH2VMlDf28Uj24BCp08ZFTUY=
+github.com/go-playground/validator/v10 v10.20.0 h1:K9ISHbSaI0lyB2eWMPJo+kOS/FBExVwjEviJTixqxL8=
+github.com/go-playground/validator/v10 v10.20.0/go.mod h1:dbuPbCMFw/DrkbEynArYaCwl3amGuJotoKCe95atGMM=
+github.com/go-sql-driver/mysql v1.8.1 h1:LedoTUt/eveggdHS9qUFC1EFSa8bU2+1pZjSRpvNJ1Y=
+github.com/go-sql-driver/mysql v1.8.1/go.mod h1:wEBSXgmK//2ZFJyE+qWnIsVGmvmEKlqwuVSjsCm7DZg=
+github.com/goccy/go-json v0.10.2 h1:CrxCmQqYDkv1z7lO7Wbh2HN93uovUHgrECaO5ZrCXAU=
+github.com/goccy/go-json v0.10.2/go.mod h1:6MelG93GURQebXPDq3khkgXZkazVtN9CRI+MGFi0w8I=
+github.com/godbus/dbus/v5 v5.0.4/go.mod h1:xhWf0FNVPg57R7Z0UbKHbJfkEywrmjJnf7w5xrFpKfA=
+github.com/golang-jwt/jwt/v5 v5.2.1 h1:OuVbFODueb089Lh128TAcimifWaLhJwVflnrgM17wHk=
+github.com/golang-jwt/jwt/v5 v5.2.1/go.mod h1:pqrtFR0X4osieyHYxtmOUWsAWrfe1Q5UVIyoH402zdk=
+github.com/google/go-cmp v0.5.5 h1:Khx7svrCpmxxtHBq5j2mp/xVjsi8hQMfNLvJFAlrGgU=
+github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
+github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
+github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
+github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+github.com/jmoiron/sqlx v1.4.0 h1:1PLqN7S1UYp5t4SrVVnt4nUVNemrDAtxlulVe+Qgm3o=
+github.com/jmoiron/sqlx v1.4.0/go.mod h1:ZrZ7UsYB/weZdl2Bxg6jCRO9c3YHl8r3ahlKmRT4JLY=
+github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
+github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
+github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
+github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
+github.com/klauspost/cpuid/v2 v2.0.9/go.mod h1:FInQzS24/EEf25PyTYn52gqo7WaD8xa0213Md/qVLRg=
+github.com/klauspost/cpuid/v2 v2.2.7 h1:ZWSB3igEs+d0qvnxR/ZBzXVmxkgt8DdzP6m9pfuVLDM=
+github.com/klauspost/cpuid/v2 v2.2.7/go.mod h1:Lcz8mBdAVJIBVzewtcLocK12l3Y+JytZYpaMropDUws=
+github.com/knz/go-libedit v1.10.1/go.mod h1:MZTVkCWyz0oBc7JOWP3wNAzd002ZbM/5hgShxwh4x8M=
+github.com/kr/pretty v0.3.0 h1:WgNl7dwNpEZ6jJ9k1snq4pZsg7DOEN8hP9Xw0Tsjwk0=
+github.com/kr/pretty v0.3.0/go.mod h1:640gp4NfQd8pI5XOwp5fnNeVWj67G7CFk/SaSQn7NBk=
+github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
+github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
+github.com/leodido/go-urn v1.4.0 h1:WT9HwE9SGECu3lg4d/dIA+jxlljEa1/ffXKmRjqdmIQ=
+github.com/leodido/go-urn v1.4.0/go.mod h1:bvxc+MVxLKB4z00jd1z+Dvzr47oO32F/QSNjSBOlFxI=
+github.com/lib/pq v1.10.9 h1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw=
+github.com/lib/pq v1.10.9/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
+github.com/mattn/go-colorable v0.1.13 h1:fFA4WZxdEF4tXPZVKMLwD8oUnCTTo08duU7wxecdEvA=
+github.com/mattn/go-colorable v0.1.13/go.mod h1:7S9/ev0klgBDR4GtXTXX8a3vIGJpMovkB8vQcUbaXHg=
+github.com/mattn/go-isatty v0.0.16/go.mod h1:kYGgaQfpe5nmfYZH+SKPsOc2e4SrIfOl2e/yFXSvRLM=
+github.com/mattn/go-isatty v0.0.19/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
+github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
+github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
+github.com/mattn/go-sqlite3 v1.14.22 h1:2gZY6PC6kBnID23Tichd1K+Z0oS6nE/XwU+Vz/5o4kU=
+github.com/mattn/go-sqlite3 v1.14.22/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
+github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
+github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd h1:TRLaZ9cD/w8PVh93nsPXa1VrQ6jlwL5oN8l14QlcNfg=
+github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
+github.com/modern-go/reflect2 v1.0.2 h1:xBagoLtFs94CBntxluKeaWgTMpvLxC4ur3nMaC9Gz0M=
+github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
+github.com/pelletier/go-toml/v2 v2.2.2 h1:aYUidT7k73Pcl9nb2gScu7NSrKCSHIDE89b3+6Wq+LM=
+github.com/pelletier/go-toml/v2 v2.2.2/go.mod h1:1t835xjRzz80PqgE6HHgN2JOsmgYu/h4qDAS4n929Rs=
+github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
+github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
+github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
+github.com/rogpeppe/go-internal v1.8.0 h1:FCbCCtXNOY3UtUuHUYaghJg4y7Fd14rXifAYUAtL9R8=
+github.com/rogpeppe/go-internal v1.8.0/go.mod h1:WmiCO8CzOY8rg0OYDC4/i/2WRWAB6poM+XZ2dLUbcbE=
+github.com/rs/xid v1.5.0/go.mod h1:trrq9SKmegXys3aeAKXMUTdJsYXVwGY3RLcfgqegfbg=
+github.com/rs/zerolog v1.33.0 h1:1cU2KZkvPxNyfgEmhHAz/1A9Bz+llsdYzklWFzgp0r8=
+github.com/rs/zerolog v1.33.0/go.mod h1:/7mN4D5sKwJLZQ2b/znpjC3/GQWY/xaDXUM0kKWRHss=
+github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
+github.com/stretchr/objx v0.4.0/go.mod h1:YvHI0jy2hoMjB+UWwv71VJQ9isScKT/TqJzVSSt89Yw=
+github.com/stretchr/objx v0.5.0/go.mod h1:Yh+to48EsGEfYuaHDzXPcE3xhTkx73EhmCGUpEOglKo=
+github.com/stretchr/objx v0.5.2/go.mod h1:FRsXN1f5AsAjCGJKqEizvkpNtU+EGNCLh3NxZ/8L+MA=
+github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
+github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
+github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
+github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
+github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
+github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
+github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
+github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
+github.com/twitchyliquid64/golang-asm v0.15.1 h1:SU5vSMR7hnwNxj24w34ZyCi/FmDZTkS4MhqMhdFk5YI=
+github.com/twitchyliquid64/golang-asm v0.15.1/go.mod h1:a1lVb/DtPvCB8fslRZhAngC2+aY1QWCk3Cedj/Gdt08=
+github.com/ugorji/go/codec v1.2.12 h1:9LC83zGrHhuUA9l16C9AHXAqEV/2wBQ4nkvumAE65EE=
+github.com/ugorji/go/codec v1.2.12/go.mod h1:UNopzCgEMSXjBc6AOMqYvWC1ktqTAfzJZUZgYf6w6lg=
+golang.org/x/arch v0.0.0-20210923205945-b76863e36670/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+golang.org/x/arch v0.8.0 h1:3wRIsP3pM4yUptoR96otTUOXI367OS0+c9eeRi9doIc=
+golang.org/x/arch v0.8.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+golang.org/x/crypto v0.24.0 h1:mnl8DM0o513X8fdIkmyFE/5hTYxbwYOjDS/+rK6qpRI=
+golang.org/x/crypto v0.24.0/go.mod h1:Z1PMYSOR5nyMcyAVAIQSKCDwalqy85Aqn1x3Ws4L5DM=
+golang.org/x/net v0.25.0 h1:d/OCCoBEUq33pjydKrGQhw7IlUPI2Oylr+8qLx49kac=
+golang.org/x/net v0.25.0/go.mod h1:JkAGAh7GEvH74S6FOH42FLoXpXbE/aqXSrIQjXgsiwM=
+golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.5.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.6.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.12.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.21.0 h1:rF+pYz3DAGSQAxAu1CbC7catZg4ebC4UIeIhKxBZvws=
+golang.org/x/sys v0.21.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+golang.org/x/text v0.16.0 h1:a94ExnEXNtEwYLGJSIUxnWoxoRz/ZcCsV63ROupILh4=
+golang.org/x/text v0.16.0/go.mod h1:GhwF1Be+LQoKShO3cGOHzqOgRrGaYc9AvblQOmPVHnI=
+golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 h1:H2TDz8ibqkAF6YGhCdN3jS9O0/s90v0rJh3X/OLHEUk=
+golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2/go.mod h1:K8+ghG5WaK9qNqU5K3HdILfMLy1f3aNYFI/wnl100a8=
+google.golang.org/protobuf v1.34.1 h1:9ddQBjfCyZPOHPUiPxpYESBLc+T8P3E+Vo4IbKZgFWg=
+google.golang.org/protobuf v1.34.1/go.mod h1:c6P6GXX6sHbq/GpV6MGZEdwhWPcYBgnhAHhKbcUYpos=
+gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
+gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c h1:Hei/4ADfdWqJk1ZMxUNpqntNwaWcugrBjAiHlqqRiVk=
+gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c/go.mod h1:JHkPIbrfpd72SG/EVd6muEfDQjcINNoR0C8j2r3qZ4Q=
+gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
+gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
+gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
+nullprogram.com/x/optparse v1.0.0/go.mod h1:KdyPE+Igbe0jQUrVfMqDMeJQIJZEuyV7pjYmp6pbG50=
+rsc.io/pdf v0.1.1/go.mod h1:n8OzWcQ6Sp37PL01nO98y4iUCRdTGarVfzxY20ICaU4=
+
+
+----------------------------------------------------------------
+FILE: backend/internal/api/router.go
+----------------------------------------------------------------
+package api
+
+import (
+	v1 "github.com/company/app/backend/internal/api/v1"
+	"github.com/company/app/backend/internal/auth"
+	"github.com/company/app/backend/internal/config"
+	"github.com/company/app/backend/internal/middleware"
+	"github.com/company/app/backend/internal/repositories"
+	"github.com/company/app/backend/internal/services"
+	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
+)
+
+func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
+	if cfg.AppEnv == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	r := gin.New()
+
+	// Global middleware
+	r.Use(middleware.RequestLogger())
+	r.Use(middleware.SecurityHeaders())
+	r.Use(middleware.CORS(cfg.AllowedOrigins))
+	r.Use(middleware.RateLimit(cfg.RateLimitRPS, cfg.RateLimitBurst))
+	r.Use(gin.Recovery())
+
+	// Dependencies
+	userRepo := repositories.NewUserRepository(db)
+	jwtManager := auth.NewJWTManager(cfg.JWTSecret, cfg.JWTExpiry)
+	authSvc := services.NewAuthService(userRepo, jwtManager, cfg.RefreshExpiry)
+
+	authHandler := v1.NewAuthHandler(authSvc)
+
+	// Health
+	r.GET("/health", v1.HealthCheck)
+
+	// API v1
+	api := r.Group("/api/v1")
+	{
+		// Public routes
+		authGroup := api.Group("/auth")
+		{
+			authGroup.POST("/login", authHandler.Login)
+		}
+
+		// Protected routes
+		protected := api.Group("")
+		protected.Use(middleware.RequireAuth(jwtManager))
+		{
+			protected.POST("/auth/logout", authHandler.Logout)
+			protected.GET("/auth/me", authHandler.Me)
+		}
+	}
+
+	return r
+}
+
+
+----------------------------------------------------------------
+FILE: backend/internal/api/v1/auth.go
+----------------------------------------------------------------
+package v1
+
+import (
+	"errors"
+	"net/http"
+
+	"github.com/company/app/backend/internal/services"
+	"github.com/gin-gonic/gin"
+)
+
+type AuthHandler struct {
+	authService *services.AuthService
+}
+
+func NewAuthHandler(authService *services.AuthService) *AuthHandler {
+	return &AuthHandler{authService: authService}
+}
+
+func (h *AuthHandler) Login(c *gin.Context) {
+	var req services.LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userAgent := c.GetHeader("User-Agent")
+	ipAddress := c.ClientIP()
+
+	resp, err := h.authService.Login(c.Request.Context(), req, userAgent, ipAddress)
+	if err != nil {
+		switch {
+		case errors.Is(err, services.ErrInvalidCredentials):
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid email or password"})
+		case errors.Is(err, services.ErrUserInactive):
+			c.JSON(http.StatusForbidden, gin.H{"error": "account is inactive"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+func (h *AuthHandler) Logout(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	if err := h.authService.Logout(c.Request.Context(), "", userID.(string)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "logout failed"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
+}
+
+func (h *AuthHandler) Me(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	email, _ := c.Get("user_email")
+	role, _ := c.Get("user_role")
+
+	c.JSON(http.StatusOK, gin.H{
+		"user_id": userID,
+		"email":   email,
+		"role":    role,
+	})
+}
+
+
+----------------------------------------------------------------
+FILE: backend/internal/api/v1/health.go
+----------------------------------------------------------------
+package v1
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
+
+func HealthCheck(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "ok",
+		"service": "company-app-api",
+	})
+}
+
+
+----------------------------------------------------------------
+FILE: backend/internal/auth/jwt.go
+----------------------------------------------------------------
+package auth
+
+import (
+	"errors"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+)
+
+type Claims struct {
+	UserID string `json:"user_id"`
+	Email  string `json:"email"`
+	Role   string `json:"role"`
+	jwt.RegisteredClaims
+}
+
+type JWTManager struct {
+	secret       []byte
+	accessExpiry time.Duration
+}
+
+func NewJWTManager(secret string, accessExpiry time.Duration) *JWTManager {
+	return &JWTManager{
+		secret:       []byte(secret),
+		accessExpiry: accessExpiry,
+	}
+}
+
+func (j *JWTManager) Generate(userID, email, role string) (string, error) {
+	claims := Claims{
+		UserID: userID,
+		Email:  email,
+		Role:   role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.accessExpiry)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "company-app",
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(j.secret)
+}
+
+func (j *JWTManager) Verify(tokenStr string) (*Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("unexpected signing method")
+		}
+		return j.secret, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return nil, errors.New("invalid token")
+	}
+	return claims, nil
+}
+
+
+----------------------------------------------------------------
+FILE: backend/internal/auth/password.go
+----------------------------------------------------------------
+package auth
+
+import "golang.org/x/crypto/bcrypt"
+
+const bcryptCost = 12
+
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
+	return string(bytes), err
+}
+
+func CheckPassword(password, hash string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+}
+
+
+----------------------------------------------------------------
+FILE: backend/internal/config/config.go
+----------------------------------------------------------------
+package config
+
+import (
+	"os"
+	"strconv"
+	"time"
+
+	"github.com/joho/godotenv"
+	"github.com/rs/zerolog/log"
+)
+
+type Config struct {
+	AppEnv         string
+	Port           string
+	DatabaseURL    string
+	JWTSecret      string
+	JWTExpiry      time.Duration
+	RefreshExpiry  time.Duration
+	AllowedOrigins []string
+	RateLimitRPS   int
+	RateLimitBurst int
+}
+
+func Load() *Config {
+	_ = godotenv.Load()
+
+	jwtExpiry, _ := time.ParseDuration(getEnv("JWT_EXPIRY", "15m"))
+	refreshExpiry, _ := time.ParseDuration(getEnv("REFRESH_EXPIRY", "720h"))
+	rlRPS, _ := strconv.Atoi(getEnv("RATE_LIMIT_RPS", "100"))
+	rlBurst, _ := strconv.Atoi(getEnv("RATE_LIMIT_BURST", "200"))
+
+	cfg := &Config{
+		AppEnv:         getEnv("APP_ENV", "development"),
+		Port:           getEnv("PORT", "8080"),
+		DatabaseURL:    getEnv("DATABASE_URL", "postgres://app:secret@localhost:5432/appdb?sslmode=disable"),
+		JWTSecret:      getEnv("JWT_SECRET", "change-me-in-production-use-32-chars-min"),
+		JWTExpiry:      jwtExpiry,
+		RefreshExpiry:  refreshExpiry,
+		AllowedOrigins: []string{getEnv("ALLOWED_ORIGINS", "http://localhost:5173")},
+		RateLimitRPS:   rlRPS,
+		RateLimitBurst: rlBurst,
+	}
+
+	if cfg.AppEnv == "production" && cfg.JWTSecret == "change-me-in-production-use-32-chars-min" {
+		log.Fatal().Msg("JWT_SECRET must be set in production")
+	}
+
+	return cfg
+}
+
+func getEnv(key, defaultValue string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return defaultValue
+}
+
+
+----------------------------------------------------------------
+FILE: backend/internal/db/postgres.go
+----------------------------------------------------------------
+package db
+
+import (
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
+	"github.com/rs/zerolog/log"
+)
+
+func Connect(databaseURL string) (*sqlx.DB, error) {
+	db, err := sqlx.Connect("postgres", databaseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+
+	if err := db.Ping(); err != nil {
+		return nil, err
+	}
+
+	log.Info().Msg("database connected")
+	return db, nil
+}
+
+
+----------------------------------------------------------------
+FILE: backend/internal/middleware/auth_middleware.go
+----------------------------------------------------------------
+package middleware
+
+import (
+	"net/http"
+	"strings"
+
+	"github.com/company/app/backend/internal/auth"
+	"github.com/gin-gonic/gin"
+)
+
+func RequireAuth(jwtManager *auth.JWTManager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		header := c.GetHeader("Authorization")
+		if header == "" || !strings.HasPrefix(header, "Bearer ") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			c.Abort()
+			return
+		}
+
+		tokenStr := strings.TrimPrefix(header, "Bearer ")
+		claims, err := jwtManager.Verify(tokenStr)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+			c.Abort()
+			return
+		}
+
+		c.Set("user_id", claims.UserID)
+		c.Set("user_email", claims.Email)
+		c.Set("user_role", claims.Role)
+		c.Next()
+	}
+}
+
+
+----------------------------------------------------------------
+FILE: backend/internal/middleware/cors.go
+----------------------------------------------------------------
+package middleware
+
+import (
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+)
+
+func CORS(allowedOrigins []string) gin.HandlerFunc {
+	config := cors.Config{
+		AllowOrigins:     allowedOrigins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Request-ID"},
+		ExposeHeaders:    []string{"Content-Length", "X-Request-ID"},
+		AllowCredentials: true,
+		MaxAge:           12 * 3600,
+	}
+	return cors.New(config)
+}
+
+
+----------------------------------------------------------------
+FILE: backend/internal/middleware/logger.go
+----------------------------------------------------------------
+package middleware
+
+import (
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
+)
+
+func RequestLogger() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		requestID := uuid.New().String()
+		c.Set("request_id", requestID)
+		c.Header("X-Request-ID", requestID)
+
+		c.Next()
+
+		log.Info().
+			Str("request_id", requestID).
+			Str("method", c.Request.Method).
+			Str("path", c.Request.URL.Path).
+			Int("status", c.Writer.Status()).
+			Dur("latency", time.Since(start)).
+			Str("ip", c.ClientIP()).
+			Msg("request")
+	}
+}
+
+
+----------------------------------------------------------------
+FILE: backend/internal/middleware/ratelimit.go
+----------------------------------------------------------------
+package middleware
+
+import (
+	"net/http"
+	"sync"
+	"time"
+
+	"github.com/gin-gonic/gin"
+)
+
+type rateLimiter struct {
+	mu       sync.Mutex
+	requests map[string][]time.Time
+	rps      int
+	burst    int
+}
+
+func newRateLimiter(rps, burst int) *rateLimiter {
+	rl := &rateLimiter{
+		requests: make(map[string][]time.Time),
+		rps:      rps,
+		burst:    burst,
+	}
+	go rl.cleanup()
+	return rl
+}
+
+func (rl *rateLimiter) allow(ip string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	now := time.Now()
+	window := now.Add(-time.Second)
+
+	reqs := rl.requests[ip]
+	var valid []time.Time
+	for _, t := range reqs {
+		if t.After(window) {
+			valid = append(valid, t)
+		}
+	}
+
+	if len(valid) >= rl.burst {
+		return false
+	}
+
+	rl.requests[ip] = append(valid, now)
+	return true
+}
+
+func (rl *rateLimiter) cleanup() {
+	for range time.Tick(time.Minute) {
+		rl.mu.Lock()
+		cutoff := time.Now().Add(-time.Minute)
+		for ip, reqs := range rl.requests {
+			var valid []time.Time
+			for _, t := range reqs {
+				if t.After(cutoff) {
+					valid = append(valid, t)
+				}
+			}
+			if len(valid) == 0 {
+				delete(rl.requests, ip)
+			} else {
+				rl.requests[ip] = valid
+			}
+		}
+		rl.mu.Unlock()
+	}
+}
+
+func RateLimit(rps, burst int) gin.HandlerFunc {
+	rl := newRateLimiter(rps, burst)
+	return func(c *gin.Context) {
+		if !rl.allow(c.ClientIP()) {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "rate limit exceeded"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+
+----------------------------------------------------------------
+FILE: backend/internal/middleware/security.go
+----------------------------------------------------------------
+package middleware
+
+import "github.com/gin-gonic/gin"
+
+func SecurityHeaders() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("X-XSS-Protection", "1; mode=block")
+		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		c.Header("Content-Security-Policy", "default-src 'self'")
+		c.Next()
+	}
+}
+
+
+----------------------------------------------------------------
+FILE: backend/internal/models/token.go
+----------------------------------------------------------------
+package models
+
+import "time"
+
+type RefreshToken struct {
+	ID        string     `db:"id" json:"id"`
+	UserID    string     `db:"user_id" json:"user_id"`
+	TokenHash string     `db:"token_hash" json:"-"`
+	ExpiresAt time.Time  `db:"expires_at" json:"expires_at"`
+	CreatedAt time.Time  `db:"created_at" json:"created_at"`
+	RevokedAt *time.Time `db:"revoked_at" json:"revoked_at,omitempty"`
+	UserAgent string     `db:"user_agent" json:"user_agent"`
+	IPAddress string     `db:"ip_address" json:"ip_address"`
+}
+
+type TokenPair struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int64  `json:"expires_in"`
+}
+
+
+----------------------------------------------------------------
+FILE: backend/internal/models/user.go
+----------------------------------------------------------------
+package models
+
+import (
+	"time"
+)
+
+type User struct {
+	ID           string     `db:"id" json:"id"`
+	Email        string     `db:"email" json:"email"`
+	PasswordHash string     `db:"password_hash" json:"-"`
+	FirstName    string     `db:"first_name" json:"first_name"`
+	LastName     string     `db:"last_name" json:"last_name"`
+	Role         string     `db:"role" json:"role"`
+	IsActive     bool       `db:"is_active" json:"is_active"`
+	CreatedAt    time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time  `db:"updated_at" json:"updated_at"`
+	LastLoginAt  *time.Time `db:"last_login_at" json:"last_login_at,omitempty"`
+}
+
+type UserResponse struct {
+	ID          string     `json:"id"`
+	Email       string     `json:"email"`
+	FirstName   string     `json:"first_name"`
+	LastName    string     `json:"last_name"`
+	Role        string     `json:"role"`
+	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+}
+
+func (u *User) ToResponse() UserResponse {
+	return UserResponse{
+		ID:          u.ID,
+		Email:       u.Email,
+		FirstName:   u.FirstName,
+		LastName:    u.LastName,
+		Role:        u.Role,
+		LastLoginAt: u.LastLoginAt,
+	}
+}
+
+
+----------------------------------------------------------------
+FILE: backend/internal/repositories/user_repository.go
+----------------------------------------------------------------
+package repositories
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+
+	"github.com/company/app/backend/internal/models"
+	"github.com/jmoiron/sqlx"
+)
+
+var ErrNotFound = errors.New("not found")
+
+type UserRepository struct {
+	db *sqlx.DB
+}
+
+func NewUserRepository(db *sqlx.DB) *UserRepository {
+	return &UserRepository{db: db}
+}
+
+func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
+	user := &models.User{}
+	err := r.db.GetContext(ctx, user, `
+		SELECT id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at, last_login_at
+		FROM users WHERE email = $1 AND is_active = true
+	`, email)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return user, err
+}
+
+func (r *UserRepository) FindByID(ctx context.Context, id string) (*models.User, error) {
+	user := &models.User{}
+	err := r.db.GetContext(ctx, user, `
+		SELECT id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at, last_login_at
+		FROM users WHERE id = $1
+	`, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return user, err
+}
+
+func (r *UserRepository) UpdateLastLogin(ctx context.Context, userID string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE users SET last_login_at = NOW() WHERE id = $1
+	`, userID)
+	return err
+}
+
+func (r *UserRepository) SaveRefreshToken(ctx context.Context, token *models.RefreshToken) error {
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, user_agent, ip_address)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`, token.ID, token.UserID, token.TokenHash, token.ExpiresAt, token.UserAgent, token.IPAddress)
+	return err
+}
+
+func (r *UserRepository) FindRefreshToken(ctx context.Context, tokenHash string) (*models.RefreshToken, error) {
+	rt := &models.RefreshToken{}
+	err := r.db.GetContext(ctx, rt, `
+		SELECT id, user_id, token_hash, expires_at, created_at, revoked_at, user_agent, ip_address
+		FROM refresh_tokens WHERE token_hash = $1 AND revoked_at IS NULL
+	`, tokenHash)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return rt, err
+}
+
+func (r *UserRepository) RevokeRefreshToken(ctx context.Context, tokenHash string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = $1
+	`, tokenHash)
+	return err
+}
+
+func (r *UserRepository) RevokeAllUserTokens(ctx context.Context, userID string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL
+	`, userID)
+	return err
+}
+
+
+----------------------------------------------------------------
+FILE: backend/internal/services/auth_service.go
+----------------------------------------------------------------
+package services
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"time"
+
+	"github.com/company/app/backend/internal/auth"
+	"github.com/company/app/backend/internal/models"
+	"github.com/company/app/backend/internal/repositories"
+	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
+)
+
+var (
+	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrUserInactive       = errors.New("user account is inactive")
+	ErrTokenExpired       = errors.New("token expired")
+	ErrTokenInvalid       = errors.New("token invalid")
+)
+
+type AuthService struct {
+	userRepo      *repositories.UserRepository
+	jwtManager    *auth.JWTManager
+	refreshExpiry time.Duration
+}
+
+func NewAuthService(userRepo *repositories.UserRepository, jwtManager *auth.JWTManager, refreshExpiry time.Duration) *AuthService {
+	return &AuthService{
+		userRepo:      userRepo,
+		jwtManager:    jwtManager,
+		refreshExpiry: refreshExpiry,
+	}
+}
+
+type LoginRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=8"`
+}
+
+type LoginResponse struct {
+	User   models.UserResponse `json:"user"`
+	Tokens models.TokenPair    `json:"tokens"`
+}
+
+func (s *AuthService) Login(ctx context.Context, req LoginRequest, userAgent, ipAddress string) (*LoginResponse, error) {
+	user, err := s.userRepo.FindByEmail(ctx, req.Email)
+	if err != nil {
+		if errors.Is(err, repositories.ErrNotFound) {
+			return nil, ErrInvalidCredentials
+		}
+		return nil, err
+	}
+
+	if !user.IsActive {
+		return nil, ErrUserInactive
+	}
+
+	if !auth.CheckPassword(req.Password, user.PasswordHash) {
+		log.Warn().Str("email", req.Email).Str("ip", ipAddress).Msg("failed login attempt")
+		return nil, ErrInvalidCredentials
+	}
+
+	accessToken, err := s.jwtManager.Generate(user.ID, user.Email, user.Role)
+	if err != nil {
+		return nil, err
+	}
+
+	rawToken, tokenHash, err := generateRefreshToken()
+	if err != nil {
+		return nil, err
+	}
+
+	rt := &models.RefreshToken{
+		ID:        uuid.New().String(),
+		UserID:    user.ID,
+		TokenHash: tokenHash,
+		ExpiresAt: time.Now().Add(s.refreshExpiry),
+		UserAgent: userAgent,
+		IPAddress: ipAddress,
+	}
+
+	if err := s.userRepo.SaveRefreshToken(ctx, rt); err != nil {
+		return nil, err
+	}
+
+	_ = s.userRepo.UpdateLastLogin(ctx, user.ID)
+
+	log.Info().Str("user_id", user.ID).Str("ip", ipAddress).Msg("user logged in")
+
+	return &LoginResponse{
+		User: user.ToResponse(),
+		Tokens: models.TokenPair{
+			AccessToken:  accessToken,
+			RefreshToken: rawToken,
+			ExpiresIn:    int64(15 * 60),
+		},
+	}, nil
+}
+
+func (s *AuthService) Logout(ctx context.Context, refreshTokenHash string, userID string) error {
+	return s.userRepo.RevokeAllUserTokens(ctx, userID)
+}
+
+func generateRefreshToken() (raw, hash string, err error) {
+	b := make([]byte, 32)
+	if _, err = rand.Read(b); err != nil {
+		return
+	}
+	raw = hex.EncodeToString(b)
+	h := sha256.Sum256([]byte(raw))
+	hash = hex.EncodeToString(h[:])
+	return
+}
+
+
+----------------------------------------------------------------
+FILE: backend/migrations/000001_create_users_table.down.sql
+----------------------------------------------------------------
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+DROP FUNCTION IF EXISTS update_updated_at_column();
+DROP TABLE IF EXISTS users;
+
+
+----------------------------------------------------------------
+FILE: backend/migrations/000001_create_users_table.up.sql
+----------------------------------------------------------------
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'member',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_login_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_users_email ON users(email);
+
+-- Trigger to update updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Seed a default admin user (password: Admin@123456)
+-- bcrypt hash of 'Admin@123456' with cost 12
+INSERT INTO users (email, password_hash, first_name, last_name, role)
+VALUES (
+    'admin@company.com',
+    '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4tbQa5DSLW',
+    'Admin',
+    'User',
+    'admin'
+) ON CONFLICT DO NOTHING;
+
+
+----------------------------------------------------------------
+FILE: backend/migrations/000002_create_roles_table.down.sql
+----------------------------------------------------------------
+DROP TABLE IF EXISTS roles;
+
+
+----------------------------------------------------------------
+FILE: backend/migrations/000002_create_roles_table.up.sql
+----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS roles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT,
+    permissions JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO roles (name, description, permissions) VALUES
+    ('admin', 'Full system access', '{"all": true}'),
+    ('manager', 'Team management access', '{"users": ["read", "write"], "orders": ["read", "write", "delete"]}'),
+    ('member', 'Standard access', '{"orders": ["read", "write"]}')
+ON CONFLICT DO NOTHING;
+
+
+----------------------------------------------------------------
+FILE: backend/migrations/000003_create_refresh_tokens_table.down.sql
+----------------------------------------------------------------
+DROP TABLE IF EXISTS refresh_tokens;
+
+
+----------------------------------------------------------------
+FILE: backend/migrations/000003_create_refresh_tokens_table.up.sql
+----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(64) NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    revoked_at TIMESTAMPTZ,
+    user_agent TEXT,
+    ip_address VARCHAR(45)
+);
+
+CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+CREATE INDEX idx_refresh_tokens_token_hash ON refresh_tokens(token_hash);
+
+
+----------------------------------------------------------------
+FILE: docker-compose.yml
+----------------------------------------------------------------
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: app-postgres
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: app-backend
+    environment:
+      APP_ENV: development
+      PORT: 8080
+      DATABASE_URL: postgres://app:secret@postgres:5432/appdb?sslmode=disable
+      JWT_SECRET: dev-secret-change-in-production-32chars
+      JWT_EXPIRY: 15m
+      REFRESH_EXPIRY: 720h
+      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend-web
+      dockerfile: Dockerfile
+    container_name: app-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: app-nginx
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+
+----------------------------------------------------------------
+FILE: docs/crds.txt
+----------------------------------------------------------------
+Login: admin@company.com / Admin@123456
+
+----------------------------------------------------------------
+FILE: frontend-web/.env.example
+----------------------------------------------------------------
+VITE_API_URL=/api/v1
+
+
+----------------------------------------------------------------
+FILE: frontend-web/Dockerfile
+----------------------------------------------------------------
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+
+
+----------------------------------------------------------------
+FILE: frontend-web/index.html
+----------------------------------------------------------------
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Company App</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
+
+----------------------------------------------------------------
+FILE: frontend-web/nginx.conf
+----------------------------------------------------------------
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api/ {
+        proxy_pass http://backend:8080/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    gzip on;
+    gzip_types text/plain application/javascript application/json text/css;
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/package.json
+----------------------------------------------------------------
+{
+  "name": "company-app-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\""
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.45.0",
+    "@tanstack/react-query-devtools": "^5.45.0",
+    "axios": "^1.7.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.52.1",
+    "react-router-dom": "^6.24.0",
+    "zustand": "^4.5.4",
+    "zod": "^3.23.8",
+    "@hookform/resolvers": "^3.9.0",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^7.13.0",
+    "@typescript-eslint/parser": "^7.13.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.4.7",
+    "postcss": "^8.4.38",
+    "prettier": "^3.3.2",
+    "prettier-plugin-tailwindcss": "^0.6.5",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.2.2",
+    "vite": "^5.3.1"
+  }
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/postcss.config.js
+----------------------------------------------------------------
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/app/App.tsx
+----------------------------------------------------------------
+import { Routes, Route } from 'react-router-dom'
+import { AppShell } from './AppShell'
+import { PublicRoute } from '../routes/PublicRoute'
+import { ProtectedRoute } from '../routes/ProtectedRoute'
+import { LoginPage } from '../features/auth/pages/LoginPage'
+import { DashboardPage } from '../features/dashboard/pages/DashboardPage'
+import { NotFoundPage } from '../components/NotFoundPage'
+
+export default function App() {
+  return (
+    <Routes>
+      {/* Public routes */}
+      <Route element={<PublicRoute />}>
+        <Route path="/login" element={<LoginPage />} />
+      </Route>
+
+      {/* Protected routes */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+        </Route>
+      </Route>
+
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+  )
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/app/AppShell.tsx
+----------------------------------------------------------------
+import { Outlet } from 'react-router-dom'
+import { Sidebar } from '../components/layout/Sidebar'
+import { TopBar } from '../components/layout/TopBar'
+
+export function AppShell() {
+  return (
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <TopBar />
+        <main className="flex-1 overflow-y-auto p-6">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  )
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/components/NotFoundPage.tsx
+----------------------------------------------------------------
+import { Link } from 'react-router-dom'
+
+export function NotFoundPage() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center">
+      <h1 className="text-4xl font-bold text-gray-900">404</h1>
+      <p className="mt-2 text-gray-500">Page not found</p>
+      <Link to="/" className="mt-4 text-sm text-brand-600 hover:underline">
+        Go home
+      </Link>
+    </div>
+  )
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/components/layout/Sidebar.tsx
+----------------------------------------------------------------
+import { NavLink } from 'react-router-dom'
+import { cn } from '../../utils/cn'
+
+const navItems = [
+  { label: 'Dashboard', href: '/', icon: '⊞' },
+]
+
+export function Sidebar() {
+  return (
+    <aside className="flex w-60 flex-col border-r border-gray-200 bg-white">
+      <div className="flex h-16 items-center border-b border-gray-200 px-4">
+        <span className="text-lg font-bold text-brand-700">Company App</span>
+      </div>
+      <nav className="flex-1 space-y-1 p-3">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.href}
+            to={item.href}
+            end
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
+                isActive
+                  ? 'bg-brand-50 text-brand-700'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              )
+            }
+          >
+            <span>{item.icon}</span>
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
+    </aside>
+  )
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/components/layout/TopBar.tsx
+----------------------------------------------------------------
+import { useAuthStore } from '../../store/authStore'
+
+export function TopBar() {
+  const { user } = useAuthStore()
+
+  return (
+    <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-6">
+      <div />
+      <div className="flex items-center gap-3">
+        <div className="h-8 w-8 rounded-full bg-brand-100 flex items-center justify-center">
+          <span className="text-xs font-semibold text-brand-700">
+            {user?.first_name?.[0]}{user?.last_name?.[0]}
+          </span>
+        </div>
+        <div className="text-sm">
+          <p className="font-medium text-gray-900">{user?.first_name} {user?.last_name}</p>
+          <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/features/auth/hooks/useLogin.ts
+----------------------------------------------------------------
+import { useMutation } from '@tanstack/react-query'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { authService, type LoginRequest } from '../../../services/authService'
+import { useAuthStore } from '../../../store/authStore'
+
+export function useLogin() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { setAuth } = useAuthStore()
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/'
+
+  return useMutation({
+    mutationFn: (data: LoginRequest) => authService.login(data),
+    onSuccess: (response) => {
+      setAuth(response.user, response.tokens.access_token, response.tokens.refresh_token)
+      navigate(from, { replace: true })
+    },
+  })
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/features/auth/hooks/useLogout.ts
+----------------------------------------------------------------
+import { useMutation } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
+import { authService } from '../../../services/authService'
+import { useAuthStore } from '../../../store/authStore'
+import { queryClient } from '../../../services/queryClient'
+
+export function useLogout() {
+  const navigate = useNavigate()
+  const { clearAuth } = useAuthStore()
+
+  return useMutation({
+    mutationFn: authService.logout,
+    onSettled: () => {
+      clearAuth()
+      queryClient.clear()
+      navigate('/login', { replace: true })
+    },
+  })
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/features/auth/pages/LoginPage.tsx
+----------------------------------------------------------------
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { useLogin } from '../hooks/useLogin'
+import { cn } from '../../../utils/cn'
+
+const loginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+})
+
+type LoginFormData = z.infer<typeof loginSchema>
+
+export function LoginPage() {
+  const { mutate: login, isPending, error } = useLogin()
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  })
+
+  const onSubmit = (data: LoginFormData) => {
+    login(data)
+  }
+
+  const apiError = (error as { response?: { data?: { error?: string } } })?.response?.data?.error
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-950 via-brand-900 to-brand-800 px-4">
+      <div className="w-full max-w-md">
+        {/* Logo / Brand */}
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm">
+            <svg className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-white">Company App</h1>
+          <p className="mt-1 text-sm text-brand-300">Sign in to your workspace</p>
+        </div>
+
+        {/* Card */}
+        <div className="rounded-2xl bg-white p-8 shadow-2xl">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+            {/* Global error */}
+            {apiError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                {apiError}
+              </div>
+            )}
+
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-700">
+                Email address
+              </label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                {...register('email')}
+                className={cn(
+                  'w-full rounded-lg border px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400',
+                  'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent',
+                  'transition duration-150',
+                  errors.email ? 'border-red-400 bg-red-50' : 'border-gray-300 bg-white'
+                )}
+                placeholder="you@company.com"
+              />
+              {errors.email && (
+                <p className="mt-1.5 text-xs text-red-600">{errors.email.message}</p>
+              )}
+            </div>
+
+            {/* Password */}
+            <div>
+              <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                {...register('password')}
+                className={cn(
+                  'w-full rounded-lg border px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400',
+                  'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent',
+                  'transition duration-150',
+                  errors.password ? 'border-red-400 bg-red-50' : 'border-gray-300 bg-white'
+                )}
+                placeholder="••••••••"
+              />
+              {errors.password && (
+                <p className="mt-1.5 text-xs text-red-600">{errors.password.message}</p>
+              )}
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={isPending}
+              className={cn(
+                'w-full rounded-lg py-2.5 px-4 text-sm font-semibold text-white',
+                'bg-brand-600 hover:bg-brand-700 active:bg-brand-800',
+                'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2',
+                'transition duration-150',
+                'disabled:opacity-60 disabled:cursor-not-allowed'
+              )}
+            >
+              {isPending ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Signing in...
+                </span>
+              ) : (
+                'Sign in'
+              )}
+            </button>
+          </form>
+        </div>
+
+        <p className="mt-6 text-center text-xs text-brand-400">
+          Internal use only &mdash; unauthorized access is prohibited
+        </p>
+      </div>
+    </div>
+  )
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/features/dashboard/pages/DashboardPage.tsx
+----------------------------------------------------------------
+import { useAuthStore } from '../../../store/authStore'
+import { useLogout } from '../../auth/hooks/useLogout'
+
+export function DashboardPage() {
+  const { user } = useAuthStore()
+  const { mutate: logout, isPending } = useLogout()
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-gray-900">
+          Welcome back, {user?.first_name}
+        </h1>
+        <p className="mt-1 text-sm text-gray-500">Here is what is happening today.</p>
+      </div>
+
+      {/* Placeholder cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {['Messages', 'Orders', 'Tasks', 'Notifications'].map((item) => (
+          <div key={item} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <p className="text-sm font-medium text-gray-500">{item}</p>
+            <p className="mt-2 text-3xl font-bold text-gray-900">—</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-8">
+        <button
+          onClick={() => logout()}
+          disabled={isPending}
+          className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 transition"
+        >
+          {isPending ? 'Signing out...' : 'Sign out'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/main.tsx
+----------------------------------------------------------------
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import App from './app/App'
+import { queryClient } from './services/queryClient'
+import './styles/globals.css'
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
+  </React.StrictMode>
+)
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/routes/ProtectedRoute.tsx
+----------------------------------------------------------------
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { useAuthStore } from '../store/authStore'
+
+export function ProtectedRoute() {
+  const { isAuthenticated } = useAuthStore()
+  const location = useLocation()
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  return <Outlet />
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/routes/PublicRoute.tsx
+----------------------------------------------------------------
+import { Navigate, Outlet } from 'react-router-dom'
+import { useAuthStore } from '../store/authStore'
+
+export function PublicRoute() {
+  const { isAuthenticated } = useAuthStore()
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />
+  }
+
+  return <Outlet />
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/services/apiClient.ts
+----------------------------------------------------------------
+import axios from 'axios'
+import { useAuthStore } from '../store/authStore'
+import { queryClient } from './queryClient'
+
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api/v1'
+
+export const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: true,
+})
+
+// Attach access token to all requests
+apiClient.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().accessToken
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// Handle 401 responses — clear auth and redirect
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      useAuthStore.getState().clearAuth()
+      queryClient.clear()
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/services/authService.ts
+----------------------------------------------------------------
+import { apiClient } from './apiClient'
+
+export interface LoginRequest {
+  email: string
+  password: string
+}
+
+export interface LoginResponse {
+  user: {
+    id: string
+    email: string
+    first_name: string
+    last_name: string
+    role: string
+  }
+  tokens: {
+    access_token: string
+    refresh_token: string
+    expires_in: number
+  }
+}
+
+export const authService = {
+  login: async (data: LoginRequest): Promise<LoginResponse> => {
+    const res = await apiClient.post<LoginResponse>('/auth/login', data)
+    return res.data
+  },
+
+  logout: async (): Promise<void> => {
+    await apiClient.post('/auth/logout')
+  },
+
+  me: async () => {
+    const res = await apiClient.get('/auth/me')
+    return res.data
+  },
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/services/queryClient.ts
+----------------------------------------------------------------
+import { QueryClient } from '@tanstack/react-query'
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      retry: (failureCount, error: unknown) => {
+        const axiosError = error as { response?: { status: number } }
+        if (axiosError?.response?.status === 401) return false
+        if (axiosError?.response?.status === 403) return false
+        return failureCount < 2
+      },
+    },
+  },
+})
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/store/authStore.ts
+----------------------------------------------------------------
+import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
+
+interface User {
+  id: string
+  email: string
+  first_name: string
+  last_name: string
+  role: string
+}
+
+interface AuthState {
+  user: User | null
+  accessToken: string | null
+  refreshToken: string | null
+  isAuthenticated: boolean
+  setAuth: (user: User, accessToken: string, refreshToken: string) => void
+  clearAuth: () => void
+  setAccessToken: (token: string) => void
+}
+
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+      isAuthenticated: false,
+      setAuth: (user, accessToken, refreshToken) =>
+        set({ user, accessToken, refreshToken, isAuthenticated: true }),
+      clearAuth: () =>
+        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
+      setAccessToken: (token) => set({ accessToken: token }),
+    }),
+    {
+      name: 'auth-storage',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        user: state.user,
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        isAuthenticated: state.isAuthenticated,
+      }),
+    }
+  )
+)
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/styles/globals.css
+----------------------------------------------------------------
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans antialiased;
+  }
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/types/index.ts
+----------------------------------------------------------------
+export interface ApiError {
+  error: string
+  message?: string
+  code?: string
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/src/utils/cn.ts
+----------------------------------------------------------------
+import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/tailwind.config.js
+----------------------------------------------------------------
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        brand: {
+          50: '#eff6ff',
+          100: '#dbeafe',
+          200: '#bfdbfe',
+          300: '#93c5fd',
+          400: '#60a5fa',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+          800: '#1e40af',
+          900: '#1e3a8a',
+          950: '#172554',
+        },
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+      },
+    },
+  },
+  plugins: [],
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/tsconfig.app.json
+----------------------------------------------------------------
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/tsconfig.json
+----------------------------------------------------------------
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/tsconfig.node.json
+----------------------------------------------------------------
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "strict": true
+  },
+  "include": ["vite.config.ts"]
+}
+
+
+----------------------------------------------------------------
+FILE: frontend-web/vite.config.ts
+----------------------------------------------------------------
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
+  },
+})
+
+
+----------------------------------------------------------------
+FILE: infra/nginx/nginx.conf
+----------------------------------------------------------------
+events {
+    worker_connections 1024;
+}
+
+http {
+    upstream backend {
+        server backend:8080;
+    }
+
+    upstream frontend {
+        server frontend:80;
+    }
+
+    server {
+        listen 80;
+        server_name localhost;
+
+        location /api/ {
+            proxy_pass http://backend/api/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_read_timeout 60s;
+        }
+
+        location /health {
+            proxy_pass http://backend/health;
+        }
+
+        location / {
+            proxy_pass http://frontend/;
+            proxy_set_header Host $host;
+        }
+    }
+}
+
+
+----------------------------------------------------------------
+FILE: mobile/.expo/README.md
+----------------------------------------------------------------
+> Why do I have a folder named ".expo" in my project?
+The ".expo" folder is created when an Expo project is started using "expo start" command.
+> What do the files contain?
+- "devices.json": contains information about devices that have recently opened this project. This is used to populate the "Development sessions" list in your development builds.
+- "settings.json": contains the server configuration that is used to serve the application manifest.
+> Should I commit the ".expo" folder?
+No, you should not share the ".expo" folder. It does not contain any information that is relevant for other developers working on the project, it is specific to your machine.
+Upon project creation, the ".expo" folder is already added to your ".gitignore" file.
+
+
+----------------------------------------------------------------
+FILE: mobile/.expo/devices.json
+----------------------------------------------------------------
+{
+  "devices": []
+}
+
+
+----------------------------------------------------------------
+FILE: mobile/app.json
+----------------------------------------------------------------
+{
+  "expo": {
+    "name": "Company App",
+    "slug": "company-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "companyapp",
+    "platforms": ["ios", "android", "web"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.company.app"
+    },
+    "android": {
+      "package": "com.company.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#1d4ed8"
+      }
+    }
+  }
+}
+
+
+----------------------------------------------------------------
+FILE: mobile/app/(app)/_layout.tsx
+----------------------------------------------------------------
+import { Stack } from 'expo-router'
+
+export default function AppLayout() {
+  return (
+    <Stack>
+      <Stack.Screen name="index" options={{ title: 'Dashboard' }} />
+    </Stack>
+  )
+}
+
+
+----------------------------------------------------------------
+FILE: mobile/app/(app)/index.tsx
+----------------------------------------------------------------
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { router } from 'expo-router'
+import { useAuthStore } from '../../store/authStore'
+import { authService } from '../../services/authService'
+
+export default function DashboardScreen() {
+  const { user, clearAuth } = useAuthStore()
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout()
+    } catch {}
+    await clearAuth()
+    router.replace('/(auth)/login')
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.greeting}>Welcome, {user?.first_name}</Text>
+      <Text style={styles.subtitle}>Dashboard placeholder</Text>
+      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+        <Text style={styles.logoutText}>Sign out</Text>
+      </TouchableOpacity>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 24, backgroundColor: '#f9fafb' },
+  greeting: { fontSize: 22, fontWeight: '700', color: '#111827', marginTop: 8 },
+  subtitle: { fontSize: 14, color: '#6b7280', marginTop: 4 },
+  logoutBtn: {
+    marginTop: 24,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignSelf: 'flex-start',
+  },
+  logoutText: { fontSize: 14, fontWeight: '500', color: '#374151' },
+})
+
+
+----------------------------------------------------------------
+FILE: mobile/app/(auth)/_layout.tsx
+----------------------------------------------------------------
+import { Stack } from 'expo-router'
+
+export default function AuthLayout() {
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="login" />
+    </Stack>
+  )
+}
+
+
+----------------------------------------------------------------
+FILE: mobile/app/(auth)/login.tsx
+----------------------------------------------------------------
+import { useState } from 'react'
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from 'react-native'
+import { router } from 'expo-router'
+import { authService } from '../../services/authService'
+import { useAuthStore } from '../../store/authStore'
+
+export default function LoginScreen() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const { setAuth } = useAuthStore()
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter your email and password')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await authService.login({ email, password })
+      await setAuth(response.user, response.tokens.access_token, response.tokens.refresh_token)
+      router.replace('/(app)')
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } }
+      Alert.alert('Login Failed', error?.response?.data?.error ?? 'Invalid credentials')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.inner}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Company App</Text>
+          <Text style={styles.subtitle}>Sign in to your workspace</Text>
+        </View>
+
+        <View style={styles.form}>
+          <View style={styles.field}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@company.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              placeholderTextColor="#9ca3af"
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••"
+              secureTextEntry
+              autoComplete="current-password"
+              placeholderTextColor="#9ca3af"
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleLogin}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Sign in</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    </KeyboardAvoidingView>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#1e3a8a' },
+  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  header: { alignItems: 'center', marginBottom: 32 },
+  title: { fontSize: 28, fontWeight: '700', color: '#fff' },
+  subtitle: { fontSize: 14, color: '#93c5fd', marginTop: 4 },
+  form: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  field: { marginBottom: 16 },
+  label: { fontSize: 13, fontWeight: '500', color: '#374151', marginBottom: 6 },
+  input: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#111827',
+    backgroundColor: '#f9fafb',
+  },
+  button: {
+    backgroundColor: '#2563eb',
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  buttonDisabled: { opacity: 0.6 },
+  buttonText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+})
+
+
+----------------------------------------------------------------
+FILE: mobile/app/_layout.tsx
+----------------------------------------------------------------
+import { Stack } from 'expo-router'
+
+export default function RootLayout() {
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(app)" />
+    </Stack>
+  )
+}
+
+
+----------------------------------------------------------------
+FILE: mobile/package.json
+----------------------------------------------------------------
+{
+  "name": "company-app-mobile",
+  "version": "0.1.0",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "axios": "^1.7.2",
+    "expo": "~51.0.8",
+    "expo-router": "~3.5.14",
+    "expo-secure-store": "~13.0.2",
+    "expo-status-bar": "~1.12.1",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-native": "0.74.2",
+    "react-native-web": "~0.19.10",
+    "zustand": "^4.5.4"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@types/react": "~18.2.79",
+    "typescript": "~5.3.3"
+  }
+}
+
+
+----------------------------------------------------------------
+FILE: mobile/services/apiClient.ts
+----------------------------------------------------------------
+import axios from 'axios'
+import { useAuthStore } from '../store/authStore'
+
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1'
+
+export const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 10000,
+})
+
+apiClient.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().accessToken
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+apiClient.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    if (error.response?.status === 401) {
+      await useAuthStore.getState().clearAuth()
+    }
+    return Promise.reject(error)
+  }
+)
+
+
+----------------------------------------------------------------
+FILE: mobile/services/authService.ts
+----------------------------------------------------------------
+import { apiClient } from './apiClient'
+
+export interface LoginRequest {
+  email: string
+  password: string
+}
+
+export interface LoginResponse {
+  user: {
+    id: string
+    email: string
+    first_name: string
+    last_name: string
+    role: string
+  }
+  tokens: {
+    access_token: string
+    refresh_token: string
+    expires_in: number
+  }
+}
+
+export const authService = {
+  login: async (data: LoginRequest): Promise<LoginResponse> => {
+    const res = await apiClient.post<LoginResponse>('/auth/login', data)
+    return res.data
+  },
+  logout: async (): Promise<void> => {
+    await apiClient.post('/auth/logout')
+  },
+}
+
+
+----------------------------------------------------------------
+FILE: mobile/store/authStore.ts
+----------------------------------------------------------------
+import { create } from 'zustand'
+import { Platform } from 'react-native'
+import * as SecureStore from 'expo-secure-store'
+
+interface User {
+  id: string
+  email: string
+  first_name: string
+  last_name: string
+  role: string
+}
+
+interface AuthState {
+  user: User | null
+  accessToken: string | null
+  isAuthenticated: boolean
+  setAuth: (user: User, accessToken: string, refreshToken: string) => Promise<void>
+  clearAuth: () => Promise<void>
+  loadAuth: () => Promise<void>
+}
+
+const storage = {
+  set: async (key: string, value: string) => {
+    if (Platform.OS === 'web') {
+      localStorage.setItem(key, value)
+    } else {
+      await SecureStore.setItemAsync(key, value)
+    }
+  },
+  get: async (key: string): Promise<string | null> => {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem(key)
+    }
+    return SecureStore.getItemAsync(key)
+  },
+  delete: async (key: string) => {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(key)
+    } else {
+      await SecureStore.deleteItemAsync(key)
+    }
+  },
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  accessToken: null,
+  isAuthenticated: false,
+
+  setAuth: async (user, accessToken, refreshToken) => {
+    await storage.set('access_token', accessToken)
+    await storage.set('refresh_token', refreshToken)
+    await storage.set('user', JSON.stringify(user))
+    set({ user, accessToken, isAuthenticated: true })
+  },
+
+  clearAuth: async () => {
+    await storage.delete('access_token')
+    await storage.delete('refresh_token')
+    await storage.delete('user')
+    set({ user: null, accessToken: null, isAuthenticated: false })
+  },
+
+  loadAuth: async () => {
+    try {
+      const token = await storage.get('access_token')
+      const userStr = await storage.get('user')
+      if (token && userStr) {
+        set({ accessToken: token, user: JSON.parse(userStr), isAuthenticated: true })
+      }
+    } catch {}
+  },
+}))
+
+
+----------------------------------------------------------------
+FILE: mobile/tsconfig.json
+----------------------------------------------------------------
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  }
+}
+

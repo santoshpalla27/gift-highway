@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Company App",
+    "slug": "company-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "companyapp",
+    "platforms": ["ios", "android", "web"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.company.app"
+    },
+    "android": {
+      "package": "com.company.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#1d4ed8"
+      }
+    }
+  }
+}
