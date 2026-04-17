@@ -212,6 +212,7 @@ export default function AdminScreen() {
   
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchFocused, setIsSearchFocused] = useState(false)
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
@@ -274,8 +275,8 @@ export default function AdminScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={S.searchContainer}>
-        <Ionicons name="search" size={20} color="#9CA3AF" />
+      <View style={[S.searchContainer, isSearchFocused && S.searchContainerFocused]}>
+        <Ionicons name="search" size={20} color={isSearchFocused ? "#4F46E5" : "#9CA3AF"} />
         <TextInput
           style={S.searchInput}
           placeholder="Search users by name or email…"
@@ -284,6 +285,8 @@ export default function AdminScreen() {
           onChangeText={setSearchQuery}
           autoCapitalize="none"
           autoCorrect={false}
+          onFocus={() => setIsSearchFocused(true)}
+          onBlur={() => setIsSearchFocused(false)}
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{top:10,bottom:10,left:10,right:10}}>
@@ -675,12 +678,32 @@ const S = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    ...Platform.select({
+      web: {
+        transition: 'all 0.2s ease',
+      } as any,
+      default: {},
+    }),
+  },
+  searchContainerFocused: {
+    borderColor: '#4F46E5',
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   searchInput: {
     flex: 1,
     marginLeft: 8,
     fontSize: 14,
     color: '#111827',
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+      } as any,
+      default: {},
+    }),
   },
   emptyState: {
     paddingVertical: 60,
