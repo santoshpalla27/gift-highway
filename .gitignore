@@ -1,0 +1,54 @@
+# ─── Environment ────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ─── Go ─────────────────────────────────────────────────────
+backend/vendor/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# ─── Node / Frontend ────────────────────────────────────────
+node_modules/
+frontend-web/node_modules/
+frontend-sample/node_modules/
+mobile/node_modules/
+frontend-web/dist/
+frontend-web/.vite/
+
+# ─── Mobile / Expo ──────────────────────────────────────────
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# ─── Docker ─────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ─── OS ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── IDE ────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── Logs ───────────────────────────────────────────────────
+*.log
+logs/
+
+
+order-kanban-app
+frontend-sample
