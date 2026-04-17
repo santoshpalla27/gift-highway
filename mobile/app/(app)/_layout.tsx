@@ -1,9 +1,136 @@
-import { Stack } from 'expo-router'
+import { Tabs } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
+import { Platform, StyleSheet, View, Text, TouchableOpacity } from 'react-native'
+import Svg, { Circle, Path, G } from 'react-native-svg'
+
+function GiftHighwayHeaderLogo() {
+  return (
+    <View style={headerStyles.logoWrap}>
+      <Svg viewBox="0 0 100 100" width={28} height={28} fill="none">
+        <Circle cx="50" cy="50" r="50" fill="#F0914A" />
+        <G stroke="#1e1b4b" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+          <Path d="M 16 28 H 25 L 34 62 H 70 L 78 38 H 28" />
+          <Circle cx="40" cy="75" r="5" fill="none" />
+          <Circle cx="64" cy="75" r="5" fill="none" />
+          <Path d="M 38 32 H 68 V 39 H 38 Z" fill="#F0914A" />
+          <Path d="M 42 39 V 56 H 64 V 39" fill="#F0914A" />
+          <Path d="M 53 32 V 56" />
+          <Path d="M 53 32 C 45 18 36 24 44 32" fill="#F0914A" />
+          <Path d="M 53 32 C 61 18 70 24 62 32" fill="#F0914A" />
+        </G>
+      </Svg>
+      <Text style={headerStyles.logoText}>
+        <Text style={{ color: '#F0914A' }}>Gift</Text> Highway
+      </Text>
+    </View>
+  )
+}
+
+function NotificationIcon() {
+  return (
+    <TouchableOpacity style={headerStyles.iconBtn} activeOpacity={0.7}>
+      <Ionicons name="notifications-outline" size={24} color="#111827" />
+      <View style={headerStyles.badge} />
+    </TouchableOpacity>
+  )
+}
 
 export default function AppLayout() {
   return (
-    <Stack>
-      <Stack.Screen name="index" options={{ title: 'Dashboard' }} />
-    </Stack>
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: '#25D366', // WhatsApp Green
+        tabBarInactiveTintColor: '#8E8E93',
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: '#C6C6C8',
+          height: Platform.OS === 'ios' ? 88 : 60,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '500',
+        },
+        headerStyle: {
+          backgroundColor: '#FFFFFF',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: '#E4E6EF',
+        },
+        headerTitle: '',
+        headerLeft: () => <GiftHighwayHeaderLogo />,
+        headerRight: () => <NotificationIcon />,
+      }}
+    >
+      <Tabs.Screen
+        name="my-orders"
+        options={{
+          tabBarLabel: 'My Orders',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="cart" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="all-orders"
+        options={{
+          tabBarLabel: 'All Orders',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="list" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          tabBarLabel: 'Settings',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="index"
+        options={{
+          href: null,
+        }}
+      />
+    </Tabs>
   )
 }
+
+const headerStyles = StyleSheet.create({
+  logoWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 16,
+    gap: 8,
+  },
+  logoText: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111827',
+    letterSpacing: -0.5,
+  },
+  iconBtn: {
+    paddingRight: 16,
+    paddingLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: 0,
+    right: 14,
+    width: 8,
+    height: 8,
+    backgroundColor: '#EF4444',
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+})

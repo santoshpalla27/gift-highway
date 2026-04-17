@@ -15,6 +15,8 @@ find "$ROOT" \
   -not -path "*/.git/*" \
   -not -path "*/dist/*" \
   -not -path "*/build/*" \
+  -not -path "*/order-kanban-app/*" \
+  -not -path "*/frontend-sample/*" \
   -not -name ".DS_Store" \
   | sort \
   | sed "s|$ROOT/||; s|$ROOT||" \
@@ -67,6 +69,8 @@ done < <(find "$ROOT" -type f \
   -not -name "*.ttf" \
   -not -name "*.map" \
   -not -name "combined-code.txt" \
+  -not -path "*/order-kanban-app/*" \
+  -not -path "*/frontend-sample/*" \
   | sort)
 
 echo ""
