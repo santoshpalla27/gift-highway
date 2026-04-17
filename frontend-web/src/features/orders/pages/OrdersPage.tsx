@@ -221,12 +221,12 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
       {/* Toolbar */}
       <div style={{ padding: '0 0 16px 0', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{
-          display: 'flex', alignItems: 'center', background: '#F0F1F5',
-          border: '1.5px solid transparent', borderRadius: '10px', padding: '6px 12px',
+          display: 'flex', alignItems: 'center', background: '#FFFFFF',
+          border: '1.5px solid #E4E6EF', borderRadius: '10px', padding: '6px 12px',
           width: '220px', transition: 'all 150ms cubic-bezier(.4,0,.2,1)', cursor: 'text'
         }}
-        onFocusCapture={e => { e.currentTarget.style.borderColor = '#6366F1'; e.currentTarget.style.background = '#FFFFFF'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.15)'; e.currentTarget.style.width = '320px'; }}
-        onBlurCapture={e => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = '#F0F1F5'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.width = '220px'; }}
+        onFocusCapture={e => { e.currentTarget.style.borderColor = '#6366F1'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.15)'; e.currentTarget.style.width = '320px'; }}
+        onBlurCapture={e => { e.currentTarget.style.borderColor = '#E4E6EF'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.width = '220px'; }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input
