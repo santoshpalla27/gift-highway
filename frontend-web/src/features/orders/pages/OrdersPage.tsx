@@ -146,7 +146,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
   const handleEdit = (order: Order) => { setEditOrder(order); setModalKey(k => k + 1); setShowModal(true) }
 
   return (
-    <div className="screen active" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', background: '#FAFAFA' }}>
+    <div className="screen active" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', padding: '24px', background: '#FAFAFA', boxSizing: 'border-box' }}>
       <style>{`
         .orders-table { width: 100%; border-collapse: collapse; }
         .orders-table th {
@@ -180,8 +180,8 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
       `}</style>
 
       {/* Page Header (Order-App styling) */}
-      <div style={{ padding: '32px 32px 24px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <div>
+      <div style={{ padding: '0 0 16px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div style={{ marginTop: '-8px' }}>
           <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#0F172A', margin: '0 0 2px 0', letterSpacing: '-0.3px' }}>
             {myOrdersOnly ? 'My Orders' : 'All Orders'}
           </h1>
@@ -209,7 +209,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
       </div>
 
       {/* Toolbar */}
-      <div style={{ padding: '0 32px 16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+      <div style={{ padding: '0 0 16px 0', display: 'flex', gap: '12px', alignItems: 'center' }}>
         <div style={{
           display: 'flex', alignItems: 'center', background: '#FFFFFF',
           border: '1px solid #E2E8F0', borderRadius: '6px', padding: '0 10px',
@@ -245,7 +245,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
       </div>
 
       {/* Table Container */}
-      <div style={{ margin: '0 32px 32px', background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+      <div style={{ margin: '0 0 24px 0', background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
         <table className="orders-table">
           <thead>
             <tr>
