@@ -7,6 +7,7 @@ import { DashboardPage } from '../features/dashboard/pages/DashboardPage'
 import { NotFoundPage } from '../components/NotFoundPage'
 import { UsersPage } from '../features/admin/pages/UsersPage'
 import { ProfileSettingsPage } from '../features/profile/pages/ProfileSettingsPage'
+import { OrdersPage } from '../features/orders/pages/OrdersPage'
 
 export default function App() {
   return (
@@ -18,8 +19,8 @@ export default function App() {
         <Route element={<AppShell />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/orders" element={<DashboardPage />} />
-          <Route path="/my-orders" element={<DashboardPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/my-orders" element={<OrdersPage myOrdersOnly />} />
           <Route path="/notifications" element={<DashboardPage />} />
           <Route path="/settings/profile" element={<ProfileSettingsPage />} />
           <Route path="/settings" element={<ProfileSettingsPage />} />

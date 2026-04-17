@@ -27,14 +27,18 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 
 	// Dependencies
 	userRepo := repositories.NewUserRepository(db)
+	orderRepo := repositories.NewOrderRepository(db)
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret, cfg.JWTExpiry)
 	authSvc := services.NewAuthService(userRepo, jwtManager, cfg.RefreshExpiry)
 	adminSvc := services.NewAdminService(userRepo)
 	profileSvc := services.NewProfileService(userRepo, cfg)
+	orderSvc := services.NewOrderService(orderRepo)
 
 	authHandler := v1.NewAuthHandler(authSvc)
 	adminHandler := v1.NewAdminHandler(adminSvc)
 	profileHandler := v1.NewProfileHandler(profileSvc)
+	orderHandler := v1.NewOrderHandler(orderSvc)
+	usersHandler := v1.NewUsersHandler(userRepo)
 
 	// Health
 	r.GET("/health", v1.HealthCheck)
@@ -76,6 +80,19 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				profileGroup.GET("/avatar/signed-url", profileHandler.GetAvatarSignedURL)
 				profileGroup.POST("/avatar/upload-url", profileHandler.GetAvatarUploadURL)
 				profileGroup.PATCH("/avatar", profileHandler.UpdateAvatarURL)
+			}
+
+			// Users list for assignment dropdowns
+			protected.GET("/users", usersHandler.ListForAssignment)
+
+			// Orders routes
+			ordersGroup := protected.Group("/orders")
+			{
+				ordersGroup.GET("", orderHandler.ListOrders)
+				ordersGroup.POST("", orderHandler.CreateOrder)
+				ordersGroup.GET("/:id", orderHandler.GetOrder)
+				ordersGroup.PATCH("/:id", orderHandler.UpdateOrder)
+				ordersGroup.PATCH("/:id/status", orderHandler.UpdateStatus)
 			}
 		}
 	}
