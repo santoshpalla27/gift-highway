@@ -11,9 +11,10 @@ import (
 )
 
 var (
-	ErrEmailTaken       = errors.New("email already in use")
-	ErrCannotDeleteSelf = errors.New("cannot delete yourself")
-	ErrLastAdmin        = errors.New("cannot remove the last admin")
+	ErrEmailTaken        = errors.New("email already in use")
+	ErrCannotDeleteSelf  = errors.New("cannot delete yourself")
+	ErrLastAdmin         = errors.New("cannot remove the last admin")
+	ErrCannotDisableSelf = errors.New("cannot disable yourself")
 )
 
 type AdminService struct {
@@ -98,7 +99,34 @@ func (s *AdminService) ChangePassword(ctx context.Context, id string, req Change
 	return s.userRepo.UpdatePassword(ctx, id, hash)
 }
 
-func (s *AdminService) DeleteUser(ctx context.Context, id, requestorID string) error {
+func (s *AdminService) DisableUser(ctx context.Context, id, requestorID string) error {
+	if id == requestorID {
+		return ErrCannotDisableSelf
+	}
+
+	user, err := s.userRepo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if user.Role == "admin" {
+		count, err := s.userRepo.CountAdmins(ctx)
+		if err != nil {
+			return err
+		}
+		if count <= 1 {
+			return ErrLastAdmin
+		}
+	}
+
+	return s.userRepo.DisableUser(ctx, id)
+}
+
+func (s *AdminService) EnableUser(ctx context.Context, id string) error {
+	return s.userRepo.EnableUser(ctx, id)
+}
+
+func (s *AdminService) HardDeleteUser(ctx context.Context, id, requestorID string) error {
 	if id == requestorID {
 		return ErrCannotDeleteSelf
 	}
@@ -118,7 +146,7 @@ func (s *AdminService) DeleteUser(ctx context.Context, id, requestorID string) e
 		}
 	}
 
-	return s.userRepo.DeleteUser(ctx, id)
+	return s.userRepo.HardDeleteUser(ctx, id)
 }
 
 func splitName(name string) (first, last string) {

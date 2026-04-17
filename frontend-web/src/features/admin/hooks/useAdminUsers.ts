@@ -32,6 +32,22 @@ export function useChangePassword() {
   })
 }
 
+export function useDisableUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: adminService.disableUser,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
+  })
+}
+
+export function useEnableUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: adminService.enableUser,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'users'] }),
+  })
+}
+
 export function useDeleteUser() {
   const qc = useQueryClient()
   return useMutation({

@@ -116,10 +116,22 @@ func (r *UserRepository) UpdatePassword(ctx context.Context, id, passwordHash st
 	return err
 }
 
-func (r *UserRepository) DeleteUser(ctx context.Context, id string) error {
+func (r *UserRepository) DisableUser(ctx context.Context, id string) error {
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE users SET is_active=false, updated_at=NOW() WHERE id=$1
 	`, id)
+	return err
+}
+
+func (r *UserRepository) EnableUser(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE users SET is_active=true, updated_at=NOW() WHERE id=$1
+	`, id)
+	return err
+}
+
+func (r *UserRepository) HardDeleteUser(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM users WHERE id=$1`, id)
 	return err
 }
 

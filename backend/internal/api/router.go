@@ -64,6 +64,8 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				adminGroup.POST("/users", adminHandler.CreateUser)
 				adminGroup.PATCH("/users/:id", adminHandler.UpdateUser)
 				adminGroup.PATCH("/users/:id/password", adminHandler.ChangePassword)
+				adminGroup.PATCH("/users/:id/disable", adminHandler.DisableUser)
+				adminGroup.PATCH("/users/:id/enable", adminHandler.EnableUser)
 				adminGroup.DELETE("/users/:id", adminHandler.DeleteUser)
 			}
 

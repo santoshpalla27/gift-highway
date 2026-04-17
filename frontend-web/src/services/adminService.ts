@@ -30,6 +30,16 @@ export const adminService = {
     return res.data
   },
 
+  disableUser: async (id: string) => {
+    const res = await apiClient.patch(`/admin/users/${id}/disable`)
+    return res.data
+  },
+
+  enableUser: async (id: string) => {
+    const res = await apiClient.patch(`/admin/users/${id}/enable`)
+    return res.data
+  },
+
   deleteUser: async (id: string) => {
     const res = await apiClient.delete(`/admin/users/${id}`)
     return res.data

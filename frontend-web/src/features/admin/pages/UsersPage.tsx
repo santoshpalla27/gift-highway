@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useAdminUsers, useDeleteUser } from '../hooks/useAdminUsers'
+import { useAdminUsers, useDisableUser, useEnableUser, useDeleteUser } from '../hooks/useAdminUsers'
 import { CreateUserModal } from '../components/CreateUserModal'
 import { EditUserModal } from '../components/EditUserModal'
 import { ChangePasswordModal } from '../components/ChangePasswordModal'
@@ -20,7 +20,7 @@ function useClickOutside(ref: React.RefObject<HTMLElement>, handler: () => void)
   }, [ref, handler]);
 }
 
-function DropdownMenu({ user, onEdit, onPassword, onDelete }: { user: AdminUser, onEdit: () => void, onPassword: () => void, onDelete: () => void }) {
+function DropdownMenu({ user, onEdit, onPassword, onToggleActive, onDelete }: { user: AdminUser, onEdit: () => void, onPassword: () => void, onToggleActive: () => void, onDelete: () => void }) {
   const [open, setOpen] = useState(false)
   const [openUpwards, setOpenUpwards] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -30,14 +30,13 @@ function DropdownMenu({ user, onEdit, onPassword, onDelete }: { user: AdminUser,
     if (open && ref.current) {
       const rect = ref.current.getBoundingClientRect()
       const spaceBelow = window.innerHeight - rect.bottom
-      const dropdownHeight = 200 // Increased threshold for safety
-      setOpenUpwards(spaceBelow < dropdownHeight)
+      setOpenUpwards(spaceBelow < 240)
     }
   }, [open])
 
   return (
     <div className="relative" ref={ref} style={{ position: 'relative' }}>
-      <button 
+      <button
         className="premium-icon-btn"
         onClick={() => setOpen(!open)}
         title="More actions"
@@ -46,9 +45,9 @@ function DropdownMenu({ user, onEdit, onPassword, onDelete }: { user: AdminUser,
           <circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle>
         </svg>
       </button>
-      
+
       {open && (
-        <div 
+        <div
           className={`premium-dropdown ${openUpwards ? 'dropdown-up' : 'dropdown-down'}`}
         >
           <button onClick={() => { setOpen(false); onEdit(); }} className="premium-menu-item">
@@ -60,9 +59,20 @@ function DropdownMenu({ user, onEdit, onPassword, onDelete }: { user: AdminUser,
             Change Password
           </button>
           <div className="premium-menu-divider" />
+          {user.is_active ? (
+            <button onClick={() => { setOpen(false); onToggleActive(); }} className="premium-menu-item" style={{ color: '#D97706' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+              Disable User
+            </button>
+          ) : (
+            <button onClick={() => { setOpen(false); onToggleActive(); }} className="premium-menu-item" style={{ color: '#059669' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              Enable User
+            </button>
+          )}
           <button onClick={() => { setOpen(false); onDelete(); }} className="premium-menu-item danger">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="9" x2="15" y2="15"></line><line x1="15" y1="9" x2="9" y2="15"></line></svg>
-            Disable User
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4h6v2"></path></svg>
+            Delete Permanently
           </button>
         </div>
       )}
@@ -76,6 +86,8 @@ function getInitials(name: string) {
 
 export function UsersPage() {
   const { data: users = [], isLoading } = useAdminUsers()
+  const { mutate: disableUser } = useDisableUser()
+  const { mutate: enableUser } = useEnableUser()
   const { mutate: deleteUser } = useDeleteUser()
   const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
@@ -87,8 +99,18 @@ export function UsersPage() {
     u.email.toLowerCase().includes(search.toLowerCase())
   )
 
+  const handleToggleActive = (user: AdminUser) => {
+    if (user.is_active) {
+      if (window.confirm(`Disable ${user.name}? They will not be able to log in.`)) {
+        disableUser(user.id)
+      }
+    } else {
+      enableUser(user.id)
+    }
+  }
+
   const handleDelete = (user: AdminUser) => {
-    if (window.confirm(`Disable ${user.name}? This will prevent them from logging in.`)) {
+    if (window.confirm(`Permanently delete ${user.name}? This cannot be undone.`)) {
       deleteUser(user.id)
     }
   }
@@ -464,10 +486,11 @@ export function UsersPage() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                      <DropdownMenu 
-                        user={user} 
+                      <DropdownMenu
+                        user={user}
                         onEdit={() => setEditUser(user)}
                         onPassword={() => setPwdUser(user)}
+                        onToggleActive={() => handleToggleActive(user)}
                         onDelete={() => handleDelete(user)}
                       />
                     </div>

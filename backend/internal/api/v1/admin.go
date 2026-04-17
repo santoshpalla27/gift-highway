@@ -104,10 +104,36 @@ func (h *AdminHandler) ChangePassword(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "password updated"})
 }
 
+func (h *AdminHandler) DisableUser(c *gin.Context) {
+	id := c.Param("id")
+	requestorID, _ := c.Get("user_id")
+	if err := h.adminService.DisableUser(c.Request.Context(), id, requestorID.(string)); err != nil {
+		switch {
+		case errors.Is(err, services.ErrCannotDisableSelf):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "cannot disable yourself"})
+		case errors.Is(err, services.ErrLastAdmin):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "cannot remove the last admin"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to disable user"})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "user disabled"})
+}
+
+func (h *AdminHandler) EnableUser(c *gin.Context) {
+	id := c.Param("id")
+	if err := h.adminService.EnableUser(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to enable user"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "user enabled"})
+}
+
 func (h *AdminHandler) DeleteUser(c *gin.Context) {
 	id := c.Param("id")
 	requestorID, _ := c.Get("user_id")
-	if err := h.adminService.DeleteUser(c.Request.Context(), id, requestorID.(string)); err != nil {
+	if err := h.adminService.HardDeleteUser(c.Request.Context(), id, requestorID.(string)); err != nil {
 		switch {
 		case errors.Is(err, services.ErrCannotDeleteSelf):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "cannot delete yourself"})
@@ -118,5 +144,5 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
 		}
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "user disabled"})
+	c.JSON(http.StatusOK, gin.H{"message": "user deleted"})
 }
