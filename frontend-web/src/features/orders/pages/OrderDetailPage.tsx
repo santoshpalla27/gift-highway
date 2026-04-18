@@ -97,6 +97,16 @@ function DateDivider({ label }: { label: string }) {
 // ─── Extended event type for local optimistic state ──────────────────────────
 type LocalOrderEvent = OrderEvent & { failed?: boolean; originalText?: string }
 
+async function downloadFile(orderId: string, fileKey: string, fileName: string) {
+  try {
+    const url = await attachmentService.getDownloadUrl(orderId, fileKey, fileName)
+    window.location.href = url
+  } catch {
+    // fallback: open presigned view URL in new tab
+    window.open(`about:blank`, '_blank')
+  }
+}
+
 // ─── Attachment image with signed-url refresh on 403/load-error ─────────────
 
 function AttachmentImage({ orderId, fileKey, fileName, fileUrl }: {
@@ -240,9 +250,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, orderId }: {
             overflow: 'hidden', maxWidth: 320, boxShadow: '0 1px 3px rgba(0,0,0,.04)',
           }}>
             {fileIsImage ? (
-              <a href={p.file_url} target="_blank" rel="noopener noreferrer">
-                <AttachmentImage orderId={orderId} fileKey={p.file_key} fileName={p.file_name} fileUrl={p.file_url} />
-              </a>
+              <AttachmentImage orderId={orderId} fileKey={p.file_key} fileName={p.file_name} fileUrl={p.file_url} />
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
                 <div style={{
@@ -255,19 +263,19 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, orderId }: {
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.file_name}</div>
                   <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{formatBytes(Number(p.size_bytes))}</div>
                 </div>
-                <a href={p.file_url} target="_blank" rel="noopener noreferrer" download={p.file_name}
-                  style={{ color: '#6366F1', flexShrink: 0 }}>
+                <button onClick={() => downloadFile(orderId, p.file_key, p.file_name)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, padding: 0, lineHeight: 1 }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                </a>
+                </button>
               </div>
             )}
             {fileIsImage && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #F3F4F6' }}>
                 <span style={{ fontSize: 11, color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.file_name}</span>
-                <a href={p.file_url} target="_blank" rel="noopener noreferrer" download={p.file_name}
-                  style={{ color: '#6366F1', flexShrink: 0, marginLeft: 8 }}>
+                <button onClick={() => downloadFile(orderId, p.file_key, p.file_name)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, marginLeft: 8, padding: 0, lineHeight: 1 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                </a>
+                </button>
               </div>
             )}
           </div>
@@ -452,7 +460,10 @@ export function OrderDetailPage() {
   const [commentText, setCommentText] = useState('')
 
   // ── File uploads ────────────────────────────────────────────────────────────
-  type UploadingFile = { id: string; name: string; progress: number; error?: string }
+  type UploadingFile = {
+    id: string; name: string; mime: string; progress: number
+    previewUrl?: string; done?: boolean; error?: string; file?: File
+  }
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -597,33 +608,52 @@ export function OrderDetailPage() {
   }
 
   // ── File upload ─────────────────────────────────────────────────────────────
+  const runUpload = async (uid: string, file: File) => {
+    if (!id) return
+    try {
+      const { upload_url, file_key, file_url } = await attachmentService.getUploadURL(id, file.name, file.type, file.size)
+      await attachmentService.uploadToR2(upload_url, file, pct => {
+        setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, progress: pct } : f))
+      })
+      await attachmentService.confirmUpload(id, {
+        file_name: file.name, file_key, file_url, mime_type: file.type, size_bytes: file.size,
+      })
+      setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, done: true, progress: 100 } : f))
+      setTimeout(() => {
+        setUploadingFiles(prev => {
+          const entry = prev.find(f => f.id === uid)
+          if (entry?.previewUrl) URL.revokeObjectURL(entry.previewUrl)
+          return prev.filter(f => f.id !== uid)
+        })
+      }, 1500)
+    } catch {
+      setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, error: 'Upload failed' } : f))
+    }
+  }
+
   const uploadFiles = async (files: FileList | File[]) => {
     if (!id) return
-    const arr = Array.from(files)
-    for (const file of arr) {
+    for (const file of Array.from(files)) {
       if (!ALLOWED_MIME_TYPES.includes(file.type)) {
         alert(`"${file.name}" has an unsupported file type.`)
         continue
       }
       if (file.size > MAX_FILE_SIZE) {
-        alert(`"${file.name}" exceeds the 20 MB limit.`)
+        alert(`"${file.name}" exceeds the 50 MB limit.`)
         continue
       }
       const uid = `upload-${Date.now()}-${Math.random()}`
-      setUploadingFiles(prev => [...prev, { id: uid, name: file.name, progress: 0 }])
-      try {
-        const { upload_url, file_key, file_url } = await attachmentService.getUploadURL(id, file.name, file.type, file.size)
-        await attachmentService.uploadToR2(upload_url, file, pct => {
-          setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, progress: pct } : f))
-        })
-        await attachmentService.confirmUpload(id, {
-          file_name: file.name, file_key, file_url, mime_type: file.type, size_bytes: file.size,
-        })
-        setUploadingFiles(prev => prev.filter(f => f.id !== uid))
-      } catch {
-        setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, error: 'Upload failed' } : f))
-      }
+      const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
+      setUploadingFiles(prev => [...prev, { id: uid, name: file.name, mime: file.type, progress: 0, previewUrl, file }])
+      runUpload(uid, file)
     }
+  }
+
+  const retryUpload = (uid: string) => {
+    const entry = uploadingFiles.find(f => f.id === uid)
+    if (!entry?.file) return
+    setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, error: undefined, progress: 0 } : f))
+    runUpload(uid, entry.file)
   }
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -812,27 +842,51 @@ export function OrderDetailPage() {
 
           {/* Upload progress pills */}
           {uploadingFiles.length > 0 && (
-            <div style={{ padding: '6px 20px', display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid #F3F4F6', background: '#FAFAFA' }}>
-              {uploadingFiles.map(f => (
-                <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  <span style={{ fontSize: 12, color: '#374151', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
-                  {f.error
-                    ? <span style={{ fontSize: 11, color: '#EF4444' }}>{f.error}</span>
-                    : (
-                      <div style={{ width: 80, height: 4, background: '#E5E7EB', borderRadius: 9999, overflow: 'hidden', flexShrink: 0 }}>
-                        <div style={{ height: '100%', width: `${f.progress}%`, background: '#6366F1', transition: 'width 0.2s' }} />
+            <div style={{ padding: '6px 16px', display: 'flex', flexDirection: 'column', gap: 5, borderTop: '1px solid #F3F4F6', background: '#FAFAFA' }}>
+              {uploadingFiles.map(f => {
+                const fileIconColor = f.mime === 'application/pdf' ? '#EF4444'
+                  : f.mime.includes('word') ? '#3B82F6'
+                  : f.mime.includes('sheet') || f.mime.includes('excel') ? '#10B981'
+                  : '#6B7280'
+                return (
+                  <div key={f.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '5px 8px', borderRadius: 8,
+                    background: f.done ? '#F0FDF4' : f.error ? '#FFF5F5' : '#FFFFFF',
+                    border: `1px solid ${f.done ? '#BBF7D0' : f.error ? '#FCA5A5' : '#E5E7EB'}`,
+                    transition: 'background 0.3s, border-color 0.3s',
+                  }}>
+                    {/* Thumbnail or type icon */}
+                    {f.previewUrl ? (
+                      <img src={f.previewUrl} style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: 28, height: 28, borderRadius: 6, background: fileIconColor + '15', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={fileIconColor} strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                       </div>
-                    )
-                  }
-                  {f.error && (
-                    <button onClick={() => setUploadingFiles(prev => prev.filter(x => x.id !== f.id))}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 0, lineHeight: 1 }}>
-                      ✕
-                    </button>
-                  )}
-                </div>
-              ))}
+                    )}
+                    <span style={{ fontSize: 12, color: '#374151', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                    {f.done ? (
+                      <span style={{ fontSize: 11, color: '#10B981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                        Done
+                      </span>
+                    ) : f.error ? (
+                      <>
+                        <span style={{ fontSize: 11, color: '#EF4444', flexShrink: 0 }}>Failed</span>
+                        <button onClick={() => retryUpload(f.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#6366F1', fontWeight: 600, padding: '0 2px', flexShrink: 0 }}>Retry</button>
+                        <button onClick={() => setUploadingFiles(prev => prev.filter(x => x.id !== f.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
+                      </>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                        <span style={{ fontSize: 11, color: '#9CA3AF' }}>{f.progress}%</span>
+                        <div style={{ width: 64, height: 4, background: '#E5E7EB', borderRadius: 9999, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${f.progress}%`, background: '#6366F1', transition: 'width 0.2s' }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
 

@@ -443,7 +443,11 @@ export default function OrderDetailScreen() {
   const [showEdit, setShowEdit] = useState(false)
 
   // ── File uploads ─────────────────────────────────────────────────────────────
-  type UploadingFile = { id: string; name: string; progress: number; error?: string }
+  type UploadingFile = {
+    id: string; name: string; mime: string; progress: number
+    previewUri?: string; done?: boolean; error?: string
+    retryArgs?: { uri: string; mimeType: string; size: number }
+  }
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
 
   const scrollRef = useRef<ScrollView>(null)
@@ -529,22 +533,36 @@ export default function OrderDetailScreen() {
   )
 
   // ── File upload ──────────────────────────────────────────────────────────────
-  const uploadFile = async (uri: string, name: string, mimeType: string, size: number) => {
+  const runUpload = async (uid: string, uri: string, name: string, mimeType: string, size: number) => {
     if (!id) return
-    if (!ALLOWED_MIME_TYPES.includes(mimeType)) { Alert.alert('Error', `"${name}" has an unsupported file type.`); return }
-    if (size > MAX_FILE_SIZE) { Alert.alert('Error', `"${name}" exceeds the 20 MB limit.`); return }
-    const uid = `upload-${Date.now()}`
-    setUploadingFiles(prev => [...prev, { id: uid, name, progress: 0 }])
     try {
       const { upload_url, file_key, file_url } = await attachmentService.getUploadURL(id, name, mimeType, size)
       await attachmentService.uploadToR2(upload_url, uri, mimeType, pct => {
         setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, progress: pct } : f))
       })
       await attachmentService.confirmUpload(id, { file_name: name, file_key, file_url, mime_type: mimeType, size_bytes: size })
-      setUploadingFiles(prev => prev.filter(f => f.id !== uid))
+      setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, done: true, progress: 100 } : f))
+      setTimeout(() => setUploadingFiles(prev => prev.filter(f => f.id !== uid)), 1500)
     } catch {
       setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, error: 'Upload failed' } : f))
     }
+  }
+
+  const uploadFile = async (uri: string, name: string, mimeType: string, size: number) => {
+    if (!id) return
+    if (!ALLOWED_MIME_TYPES.includes(mimeType)) { Alert.alert('Error', `"${name}" has an unsupported file type.`); return }
+    if (size > MAX_FILE_SIZE) { Alert.alert('Error', `"${name}" exceeds the 50 MB limit.`); return }
+    const uid = `upload-${Date.now()}`
+    const previewUri = mimeType.startsWith('image/') ? uri : undefined
+    setUploadingFiles(prev => [...prev, { id: uid, name, mime: mimeType, progress: 0, previewUri, retryArgs: { uri, mimeType, size } }])
+    runUpload(uid, uri, name, mimeType, size)
+  }
+
+  const retryUpload = (uid: string) => {
+    const entry = uploadingFiles.find(f => f.id === uid)
+    if (!entry?.retryArgs) return
+    setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, error: undefined, progress: 0 } : f))
+    runUpload(uid, entry.retryArgs.uri, entry.name, entry.retryArgs.mimeType, entry.retryArgs.size)
   }
 
   const handlePickImage = async () => {
@@ -773,21 +791,53 @@ export default function OrderDetailScreen() {
 
         {/* Upload progress */}
         {uploadingFiles.length > 0 && (
-          <View style={{ paddingHorizontal: 16, paddingVertical: 8, gap: 6, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
-            {uploadingFiles.map(f => (
-              <View key={f.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="document-outline" size={14} color="#64748B" />
-                <Text style={{ fontSize: 12, color: '#374151', flex: 1 }} numberOfLines={1}>{f.name}</Text>
-                {f.error
-                  ? <Text style={{ fontSize: 11, color: '#EF4444' }}>{f.error}</Text>
-                  : (
-                    <View style={{ width: 60, height: 4, backgroundColor: '#E2E8F0', borderRadius: 9999, overflow: 'hidden' }}>
-                      <View style={{ height: '100%', width: `${f.progress}%`, backgroundColor: '#6366F1' }} />
+          <View style={{ paddingHorizontal: 12, paddingVertical: 6, gap: 5, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+            {uploadingFiles.map(f => {
+              const iconColor = f.mime === 'application/pdf' ? '#EF4444'
+                : f.mime.includes('word') ? '#3B82F6'
+                : f.mime.includes('sheet') || f.mime.includes('excel') ? '#10B981'
+                : '#6B7280'
+              return (
+                <View key={f.id} style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 8, padding: 6, borderRadius: 8,
+                  backgroundColor: f.done ? '#F0FDF4' : f.error ? '#FFF5F5' : '#FFFFFF',
+                  borderWidth: 1,
+                  borderColor: f.done ? '#BBF7D0' : f.error ? '#FCA5A5' : '#E5E7EB',
+                }}>
+                  {f.previewUri ? (
+                    <Image source={{ uri: f.previewUri }} style={{ width: 28, height: 28, borderRadius: 4 }} />
+                  ) : (
+                    <View style={{ width: 28, height: 28, borderRadius: 6, backgroundColor: iconColor + '20', alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="document-outline" size={14} color={iconColor} />
                     </View>
-                  )
-                }
-              </View>
-            ))}
+                  )}
+                  <Text style={{ fontSize: 12, color: '#374151', flex: 1 }} numberOfLines={1}>{f.name}</Text>
+                  {f.done ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <Ionicons name="checkmark" size={13} color="#10B981" />
+                      <Text style={{ fontSize: 11, color: '#10B981', fontWeight: '600' }}>Done</Text>
+                    </View>
+                  ) : f.error ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ fontSize: 11, color: '#EF4444' }}>Failed</Text>
+                      <TouchableOpacity onPress={() => retryUpload(f.id)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                        <Text style={{ fontSize: 11, color: '#6366F1', fontWeight: '600' }}>Retry</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => setUploadingFiles(prev => prev.filter(x => x.id !== f.id))} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                        <Ionicons name="close" size={13} color="#9CA3AF" />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <Text style={{ fontSize: 11, color: '#9CA3AF' }}>{f.progress}%</Text>
+                      <View style={{ width: 50, height: 4, backgroundColor: '#E2E8F0', borderRadius: 9999, overflow: 'hidden' }}>
+                        <View style={{ height: '100%', width: `${f.progress}%`, backgroundColor: '#6366F1' }} />
+                      </View>
+                    </View>
+                  )}
+                </View>
+              )
+            })}
           </View>
         )}
 

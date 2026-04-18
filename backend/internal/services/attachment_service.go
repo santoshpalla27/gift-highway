@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	ErrFileTooLarge    = errors.New("file exceeds 20 MB limit")
+	ErrFileTooLarge    = errors.New("file exceeds 50 MB limit")
 	ErrInvalidMIMEType = errors.New("file type not allowed")
 )
 
@@ -35,7 +35,7 @@ var allowedMIMETypes = map[string]bool{
 	"text/plain":               true,
 }
 
-const maxFileSizeBytes = 20 * 1024 * 1024 // 20 MB
+const maxFileSizeBytes = 50 * 1024 * 1024 // 50 MB
 
 type AttachmentService struct {
 	repo      *repositories.AttachmentRepository
@@ -154,6 +154,26 @@ func (s *AttachmentService) GetSignedURL(ctx context.Context, fileKey string) (s
 		Bucket: aws.String(s.cfg.R2Bucket),
 		Key:    aws.String(fileKey),
 	}, s3.WithPresignExpires(7*24*time.Hour))
+	if err != nil {
+		return "", err
+	}
+	return req.URL, nil
+}
+
+
+// GetDownloadURL generates a short-lived presigned GET URL with Content-Disposition: attachment
+// so the browser triggers a direct download without any fetch/blob tricks.
+func (s *AttachmentService) GetDownloadURL(ctx context.Context, fileKey, fileName string) (string, error) {
+	client, err := s.newR2Client(ctx)
+	if err != nil {
+		return "", err
+	}
+	presignClient := s3.NewPresignClient(client)
+	req, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket:                     aws.String(s.cfg.R2Bucket),
+		Key:                        aws.String(fileKey),
+		ResponseContentDisposition: aws.String(fmt.Sprintf(`attachment; filename="%s"`, fileName)),
+	}, s3.WithPresignExpires(15*time.Minute))
 	if err != nil {
 		return "", err
 	}

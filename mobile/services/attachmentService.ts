@@ -22,7 +22,7 @@ export const ALLOWED_MIME_TYPES = [
   'text/plain',
 ]
 
-export const MAX_FILE_SIZE = 20 * 1024 * 1024
+export const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
 
 export function isImage(mimeType: string) {
   return mimeType.startsWith('image/')

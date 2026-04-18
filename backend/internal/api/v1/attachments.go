@@ -32,7 +32,7 @@ func (h *AttachmentHandler) GetUploadURL(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrFileTooLarge):
-			c.JSON(http.StatusBadRequest, gin.H{"error": "file exceeds 20 MB limit"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "file exceeds 50 MB limit"})
 		case errors.Is(err, services.ErrInvalidMIMEType):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "file type not allowed"})
 		case errors.Is(err, services.ErrStorageNotConfigured):
@@ -78,6 +78,26 @@ func (h *AttachmentHandler) ListAttachments(c *gin.Context) {
 		items[i] = toAttachmentResponse(a)
 	}
 	c.JSON(http.StatusOK, gin.H{"attachments": items})
+}
+
+
+func (h *AttachmentHandler) GetDownloadURL(c *gin.Context) {
+	fileKey := c.Query("key")
+	fileName := c.Query("name")
+	if fileKey == "" || fileName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "key and name are required"})
+		return
+	}
+	url, err := h.svc.GetDownloadURL(c.Request.Context(), fileKey, fileName)
+	if err != nil {
+		if errors.Is(err, services.ErrStorageNotConfigured) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "storage not configured"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate download URL"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"url": url})
 }
 
 func (h *AttachmentHandler) GetSignedURL(c *gin.Context) {

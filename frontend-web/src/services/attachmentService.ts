@@ -22,7 +22,7 @@ export const ALLOWED_MIME_TYPES = [
   'text/plain',
 ]
 
-export const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20 MB
+export const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
 
 export function isImage(mimeType: string) {
   return mimeType.startsWith('image/')
@@ -72,6 +72,13 @@ export const attachmentService = {
   getSignedUrl: async (orderId: string, fileKey: string): Promise<string> => {
     const res = await apiClient.get<{ url: string }>(
       `/orders/${orderId}/attachments/signed-url?key=${encodeURIComponent(fileKey)}`,
+    )
+    return res.data.url
+  },
+
+  getDownloadUrl: async (orderId: string, fileKey: string, fileName: string): Promise<string> => {
+    const res = await apiClient.get<{ url: string }>(
+      `/orders/${orderId}/attachments/download-url?key=${encodeURIComponent(fileKey)}&name=${encodeURIComponent(fileName)}`,
     )
     return res.data.url
   },

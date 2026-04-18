@@ -114,6 +114,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				ordersGroup.POST("/:id/attachments", attachmentHandler.ConfirmUpload)
 				ordersGroup.GET("/:id/attachments", attachmentHandler.ListAttachments)
 				ordersGroup.GET("/:id/attachments/signed-url", attachmentHandler.GetSignedURL)
+				ordersGroup.GET("/:id/attachments/download-url", attachmentHandler.GetDownloadURL)
 				ordersGroup.DELETE("/:id/attachments/:attachmentId", attachmentHandler.DeleteAttachment)
 			}
 		}
