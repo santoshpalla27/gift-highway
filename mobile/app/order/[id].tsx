@@ -175,31 +175,38 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, orderId 
   onEdit?: (newText: string) => void
   orderId: string
 }) {
+  const [menuFor, setMenuFor] = useState<'comment' | 'attachment' | null>(null)
   const isComment = event.type === 'comment_added'
   const meta = EVENT_TYPE_META[event.type]
 
-  const openMenu = (forAttachment = false) => {
-    const options: string[] = []
-    if (!forAttachment && onEdit) options.push('Edit')
-    if (onDelete) options.push('Delete')
-    options.push('Cancel')
-
-    const destructiveIndex = options.indexOf('Delete')
-    const cancelIndex = options.indexOf('Cancel')
-
-    Alert.alert('Options', '', options.map((opt, i) => ({
-      text: opt,
-      style: i === destructiveIndex ? 'destructive' : i === cancelIndex ? 'cancel' : 'default',
-      onPress: () => {
-        if (opt === 'Delete' && onDelete) onDelete()
-        if (opt === 'Edit' && onEdit) {
-          const currentText = typeof event.payload === 'object' && event.payload !== null
-            ? (event.payload as Record<string, string>).text ?? '' : ''
-          onEdit(currentText)
-        }
-      },
-    })))
-  }
+  const menuSheet = menuFor !== null && (
+    <Modal visible transparent animationType="fade" onRequestClose={() => setMenuFor(null)}>
+      <TouchableOpacity style={TM.overlay} activeOpacity={1} onPress={() => setMenuFor(null)}>
+        <TouchableOpacity activeOpacity={1} style={TM.sheet}>
+          {menuFor === 'comment' && onEdit && (
+            <TouchableOpacity style={TM.row} onPress={() => {
+              setMenuFor(null)
+              const currentText = typeof event.payload === 'object' && event.payload !== null
+                ? (event.payload as Record<string, string>).text ?? '' : ''
+              onEdit(currentText)
+            }}>
+              <Ionicons name="pencil-outline" size={18} color="#374151" />
+              <Text style={TM.rowText}>Edit</Text>
+            </TouchableOpacity>
+          )}
+          {onDelete && (
+            <TouchableOpacity style={TM.row} onPress={() => { setMenuFor(null); onDelete() }}>
+              <Ionicons name="trash-outline" size={18} color="#EF4444" />
+              <Text style={[TM.rowText, { color: '#EF4444' }]}>Delete</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={[TM.row, TM.cancelRow]} onPress={() => setMenuFor(null)}>
+            <Text style={TM.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  )
 
   if (isComment) {
     const text = typeof event.payload === 'object' && event.payload !== null
@@ -209,6 +216,7 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, orderId 
     const canMenu = (onDelete || onEdit) && !isOptimistic
     return (
       <View style={[T.commentRow, isOptimistic && !isFailed && { opacity: 0.6 }]}>
+        {menuSheet}
         <View style={T.avatar}>
           <Text style={T.avatarText}>{getInitials(event.actor_name || '?')}</Text>
         </View>
@@ -219,7 +227,7 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, orderId 
               {isFailed ? 'Failed to send' : formatTimestamp(event.created_at)}
             </Text>
             {canMenu && (
-              <TouchableOpacity onPress={() => openMenu(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity onPress={() => setMenuFor('comment')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="ellipsis-vertical" size={16} color="#6B7280" />
               </TouchableOpacity>
             )}
@@ -244,6 +252,7 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, orderId 
     const p = event.payload as Record<string, string>
     return (
       <View style={T.commentRow}>
+        {menuSheet}
         <View style={T.avatar}>
           <Text style={T.avatarText}>{getInitials(event.actor_name || '?')}</Text>
         </View>
@@ -252,7 +261,7 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, orderId 
             <Text style={T.actorName}>{event.actor_name}</Text>
             <Text style={T.time}>{formatTimestamp(event.created_at)}</Text>
             {onDelete && (
-              <TouchableOpacity onPress={() => openMenu(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity onPress={() => setMenuFor('attachment')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="ellipsis-vertical" size={16} color="#6B7280" />
               </TouchableOpacity>
             )}
@@ -489,8 +498,11 @@ export default function OrderDetailScreen() {
 
   const [comment, setComment] = useState('')
   const [sending, setSending] = useState(false)
+  const sendingRef = useRef(false)
   const [showStatus, setShowStatus] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const [showAttachSheet, setShowAttachSheet] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [editingComment, setEditingComment] = useState<{ eventId: string; text: string } | null>(null)
   const [editCommentText, setEditCommentText] = useState('')
 
@@ -577,6 +589,17 @@ export default function OrderDetailScreen() {
   useOrderSocket(
     () => { fetchOrder(); fetchLatest() },
     (event) => {
+      if (event.type === 'order.event_added') {
+        const incoming = event.payload as any
+        if (incoming?.id) {
+          setEvList(prev => {
+            if (prev.some(e => e.id === incoming.id)) {
+              return prev.map(e => e.id === incoming.id ? { ...e, ...incoming } : e)
+            }
+            return prev // new events are handled by fetchLatest via callbackRef
+          })
+        }
+      }
       if (event.type === 'order.event_deleted') {
         const p = event.payload as Record<string, string> | undefined
         if (!p?.event_id) return
@@ -647,13 +670,7 @@ export default function OrderDetailScreen() {
     }
   }
 
-  const handleAttachPress = () => {
-    Alert.alert('Attach File', 'Choose a source', [
-      { text: 'Photo Library', onPress: handlePickImage },
-      { text: 'Files', onPress: handlePickDocument },
-      { text: 'Cancel', style: 'cancel' },
-    ])
-  }
+  const handleAttachPress = () => setShowAttachSheet(true)
 
   const onRefresh = () => {
     setRefreshing(true)
@@ -674,6 +691,8 @@ export default function OrderDetailScreen() {
       atBottomRef.current = true
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50)
     }
+    if (sendingRef.current) return
+    sendingRef.current = true
     setSending(true)
     try {
       await orderService.addComment(id!, text)
@@ -682,13 +701,14 @@ export default function OrderDetailScreen() {
     } catch {
       setOptimisticEvents(prev => prev.map(e => e.id === id_ ? { ...e, failed: true } : e))
     } finally {
+      sendingRef.current = false
       setSending(false)
     }
   }
 
   const handleSendComment = async () => {
     const text = comment.trim()
-    if (!text || sending) return
+    if (!text || sendingRef.current) return
     setComment('')
     await sendComment(text)
   }
@@ -700,28 +720,25 @@ export default function OrderDetailScreen() {
     await sendComment(text, ev.id)
   }
 
-  const handleDeleteComment = async (eventId: string) => {
+  const handleDeleteComment = (eventId: string) => setDeleteConfirmId(eventId)
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return
+    const eventId = deleteConfirmId
     const ev = evListRef.current.find(e => e.id === eventId)
-    Alert.alert('Delete', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive',
-        onPress: async () => {
-          try {
-            await orderService.deleteComment(id!, eventId)
-            if (ev?.type === 'attachment_added') {
-              const fileName = (ev.payload as any)?.file_name ?? ''
-              setEvList(prev => prev.map(e => e.id === eventId
-                ? { ...e, type: 'attachment_deleted', payload: { ...e.payload, file_name: fileName } as any }
-                : e
-              ))
-            } else {
-              setEvList(prev => prev.filter(e => e.id !== eventId))
-            }
-          } catch { Alert.alert('Error', 'Could not delete.') }
-        },
-      },
-    ])
+    setDeleteConfirmId(null)
+    try {
+      await orderService.deleteComment(id!, eventId)
+      if (ev?.type === 'attachment_added') {
+        const fileName = (ev.payload as any)?.file_name ?? ''
+        setEvList(prev => prev.map(e => e.id === eventId
+          ? { ...e, type: 'attachment_deleted', payload: { ...e.payload, file_name: fileName } as any }
+          : e
+        ))
+      } else {
+        setEvList(prev => prev.filter(e => e.id !== eventId))
+      }
+    } catch { Alert.alert('Error', 'Could not delete.') }
   }
 
   if (loadingOrder) {
@@ -955,6 +972,40 @@ export default function OrderDetailScreen() {
           onSaved={() => { fetchOrder(); fetchLatest() }}
         />
       )}
+      <Modal visible={!!deleteConfirmId} transparent animationType="fade" onRequestClose={() => setDeleteConfirmId(null)}>
+        <TouchableOpacity style={EC.overlay} activeOpacity={1} onPress={() => setDeleteConfirmId(null)}>
+          <TouchableOpacity activeOpacity={1} style={EC.sheet}>
+            <Text style={EC.title}>Delete?</Text>
+            <Text style={{ fontSize: 14, color: '#6B7280', marginBottom: 16 }}>This action cannot be undone.</Text>
+            <View style={EC.actions}>
+              <TouchableOpacity style={EC.cancelBtn} onPress={() => setDeleteConfirmId(null)}>
+                <Text style={EC.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[EC.saveBtn, { backgroundColor: '#EF4444' }]} onPress={confirmDelete}>
+                <Text style={EC.saveText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+      <Modal visible={showAttachSheet} transparent animationType="slide" onRequestClose={() => setShowAttachSheet(false)}>
+        <TouchableOpacity style={SS.overlay} activeOpacity={1} onPress={() => setShowAttachSheet(false)}>
+          <TouchableOpacity activeOpacity={1} style={SS.sheet}>
+            <Text style={SS.title}>Attach File</Text>
+            <TouchableOpacity style={TM.row} onPress={() => { setShowAttachSheet(false); setTimeout(handlePickImage, 100) }}>
+              <Ionicons name="image-outline" size={20} color="#374151" />
+              <Text style={TM.rowText}>Photo Library</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={TM.row} onPress={() => { setShowAttachSheet(false); setTimeout(handlePickDocument, 100) }}>
+              <Ionicons name="document-outline" size={20} color="#374151" />
+              <Text style={TM.rowText}>Files</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[TM.row, TM.cancelRow]} onPress={() => setShowAttachSheet(false)}>
+              <Text style={TM.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
       <Modal visible={!!editingComment} transparent animationType="fade" onRequestClose={() => setEditingComment(null)}>
         <TouchableOpacity style={EC.overlay} activeOpacity={1} onPress={() => setEditingComment(null)}>
           <TouchableOpacity activeOpacity={1} style={EC.sheet}>
@@ -1101,6 +1152,21 @@ const T = StyleSheet.create({
   systemActor: { fontSize: 12.5, color: '#374151', fontWeight: '600' },
   systemLabel: { fontSize: 12.5, color: '#64748B', fontWeight: '400' },
   systemMeta: { fontSize: 11, color: '#94A3B8', marginTop: 2 },
+})
+
+const TM = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingTop: 8, paddingBottom: Platform.OS === 'ios' ? 36 : 16,
+  },
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingVertical: 16, paddingHorizontal: 24,
+  },
+  rowText: { fontSize: 15, color: '#111827', fontWeight: '500' },
+  cancelRow: { borderTopWidth: 1, borderTopColor: '#F1F5F9', marginTop: 4 },
+  cancelText: { fontSize: 15, color: '#6B7280', fontWeight: '500', flex: 1, textAlign: 'center' },
 })
 
 const EC = StyleSheet.create({

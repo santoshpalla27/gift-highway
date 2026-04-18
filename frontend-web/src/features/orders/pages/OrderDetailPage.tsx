@@ -611,7 +611,19 @@ export function OrderDetailPage() {
   // ── Realtime: react to socket events for this order ────────────────────────
   useSocketEvent(useCallback((event) => {
     if (event.type === 'order.event_added' && event.entity_id === id) {
-      fetchLatest()
+      const incoming = (event as any).payload
+      if (incoming?.id) {
+        setEvList(prev => {
+          if (prev.some(e => e.id === incoming.id)) {
+            return prev.map(e => e.id === incoming.id ? { ...e, ...incoming } : e)
+          }
+          fetchLatest()
+          return prev
+        })
+        setOptimisticEvents(prev => prev.filter(e => e.failed))
+      } else {
+        fetchLatest()
+      }
     }
     if (event.type === 'order.event_deleted' && event.entity_id === id) {
       const p = (event as unknown as { payload: { event_id: string; tombstone?: boolean; file_name?: string } }).payload

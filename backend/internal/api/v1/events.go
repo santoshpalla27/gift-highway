@@ -130,7 +130,7 @@ func (h *EventHandler) DeleteComment(c *gin.Context) {
 		return
 	}
 
-	h.hub.Broadcast(realtime.NewEvent(realtime.EventOrderUpdated, orderID, gin.H{"id": orderID}))
+	h.hub.Broadcast(realtime.NewEvent(realtime.EventTimelineEventDeleted, orderID, gin.H{"event_id": eventID}))
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
 
