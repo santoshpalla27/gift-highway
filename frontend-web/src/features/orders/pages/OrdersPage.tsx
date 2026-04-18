@@ -35,16 +35,6 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function PriorityBadge({ priority }: { priority: string }) {
-  const m = PRIORITY_META[priority] ?? PRIORITY_META.medium
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 9px',
-      borderRadius: '9999px', fontSize: '11.5px', fontWeight: 600,
-      color: m.color, background: m.bg, whiteSpace: 'nowrap'
-    }}>{m.label}</span>
-  )
-}
 
 function StatusDropdown({ order, onChanged }: { order: Order; onChanged?: (msg: string) => void }) {
   const [open, setOpen] = useState(false)
@@ -310,12 +300,26 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                     <StatusDropdown order={order} onChanged={msg => setToast(msg)} />
                   </td>
                   <td>
-                    {order.assigned_name ? (
+                    {order.assigned_names && order.assigned_names.length > 0 ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#EEF2FF', color: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700 }}>
-                          {getInitials(order.assigned_name)}
+                        <div style={{ display: 'flex' }}>
+                          {order.assigned_names.slice(0, 3).map((name, i) => (
+                            <div key={i} style={{
+                              width: '22px', height: '22px', borderRadius: '50%',
+                              background: '#EEF2FF', color: '#6366F1',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: '9px', fontWeight: 700,
+                              marginLeft: i > 0 ? '-6px' : '0',
+                              border: '2px solid #FFFFFF', boxSizing: 'content-box'
+                            }}>
+                              {getInitials(name)}
+                            </div>
+                          ))}
                         </div>
-                        <span style={{ fontSize: '13px', color: '#111827', fontWeight: 500 }}>{order.assigned_name.split(' ')[0]}</span>
+                        <span style={{ fontSize: '13px', color: '#111827', fontWeight: 500 }}>
+                          {order.assigned_names[0].split(' ')[0]}
+                          {order.assigned_names.length > 1 && ` +${order.assigned_names.length - 1}`}
+                        </span>
                       </div>
                     ) : (
                       <span style={{ fontSize: '13px', color: '#9CA3AF' }}>Unassigned</span>

@@ -18,23 +18,23 @@ func NewOrderService(orderRepo *repositories.OrderRepository) *OrderService {
 }
 
 type CreateOrderRequest struct {
-	Title         string  `json:"title" binding:"required"`
-	Description   string  `json:"description"`
-	CustomerName  string  `json:"customer_name" binding:"required"`
-	ContactNumber string  `json:"contact_number"`
-	Priority      string  `json:"priority" binding:"required,oneof=low medium high urgent"`
-	AssignedTo    *string `json:"assigned_to"`
-	DueDate       *string `json:"due_date"`
+	Title         string   `json:"title" binding:"required"`
+	Description   string   `json:"description"`
+	CustomerName  string   `json:"customer_name" binding:"required"`
+	ContactNumber string   `json:"contact_number"`
+	Priority      string   `json:"priority" binding:"required,oneof=low medium high urgent"`
+	AssignedTo    []string `json:"assigned_to"`
+	DueDate       *string  `json:"due_date"`
 }
 
 type UpdateOrderRequest struct {
-	Title         string  `json:"title" binding:"required"`
-	Description   string  `json:"description"`
-	CustomerName  string  `json:"customer_name" binding:"required"`
-	ContactNumber string  `json:"contact_number"`
-	Priority      string  `json:"priority" binding:"required,oneof=low medium high urgent"`
-	AssignedTo    *string `json:"assigned_to"`
-	DueDate       *string `json:"due_date"`
+	Title         string   `json:"title" binding:"required"`
+	Description   string   `json:"description"`
+	CustomerName  string   `json:"customer_name" binding:"required"`
+	ContactNumber string   `json:"contact_number"`
+	Priority      string   `json:"priority" binding:"required,oneof=low medium high urgent"`
+	AssignedTo    []string `json:"assigned_to"`
+	DueDate       *string  `json:"due_date"`
 }
 
 type UpdateOrderStatusRequest struct {
@@ -66,8 +66,6 @@ func (s *OrderService) GetOrder(ctx context.Context, id string) (*models.OrderWi
 }
 
 func (s *OrderService) CreateOrder(ctx context.Context, createdBy string, req CreateOrderRequest) (*models.OrderWithNames, error) {
-	assignedTo := normalizeStringPtr(req.AssignedTo)
-
 	var dueDate *time.Time
 	if req.DueDate != nil && *req.DueDate != "" {
 		t, err := time.Parse("2006-01-02", *req.DueDate)
@@ -85,25 +83,16 @@ func (s *OrderService) CreateOrder(ctx context.Context, createdBy string, req Cr
 		ContactNumber: req.ContactNumber,
 		Status:        "new",
 		Priority:      req.Priority,
-		AssignedTo:    assignedTo,
 		CreatedBy:     createdBy,
 		DueDate:       dueDate,
 	}
-	return s.orderRepo.Create(ctx, o)
+	return s.orderRepo.Create(ctx, o, req.AssignedTo)
 }
 
 func (s *OrderService) UpdateOrder(ctx context.Context, id string, req UpdateOrderRequest) error {
-	assignedTo := normalizeStringPtr(req.AssignedTo)
-	return s.orderRepo.Update(ctx, id, req.Title, req.Description, req.CustomerName, req.ContactNumber, req.Priority, assignedTo, req.DueDate)
+	return s.orderRepo.Update(ctx, id, req.Title, req.Description, req.CustomerName, req.ContactNumber, req.Priority, req.AssignedTo, req.DueDate)
 }
 
 func (s *OrderService) UpdateStatus(ctx context.Context, id string, req UpdateOrderStatusRequest) error {
 	return s.orderRepo.UpdateStatus(ctx, id, req.Status)
-}
-
-func normalizeStringPtr(s *string) *string {
-	if s == nil || *s == "" {
-		return nil
-	}
-	return s
 }

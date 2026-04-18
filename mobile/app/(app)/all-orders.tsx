@@ -65,7 +65,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
   const [contactNumber, setContactNumber] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState('medium')
-  const [assignedTo, setAssignedTo] = useState('')
+  const [assignedTo, setAssignedTo] = useState<string[]>([])
   const [assignOpen, setAssignOpen] = useState(false)
   const [dueDate, setDueDate] = useState('')
   const [users, setUsers] = useState<UserOption[]>([])
@@ -85,11 +85,11 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
       setContactNumber(order.contact_number ?? '')
       setDescription(order.description)
       setPriority(order.priority)
-      setAssignedTo(order.assigned_to ?? '')
+      setAssignedTo(order.assigned_to ?? [])
       setDueDate(order.due_date ?? '')
     } else {
       setTitle(''); setCustomerName(''); setContactNumber(''); setDescription('')
-      setPriority('medium'); setAssignedTo(''); setDueDate('')
+      setPriority('medium'); setAssignedTo([]); setDueDate('')
     }
     setError('')
   }, [order, visible])
@@ -108,7 +108,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
         contact_number: contactNumber.trim(),
         description: description.trim(),
         priority,
-        assigned_to: assignedTo || null,
+        assigned_to: assignedTo,
         due_date: dueDate || null,
       }
       if (isEdit) {
@@ -169,40 +169,47 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
           <Text style={F.label}>Due Date (YYYY-MM-DD)</Text>
           <TextInput style={F.input} value={dueDate} onChangeText={setDueDate} placeholder="2026-05-01" keyboardType="numbers-and-punctuation" />
 
-          <View style={{ zIndex: 50, position: 'relative' }}>
-            <Text style={F.label}>Assign To</Text>
-            <TouchableOpacity 
-              style={[F.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} 
-              onPress={() => setAssignOpen(!assignOpen)}
-            >
-              <Text style={{ fontSize: 16, color: '#0F172A' }}>
-                {assignedTo ? users.find(u => u.id === assignedTo)?.name || '— Unassigned —' : '— Unassigned —'}
-              </Text>
-              <Ionicons name={assignOpen ? "chevron-up" : "chevron-down"} size={20} color="#94A3B8" />
-            </TouchableOpacity>
-
-            {assignOpen && (
-              <ScrollView style={[F.assignList, { position: 'absolute', top: 86, left: 0, right: 0, maxHeight: 200, zIndex: 100, elevation: 5, shadowColor: '#000', shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.1, shadowRadius: 8 }]} nestedScrollEnabled={true}>
-                <TouchableOpacity
-                  style={[F.assignRow, !assignedTo && F.assignRowActive]}
-                  onPress={() => { setAssignedTo(''); setAssignOpen(false); }}
-                >
-                  <Text style={[F.assignText, !assignedTo && { color: '#0F172A', fontWeight: '700' }]}>— Unassigned —</Text>
-                  {!assignedTo && <Ionicons name="checkmark-circle" size={18} color="#0F172A" />}
-                </TouchableOpacity>
-                {users.map(u => (
+          <Text style={F.label}>Assign To</Text>
+          <TouchableOpacity
+            style={[F.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
+            onPress={() => setAssignOpen(o => !o)}
+          >
+            <Text style={{ fontSize: 15, color: assignedTo.length > 0 ? '#0F172A' : '#94A3B8' }} numberOfLines={1}>
+              {assignedTo.length === 0
+                ? '— Unassigned —'
+                : users.filter(u => assignedTo.includes(u.id)).map(u => u.name.split(' ')[0]).join(', ')}
+            </Text>
+            <Ionicons name={assignOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#94A3B8" />
+          </TouchableOpacity>
+          {assignOpen && (
+            <View style={F.assignList}>
+              <TouchableOpacity
+                style={[F.assignRow, assignedTo.length === 0 && F.assignRowActive]}
+                onPress={() => setAssignedTo([])}
+              >
+                <Text style={[F.assignText, assignedTo.length === 0 && { color: '#0F172A', fontWeight: '700' }]}>— Unassigned —</Text>
+                {assignedTo.length === 0 && <Ionicons name="checkmark-circle" size={18} color="#0F172A" />}
+              </TouchableOpacity>
+              {users.map(u => {
+                const selected = assignedTo.includes(u.id)
+                return (
                   <TouchableOpacity
                     key={u.id}
-                    style={[F.assignRow, assignedTo === u.id && F.assignRowActive]}
-                    onPress={() => { setAssignedTo(u.id); setAssignOpen(false); }}
+                    style={[F.assignRow, selected && F.assignRowActive]}
+                    onPress={() => setAssignedTo(prev =>
+                      prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id]
+                    )}
                   >
-                    <Text style={[F.assignText, assignedTo === u.id && { color: '#0F172A', fontWeight: '700' }]}>{u.name}</Text>
-                    {assignedTo === u.id && <Ionicons name="checkmark-circle" size={18} color="#0F172A" />}
+                    <Text style={[F.assignText, selected && { color: '#0F172A', fontWeight: '700' }]}>{u.name}</Text>
+                    {selected
+                      ? <Ionicons name="checkbox" size={20} color="#0F172A" />
+                      : <Ionicons name="square-outline" size={20} color="#CBD5E1" />
+                    }
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
-          </View>
+                )
+              })}
+            </View>
+          )}
 
           <TouchableOpacity style={F.submitBtn} onPress={handleSubmit} disabled={loading}>
             {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={F.submitText}>{isEdit ? 'Save Changes' : 'Create Order'}</Text>}
@@ -276,7 +283,9 @@ function OrderCard({ order, onEdit, onStatusPress }: { order: Order; onEdit: () 
       <View style={C.rowBottom}>
         <View style={C.bottomLeft}>
           <Text style={C.metaText} numberOfLines={1}>
-            {order.assigned_name || 'Unassigned'}
+            {order.assigned_names?.length > 0
+              ? order.assigned_names[0].split(' ')[0] + (order.assigned_names.length > 1 ? ` +${order.assigned_names.length - 1}` : '')
+              : 'Unassigned'}
           </Text>
         </View>
 

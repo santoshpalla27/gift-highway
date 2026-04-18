@@ -9,8 +9,8 @@ export interface Order {
   contact_number: string
   status: 'new' | 'in_progress' | 'completed'
   priority: 'low' | 'medium' | 'high' | 'urgent'
-  assigned_to: string | null
-  assigned_name: string | null
+  assigned_to: string[]
+  assigned_names: string[]
   created_by: string
   created_by_name: string
   due_date: string | null
@@ -49,7 +49,7 @@ export const orderService = {
     customer_name: string
     contact_number?: string
     priority: string
-    assigned_to?: string | null
+    assigned_to?: string[]
     due_date?: string | null
   }): Promise<Order> => {
     const res = await apiClient.post<{ order: Order }>('/orders', data)
@@ -62,7 +62,7 @@ export const orderService = {
     customer_name: string
     contact_number?: string
     priority: string
-    assigned_to?: string | null
+    assigned_to?: string[]
     due_date?: string | null
   }): Promise<void> => {
     await apiClient.patch(`/orders/${id}`, data)

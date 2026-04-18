@@ -20,21 +20,21 @@ func NewOrderHandler(orderService *services.OrderService) *OrderHandler {
 }
 
 type orderResponse struct {
-	ID            string  `json:"id"`
-	OrderNumber   int     `json:"order_number"`
-	Title         string  `json:"title"`
-	Description   string  `json:"description"`
-	CustomerName  string  `json:"customer_name"`
-	ContactNumber string  `json:"contact_number"`
-	Status        string  `json:"status"`
-	Priority      string  `json:"priority"`
-	AssignedTo    *string `json:"assigned_to"`
-	AssignedName  *string `json:"assigned_name"`
-	CreatedBy     string  `json:"created_by"`
-	CreatedByName string  `json:"created_by_name"`
-	DueDate       *string `json:"due_date"`
-	CreatedAt     string  `json:"created_at"`
-	UpdatedAt     string  `json:"updated_at"`
+	ID            string   `json:"id"`
+	OrderNumber   int      `json:"order_number"`
+	Title         string   `json:"title"`
+	Description   string   `json:"description"`
+	CustomerName  string   `json:"customer_name"`
+	ContactNumber string   `json:"contact_number"`
+	Status        string   `json:"status"`
+	Priority      string   `json:"priority"`
+	AssignedTo    []string `json:"assigned_to"`
+	AssignedNames []string `json:"assigned_names"`
+	CreatedBy     string   `json:"created_by"`
+	CreatedByName string   `json:"created_by_name"`
+	DueDate       *string  `json:"due_date"`
+	CreatedAt     string   `json:"created_at"`
+	UpdatedAt     string   `json:"updated_at"`
 }
 
 func toOrderResponse(o *models.OrderWithNames) orderResponse {
@@ -42,6 +42,14 @@ func toOrderResponse(o *models.OrderWithNames) orderResponse {
 	if o.DueDate != nil {
 		s := o.DueDate.Format("2006-01-02")
 		dueDate = &s
+	}
+	assignedTo := []string(o.AssignedTo)
+	if assignedTo == nil {
+		assignedTo = []string{}
+	}
+	assignedNames := []string(o.AssignedNames)
+	if assignedNames == nil {
+		assignedNames = []string{}
 	}
 	return orderResponse{
 		ID:            o.ID,
@@ -52,8 +60,8 @@ func toOrderResponse(o *models.OrderWithNames) orderResponse {
 		ContactNumber: o.ContactNumber,
 		Status:        o.Status,
 		Priority:      o.Priority,
-		AssignedTo:    o.AssignedTo,
-		AssignedName:  o.AssignedName,
+		AssignedTo:    assignedTo,
+		AssignedNames: assignedNames,
 		CreatedBy:     o.CreatedBy,
 		CreatedByName: o.CreatedByName,
 		DueDate:       dueDate,

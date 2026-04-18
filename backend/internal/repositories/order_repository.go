@@ -31,12 +31,23 @@ func NewOrderRepository(db *sqlx.DB) *OrderRepository {
 const orderSelectBase = `
 	SELECT
 		o.id, o.order_number, o.title, o.description, o.customer_name, o.contact_number,
-		o.status, o.priority, o.assigned_to, o.created_by, o.due_date,
-		o.created_at, o.updated_at,
-		NULLIF(CONCAT(au.first_name, ' ', COALESCE(au.last_name, '')), ' ') as assigned_name,
+		o.status, o.priority, o.created_by, o.due_date, o.created_at, o.updated_at,
+		ARRAY(
+			SELECT oa.user_id::text
+			FROM order_assignees oa
+			JOIN users u ON oa.user_id = u.id
+			WHERE oa.order_id = o.id
+			ORDER BY u.first_name
+		) as assigned_to,
+		ARRAY(
+			SELECT CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))
+			FROM order_assignees oa
+			JOIN users u ON oa.user_id = u.id
+			WHERE oa.order_id = o.id
+			ORDER BY u.first_name
+		) as assigned_names,
 		CONCAT(cu.first_name, ' ', COALESCE(cu.last_name, '')) as created_by_name
 	FROM orders o
-	LEFT JOIN users au ON o.assigned_to = au.id
 	LEFT JOIN users cu ON o.created_by = cu.id
 `
 
@@ -61,9 +72,13 @@ func (r *OrderRepository) buildWhere(f OrderFilter) (string, []interface{}) {
 		idx++
 	}
 	if f.AssignedTo != "" {
-		conditions = append(conditions, fmt.Sprintf("o.assigned_to = $%d", idx))
+		conditions = append(conditions, fmt.Sprintf(
+			"EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = o.id AND oa.user_id = $%d)", idx,
+		))
 		args = append(args, f.AssignedTo)
+		idx++
 	}
+	_ = idx
 
 	where := ""
 	if len(conditions) > 0 {
@@ -109,27 +124,69 @@ func (r *OrderRepository) GetByID(ctx context.Context, id string) (*models.Order
 	return o, err
 }
 
-func (r *OrderRepository) Create(ctx context.Context, o *models.Order) (*models.OrderWithNames, error) {
-	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO orders (id, title, description, customer_name, contact_number, status, priority, assigned_to, created_by, due_date)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-	`, o.ID, o.Title, o.Description, o.CustomerName, o.ContactNumber, o.Status, o.Priority, o.AssignedTo, o.CreatedBy, o.DueDate)
+func (r *OrderRepository) Create(ctx context.Context, o *models.Order, assignedTo []string) (*models.OrderWithNames, error) {
+	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO orders (id, title, description, customer_name, contact_number, status, priority, created_by, due_date)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	`, o.ID, o.Title, o.Description, o.CustomerName, o.ContactNumber, o.Status, o.Priority, o.CreatedBy, o.DueDate)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, uid := range assignedTo {
+		if uid == "" {
+			continue
+		}
+		if _, err = tx.ExecContext(ctx, `INSERT INTO order_assignees (order_id, user_id) VALUES ($1, $2)`, o.ID, uid); err != nil {
+			return nil, err
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
 	return r.GetByID(ctx, o.ID)
 }
 
-func (r *OrderRepository) Update(ctx context.Context, id, title, description, customerName, contactNumber, priority string, assignedTo *string, dueDate *string) error {
+func (r *OrderRepository) Update(ctx context.Context, id, title, description, customerName, contactNumber, priority string, assignedTo []string, dueDate *string) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
 	var dd interface{}
 	if dueDate != nil && *dueDate != "" {
 		dd = *dueDate
 	}
-	_, err := r.db.ExecContext(ctx, `
-		UPDATE orders SET title=$1, description=$2, customer_name=$3, contact_number=$4, priority=$5, assigned_to=$6, due_date=$7, updated_at=NOW()
-		WHERE id=$8
-	`, title, description, customerName, contactNumber, priority, assignedTo, dd, id)
-	return err
+	_, err = tx.ExecContext(ctx, `
+		UPDATE orders SET title=$1, description=$2, customer_name=$3, contact_number=$4, priority=$5, due_date=$6, updated_at=NOW()
+		WHERE id=$7
+	`, title, description, customerName, contactNumber, priority, dd, id)
+	if err != nil {
+		return err
+	}
+
+	if _, err = tx.ExecContext(ctx, `DELETE FROM order_assignees WHERE order_id = $1`, id); err != nil {
+		return err
+	}
+
+	for _, uid := range assignedTo {
+		if uid == "" {
+			continue
+		}
+		if _, err = tx.ExecContext(ctx, `INSERT INTO order_assignees (order_id, user_id) VALUES ($1, $2)`, id, uid); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (r *OrderRepository) UpdateStatus(ctx context.Context, id, status string) error {

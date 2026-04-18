@@ -21,8 +21,9 @@ export function OrderModal({ order, onClose, onSuccess }: Props) {
   const [contactNumber, setContactNumber] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<string>('medium')
-  const [assignedTo, setAssignedTo] = useState('')
+  const [assignedTo, setAssignedTo] = useState<string[]>([])
   const [dueDate, setDueDate] = useState('')
+  const [assignOpen, setAssignOpen] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -32,12 +33,18 @@ export function OrderModal({ order, onClose, onSuccess }: Props) {
       setContactNumber(order.contact_number ?? '')
       setDescription(order.description)
       setPriority(order.priority)
-      setAssignedTo(order.assigned_to ?? '')
+      setAssignedTo(order.assigned_to ?? [])
       setDueDate(order.due_date ?? '')
     }
   }, [order])
 
   const isPending = creating || updating
+
+  const toggleUser = (id: string) => {
+    setAssignedTo(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
 
   const handleSubmit = () => {
     if (!title.trim() || !customerName.trim()) {
@@ -51,7 +58,7 @@ export function OrderModal({ order, onClose, onSuccess }: Props) {
       contact_number: contactNumber.trim(),
       description: description.trim(),
       priority,
-      assigned_to: assignedTo || null,
+      assigned_to: assignedTo,
       due_date: dueDate || null,
     }
     if (isEdit) {
@@ -85,8 +92,15 @@ export function OrderModal({ order, onClose, onSuccess }: Props) {
         .modal-input:focus { border-color: #94A3B8; box-shadow: 0 0 0 2px rgba(226,232,240,0.5); }
         .modal-input::placeholder { color: #94A3B8; }
         .modal-label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+        .assign-row {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #F1F5F9;
+          transition: background 0.1s ease;
+        }
+        .assign-row:last-child { border-bottom: none; }
+        .assign-row:hover { background: #F8FAFC; }
       `}</style>
-      
+
       <div style={{
         background: '#FFFFFF', borderRadius: '16px', width: '100%', maxWidth: '560px',
         maxHeight: '90vh', overflow: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
@@ -104,11 +118,11 @@ export function OrderModal({ order, onClose, onSuccess }: Props) {
               {isEdit ? `Updating order #${order!.order_number}` : 'Fill in the operational details'}
             </div>
           </div>
-          <button 
-            onClick={onClose} 
-            style={{ 
-              background: '#F8FAFC', padding: '6px', border: '1px solid #E2E8F0', borderRadius: '8px', 
-              cursor: 'pointer', color: '#64748B', display: 'flex', alignItems: 'center', transition: 'all 0.15s ease' 
+          <button
+            onClick={onClose}
+            style={{
+              background: '#F8FAFC', padding: '6px', border: '1px solid #E2E8F0', borderRadius: '8px',
+              cursor: 'pointer', color: '#64748B', display: 'flex', alignItems: 'center', transition: 'all 0.15s ease'
             }}
             onMouseOver={e => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.color = '#0F172A' }}
             onMouseOut={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.color = '#64748B' }}
@@ -161,21 +175,84 @@ export function OrderModal({ order, onClose, onSuccess }: Props) {
               <label className="modal-label">Due Date</label>
               <input className="modal-input" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
             </div>
-            <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
               <label className="modal-label">Assign To</label>
-              <select className="modal-input" value={assignedTo} onChange={e => setAssignedTo(e.target.value)}>
-                <option value="">— Unassigned —</option>
-                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
+              <div
+                className="modal-input"
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+                onClick={() => setAssignOpen(o => !o)}
+              >
+                <span style={{ color: assignedTo.length > 0 ? '#0F172A' : '#94A3B8', fontSize: '14px' }}>
+                  {assignedTo.length === 0
+                    ? '— Unassigned —'
+                    : users.filter(u => assignedTo.includes(u.id)).map(u => u.name.split(' ')[0]).join(', ')}
+                </span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" style={{ transform: assignOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease', flexShrink: 0 }}>
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </div>
+              {assignOpen && (
+                <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 100, background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.1)', maxHeight: '220px', overflowY: 'auto' }}>
+                  <div
+                    className="assign-row"
+                    style={{ background: assignedTo.length === 0 ? '#F8FAFC' : undefined }}
+                    onClick={() => setAssignedTo([])}
+                  >
+                    <span style={{ fontSize: '14px', color: assignedTo.length === 0 ? '#0F172A' : '#64748B', fontWeight: assignedTo.length === 0 ? 600 : 400 }}>
+                      — Unassigned —
+                    </span>
+                    {assignedTo.length === 0 && (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    )}
+                  </div>
+                  {users.map(u => {
+                    const selected = assignedTo.includes(u.id)
+                    return (
+                      <div
+                        key={u.id}
+                        className="assign-row"
+                        style={{ background: selected ? '#F8FAFC' : undefined }}
+                        onClick={() => toggleUser(u.id)}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            width: '28px', height: '28px', borderRadius: '50%',
+                            background: selected ? '#EEF2FF' : '#F1F5F9',
+                            color: selected ? '#6366F1' : '#64748B',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '11px', fontWeight: 700, flexShrink: 0
+                          }}>
+                            {u.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
+                          </div>
+                          <span style={{ fontSize: '14px', color: selected ? '#0F172A' : '#475569', fontWeight: selected ? 600 : 400 }}>
+                            {u.name}
+                          </span>
+                        </div>
+                        <div style={{
+                          width: '18px', height: '18px', borderRadius: '4px',
+                          border: selected ? 'none' : '1.5px solid #CBD5E1',
+                          background: selected ? '#6366F1' : 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          {selected && (
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Footer */}
         <div style={{ padding: '20px 32px', borderTop: '1px solid #F1F5F9', background: '#FAFAFA', display: 'flex', gap: '12px', justifyContent: 'flex-end', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
-          <button 
-            onClick={onClose} 
-            disabled={isPending} 
+          <button
+            onClick={onClose}
+            disabled={isPending}
             style={{
               padding: '10px 20px', borderRadius: '8px', border: '1px solid #E2E8F0',
               background: '#FFFFFF', color: '#475569', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
@@ -186,9 +263,9 @@ export function OrderModal({ order, onClose, onSuccess }: Props) {
           >
             Cancel
           </button>
-          <button 
-            onClick={handleSubmit} 
-            disabled={isPending} 
+          <button
+            onClick={handleSubmit}
+            disabled={isPending}
             style={{
               padding: '10px 24px', borderRadius: '8px', border: 'none',
               background: '#0F172A', color: '#FFFFFF', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
