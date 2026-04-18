@@ -82,13 +82,17 @@ export const orderService = {
     return res.data.users
   },
 
-  listEvents: async (orderId: string, page = 1): Promise<{ events: OrderEvent[]; total: number }> => {
-    const res = await apiClient.get<{ events: OrderEvent[]; total: number }>(`/orders/${orderId}/events`, { params: { page, limit: 100 } })
+  listEvents: async (orderId: string, page = 1, limit = 30, sort: 'asc' | 'desc' = 'asc'): Promise<{ events: OrderEvent[]; total: number }> => {
+    const res = await apiClient.get<{ events: OrderEvent[]; total: number }>(`/orders/${orderId}/events`, { params: { page, limit, sort } })
     return res.data
   },
 
   addComment: async (orderId: string, text: string): Promise<OrderEvent> => {
     const res = await apiClient.post<{ event: OrderEvent }>(`/orders/${orderId}/comments`, { text })
     return res.data.event
+  },
+
+  deleteComment: async (orderId: string, eventId: string): Promise<void> => {
+    await apiClient.delete(`/orders/${orderId}/events/${eventId}`)
   },
 }

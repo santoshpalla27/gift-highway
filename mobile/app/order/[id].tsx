@@ -87,10 +87,11 @@ function getInitials(name: string) {
 
 // ─── Timeline Event ───────────────────────────────────────────────────────────
 
-function TimelineItem({ event, isOptimistic, onRetry }: {
+function TimelineItem({ event, isOptimistic, onRetry, onDelete }: {
   event: OrderEvent & { failed?: boolean }
   isOptimistic?: boolean
   onRetry?: () => void
+  onDelete?: () => void
 }) {
   const isComment = event.type === 'comment_added'
   const meta = EVENT_TYPE_META[event.type]
@@ -111,6 +112,11 @@ function TimelineItem({ event, isOptimistic, onRetry }: {
             <Text style={[T.time, isFailed && { color: '#EF4444' }]}>
               {isFailed ? 'Failed to send' : formatTimestamp(event.created_at)}
             </Text>
+            {onDelete && !isOptimistic && (
+              <TouchableOpacity onPress={onDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="trash-outline" size={13} color="#D1D5DB" />
+              </TouchableOpacity>
+            )}
           </View>
           <View style={[T.bubble, isFailed && { backgroundColor: '#FFF5F5', borderColor: '#FCA5A5' }]}>
             <Text style={T.commentText}>{text}</Text>
@@ -307,12 +313,37 @@ export default function OrderDetailScreen() {
   const { user } = useAuthStore()
   const { isOnline } = useNetworkStatus()
 
+  const LIMIT = 30
+
+  // ── Permissions (derived after order loads) ──────────────────────────��───────
+  const isAdmin = user?.role === 'admin'
+  const isAssigned = (o: Order | null) => !!o && (isAdmin || o.assigned_to.includes(user?.id ?? ''))
+  const canChangeStatus = (o: Order | null) => isAssigned(o)
+  const canDeleteComment = (o: Order | null) => isAssigned(o)
+
+  // ── Order ────────────────────────────────────────────────────────────────────
   const [order, setOrder] = useState<Order | null>(null)
-  const [events, setEvents] = useState<OrderEvent[]>([])
-  const [optimisticEvents, setOptimisticEvents] = useState<(OrderEvent & { failed?: boolean; originalText?: string })[]>([])
   const [loadingOrder, setLoadingOrder] = useState(true)
+
+  // ── Events: paginated ────────────────────────────────────────────────────────
+  const [evList, setEvList] = useState<OrderEvent[]>([])
+  const [totalEvents, setTotalEvents] = useState(0)
+  const [hasOlder, setHasOlder] = useState(false)
+  const [loadingOlder, setLoadingOlder] = useState(false)
   const [loadingEvents, setLoadingEvents] = useState(true)
+  const olderPageRef = useRef(2)
+  const evListRef = useRef<OrderEvent[]>([])
+  useEffect(() => { evListRef.current = evList }, [evList])
+
+  // ── Optimistic ───────────────────────────────────────────────────────────────
+  const [optimisticEvents, setOptimisticEvents] = useState<(OrderEvent & { failed?: boolean; originalText?: string })[]>([])
+  const allEvents = [...evList, ...optimisticEvents]
+
+  // ── Scroll + new-events badge ────────────────────────────────────────────────
+  const [newCount, setNewCount] = useState(0)
+  const atBottomRef = useRef(true)
   const [refreshing, setRefreshing] = useState(false)
+
   const [comment, setComment] = useState('')
   const [sending, setSending] = useState(false)
   const [showStatus, setShowStatus] = useState(false)
@@ -320,84 +351,107 @@ export default function OrderDetailScreen() {
 
   const scrollRef = useRef<ScrollView>(null)
 
+  // ── Fetch order ──────────────────────────────────────────────────────────────
   const fetchOrder = useCallback(async () => {
     if (!id) return
     try {
       const data = await orderService.listOrders({ search: '', page: 1, limit: 200 })
       const found = data.orders.find(o => o.id === id)
       if (found) setOrder(found)
-    } catch {
-      // ignore
-    } finally {
+    } catch { /* ignore */ } finally {
       setLoadingOrder(false)
     }
   }, [id])
 
-  const fetchEvents = useCallback(async (silent = false) => {
+  // ── Initial events load (newest LIMIT, desc) ─────────────────────────────────
+  const loadInitialEvents = useCallback(async () => {
     if (!id) return
-    if (!silent) setLoadingEvents(true)
+    setLoadingEvents(true)
     try {
-      const data = await orderService.listEvents(id)
-      setEvents(data.events ?? [])
-    } catch {
-      // ignore
-    } finally {
+      const data = await orderService.listEvents(id, 1, LIMIT, 'desc')
+      const sorted = [...data.events].reverse()
+      setEvList(sorted)
+      setTotalEvents(data.total)
+      setHasOlder(data.total > LIMIT)
+      olderPageRef.current = 2
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 120)
+    } catch { /* ignore */ } finally {
       setLoadingEvents(false)
     }
   }, [id])
 
   useEffect(() => {
     fetchOrder()
-    fetchEvents()
-  }, [fetchOrder, fetchEvents])
+    loadInitialEvents()
+  }, [fetchOrder, loadInitialEvents])
+
+  // ── Load older ───────────────────────────────────────────────────────────────
+  const loadOlder = async () => {
+    if (loadingOlder || !id) return
+    setLoadingOlder(true)
+    try {
+      const data = await orderService.listEvents(id, olderPageRef.current, LIMIT, 'desc')
+      const older = [...data.events].reverse()
+      setEvList(prev => [...older, ...prev])
+      setTotalEvents(data.total)
+      setHasOlder(olderPageRef.current * LIMIT < data.total)
+      olderPageRef.current++
+    } catch { /* ignore */ } finally {
+      setLoadingOlder(false)
+    }
+  }
+
+  // ── Realtime append ──────────────────────────────────────────────────────────
+  const fetchLatest = useCallback(async () => {
+    if (!id) return
+    try {
+      const data = await orderService.listEvents(id, 1, LIMIT, 'desc')
+      const latest = [...data.events].reverse()
+      const existingIds = new Set(evListRef.current.map(e => e.id))
+      const newEvs = latest.filter(e => !existingIds.has(e.id))
+      if (newEvs.length === 0) return
+      setEvList(prev => [...prev, ...newEvs])
+      setOptimisticEvents(prev => prev.filter(e => e.failed))
+      setTotalEvents(data.total)
+      if (atBottomRef.current) {
+        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50)
+      } else {
+        setNewCount(n => n + newEvs.length)
+      }
+    } catch { /* ignore */ }
+  }, [id])
 
   useOrderSocket(() => {
     fetchOrder()
-    fetchEvents(true)
+    fetchLatest()
   })
-
-  useEffect(() => {
-    if (!loadingEvents && events.length > 0) {
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100)
-    }
-  }, [loadingEvents])
-
-  useEffect(() => {
-    if (events.length > 0) {
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50)
-    }
-  }, [events.length, optimisticEvents.length])
 
   const onRefresh = () => {
     setRefreshing(true)
-    Promise.all([fetchOrder(), fetchEvents(true)]).finally(() => setRefreshing(false))
+    Promise.all([fetchOrder(), loadInitialEvents()]).finally(() => setRefreshing(false))
   }
 
+  // ── Send comment ─────────────────────────────────────────────────────────────
   const sendComment = async (text: string, tempId?: string) => {
     if (!isOnline) { Alert.alert('Offline', "You're offline. Please reconnect to send."); return }
     const id_ = tempId ?? `temp-${Date.now()}`
     if (!tempId) {
-      const tempEvent = {
-        id: id_,
-        order_id: id!,
-        type: 'comment_added',
-        actor_id: user?.id ?? null,
-        actor_name: user?.name ?? 'You',
-        payload: { text } as any,
-        created_at: new Date().toISOString(),
+      setOptimisticEvents(prev => [...prev, {
+        id: id_, order_id: id!, type: 'comment_added',
+        actor_id: user?.id ?? null, actor_name: user ? `${user.first_name} ${user.last_name}`.trim() : 'You',
+        payload: { text } as any, created_at: new Date().toISOString(),
         originalText: text,
-      }
-      setOptimisticEvents(prev => [...prev, tempEvent])
+      }])
+      atBottomRef.current = true
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50)
     }
     setSending(true)
     try {
       await orderService.addComment(id!, text)
       setOptimisticEvents(prev => prev.filter(e => e.id !== id_))
-      await fetchEvents(true)
+      await fetchLatest()
     } catch {
-      setOptimisticEvents(prev =>
-        prev.map(e => e.id === id_ ? { ...e, failed: true } : e)
-      )
+      setOptimisticEvents(prev => prev.map(e => e.id === id_ ? { ...e, failed: true } : e))
     } finally {
       setSending(false)
     }
@@ -417,7 +471,20 @@ export default function OrderDetailScreen() {
     await sendComment(text, ev.id)
   }
 
-  const allEvents = [...events, ...optimisticEvents]
+  const handleDeleteComment = async (eventId: string) => {
+    Alert.alert('Delete comment', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          try {
+            await orderService.deleteComment(id!, eventId)
+            setEvList(prev => prev.filter(e => e.id !== eventId))
+          } catch { Alert.alert('Error', 'Could not delete comment.') }
+        },
+      },
+    ])
+  }
 
   if (loadingOrder) {
     return (
@@ -463,7 +530,8 @@ export default function OrderDetailScreen() {
         <View style={S.chipRow}>
           <TouchableOpacity
             style={[S.chip, { backgroundColor: sm.bg }]}
-            onPress={() => setShowStatus(true)}
+            onPress={canChangeStatus(order) ? () => setShowStatus(true) : undefined}
+            activeOpacity={canChangeStatus(order) ? 0.7 : 1}
           >
             <Text style={[S.chipText, { color: sm.color }]}>{sm.label}</Text>
             <Ionicons name="chevron-down" size={13} color={sm.color} style={{ marginLeft: 2 }} />
@@ -490,41 +558,66 @@ export default function OrderDetailScreen() {
         </View>
 
         {/* Timeline */}
-        <ScrollView
-          ref={scrollRef}
-          style={S.timeline}
-          contentContainerStyle={S.timelineContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F172A" />}
-        >
-          {loadingEvents ? (
-            <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-              <ActivityIndicator color="#94A3B8" />
-            </View>
-          ) : allEvents.length === 0 ? (
-            <View style={S.emptyTimeline}>
-              <Ionicons name="chatbubbles-outline" size={28} color="#CBD5E1" />
-              <Text style={S.emptyTimelineText}>No activity yet. Add a comment below.</Text>
-            </View>
-          ) : (
-            groupByDate(allEvents).map(group => (
-              <View key={group.label}>
-                <View style={S.dateDivider}>
-                  <View style={S.dateDividerLine} />
-                  <Text style={S.dateDividerLabel}>{group.label}</Text>
-                  <View style={S.dateDividerLine} />
-                </View>
-                {group.events.map(ev => (
-                  <TimelineItem
-                    key={ev.id}
-                    event={ev}
-                    isOptimistic={ev.id.startsWith('temp-')}
-                    onRetry={() => handleRetry(ev as any)}
-                  />
-                ))}
+        <View style={{ flex: 1 }}>
+          <ScrollView
+            ref={scrollRef}
+            style={S.timeline}
+            contentContainerStyle={S.timelineContent}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F172A" />}
+            onScroll={e => {
+              const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent
+              atBottomRef.current = contentOffset.y + layoutMeasurement.height >= contentSize.height - 40
+              if (atBottomRef.current && newCount > 0) setNewCount(0)
+            }}
+            scrollEventThrottle={100}
+          >
+            {hasOlder && (
+              <TouchableOpacity style={S.loadOlderBtn} onPress={loadOlder} disabled={loadingOlder}>
+                {loadingOlder
+                  ? <ActivityIndicator size="small" color="#64748B" />
+                  : <Text style={S.loadOlderText}>Load older messages</Text>
+                }
+              </TouchableOpacity>
+            )}
+            {loadingEvents ? (
+              <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                <ActivityIndicator color="#94A3B8" />
               </View>
-            ))
+            ) : allEvents.length === 0 ? (
+              <View style={S.emptyTimeline}>
+                <Ionicons name="chatbubbles-outline" size={28} color="#CBD5E1" />
+                <Text style={S.emptyTimelineText}>No activity yet. Add a comment below.</Text>
+              </View>
+            ) : (
+              groupByDate(allEvents).map(group => (
+                <View key={group.label}>
+                  <View style={S.dateDivider}>
+                    <View style={S.dateDividerLine} />
+                    <Text style={S.dateDividerLabel}>{group.label}</Text>
+                    <View style={S.dateDividerLine} />
+                  </View>
+                  {group.events.map(ev => (
+                    <TimelineItem
+                      key={ev.id}
+                      event={ev}
+                      isOptimistic={ev.id.startsWith('temp-')}
+                      onRetry={() => handleRetry(ev as any)}
+                      onDelete={canDeleteComment(order) && ev.type === 'comment_added' ? () => handleDeleteComment(ev.id) : undefined}
+                    />
+                  ))}
+                </View>
+              ))
+            )}
+          </ScrollView>
+          {newCount > 0 && (
+            <TouchableOpacity
+              style={S.newBadge}
+              onPress={() => { scrollRef.current?.scrollToEnd({ animated: true }); setNewCount(0) }}
+            >
+              <Text style={S.newBadgeText}>{newCount} new update{newCount > 1 ? 's' : ''} ↓</Text>
+            </TouchableOpacity>
           )}
-        </ScrollView>
+        </View>
 
         {/* Composer */}
         <View style={S.composer}>
@@ -554,14 +647,14 @@ export default function OrderDetailScreen() {
         <StatusSheet
           order={order}
           onClose={() => setShowStatus(false)}
-          onChanged={() => { fetchOrder(); fetchEvents(true) }}
+          onChanged={() => { fetchOrder(); fetchLatest() }}
         />
       )}
       {showEdit && order && (
         <EditOrderSheet
           order={order}
           onClose={() => setShowEdit(false)}
-          onSaved={() => { fetchOrder(); fetchEvents(true) }}
+          onSaved={() => { fetchOrder(); fetchLatest() }}
         />
       )}
     </KeyboardAvoidingView>
@@ -625,6 +718,17 @@ const S = StyleSheet.create({
 
   backBtn: { marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' },
   backBtnText: { color: '#0F172A', fontWeight: '700' },
+
+  loadOlderBtn: { alignItems: 'center', paddingVertical: 12 },
+  loadOlderText: { fontSize: 13, color: '#64748B', fontWeight: '600' },
+
+  newBadge: {
+    position: 'absolute', bottom: 10, alignSelf: 'center',
+    backgroundColor: '#0F172A', borderRadius: 20,
+    paddingHorizontal: 16, paddingVertical: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4,
+  },
+  newBadgeText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
 })
 
 const T = StyleSheet.create({

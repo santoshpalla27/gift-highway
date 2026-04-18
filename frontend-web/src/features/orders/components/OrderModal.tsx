@@ -6,6 +6,7 @@ interface Props {
   order?: Order | null
   onClose: () => void
   onSuccess?: (message: string) => void
+  canReassign?: boolean
 }
 
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const
@@ -19,7 +20,7 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   return fallback
 }
 
-export function OrderModal({ order, onClose, onSuccess }: Props) {
+export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Props) {
   const isEdit = !!order
   const { mutate: createOrder, isPending: creating } = useCreateOrder()
   const { mutate: updateOrder, isPending: updating } = useUpdateOrder()
@@ -185,7 +186,7 @@ export function OrderModal({ order, onClose, onSuccess }: Props) {
               <label className="modal-label">Due Date</label>
               <input className="modal-input" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
             </div>
-            <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
+            {canReassign && <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
               <label className="modal-label">Assign To</label>
               <div
                 className="modal-input"
@@ -254,7 +255,7 @@ export function OrderModal({ order, onClose, onSuccess }: Props) {
                   })}
                 </div>
               )}
-            </div>
+            </div>}
           </div>
         </div>
 

@@ -14,11 +14,12 @@ import (
 
 type EventHandler struct {
 	eventService *services.EventService
+	orderService *services.OrderService
 	hub          *realtime.Hub
 }
 
-func NewEventHandler(eventService *services.EventService, hub *realtime.Hub) *EventHandler {
-	return &EventHandler{eventService: eventService, hub: hub}
+func NewEventHandler(eventService *services.EventService, orderService *services.OrderService, hub *realtime.Hub) *EventHandler {
+	return &EventHandler{eventService: eventService, orderService: orderService, hub: hub}
 }
 
 type eventResponse struct {
@@ -46,9 +47,10 @@ func toEventResponse(e *models.OrderEvent) eventResponse {
 func (h *EventHandler) ListEvents(c *gin.Context) {
 	orderID := c.Param("id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "30"))
+	sort := c.DefaultQuery("sort", "asc")
 
-	events, total, err := h.eventService.ListEvents(c.Request.Context(), orderID, page, limit)
+	events, total, err := h.eventService.ListEvents(c.Request.Context(), orderID, page, limit, sort)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch events"})
 		return
@@ -59,6 +61,62 @@ func (h *EventHandler) ListEvents(c *gin.Context) {
 		items[i] = toEventResponse(e)
 	}
 	c.JSON(http.StatusOK, gin.H{"events": items, "total": total})
+}
+
+func (h *EventHandler) DeleteComment(c *gin.Context) {
+	orderID := c.Param("id")
+	eventID := c.Param("eventId")
+	ctx := c.Request.Context()
+
+	ev, err := h.eventService.GetEvent(ctx, eventID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "event not found"})
+		return
+	}
+
+	// Only comment events can be deleted
+	if ev.Type != models.EvtCommentAdded {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only comments can be deleted"})
+		return
+	}
+
+	// Must belong to this order
+	if ev.OrderID != orderID {
+		c.JSON(http.StatusNotFound, gin.H{"error": "event not found"})
+		return
+	}
+
+	// Require assigned-to-order or admin
+	role, _ := c.Get("user_role")
+	userID, _ := c.Get("user_id")
+	uid := userID.(string)
+
+	if role != "admin" {
+		order, err := h.orderService.GetOrder(ctx, orderID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "order not found"})
+			return
+		}
+		isAssigned := false
+		for _, id := range order.AssignedTo {
+			if id == uid {
+				isAssigned = true
+				break
+			}
+		}
+		if !isAssigned {
+			c.JSON(http.StatusForbidden, gin.H{"error": "only assigned users or admins can delete comments"})
+			return
+		}
+	}
+
+	if err := h.eventService.DeleteComment(ctx, eventID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete comment"})
+		return
+	}
+
+	h.hub.Broadcast(realtime.NewEvent(realtime.EventOrderUpdated, orderID, gin.H{"id": orderID}))
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
 
 func (h *EventHandler) AddComment(c *gin.Context) {

@@ -23,12 +23,23 @@ func (s *EventService) AddComment(ctx context.Context, orderID, actorID, text st
 	return s.repo.Create(ctx, orderID, &actorID, models.EvtCommentAdded, map[string]string{"text": text})
 }
 
-func (s *EventService) ListEvents(ctx context.Context, orderID string, page, limit int) ([]*models.OrderEvent, int, error) {
+func (s *EventService) GetEvent(ctx context.Context, eventID string) (*models.OrderEvent, error) {
+	return s.repo.GetByID(ctx, eventID)
+}
+
+func (s *EventService) DeleteComment(ctx context.Context, eventID string) error {
+	return s.repo.Delete(ctx, eventID)
+}
+
+func (s *EventService) ListEvents(ctx context.Context, orderID string, page, limit int, sort string) ([]*models.OrderEvent, int, error) {
 	if limit <= 0 {
-		limit = 50
+		limit = 30
 	}
 	if page <= 0 {
 		page = 1
 	}
-	return s.repo.ListByOrder(ctx, orderID, limit, (page-1)*limit)
+	if sort != "desc" {
+		sort = "asc"
+	}
+	return s.repo.ListByOrder(ctx, orderID, limit, (page-1)*limit, sort)
 }

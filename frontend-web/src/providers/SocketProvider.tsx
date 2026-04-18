@@ -10,6 +10,18 @@ export function useSocketStatus() {
   return useContext(SocketContext).status
 }
 
+// ─── Per-event subscriptions ──────────────────────────────────────────────────
+type RawSocketEvent = { type: string; entity_id?: string; [key: string]: unknown }
+type SocketEventHandler = (event: RawSocketEvent) => void
+const socketEventCallbacks = new Set<SocketEventHandler>()
+
+export function useSocketEvent(handler: SocketEventHandler) {
+  useEffect(() => {
+    socketEventCallbacks.add(handler)
+    return () => { socketEventCallbacks.delete(handler) }
+  }, [handler])
+}
+
 const BACKOFF_DELAYS = [1_000, 2_000, 5_000, 10_000, 30_000]
 
 const WS_BASE =
@@ -116,6 +128,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             qc.invalidateQueries({ queryKey: ['orders', event.entity_id, 'events'] })
             qc.invalidateQueries({ queryKey: ['orders', event.entity_id] })
           }
+
+          // Fan out to per-component subscribers
+          socketEventCallbacks.forEach(cb => cb(event))
         } catch {
           // ignore malformed frames
         }

@@ -135,6 +135,21 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"order": resp})
 }
 
+// isAssignedOrAdmin returns true when the caller is an admin or is in the order's assigned_to list.
+func isAssignedOrAdmin(c *gin.Context, order *models.OrderWithNames) bool {
+	role, _ := c.Get("user_role")
+	if role == "admin" {
+		return true
+	}
+	uid, _ := c.Get("user_id")
+	for _, id := range order.AssignedTo {
+		if id == uid.(string) {
+			return true
+		}
+	}
+	return false
+}
+
 func (h *OrderHandler) UpdateOrder(c *gin.Context) {
 	id := c.Param("id")
 	var req services.UpdateOrderRequest
@@ -147,8 +162,23 @@ func (h *OrderHandler) UpdateOrder(c *gin.Context) {
 	uid := userID.(string)
 	ctx := c.Request.Context()
 
-	// Snapshot old state for change detection
-	old, _ := h.orderService.GetOrder(ctx, id)
+	// Snapshot old state for change detection + permission check
+	old, err := h.orderService.GetOrder(ctx, id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "order not found"})
+		return
+	}
+
+	if !isAssignedOrAdmin(c, old) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only assigned users or admins can edit this order"})
+		return
+	}
+
+	// Only admin may change assignees
+	role, _ := c.Get("user_role")
+	if role != "admin" {
+		req.AssignedTo = []string(old.AssignedTo)
+	}
 
 	if err := h.orderService.UpdateOrder(ctx, id, req); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update order"})
@@ -230,7 +260,16 @@ func (h *OrderHandler) UpdateStatus(c *gin.Context) {
 	uid := userID.(string)
 	ctx := c.Request.Context()
 
-	old, _ := h.orderService.GetOrder(ctx, id)
+	old, err := h.orderService.GetOrder(ctx, id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "order not found"})
+		return
+	}
+
+	if !isAssignedOrAdmin(c, old) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only assigned users or admins can change status"})
+		return
+	}
 
 	if err := h.orderService.UpdateStatus(ctx, id, req); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update status"})

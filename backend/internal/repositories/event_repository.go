@@ -46,16 +46,35 @@ func (r *EventRepository) Create(ctx context.Context, orderID string, actorID *s
 	return e, err
 }
 
-func (r *EventRepository) ListByOrder(ctx context.Context, orderID string, limit, offset int) ([]*models.OrderEvent, int, error) {
+func (r *EventRepository) GetByID(ctx context.Context, eventID string) (*models.OrderEvent, error) {
+	e := &models.OrderEvent{}
+	err := r.db.QueryRowxContext(ctx,
+		eventSelectSQL+`WHERE e.id = $1`, eventID,
+	).StructScan(e)
+	if err != nil {
+		return nil, err
+	}
+	return e, nil
+}
+
+func (r *EventRepository) Delete(ctx context.Context, eventID string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM order_events WHERE id = $1`, eventID)
+	return err
+}
+
+func (r *EventRepository) ListByOrder(ctx context.Context, orderID string, limit, offset int, sort string) ([]*models.OrderEvent, int, error) {
 	var total int
 	if err := r.db.GetContext(ctx, &total, `SELECT COUNT(*) FROM order_events WHERE order_id = $1`, orderID); err != nil {
 		return nil, 0, err
 	}
 
+	direction := "ASC"
+	if sort == "desc" {
+		direction = "DESC"
+	}
+
 	var events []*models.OrderEvent
-	err := r.db.SelectContext(ctx, &events,
-		eventSelectSQL+`WHERE e.order_id = $1 ORDER BY e.created_at ASC LIMIT $2 OFFSET $3`,
-		orderID, limit, offset,
-	)
+	query := eventSelectSQL + `WHERE e.order_id = $1 ORDER BY e.created_at ` + direction + ` LIMIT $2 OFFSET $3`
+	err := r.db.SelectContext(ctx, &events, query, orderID, limit, offset)
 	return events, total, err
 }

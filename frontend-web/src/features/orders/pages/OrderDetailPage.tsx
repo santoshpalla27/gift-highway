@@ -1,11 +1,13 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { orderService, OrderEvent } from '../../../services/orderService'
 import { useUpdateOrderStatus } from '../hooks/useOrders'
 import { OrderModal } from '../components/OrderModal'
 import { useAuthStore } from '../../../store/authStore'
+import { useOrderPermissions } from '../hooks/useOrderPermissions'
 import { Skeleton } from '../../../components/system/Skeleton'
+import { useSocketEvent } from '../../../providers/SocketProvider'
 import type { Order } from '../../../services/orderService'
 
 // ─── Meta maps ───────────────────────────────────────────────────────────────
@@ -96,10 +98,11 @@ type LocalOrderEvent = OrderEvent & { failed?: boolean; originalText?: string }
 
 // ─── Timeline event renderer ─────────────────────────────────────────────────
 
-function TimelineEvent({ event, isOptimistic, onRetry }: {
+function TimelineEvent({ event, isOptimistic, onRetry, onDelete }: {
   event: LocalOrderEvent
   isOptimistic?: boolean
   onRetry?: () => void
+  onDelete?: () => void
 }) {
   const isComment = event.type === 'comment_added'
 
@@ -120,6 +123,22 @@ function TimelineEvent({ event, isOptimistic, onRetry }: {
             <span style={{ fontSize: 11, color: isFailed ? '#EF4444' : '#9CA3AF' }}>
               {isFailed ? 'Failed to send' : formatTimestamp(event.created_at)}
             </span>
+            {onDelete && !isOptimistic && (
+              <button
+                onClick={onDelete}
+                title="Delete comment"
+                style={{
+                  marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer',
+                  padding: '2px 4px', color: '#D1D5DB', lineHeight: 1,
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#EF4444')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#D1D5DB')}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                </svg>
+              </button>
+            )}
           </div>
           <div style={{
             background: isFailed ? '#FFF5F5' : '#FFFFFF',
@@ -284,46 +303,130 @@ function PanelSection({ label, children }: { label: string; children: React.Reac
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+const LIMIT = 30
+
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { user } = useAuthStore()
 
-  const [showEdit, setShowEdit] = useState(false)
-  const [commentText, setCommentText] = useState('')
-  const [optimisticEvents, setOptimisticEvents] = useState<LocalOrderEvent[]>([])
-  const feedEndRef = useRef<HTMLDivElement>(null)
-
+  // ── Order data ──────────────────────────────────────────────────────────────
   const { data: order, isLoading: orderLoading } = useQuery<Order>({
     queryKey: ['orders', id],
     queryFn: () => orderService.getOrder(id!),
     enabled: !!id,
   })
 
-  const { data: eventsData, isLoading: eventsLoading } = useQuery({
-    queryKey: ['orders', id, 'events'],
-    queryFn: () => orderService.listEvents(id!),
-    enabled: !!id,
-  })
+  // ── Events: state-based pagination ─────────────────────────────────────────
+  const [evList, setEvList] = useState<OrderEvent[]>([])
+  const [totalEvents, setTotalEvents] = useState(0)
+  const [hasOlder, setHasOlder] = useState(false)
+  const [loadingOlder, setLoadingOlder] = useState(false)
+  const [eventsLoading, setEventsLoading] = useState(true)
+  const olderPageRef = useRef(2)
+  const evListRef = useRef<OrderEvent[]>([])
+  useEffect(() => { evListRef.current = evList }, [evList])
 
-  const events = eventsData?.events ?? []
-  const allEvents = [...events, ...optimisticEvents]
+  // ── Delete confirmation ─────────────────────────────────────────────────────
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
-  // Clear non-failed optimistic entries once the real ones appear
+  // ── Optimistic / failed comments ────────────────────────────────────────────
+  const [optimisticEvents, setOptimisticEvents] = useState<LocalOrderEvent[]>([])
+  const allEvents = [...evList, ...optimisticEvents]
+
+  // ── Scroll / new-events badge ───────────────────────────────────────────────
+  const [newCount, setNewCount] = useState(0)
+  const atBottomRef = useRef(true)
+  const timelineRef = useRef<HTMLDivElement>(null)
+  const feedEndRef = useRef<HTMLDivElement>(null)
+
+  const [showEdit, setShowEdit] = useState(false)
+  const [commentText, setCommentText] = useState('')
+
+  // ── Initial load ────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (eventsData && optimisticEvents.length > 0) {
-      setOptimisticEvents(prev => prev.filter(e => e.failed))
+    if (!id) return
+    setEventsLoading(true)
+    orderService.listEvents(id, 1, LIMIT, 'desc').then(data => {
+      setEvList([...data.events].reverse())
+      setTotalEvents(data.total)
+      setHasOlder(data.total > LIMIT)
+      olderPageRef.current = 2
+      setEventsLoading(false)
+      setTimeout(() => feedEndRef.current?.scrollIntoView({ behavior: 'auto' }), 50)
+    })
+  }, [id])
+
+  // ── Load older ──────────────────────────────────────────────────────────────
+  const loadOlder = async () => {
+    if (loadingOlder || !id) return
+    setLoadingOlder(true)
+    const tl = timelineRef.current
+    const prevScrollHeight = tl?.scrollHeight ?? 0
+    try {
+      const data = await orderService.listEvents(id, olderPageRef.current, LIMIT, 'desc')
+      const older = [...data.events].reverse()
+      setEvList(prev => [...older, ...prev])
+      setTotalEvents(data.total)
+      setHasOlder(olderPageRef.current * LIMIT < data.total)
+      olderPageRef.current++
+      requestAnimationFrame(() => {
+        if (tl) tl.scrollTop = tl.scrollHeight - prevScrollHeight
+      })
+    } finally {
+      setLoadingOlder(false)
     }
-  }, [eventsData])
+  }
 
-  // Scroll to bottom on new events
-  useEffect(() => {
+  // ── Realtime: append new events ─────────────────────────────────────────────
+  const fetchLatest = useCallback(async () => {
+    if (!id) return
+    const data = await orderService.listEvents(id, 1, LIMIT, 'desc')
+    const latest = [...data.events].reverse()
+    const existingIds = new Set(evListRef.current.map(e => e.id))
+    const newEvs = latest.filter(e => !existingIds.has(e.id))
+    if (newEvs.length === 0) return
+    setEvList(prev => [...prev, ...newEvs])
+    setOptimisticEvents(prev => prev.filter(e => e.failed))
+    setTotalEvents(data.total)
+    if (atBottomRef.current) {
+      setTimeout(() => feedEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+    } else {
+      setNewCount(n => n + newEvs.length)
+    }
+  }, [id])
+
+  // ── Realtime: react to socket events for this order ────────────────────────
+  useSocketEvent(useCallback((event) => {
+    if (event.type === 'order.event_added' && event.entity_id === id) {
+      fetchLatest()
+    }
+    if (
+      (event.type === 'order.updated' || event.type === 'order.status_changed') &&
+      event.entity_id === id
+    ) {
+      qc.invalidateQueries({ queryKey: ['orders', id] })
+    }
+  }, [id, fetchLatest, qc]))
+
+  // ── Scroll tracking ─────────────────────────────────────────────────────────
+  const handleTimelineScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+    atBottomRef.current = atBottom
+    if (atBottom && newCount > 0) setNewCount(0)
+  }
+  const scrollToBottom = () => {
     feedEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [allEvents.length])
+    setNewCount(0)
+    atBottomRef.current = true
+  }
 
+  // ── Status ──────────────────────────────────────────────────────────────────
   const { mutate: updateStatus } = useUpdateOrderStatus()
 
+  // ── Comment mutation ────────────────────────────────────────────────────────
   const { mutate: addComment, isPending: commenting } = useMutation({
     mutationFn: (text: string) => orderService.addComment(id!, text),
     onMutate: (text) => {
@@ -340,10 +443,13 @@ export function OrderDetailPage() {
       }
       setOptimisticEvents(prev => [...prev, optimistic])
       setCommentText('')
+      atBottomRef.current = true
+      setTimeout(() => feedEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
       return { optId }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['orders', id, 'events'] })
+      fetchLatest()
+      qc.invalidateQueries({ queryKey: ['orders', id] })
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.optId) {
@@ -371,6 +477,19 @@ export function OrderDetailPage() {
     const text = ev.originalText ?? (ev.payload as Record<string, string>).text
     setOptimisticEvents(prev => prev.filter(e => e.id !== ev.id))
     if (text) handleSend(text)
+  }
+
+  // Must be called unconditionally before any early returns
+  const perms = useOrderPermissions(order ?? null)
+
+  const handleDeleteComment = (eventId: string) => setDeleteConfirmId(eventId)
+
+  const confirmDelete = async () => {
+    if (!id || !deleteConfirmId) return
+    const eventId = deleteConfirmId
+    setDeleteConfirmId(null)
+    await orderService.deleteComment(id, eventId)
+    setEvList(prev => prev.filter(e => e.id !== eventId))
   }
 
   if (orderLoading) {
@@ -426,17 +545,19 @@ export function OrderDetailPage() {
         <div style={{ width: 1, height: 20, background: '#E4E6EF' }} />
         <span style={{ fontSize: 13, fontWeight: 700, color: '#6366F1', fontFamily: 'monospace' }}>#{order.order_number}</span>
         <span style={{ fontSize: 15, fontWeight: 700, color: '#111827', flex: 1 }}>{order.title}</span>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button
-            onClick={() => setShowEdit(true)}
-            style={{
-              padding: '6px 14px', borderRadius: 8, border: '1.5px solid #E4E6EF',
-              background: '#FFFFFF', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#374151',
-            }}
-          >
-            Edit
-          </button>
-        </div>
+        {perms.canEditOrder && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              onClick={() => setShowEdit(true)}
+              style={{
+                padding: '6px 14px', borderRadius: 8, border: '1.5px solid #E4E6EF',
+                background: '#FFFFFF', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#374151',
+              }}
+            >
+              Edit
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Body: two columns */}
@@ -446,7 +567,31 @@ export function OrderDetailPage() {
         <div style={{ flex: '1 1 0', display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
           {/* Timeline scroll area */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px 8px' }}>
+          <div
+            ref={timelineRef}
+            onScroll={handleTimelineScroll}
+            style={{ flex: 1, overflowY: 'auto', padding: '16px 28px 8px', position: 'relative' }}
+          >
+            {/* Load older button */}
+            {!eventsLoading && hasOlder && (
+              <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                <button
+                  onClick={loadOlder}
+                  disabled={loadingOlder}
+                  style={{
+                    background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 20,
+                    padding: '6px 16px', fontSize: 12.5, fontWeight: 600, color: '#6B7280',
+                    cursor: loadingOlder ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
+                  }}
+                >
+                  {loadingOlder
+                    ? <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Loading…</>
+                    : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="18 15 12 9 6 15"/></svg>Load older updates</>
+                  }
+                </button>
+              </div>
+            )}
+
             {eventsLoading ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -468,12 +613,13 @@ export function OrderDetailPage() {
                 <div key={group.label}>
                   <DateDivider label={group.label} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {group.events.map((ev, i) => (
-                      <div key={ev.id} style={{ animation: i >= events.length - 3 ? 'fadeSlideIn 0.25s ease' : 'none' }}>
+                    {group.events.map(ev => (
+                      <div key={ev.id} style={{ animation: 'fadeSlideIn 0.2s ease' }}>
                         <TimelineEvent
                           event={ev as LocalOrderEvent}
                           isOptimistic={ev.id.startsWith('opt-')}
                           onRetry={() => handleRetry(ev as LocalOrderEvent)}
+                          onDelete={perms.canDeleteComment && ev.type === 'comment_added' ? () => handleDeleteComment(ev.id) : undefined}
                         />
                       </div>
                     ))}
@@ -483,6 +629,27 @@ export function OrderDetailPage() {
             )}
             <div ref={feedEndRef} style={{ height: 16 }} />
           </div>
+
+          {/* New updates badge */}
+          {newCount > 0 && (
+            <div style={{ position: 'relative', height: 0, overflow: 'visible' }}>
+              <button
+                onClick={scrollToBottom}
+                style={{
+                  position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
+                  background: '#6366F1', color: '#FFFFFF', border: 'none', borderRadius: 20,
+                  padding: '7px 16px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  boxShadow: '0 4px 12px rgba(99,102,241,.35)',
+                  animation: 'fadeSlideIn 0.2s ease',
+                  zIndex: 10,
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                {newCount} new update{newCount !== 1 ? 's' : ''}
+              </button>
+            </div>
+          )}
 
           {/* Composer */}
           <div style={{
@@ -549,7 +716,10 @@ export function OrderDetailPage() {
           </PanelSection>
 
           <PanelSection label="Status">
-            <StatusDropdown order={order} onUpdate={s => updateStatus({ id: order.id, status: s })} />
+            {perms.canChangeStatus
+              ? <StatusDropdown order={order} onUpdate={s => updateStatus({ id: order.id, status: s })} />
+              : <span style={chip(sm)}>{sm.label}</span>
+            }
           </PanelSection>
 
           <PanelSection label="Priority">
@@ -603,12 +773,57 @@ export function OrderDetailPage() {
         <OrderModal
           key={order.id}
           order={order}
+          canReassign={perms.canReassign}
           onClose={() => setShowEdit(false)}
           onSuccess={() => {
             qc.invalidateQueries({ queryKey: ['orders', id] })
             qc.invalidateQueries({ queryKey: ['orders'] })
           }}
         />
+      )}
+
+      {deleteConfirmId && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(15,23,42,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+          onClick={() => setDeleteConfirmId(null)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#FFFFFF', borderRadius: 14, padding: '28px 28px 22px',
+              width: 320, boxShadow: '0 8px 32px rgba(0,0,0,.14)',
+              display: 'flex', flexDirection: 'column', gap: 8,
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>Delete comment?</div>
+            <div style={{ fontSize: 13.5, color: '#6B7280', lineHeight: 1.5 }}>
+              This comment will be permanently removed and cannot be undone.
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 12, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                style={{
+                  padding: '8px 18px', borderRadius: 8, border: '1.5px solid #E4E6EF',
+                  background: '#FFFFFF', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#374151',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                style={{
+                  padding: '8px 18px', borderRadius: 8, border: 'none',
+                  background: '#EF4444', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#FFFFFF',
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
