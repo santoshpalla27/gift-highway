@@ -137,10 +137,12 @@ func (h *AttachmentHandler) DeleteAttachment(c *gin.Context) {
 		return
 	}
 
-	// Notify clients so they remove the event from the timeline
+	// Notify clients to replace the event with a tombstone
 	if att.EventID != nil {
 		h.hub.Broadcast(realtime.NewEvent(realtime.EventTimelineEventDeleted, orderID, gin.H{
-			"event_id": *att.EventID,
+			"event_id":  *att.EventID,
+			"tombstone": true,
+			"file_name": att.FileName,
 		}))
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})

@@ -95,4 +95,8 @@ export const orderService = {
   deleteComment: async (orderId: string, eventId: string): Promise<void> => {
     await apiClient.delete(`/orders/${orderId}/events/${eventId}`)
   },
+
+  editComment: async (orderId: string, eventId: string, text: string): Promise<void> => {
+    await apiClient.patch(`/orders/${orderId}/events/${eventId}`, { text })
+  },
 }

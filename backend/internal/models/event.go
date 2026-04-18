@@ -13,7 +13,8 @@ const (
 	EvtDueDateChanged   = "due_date_changed"
 	EvtPriorityChanged  = "priority_changed"
 	EvtOrderUpdated     = "order_updated"
-	EvtAttachmentAdded  = "attachment_added"
+	EvtAttachmentAdded   = "attachment_added"
+	EvtAttachmentDeleted = "attachment_deleted"
 )
 
 type OrderEvent struct {

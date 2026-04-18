@@ -27,6 +27,10 @@ func (s *EventService) GetEvent(ctx context.Context, eventID string) (*models.Or
 	return s.repo.GetByID(ctx, eventID)
 }
 
+func (s *EventService) EditComment(ctx context.Context, eventID, newText string) error {
+	return s.repo.UpdateComment(ctx, eventID, newText)
+}
+
 func (s *EventService) DeleteComment(ctx context.Context, eventID string) error {
 	return s.repo.Delete(ctx, eventID)
 }

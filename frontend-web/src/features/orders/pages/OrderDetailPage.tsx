@@ -144,14 +144,30 @@ function AttachmentImage({ orderId, fileKey, fileName, fileUrl }: {
 
 // ─── Timeline event renderer ─────────────────────────────────────────────────
 
-function TimelineEvent({ event, isOptimistic, onRetry, onDelete, orderId }: {
+function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, orderId }: {
   event: LocalOrderEvent
   isOptimistic?: boolean
   onRetry?: () => void
   onDelete?: () => void
+  onEdit?: (newText: string) => void
   orderId: string
 }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState('')
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [menuOpen])
+
   const isComment = event.type === 'comment_added'
+  const canMenu = (onDelete || onEdit) && !isOptimistic
 
   if (isComment) {
     const isFailed = event.failed
@@ -165,37 +181,86 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, orderId }: {
           {getInitials(event.actor_name)}
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{event.actor_name}</span>
             <span style={{ fontSize: 11, color: isFailed ? '#EF4444' : '#9CA3AF' }}>
               {isFailed ? 'Failed to send' : formatTimestamp(event.created_at)}
             </span>
-            {onDelete && !isOptimistic && (
-              <button
-                onClick={onDelete}
-                title="Delete comment"
-                style={{
-                  marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer',
-                  padding: '2px 4px', color: '#D1D5DB', lineHeight: 1,
-                }}
-                onMouseEnter={e => (e.currentTarget.style.color = '#EF4444')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#D1D5DB')}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                </svg>
-              </button>
+            {canMenu && (
+              <div ref={menuRef} style={{ marginLeft: 'auto', position: 'relative' }}>
+                <button
+                  onClick={() => setMenuOpen(o => !o)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', color: '#9CA3AF', lineHeight: 1, borderRadius: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#374151')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#9CA3AF')}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="12" cy="19" r="2.5"/></svg>
+                </button>
+                {menuOpen && (
+                  <div style={{
+                    position: 'absolute', right: 0, top: '100%', zIndex: 50, marginTop: 4,
+                    background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8,
+                    boxShadow: '0 4px 12px rgba(0,0,0,.1)', minWidth: 130, overflow: 'hidden',
+                  }}>
+                    {onEdit && (
+                      <button
+                        onClick={() => { setEditText((event.payload as any).text ?? ''); setEditing(true); setMenuOpen(false) }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#374151', textAlign: 'left' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        Edit
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button
+                        onClick={() => { setMenuOpen(false); onDelete() }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#EF4444', textAlign: 'left' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#FFF5F5')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
-          <div style={{
-            background: isFailed ? '#FFF5F5' : '#FFFFFF',
-            border: `1px solid ${isFailed ? '#FCA5A5' : '#E5E7EB'}`,
-            borderRadius: '4px 12px 12px 12px',
-            padding: '10px 14px', fontSize: 13.5, color: '#374151', lineHeight: 1.6,
-            boxShadow: '0 1px 3px rgba(0,0,0,.04)',
-          }}>
-            {event.payload.text}
-          </div>
+          {editing ? (
+            <div>
+              <textarea
+                value={editText}
+                onChange={e => setEditText(e.target.value)}
+                autoFocus
+                style={{
+                  width: '100%', boxSizing: 'border-box', padding: '10px 14px', fontSize: 13.5,
+                  border: '1.5px solid #6366F1', borderRadius: '4px 12px 12px 12px',
+                  outline: 'none', resize: 'none', minHeight: 72, fontFamily: 'inherit', lineHeight: 1.6,
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (editText.trim()) { onEdit!(editText.trim()); setEditing(false) } }
+                  if (e.key === 'Escape') setEditing(false)
+                }}
+              />
+              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                <button onClick={() => { if (editText.trim()) { onEdit!(editText.trim()); setEditing(false) } }} style={{ padding: '4px 12px', background: '#6366F1', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Save</button>
+                <button onClick={() => setEditing(false)} style={{ padding: '4px 12px', background: 'none', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 12, cursor: 'pointer', color: '#6B7280' }}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              background: isFailed ? '#FFF5F5' : '#FFFFFF',
+              border: `1px solid ${isFailed ? '#FCA5A5' : '#E5E7EB'}`,
+              borderRadius: '4px 12px 12px 12px',
+              padding: '10px 14px', fontSize: 13.5, color: '#374151', lineHeight: 1.6,
+              boxShadow: '0 1px 3px rgba(0,0,0,.04)',
+            }}>
+              {(event.payload as any).text}
+            </div>
+          )}
           {isFailed && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
               <span style={{ fontSize: 12, color: '#EF4444' }}>Message not delivered.</span>
@@ -230,19 +295,33 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, orderId }: {
           {getInitials(event.actor_name)}
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{event.actor_name}</span>
             <span style={{ fontSize: 11, color: '#9CA3AF' }}>{formatTimestamp(event.created_at)}</span>
             {onDelete && (
-              <button
-                onClick={onDelete}
-                title="Delete file"
-                style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', color: '#D1D5DB', lineHeight: 1 }}
-                onMouseEnter={e => (e.currentTarget.style.color = '#EF4444')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#D1D5DB')}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-              </button>
+              <div ref={menuRef} style={{ marginLeft: 'auto', position: 'relative' }}>
+                <button
+                  onClick={() => setMenuOpen(o => !o)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', color: '#9CA3AF', lineHeight: 1, borderRadius: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#374151')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#9CA3AF')}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="12" cy="19" r="2.5"/></svg>
+                </button>
+                {menuOpen && (
+                  <div style={{ position: 'absolute', right: 0, top: '100%', zIndex: 50, marginTop: 4, background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,.1)', minWidth: 130, overflow: 'hidden' }}>
+                    <button
+                      onClick={() => { setMenuOpen(false); onDelete() }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#EF4444', textAlign: 'left' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#FFF5F5')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
           <div style={{
@@ -253,18 +332,14 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, orderId }: {
               <AttachmentImage orderId={orderId} fileKey={p.file_key} fileName={p.file_name} fileUrl={p.file_url} />
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: 8, background: '#F3F4F6',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.file_name}</div>
                   <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{formatBytes(Number(p.size_bytes))}</div>
                 </div>
-                <button onClick={() => downloadFile(orderId, p.file_key, p.file_name)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, padding: 0, lineHeight: 1 }}>
+                <button onClick={() => downloadFile(orderId, p.file_key, p.file_name)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, padding: 0, lineHeight: 1 }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 </button>
               </div>
@@ -272,14 +347,26 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, orderId }: {
             {fileIsImage && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #F3F4F6' }}>
                 <span style={{ fontSize: 11, color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.file_name}</span>
-                <button onClick={() => downloadFile(orderId, p.file_key, p.file_name)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, marginLeft: 8, padding: 0, lineHeight: 1 }}>
+                <button onClick={() => downloadFile(orderId, p.file_key, p.file_name)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, marginLeft: 8, padding: 0, lineHeight: 1 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 </button>
               </div>
             )}
           </div>
         </div>
+      </div>
+    )
+  }
+
+  // Deleted attachment tombstone
+  if (event.type === 'attachment_deleted') {
+    const p = event.payload as Record<string, string>
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', opacity: 0.5 }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        <span style={{ fontSize: 12, color: '#9CA3AF', fontStyle: 'italic' }}>
+          Attachment deleted{p.file_name ? ` · ${p.file_name}` : ''}
+        </span>
       </div>
     )
   }
@@ -527,8 +614,16 @@ export function OrderDetailPage() {
       fetchLatest()
     }
     if (event.type === 'order.event_deleted' && event.entity_id === id) {
-      const deletedEventId = (event as unknown as { payload: { event_id: string } }).payload?.event_id
-      if (deletedEventId) setEvList(prev => prev.filter(e => e.id !== deletedEventId))
+      const p = (event as unknown as { payload: { event_id: string; tombstone?: boolean; file_name?: string } }).payload
+      if (!p?.event_id) return
+      if (p.tombstone) {
+        setEvList(prev => prev.map(e => e.id === p.event_id
+          ? { ...e, type: 'attachment_deleted', payload: { file_name: p.file_name ?? '' } }
+          : e
+        ))
+      } else {
+        setEvList(prev => prev.filter(e => e.id !== p.event_id))
+      }
     }
     if (
       (event.type === 'order.updated' || event.type === 'order.status_changed') &&
@@ -675,9 +770,18 @@ export function OrderDetailPage() {
   const confirmDelete = async () => {
     if (!id || !deleteConfirmId) return
     const eventId = deleteConfirmId
+    const ev = evList.find(e => e.id === eventId)
     setDeleteConfirmId(null)
     await orderService.deleteComment(id, eventId)
-    setEvList(prev => prev.filter(e => e.id !== eventId))
+    if (ev?.type === 'attachment_added') {
+      const fileName = (ev.payload as any)?.file_name ?? ''
+      setEvList(prev => prev.map(e => e.id === eventId
+        ? { ...e, type: 'attachment_deleted', payload: { file_name: fileName } as any }
+        : e
+      ))
+    } else {
+      setEvList(prev => prev.filter(e => e.id !== eventId))
+    }
   }
 
   if (orderLoading) {
@@ -808,6 +912,10 @@ export function OrderDetailPage() {
                           isOptimistic={ev.id.startsWith('opt-')}
                           onRetry={() => handleRetry(ev as LocalOrderEvent)}
                           onDelete={perms.canDeleteComment && (ev.type === 'comment_added' || ev.type === 'attachment_added') ? () => handleDeleteComment(ev.id) : undefined}
+                          onEdit={perms.canDeleteComment && ev.type === 'comment_added' ? async (newText: string) => {
+                            await orderService.editComment(id!, ev.id, newText)
+                            setEvList(prev => prev.map(e => e.id === ev.id ? { ...e, payload: { ...(e.payload as object), text: newText } as any } : e))
+                          } : undefined}
                           orderId={id!}
                         />
                       </div>

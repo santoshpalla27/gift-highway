@@ -58,6 +58,15 @@ func (r *AttachmentRepository) ListByOrder(ctx context.Context, orderID string) 
 	return list, err
 }
 
+func (r *AttachmentRepository) GetByEventID(ctx context.Context, eventID string) (*models.OrderAttachment, error) {
+	var a models.OrderAttachment
+	err := r.db.QueryRowxContext(ctx, attachmentSelectSQL+`WHERE a.event_id = $1`, eventID).StructScan(&a)
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
 func (r *AttachmentRepository) Delete(ctx context.Context, id string) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM order_attachments WHERE id = $1`, id)
 	return err

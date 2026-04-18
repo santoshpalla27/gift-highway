@@ -13,13 +13,14 @@ import (
 )
 
 type EventHandler struct {
-	eventService *services.EventService
-	orderService *services.OrderService
-	hub          *realtime.Hub
+	eventService      *services.EventService
+	orderService      *services.OrderService
+	attachmentService *services.AttachmentService
+	hub               *realtime.Hub
 }
 
-func NewEventHandler(eventService *services.EventService, orderService *services.OrderService, hub *realtime.Hub) *EventHandler {
-	return &EventHandler{eventService: eventService, orderService: orderService, hub: hub}
+func NewEventHandler(eventService *services.EventService, orderService *services.OrderService, attachmentService *services.AttachmentService, hub *realtime.Hub) *EventHandler {
+	return &EventHandler{eventService: eventService, orderService: orderService, attachmentService: attachmentService, hub: hub}
 }
 
 type eventResponse struct {
@@ -74,9 +75,9 @@ func (h *EventHandler) DeleteComment(c *gin.Context) {
 		return
 	}
 
-	// Only comment events can be deleted
-	if ev.Type != models.EvtCommentAdded {
-		c.JSON(http.StatusForbidden, gin.H{"error": "only comments can be deleted"})
+	// Only comment and attachment events can be deleted via this route
+	if ev.Type != models.EvtCommentAdded && ev.Type != models.EvtAttachmentAdded {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only comments and attachments can be deleted"})
 		return
 	}
 
@@ -105,9 +106,23 @@ func (h *EventHandler) DeleteComment(c *gin.Context) {
 			}
 		}
 		if !isAssigned {
-			c.JSON(http.StatusForbidden, gin.H{"error": "only assigned users or admins can delete comments"})
+			c.JSON(http.StatusForbidden, gin.H{"error": "only assigned users or admins can delete"})
 			return
 		}
+	}
+
+	if ev.Type == models.EvtAttachmentAdded {
+		_, err := h.attachmentService.DeleteAttachmentByEventID(ctx, eventID, uid, role.(string))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete attachment"})
+			return
+		}
+		h.hub.Broadcast(realtime.NewEvent(realtime.EventTimelineEventDeleted, orderID, gin.H{
+			"event_id":  eventID,
+			"tombstone": true,
+		}))
+		c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+		return
 	}
 
 	if err := h.eventService.DeleteComment(ctx, eventID); err != nil {
@@ -117,6 +132,64 @@ func (h *EventHandler) DeleteComment(c *gin.Context) {
 
 	h.hub.Broadcast(realtime.NewEvent(realtime.EventOrderUpdated, orderID, gin.H{"id": orderID}))
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+func (h *EventHandler) EditComment(c *gin.Context) {
+	orderID := c.Param("id")
+	eventID := c.Param("eventId")
+	ctx := c.Request.Context()
+
+	var req struct {
+		Text string `json:"text" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "text is required"})
+		return
+	}
+
+	ev, err := h.eventService.GetEvent(ctx, eventID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "event not found"})
+		return
+	}
+	if ev.Type != models.EvtCommentAdded || ev.OrderID != orderID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only comments on this order can be edited"})
+		return
+	}
+
+	role, _ := c.Get("user_role")
+	userID, _ := c.Get("user_id")
+	uid := userID.(string)
+
+	if role != "admin" {
+		order, err := h.orderService.GetOrder(ctx, orderID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "order not found"})
+			return
+		}
+		isAssigned := false
+		for _, id := range order.AssignedTo {
+			if id == uid {
+				isAssigned = true
+				break
+			}
+		}
+		if !isAssigned {
+			c.JSON(http.StatusForbidden, gin.H{"error": "only assigned users or admins can edit comments"})
+			return
+		}
+	}
+
+	if err := h.eventService.EditComment(ctx, eventID, req.Text); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to edit comment"})
+		return
+	}
+
+	updated, _ := h.eventService.GetEvent(ctx, eventID)
+	if updated != nil {
+		h.hub.Broadcast(realtime.NewEvent(realtime.EventTimelineEvent, orderID, toEventResponse(updated)))
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "updated"})
 }
 
 func (h *EventHandler) AddComment(c *gin.Context) {

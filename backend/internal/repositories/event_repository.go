@@ -57,6 +57,25 @@ func (r *EventRepository) GetByID(ctx context.Context, eventID string) (*models.
 	return e, nil
 }
 
+func (r *EventRepository) UpdateComment(ctx context.Context, eventID, newText string) error {
+	data, err := json.Marshal(map[string]string{"text": newText})
+	if err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx,
+		`UPDATE order_events SET payload=$1 WHERE id=$2 AND type='comment_added'`, data, eventID)
+	return err
+}
+
+func (r *EventRepository) UpdateTypeAndPayload(ctx context.Context, eventID, eventType string, payload interface{}) error {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, `UPDATE order_events SET type=$1, payload=$2 WHERE id=$3`, eventType, data, eventID)
+	return err
+}
+
 func (r *EventRepository) Delete(ctx context.Context, eventID string) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM order_events WHERE id = $1`, eventID)
 	return err

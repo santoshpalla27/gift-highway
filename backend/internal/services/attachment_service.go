@@ -214,6 +214,14 @@ func (s *AttachmentService) ListAttachments(ctx context.Context, orderID string)
 	return s.repo.ListByOrder(ctx, orderID)
 }
 
+func (s *AttachmentService) DeleteAttachmentByEventID(ctx context.Context, eventID, userID, role string) (*models.OrderAttachment, error) {
+	att, err := s.repo.GetByEventID(ctx, eventID)
+	if err != nil {
+		return nil, repositories.ErrNotFound
+	}
+	return s.DeleteAttachment(ctx, att.ID, userID, role)
+}
+
 func (s *AttachmentService) DeleteAttachment(ctx context.Context, attachmentID, userID, role string) (*models.OrderAttachment, error) {
 	att, err := s.repo.GetByID(ctx, attachmentID)
 	if err != nil {
@@ -231,10 +239,22 @@ func (s *AttachmentService) DeleteAttachment(ctx context.Context, attachmentID, 
 	if err := s.repo.Delete(ctx, attachmentID); err != nil {
 		return nil, err
 	}
-	// Delete the linked timeline event so it disappears from the timeline
+
+	// Replace the timeline event with a tombstone instead of deleting it
 	if att.EventID != nil {
-		_ = s.eventRepo.Delete(ctx, *att.EventID)
+		_ = s.eventRepo.UpdateTypeAndPayload(ctx, *att.EventID, models.EvtAttachmentDeleted, map[string]interface{}{
+			"file_name": att.FileName,
+		})
 	}
+
+	// Delete the object from R2 to avoid orphan files
+	if r2Client, err := s.newR2Client(ctx); err == nil {
+		_, _ = r2Client.DeleteObject(ctx, &s3.DeleteObjectInput{
+			Bucket: aws.String(s.cfg.R2Bucket),
+			Key:    aws.String(att.FileKey),
+		})
+	}
+
 	return att, nil
 }
 

@@ -167,21 +167,46 @@ function AttachmentCard({ orderId, payload, onDelete }: {
 
 // ─── Timeline Event ───────────────────────────────────────────────────────────
 
-function TimelineItem({ event, isOptimistic, onRetry, onDelete, orderId }: {
+function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, orderId }: {
   event: OrderEvent & { failed?: boolean }
   isOptimistic?: boolean
   onRetry?: () => void
   onDelete?: () => void
+  onEdit?: (newText: string) => void
   orderId: string
 }) {
   const isComment = event.type === 'comment_added'
   const meta = EVENT_TYPE_META[event.type]
+
+  const openMenu = (forAttachment = false) => {
+    const options: string[] = []
+    if (!forAttachment && onEdit) options.push('Edit')
+    if (onDelete) options.push('Delete')
+    options.push('Cancel')
+
+    const destructiveIndex = options.indexOf('Delete')
+    const cancelIndex = options.indexOf('Cancel')
+
+    Alert.alert('Options', '', options.map((opt, i) => ({
+      text: opt,
+      style: i === destructiveIndex ? 'destructive' : i === cancelIndex ? 'cancel' : 'default',
+      onPress: () => {
+        if (opt === 'Delete' && onDelete) onDelete()
+        if (opt === 'Edit' && onEdit) {
+          const currentText = typeof event.payload === 'object' && event.payload !== null
+            ? (event.payload as Record<string, string>).text ?? '' : ''
+          onEdit(currentText)
+        }
+      },
+    })))
+  }
 
   if (isComment) {
     const text = typeof event.payload === 'object' && event.payload !== null
       ? (event.payload as Record<string, string>).text ?? ''
       : ''
     const isFailed = event.failed
+    const canMenu = (onDelete || onEdit) && !isOptimistic
     return (
       <View style={[T.commentRow, isOptimistic && !isFailed && { opacity: 0.6 }]}>
         <View style={T.avatar}>
@@ -193,9 +218,9 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, orderId }: {
             <Text style={[T.time, isFailed && { color: '#EF4444' }]}>
               {isFailed ? 'Failed to send' : formatTimestamp(event.created_at)}
             </Text>
-            {onDelete && !isOptimistic && (
-              <TouchableOpacity onPress={onDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="trash-outline" size={13} color="#D1D5DB" />
+            {canMenu && (
+              <TouchableOpacity onPress={() => openMenu(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="ellipsis-vertical" size={16} color="#6B7280" />
               </TouchableOpacity>
             )}
           </View>
@@ -227,13 +252,27 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, orderId }: {
             <Text style={T.actorName}>{event.actor_name}</Text>
             <Text style={T.time}>{formatTimestamp(event.created_at)}</Text>
             {onDelete && (
-              <TouchableOpacity onPress={onDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="trash-outline" size={13} color="#D1D5DB" />
+              <TouchableOpacity onPress={() => openMenu(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="ellipsis-vertical" size={16} color="#6B7280" />
               </TouchableOpacity>
             )}
           </View>
           <AttachmentCard orderId={orderId} payload={p} />
         </View>
+      </View>
+    )
+  }
+
+  if (event.type === 'attachment_deleted') {
+    const p = event.payload as Record<string, string>
+    return (
+      <View style={[T.systemRow, { opacity: 0.5 }]}>
+        <View style={T.systemIconWrap}>
+          <Ionicons name="trash-outline" size={13} color="#9CA3AF" />
+        </View>
+        <Text style={[T.systemLabel, { fontStyle: 'italic' }]}>
+          Attachment deleted{p.file_name ? ` · ${p.file_name}` : ''}
+        </Text>
       </View>
     )
   }
@@ -452,6 +491,8 @@ export default function OrderDetailScreen() {
   const [sending, setSending] = useState(false)
   const [showStatus, setShowStatus] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const [editingComment, setEditingComment] = useState<{ eventId: string; text: string } | null>(null)
+  const [editCommentText, setEditCommentText] = useState('')
 
   // ── File uploads ─────────────────────────────────────────────────────────────
   type UploadingFile = {
@@ -537,8 +578,16 @@ export default function OrderDetailScreen() {
     () => { fetchOrder(); fetchLatest() },
     (event) => {
       if (event.type === 'order.event_deleted') {
-        const eventId = (event.payload as Record<string, string>)?.event_id
-        if (eventId) setEvList(prev => prev.filter(e => e.id !== eventId))
+        const p = event.payload as Record<string, string> | undefined
+        if (!p?.event_id) return
+        if (p.tombstone === 'true' || (p as any).tombstone === true) {
+          setEvList(prev => prev.map(e => e.id === p.event_id
+            ? { ...e, type: 'attachment_deleted', payload: { file_name: p.file_name ?? '' } as any }
+            : e
+          ))
+        } else {
+          setEvList(prev => prev.filter(e => e.id !== p.event_id))
+        }
       }
     },
   )
@@ -652,15 +701,24 @@ export default function OrderDetailScreen() {
   }
 
   const handleDeleteComment = async (eventId: string) => {
-    Alert.alert('Delete comment', 'Are you sure?', [
+    const ev = evListRef.current.find(e => e.id === eventId)
+    Alert.alert('Delete', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive',
         onPress: async () => {
           try {
             await orderService.deleteComment(id!, eventId)
-            setEvList(prev => prev.filter(e => e.id !== eventId))
-          } catch { Alert.alert('Error', 'Could not delete comment.') }
+            if (ev?.type === 'attachment_added') {
+              const fileName = (ev.payload as any)?.file_name ?? ''
+              setEvList(prev => prev.map(e => e.id === eventId
+                ? { ...e, type: 'attachment_deleted', payload: { ...e.payload, file_name: fileName } as any }
+                : e
+              ))
+            } else {
+              setEvList(prev => prev.filter(e => e.id !== eventId))
+            }
+          } catch { Alert.alert('Error', 'Could not delete.') }
         },
       },
     ])
@@ -783,7 +841,11 @@ export default function OrderDetailScreen() {
                       orderId={id!}
                       isOptimistic={ev.id.startsWith('temp-')}
                       onRetry={() => handleRetry(ev as any)}
-                      onDelete={canDeleteComment(order) && ev.type === 'comment_added' ? () => handleDeleteComment(ev.id) : undefined}
+                      onDelete={canDeleteComment(order) && (ev.type === 'comment_added' || ev.type === 'attachment_added') ? () => handleDeleteComment(ev.id) : undefined}
+                      onEdit={canDeleteComment(order) && ev.type === 'comment_added' ? (currentText: string) => {
+                        setEditingComment({ eventId: ev.id, text: currentText })
+                        setEditCommentText(currentText)
+                      } : undefined}
                     />
                   ))}
                 </View>
@@ -893,6 +955,45 @@ export default function OrderDetailScreen() {
           onSaved={() => { fetchOrder(); fetchLatest() }}
         />
       )}
+      <Modal visible={!!editingComment} transparent animationType="fade" onRequestClose={() => setEditingComment(null)}>
+        <TouchableOpacity style={EC.overlay} activeOpacity={1} onPress={() => setEditingComment(null)}>
+          <TouchableOpacity activeOpacity={1} style={EC.sheet}>
+            <Text style={EC.title}>Edit comment</Text>
+            <TextInput
+              style={EC.input}
+              value={editCommentText}
+              onChangeText={setEditCommentText}
+              multiline
+              autoFocus
+              placeholder="Edit your comment..."
+              placeholderTextColor="#9CA3AF"
+            />
+            <View style={EC.actions}>
+              <TouchableOpacity style={EC.cancelBtn} onPress={() => setEditingComment(null)}>
+                <Text style={EC.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[EC.saveBtn, !editCommentText.trim() && { opacity: 0.4 }]}
+                disabled={!editCommentText.trim()}
+                onPress={async () => {
+                  if (!editingComment || !editCommentText.trim()) return
+                  const { eventId } = editingComment
+                  const newText = editCommentText.trim()
+                  setEditingComment(null)
+                  try {
+                    await orderService.editComment(id!, eventId, newText)
+                    setEvList(prev => prev.map(e => e.id === eventId ? { ...e, payload: { ...(e.payload as object), text: newText } as any } : e))
+                  } catch {
+                    Alert.alert('Error', 'Could not edit comment')
+                  }
+                }}
+              >
+                <Text style={EC.saveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   )
 }
@@ -1000,6 +1101,22 @@ const T = StyleSheet.create({
   systemActor: { fontSize: 12.5, color: '#374151', fontWeight: '600' },
   systemLabel: { fontSize: 12.5, color: '#64748B', fontWeight: '400' },
   systemMeta: { fontSize: 11, color: '#94A3B8', marginTop: 2 },
+})
+
+const EC = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'center', padding: 24 },
+  sheet: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 20 },
+  title: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 12 },
+  input: {
+    borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 10,
+    padding: 12, fontSize: 14, color: '#111827', minHeight: 80,
+    textAlignVertical: 'top', fontFamily: 'System',
+  },
+  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 14 },
+  cancelBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' },
+  cancelText: { fontSize: 14, color: '#374151', fontWeight: '500' },
+  saveBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, backgroundColor: '#6366F1' },
+  saveText: { fontSize: 14, color: '#FFFFFF', fontWeight: '600' },
 })
 
 const SS = StyleSheet.create({
