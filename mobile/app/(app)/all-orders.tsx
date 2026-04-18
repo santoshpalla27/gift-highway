@@ -18,16 +18,16 @@ const STATUS_OPTIONS = ['new', 'in_progress', 'completed'] as const
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'urgent'] as const
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  new:         { label: 'New',         color: '#334155', bg: '#F8FAFC' },
-  in_progress: { label: 'In Progress', color: '#1E40AF', bg: '#EFF6FF' },
-  completed:   { label: 'Completed',   color: '#166534', bg: '#F0FDF4' },
+  new:         { label: 'New',          color: '#6B7280', bg: '#F3F4F6' },
+  in_progress: { label: 'Working',      color: '#3B82F6', bg: '#EFF6FF' },
+  completed:   { label: 'Done',         color: '#10B981', bg: '#ECFDF5' },
 }
 
 const PRIORITY_META: Record<string, { label: string; color: string; bg: string }> = {
-  low:    { label: 'Low priority',    color: '#475569', bg: '#F1F5F9' },
-  medium: { label: 'Medium priority', color: '#92400E', bg: '#FEF3C7' },
-  high:   { label: 'High priority',   color: '#86198F', bg: '#FAE8FF' },
-  urgent: { label: 'Urgent priority', color: '#991B1B', bg: '#FEE2E2' },
+  low:    { label: 'Low',    color: '#6B7280', bg: '#F3F4F6' },
+  medium: { label: 'Medium', color: '#F59E0B', bg: '#FFFBEB' },
+  high:   { label: 'High',   color: '#8B5CF6', bg: '#F3E8FF' },
+  urgent: { label: 'Urgent', color: '#EF4444', bg: '#FEF2F2' },
 }
 
 function formatDueDate(dateStr: string | null): { text: string; overdue: boolean } | null {

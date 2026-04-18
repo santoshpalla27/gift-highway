@@ -14,7 +14,7 @@ import type { Order } from '../../../services/orderService'
 // ─── Meta maps ───────────────────────────────────────────────────────────────
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  new:         { label: 'Yet to Start', color: '#6B7280', bg: '#F3F4F6' },
+  new:         { label: 'New',          color: '#6B7280', bg: '#F3F4F6' },
   in_progress: { label: 'Working',      color: '#3B82F6', bg: '#EFF6FF' },
   completed:   { label: 'Done',         color: '#10B981', bg: '#ECFDF5' },
 }
