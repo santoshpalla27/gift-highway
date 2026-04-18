@@ -37,26 +37,40 @@ function StatusBadge({ status }: { status: string }) {
 
 
 function StatusDropdown({ order, onChanged }: { order: Order; onChanged?: (msg: string) => void }) {
-  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const ref = useRef<HTMLDivElement>(null)
   const { mutate: updateStatus } = useUpdateOrderStatus()
+  const open = pos !== null
 
   useEffect(() => {
+    if (!open) return
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (ref.current && !ref.current.contains(e.target as Node)) setPos(null)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [])
+  }, [open])
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (open) { setPos(null); return }
+    if (!ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    const dropH = 120
+    const top = window.innerHeight - rect.bottom < dropH + 8
+      ? rect.top - dropH - 4
+      : rect.bottom + 4
+    setPos({ top, left: rect.left })
+  }
 
   return (
     <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
-      <div onClick={(e) => { e.stopPropagation(); setOpen(!open); }} style={{ cursor: 'pointer' }}>
+      <div onClick={handleToggle} style={{ cursor: 'pointer' }}>
         <StatusBadge status={order.status} />
       </div>
-      {open && (
+      {open && pos && (
         <div style={{
-          position: 'absolute', top: '100%', left: 0, zIndex: 50, marginTop: '4px',
+          position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999,
           background: '#FFFFFF', border: '1px solid #E4E6EF', borderRadius: '10px',
           boxShadow: '0 4px 16px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04)',
           padding: '4px', minWidth: '130px',
@@ -66,7 +80,7 @@ function StatusDropdown({ order, onChanged }: { order: Order; onChanged?: (msg: 
               key={s}
               onClick={(e) => {
                 e.stopPropagation()
-                setOpen(false)
+                setPos(null)
                 if (s !== order.status) {
                   updateStatus(
                     { id: order.id, status: s },
