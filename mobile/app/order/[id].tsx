@@ -1,12 +1,15 @@
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, KeyboardAvoidingView, Platform,
-  Alert, RefreshControl, Modal
+  Alert, RefreshControl, Modal, Image, Linking
 } from 'react-native'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useLocalSearchParams, router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import * as ImagePicker from 'expo-image-picker'
+import * as DocumentPicker from 'expo-document-picker'
 import { orderService, Order, OrderEvent, UserOption } from '../../services/orderService'
+import { attachmentService, isImage, formatBytes, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from '../../services/attachmentService'
 import { useAuthStore } from '../../store/authStore'
 import { useNetworkStatus } from '../../hooks/useNetworkStatus'
 import { useOrderSocket } from '../../hooks/useOrderSocket'
@@ -129,6 +132,55 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete }: {
               </TouchableOpacity>
             </View>
           )}
+        </View>
+      </View>
+    )
+  }
+
+  if (event.type === 'attachment_added') {
+    const p = event.payload as Record<string, string>
+    const imgFile = isImage(p.mime_type ?? '')
+    return (
+      <View style={T.commentRow}>
+        <View style={T.avatar}>
+          <Text style={T.avatarText}>{getInitials(event.actor_name || '?')}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={T.bubbleHeader}>
+            <Text style={T.actorName}>{event.actor_name}</Text>
+            <Text style={T.time}>{formatTimestamp(event.created_at)}</Text>
+            {onDelete && (
+              <TouchableOpacity onPress={onDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="trash-outline" size={13} color="#D1D5DB" />
+              </TouchableOpacity>
+            )}
+          </View>
+          <TouchableOpacity
+            onPress={() => Linking.openURL(p.file_url)}
+            style={[T.bubble, { padding: 0, overflow: 'hidden' }]}
+            activeOpacity={0.85}
+          >
+            {imgFile ? (
+              <>
+                <Image source={{ uri: p.file_url }} style={{ width: '100%', height: 180 }} resizeMode="cover" />
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 6 }}>
+                  <Text style={{ fontSize: 11, color: '#9CA3AF', flex: 1 }} numberOfLines={1}>{p.file_name}</Text>
+                  <Ionicons name="download-outline" size={14} color="#6366F1" />
+                </View>
+              </>
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 }}>
+                <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="document-outline" size={20} color="#6B7280" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }} numberOfLines={1}>{p.file_name}</Text>
+                  <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{formatBytes(Number(p.size_bytes))}</Text>
+                </View>
+                <Ionicons name="download-outline" size={16} color="#6366F1" />
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
     )
@@ -349,6 +401,10 @@ export default function OrderDetailScreen() {
   const [showStatus, setShowStatus] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
 
+  // ── File uploads ─────────────────────────────────────────────────────────────
+  type UploadingFile = { id: string; name: string; progress: number; error?: string }
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
+
   const scrollRef = useRef<ScrollView>(null)
 
   // ── Fetch order ──────────────────────────────────────────────────────────────
@@ -421,10 +477,64 @@ export default function OrderDetailScreen() {
     } catch { /* ignore */ }
   }, [id])
 
-  useOrderSocket(() => {
-    fetchOrder()
-    fetchLatest()
-  })
+  useOrderSocket(
+    () => { fetchOrder(); fetchLatest() },
+    (event) => {
+      if (event.type === 'order.event_deleted') {
+        const eventId = (event.payload as Record<string, string>)?.event_id
+        if (eventId) setEvList(prev => prev.filter(e => e.id !== eventId))
+      }
+    },
+  )
+
+  // ── File upload ──────────────────────────────────────────────────────────────
+  const uploadFile = async (uri: string, name: string, mimeType: string, size: number) => {
+    if (!id) return
+    if (!ALLOWED_MIME_TYPES.includes(mimeType)) { Alert.alert('Error', `"${name}" has an unsupported file type.`); return }
+    if (size > MAX_FILE_SIZE) { Alert.alert('Error', `"${name}" exceeds the 20 MB limit.`); return }
+    const uid = `upload-${Date.now()}`
+    setUploadingFiles(prev => [...prev, { id: uid, name, progress: 0 }])
+    try {
+      const { upload_url, file_key, file_url } = await attachmentService.getUploadURL(id, name, mimeType, size)
+      await attachmentService.uploadToR2(upload_url, uri, mimeType, pct => {
+        setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, progress: pct } : f))
+      })
+      await attachmentService.confirmUpload(id, { file_name: name, file_key, file_url, mime_type: mimeType, size_bytes: size })
+      setUploadingFiles(prev => prev.filter(f => f.id !== uid))
+    } catch {
+      setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, error: 'Upload failed' } : f))
+    }
+  }
+
+  const handlePickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') { Alert.alert('Permission required', 'Allow photo access to upload images.'); return }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, quality: 0.85 })
+    if (!result.canceled) {
+      for (const asset of result.assets) {
+        const name = asset.fileName ?? `photo-${Date.now()}.jpg`
+        const mime = asset.mimeType ?? 'image/jpeg'
+        await uploadFile(asset.uri, name, mime, asset.fileSize ?? 0)
+      }
+    }
+  }
+
+  const handlePickDocument = async () => {
+    const result = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true })
+    if (!result.canceled) {
+      for (const asset of result.assets) {
+        await uploadFile(asset.uri, asset.name, asset.mimeType ?? 'application/octet-stream', asset.size ?? 0)
+      }
+    }
+  }
+
+  const handleAttachPress = () => {
+    Alert.alert('Attach File', 'Choose a source', [
+      { text: 'Photo Library', onPress: handlePickImage },
+      { text: 'Files', onPress: handlePickDocument },
+      { text: 'Cancel', style: 'cancel' },
+    ])
+  }
 
   const onRefresh = () => {
     setRefreshing(true)
@@ -619,8 +729,31 @@ export default function OrderDetailScreen() {
           )}
         </View>
 
+        {/* Upload progress */}
+        {uploadingFiles.length > 0 && (
+          <View style={{ paddingHorizontal: 16, paddingVertical: 8, gap: 6, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+            {uploadingFiles.map(f => (
+              <View key={f.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="document-outline" size={14} color="#64748B" />
+                <Text style={{ fontSize: 12, color: '#374151', flex: 1 }} numberOfLines={1}>{f.name}</Text>
+                {f.error
+                  ? <Text style={{ fontSize: 11, color: '#EF4444' }}>{f.error}</Text>
+                  : (
+                    <View style={{ width: 60, height: 4, backgroundColor: '#E2E8F0', borderRadius: 9999, overflow: 'hidden' }}>
+                      <View style={{ height: '100%', width: `${f.progress}%`, backgroundColor: '#6366F1' }} />
+                    </View>
+                  )
+                }
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* Composer */}
         <View style={S.composer}>
+          <TouchableOpacity onPress={handleAttachPress} style={S.attachBtn}>
+            <Ionicons name="attach-outline" size={22} color="#64748B" />
+          </TouchableOpacity>
           <TextInput
             style={S.composerInput}
             value={comment}
@@ -699,6 +832,12 @@ const S = StyleSheet.create({
   dateDivider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 12 },
   dateDividerLine: { flex: 1, height: 1, backgroundColor: '#E2E8F0' },
   dateDividerLabel: { fontSize: 11.5, fontWeight: '600', color: '#94A3B8' },
+
+  attachBtn: {
+    width: 38, height: 38, borderRadius: 10,
+    borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
 
   composer: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 10,

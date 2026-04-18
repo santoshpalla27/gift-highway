@@ -129,6 +129,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             qc.invalidateQueries({ queryKey: ['orders', event.entity_id] })
           }
 
+          if (event.type === 'order.event_deleted' && event.entity_id) {
+            qc.invalidateQueries({ queryKey: ['orders', event.entity_id] })
+          }
+
           // Fan out to per-component subscribers
           socketEventCallbacks.forEach(cb => cb(event))
         } catch {

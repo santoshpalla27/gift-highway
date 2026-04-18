@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { orderService, OrderEvent } from '../../../services/orderService'
+import { attachmentService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE, isImage, formatBytes } from '../../../services/attachmentService'
 import { useUpdateOrderStatus } from '../hooks/useOrders'
 import { OrderModal } from '../components/OrderModal'
 import { useAuthStore } from '../../../store/authStore'
@@ -164,6 +165,76 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete }: {
               </button>
             </div>
           )}
+        </div>
+      </div>
+    )
+  }
+
+  // Attachment event — rendered as a file card bubble
+  if (event.type === 'attachment_added') {
+    const p = event.payload as Record<string, string>
+    const fileIsImage = isImage(p.mime_type ?? '')
+    return (
+      <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{
+          width: 32, height: 32, borderRadius: '50%', background: '#EEF2FF', color: '#6366F1',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 11, fontWeight: 700, flexShrink: 0, marginTop: 2,
+        }}>
+          {getInitials(event.actor_name)}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{event.actor_name}</span>
+            <span style={{ fontSize: 11, color: '#9CA3AF' }}>{formatTimestamp(event.created_at)}</span>
+            {onDelete && (
+              <button
+                onClick={onDelete}
+                title="Delete file"
+                style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', color: '#D1D5DB', lineHeight: 1 }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#EF4444')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#D1D5DB')}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+              </button>
+            )}
+          </div>
+          <div style={{
+            background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '4px 12px 12px 12px',
+            overflow: 'hidden', maxWidth: 320, boxShadow: '0 1px 3px rgba(0,0,0,.04)',
+          }}>
+            {fileIsImage ? (
+              <a href={p.file_url} target="_blank" rel="noopener noreferrer">
+                <img src={p.file_url} alt={p.file_name} style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }} />
+              </a>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 8, background: '#F3F4F6',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.file_name}</div>
+                  <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{formatBytes(Number(p.size_bytes))}</div>
+                </div>
+                <a href={p.file_url} target="_blank" rel="noopener noreferrer" download={p.file_name}
+                  style={{ color: '#6366F1', flexShrink: 0 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </a>
+              </div>
+            )}
+            {fileIsImage && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #F3F4F6' }}>
+                <span style={{ fontSize: 11, color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.file_name}</span>
+                <a href={p.file_url} target="_blank" rel="noopener noreferrer" download={p.file_name}
+                  style={{ color: '#6366F1', flexShrink: 0, marginLeft: 8 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </a>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     )
@@ -344,6 +415,12 @@ export function OrderDetailPage() {
   const [showEdit, setShowEdit] = useState(false)
   const [commentText, setCommentText] = useState('')
 
+  // ── File uploads ────────────────────────────────────────────────────────────
+  type UploadingFile = { id: string; name: string; progress: number; error?: string }
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+
   // ── Initial load ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!id) return
@@ -401,6 +478,10 @@ export function OrderDetailPage() {
   useSocketEvent(useCallback((event) => {
     if (event.type === 'order.event_added' && event.entity_id === id) {
       fetchLatest()
+    }
+    if (event.type === 'order.event_deleted' && event.entity_id === id) {
+      const deletedEventId = (event as unknown as { payload: { event_id: string } }).payload?.event_id
+      if (deletedEventId) setEvList(prev => prev.filter(e => e.id !== deletedEventId))
     }
     if (
       (event.type === 'order.updated' || event.type === 'order.status_changed') &&
@@ -477,6 +558,47 @@ export function OrderDetailPage() {
     const text = ev.originalText ?? (ev.payload as Record<string, string>).text
     setOptimisticEvents(prev => prev.filter(e => e.id !== ev.id))
     if (text) handleSend(text)
+  }
+
+  // ── File upload ─────────────────────────────────────────────────────────────
+  const uploadFiles = async (files: FileList | File[]) => {
+    if (!id) return
+    const arr = Array.from(files)
+    for (const file of arr) {
+      if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+        alert(`"${file.name}" has an unsupported file type.`)
+        continue
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        alert(`"${file.name}" exceeds the 20 MB limit.`)
+        continue
+      }
+      const uid = `upload-${Date.now()}-${Math.random()}`
+      setUploadingFiles(prev => [...prev, { id: uid, name: file.name, progress: 0 }])
+      try {
+        const { upload_url, file_key, file_url } = await attachmentService.getUploadURL(id, file.name, file.type, file.size)
+        await attachmentService.uploadToR2(upload_url, file, pct => {
+          setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, progress: pct } : f))
+        })
+        await attachmentService.confirmUpload(id, {
+          file_name: file.name, file_key, file_url, mime_type: file.type, size_bytes: file.size,
+        })
+        setUploadingFiles(prev => prev.filter(f => f.id !== uid))
+      } catch {
+        setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, error: 'Upload failed' } : f))
+      }
+    }
+  }
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.length) uploadFiles(e.target.files)
+    e.target.value = ''
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    if (e.dataTransfer.files?.length) uploadFiles(e.dataTransfer.files)
   }
 
   // Must be called unconditionally before any early returns
@@ -619,7 +741,7 @@ export function OrderDetailPage() {
                           event={ev as LocalOrderEvent}
                           isOptimistic={ev.id.startsWith('opt-')}
                           onRetry={() => handleRetry(ev as LocalOrderEvent)}
-                          onDelete={perms.canDeleteComment && ev.type === 'comment_added' ? () => handleDeleteComment(ev.id) : undefined}
+                          onDelete={perms.canDeleteComment && (ev.type === 'comment_added' || ev.type === 'attachment_added') ? () => handleDeleteComment(ev.id) : undefined}
                         />
                       </div>
                     ))}
@@ -651,28 +773,86 @@ export function OrderDetailPage() {
             </div>
           )}
 
+          {/* Upload progress pills */}
+          {uploadingFiles.length > 0 && (
+            <div style={{ padding: '6px 20px', display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid #F3F4F6', background: '#FAFAFA' }}>
+              {uploadingFiles.map(f => (
+                <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <span style={{ fontSize: 12, color: '#374151', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                  {f.error
+                    ? <span style={{ fontSize: 11, color: '#EF4444' }}>{f.error}</span>
+                    : (
+                      <div style={{ width: 80, height: 4, background: '#E5E7EB', borderRadius: 9999, overflow: 'hidden', flexShrink: 0 }}>
+                        <div style={{ height: '100%', width: `${f.progress}%`, background: '#6366F1', transition: 'width 0.2s' }} />
+                      </div>
+                    )
+                  }
+                  {f.error && (
+                    <button onClick={() => setUploadingFiles(prev => prev.filter(x => x.id !== f.id))}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 0, lineHeight: 1 }}>
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Composer */}
-          <div style={{
-            borderTop: '1px solid #E4E6EF', background: '#FFFFFF', padding: '14px 20px',
-            display: 'flex', gap: 12, alignItems: 'flex-end', flexShrink: 0,
-          }}>
+          <div
+            style={{
+              borderTop: '1px solid #E4E6EF', background: isDragging ? '#EEF2FF' : '#FFFFFF', padding: '14px 20px',
+              display: 'flex', gap: 12, alignItems: 'flex-end', flexShrink: 0,
+              transition: 'background 0.15s',
+            }}
+            onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+          >
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={ALLOWED_MIME_TYPES.join(',')}
+              style={{ display: 'none' }}
+              onChange={handleFileInputChange}
+            />
+            {/* Upload button */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              title="Attach file"
+              style={{
+                width: 38, height: 38, borderRadius: 10, border: '1.5px solid #E4E6EF',
+                background: '#FFFFFF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#6B7280', flexShrink: 0,
+              }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = '#6366F1')}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = '#E4E6EF')}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </button>
             <div style={{
-              flex: 1, background: '#F9FAFB', border: '1.5px solid #E4E6EF', borderRadius: 10,
+              flex: 1, background: '#F9FAFB', border: `1.5px solid ${isDragging ? '#6366F1' : '#E4E6EF'}`, borderRadius: 10,
               padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8,
               transition: 'border-color 0.15s',
             }}
             onFocusCapture={e => (e.currentTarget.style.borderColor = '#6366F1')}
-            onBlurCapture={e => (e.currentTarget.style.borderColor = '#E4E6EF')}
+            onBlurCapture={e => { if (!isDragging) e.currentTarget.style.borderColor = '#E4E6EF' }}
             >
-              <textarea
-                className="composer-input"
-                rows={2}
-                placeholder="Write an update… (Enter to send, Shift+Enter for new line)"
-                value={commentText}
-                onChange={e => setCommentText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={commenting}
-              />
+              {isDragging
+                ? <div style={{ fontSize: 13, color: '#6366F1', fontWeight: 600, textAlign: 'center', padding: '4px 0' }}>Drop files here to upload</div>
+                : <textarea
+                    className="composer-input"
+                    rows={2}
+                    placeholder="Write an update… (Enter to send, Shift+Enter for new line)"
+                    value={commentText}
+                    onChange={e => setCommentText(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    disabled={commenting}
+                  />
+              }
             </div>
             <button
               onClick={() => handleSend()}

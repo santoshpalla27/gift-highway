@@ -43,7 +43,12 @@ async function refreshAccessToken(refreshToken: string): Promise<string | null> 
   }
 }
 
-export function useOrderSocket(onOrderEvent: () => void): { socketStatus: SocketStatus } {
+type RawEvent = { type: string; entity_id?: string; payload?: Record<string, unknown> }
+
+export function useOrderSocket(
+  onOrderEvent: () => void,
+  onRawEvent?: (event: RawEvent) => void,
+): { socketStatus: SocketStatus } {
   const [socketStatus, setSocketStatus] = useState<SocketStatus>('connecting')
   const wsRef = useRef<WebSocket | null>(null)
   const retryRef = useRef(0)
@@ -51,6 +56,8 @@ export function useOrderSocket(onOrderEvent: () => void): { socketStatus: Socket
   const destroyedRef = useRef(false)
   const callbackRef = useRef(onOrderEvent)
   callbackRef.current = onOrderEvent
+  const rawCallbackRef = useRef(onRawEvent)
+  rawCallbackRef.current = onRawEvent
   const seenEvents = useRef<Map<string, number>>(new Map())
 
   useEffect(() => {
@@ -104,6 +111,7 @@ export function useOrderSocket(onOrderEvent: () => void): { socketStatus: Socket
           ) {
             callbackRef.current()
           }
+          rawCallbackRef.current?.(event)
         } catch {
           // ignore malformed frames
         }

@@ -34,8 +34,10 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 	authSvc := services.NewAuthService(userRepo, jwtManager, cfg.RefreshExpiry)
 	adminSvc := services.NewAdminService(userRepo)
 	profileSvc := services.NewProfileService(userRepo, cfg)
+	attachmentRepo := repositories.NewAttachmentRepository(db)
 	orderSvc := services.NewOrderService(orderRepo)
 	eventSvc := services.NewEventService(eventRepo)
+	attachmentSvc := services.NewAttachmentService(attachmentRepo, eventRepo, cfg)
 
 	hub := realtime.NewHub()
 	go hub.Run()
@@ -45,6 +47,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 	profileHandler := v1.NewProfileHandler(profileSvc)
 	orderHandler := v1.NewOrderHandler(orderSvc, eventSvc, hub)
 	eventHandler := v1.NewEventHandler(eventSvc, orderSvc, hub)
+	attachmentHandler := v1.NewAttachmentHandler(attachmentSvc, hub)
 	usersHandler := v1.NewUsersHandler(userRepo)
 	wsHandler := v1.NewWSHandler(hub, jwtManager)
 
@@ -107,6 +110,10 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				ordersGroup.GET("/:id/events", eventHandler.ListEvents)
 				ordersGroup.POST("/:id/comments", eventHandler.AddComment)
 				ordersGroup.DELETE("/:id/events/:eventId", eventHandler.DeleteComment)
+				ordersGroup.POST("/:id/attachments/upload-url", attachmentHandler.GetUploadURL)
+				ordersGroup.POST("/:id/attachments", attachmentHandler.ConfirmUpload)
+				ordersGroup.GET("/:id/attachments", attachmentHandler.ListAttachments)
+				ordersGroup.DELETE("/:id/attachments/:attachmentId", attachmentHandler.DeleteAttachment)
 			}
 		}
 	}

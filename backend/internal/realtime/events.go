@@ -9,10 +9,11 @@ import (
 type EventType string
 
 const (
-	EventOrderCreated  EventType = "order.created"
-	EventOrderUpdated  EventType = "order.updated"
-	EventOrderStatus   EventType = "order.status_changed"
-	EventTimelineEvent EventType = "order.event_added"
+	EventOrderCreated        EventType = "order.created"
+	EventOrderUpdated        EventType = "order.updated"
+	EventOrderStatus         EventType = "order.status_changed"
+	EventTimelineEvent       EventType = "order.event_added"
+	EventTimelineEventDeleted EventType = "order.event_deleted"
 )
 
 type Event struct {
