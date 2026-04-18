@@ -331,8 +331,6 @@ export function OrderDetailPage() {
         <span style={{ fontSize: 13, fontWeight: 700, color: '#6366F1', fontFamily: 'monospace' }}>#{order.order_number}</span>
         <span style={{ fontSize: 15, fontWeight: 700, color: '#111827', flex: 1 }}>{order.title}</span>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={chip(sm)}><span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor' }} />{sm.label}</span>
-          <span style={chip(pm)}>{pm.label}</span>
           <button
             onClick={() => setShowEdit(true)}
             style={{

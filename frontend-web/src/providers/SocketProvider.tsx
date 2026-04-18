@@ -44,6 +44,7 @@ async function tryRefreshToken(refreshToken: string): Promise<string | null> {
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
   const qc = useQueryClient()
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated)
   const [status, setStatus] = useState<SocketStatus>('connecting')
   const wsRef = useRef<WebSocket | null>(null)
   const retryRef = useRef(0)
@@ -62,13 +63,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     destroyedRef.current = false
+    retryRef.current = 0
+    setStatus('connecting')
 
     const connect = async () => {
       if (destroyedRef.current) return
 
       const store = useAuthStore.getState()
       if (!store.isAuthenticated || !store.accessToken) {
-        setStatus('disconnected')
+        // Not yet authenticated — stay silent, wait for login to re-trigger effect
         return
       }
 
@@ -156,7 +159,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       if (timerRef.current) clearTimeout(timerRef.current)
       wsRef.current?.close()
     }
-  }, [qc])
+  }, [qc, isAuthenticated])
 
   return (
     <SocketContext.Provider value={{ status }}>
