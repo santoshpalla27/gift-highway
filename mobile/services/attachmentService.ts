@@ -71,6 +71,13 @@ export const attachmentService = {
     return res.data.url
   },
 
+  getDownloadUrl: async (orderId: string, fileKey: string, fileName: string): Promise<string> => {
+    const res = await apiClient.get<{ url: string }>(
+      `/orders/${orderId}/attachments/download-url?key=${encodeURIComponent(fileKey)}&name=${encodeURIComponent(fileName)}`,
+    )
+    return res.data.url
+  },
+
   deleteAttachment: async (orderId: string, attachmentId: string): Promise<void> => {
     await apiClient.delete(`/orders/${orderId}/attachments/${attachmentId}`)
   },

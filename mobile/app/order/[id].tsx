@@ -113,44 +113,55 @@ function AttachmentCard({ orderId, payload, onDelete }: {
     }
   }
 
+  const handleDownload = async () => {
+    try {
+      const url = await attachmentService.getDownloadUrl(orderId, payload.file_key, payload.file_name)
+      Linking.openURL(url)
+    } catch {
+      Linking.openURL(payload.file_url)
+    }
+  }
+
   return (
-    <TouchableOpacity
-      onPress={() => Linking.openURL(payload.file_url)}
-      style={[T.bubble, { padding: 0, overflow: 'hidden' }]}
-      activeOpacity={0.85}
-    >
+    <View style={[T.bubble, { padding: 0, overflow: 'hidden' }]}>
       {imgFile ? (
         <>
-          {imgFailed ? (
-            <View style={{ height: 60, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 12, color: '#9CA3AF' }}>Image unavailable</Text>
-            </View>
-          ) : (
-            <Image
-              source={{ uri: imgUri }}
-              style={{ width: '100%', height: 180 }}
-              resizeMode="cover"
-              onError={handleImgError}
-            />
-          )}
+          <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}>
+            {imgFailed ? (
+              <View style={{ height: 60, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 12, color: '#9CA3AF' }}>Image unavailable</Text>
+              </View>
+            ) : (
+              <Image
+                source={{ uri: imgUri }}
+                style={{ width: '100%', height: 180 }}
+                resizeMode="cover"
+                onError={handleImgError}
+              />
+            )}
+          </TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 6 }}>
             <Text style={{ fontSize: 11, color: '#9CA3AF', flex: 1 }} numberOfLines={1}>{payload.file_name}</Text>
-            <Ionicons name="download-outline" size={14} color="#6366F1" />
+            <TouchableOpacity onPress={handleDownload} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="download-outline" size={14} color="#6366F1" />
+            </TouchableOpacity>
           </View>
         </>
       ) : (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 }}>
-          <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="document-outline" size={20} color="#6B7280" />
+        <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 }}>
+            <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="document-outline" size={20} color="#6B7280" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }} numberOfLines={1}>{payload.file_name}</Text>
+              <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{formatBytes(Number(payload.size_bytes))}</Text>
+            </View>
+            <Ionicons name="download-outline" size={16} color="#6366F1" />
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }} numberOfLines={1}>{payload.file_name}</Text>
-            <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{formatBytes(Number(payload.size_bytes))}</Text>
-          </View>
-          <Ionicons name="download-outline" size={16} color="#6366F1" />
-        </View>
+        </TouchableOpacity>
       )}
-    </TouchableOpacity>
+    </View>
   )
 }
 
