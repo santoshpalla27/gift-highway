@@ -97,13 +97,49 @@ function DateDivider({ label }: { label: string }) {
 // ─── Extended event type for local optimistic state ──────────────────────────
 type LocalOrderEvent = OrderEvent & { failed?: boolean; originalText?: string }
 
+// ─── Attachment image with signed-url refresh on 403/load-error ─────────────
+
+function AttachmentImage({ orderId, fileKey, fileName, fileUrl }: {
+  orderId: string; fileKey: string; fileName: string; fileUrl: string
+}) {
+  const [src, setSrc] = useState(fileUrl)
+  const [failed, setFailed] = useState(false)
+  const refreshing = useRef(false)
+
+  const handleError = async () => {
+    if (refreshing.current || failed) return
+    refreshing.current = true
+    try {
+      const freshUrl = await attachmentService.getSignedUrl(orderId, fileKey)
+      setSrc(freshUrl)
+    } catch {
+      setFailed(true)
+    } finally {
+      refreshing.current = false
+    }
+  }
+
+  if (failed) {
+    return <div style={{ padding: '10px 14px', fontSize: 12, color: '#9CA3AF' }}>Image unavailable</div>
+  }
+  return (
+    <img
+      src={src}
+      alt={fileName}
+      onError={handleError}
+      style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }}
+    />
+  )
+}
+
 // ─── Timeline event renderer ─────────────────────────────────────────────────
 
-function TimelineEvent({ event, isOptimistic, onRetry, onDelete }: {
+function TimelineEvent({ event, isOptimistic, onRetry, onDelete, orderId }: {
   event: LocalOrderEvent
   isOptimistic?: boolean
   onRetry?: () => void
   onDelete?: () => void
+  orderId: string
 }) {
   const isComment = event.type === 'comment_added'
 
@@ -205,7 +241,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete }: {
           }}>
             {fileIsImage ? (
               <a href={p.file_url} target="_blank" rel="noopener noreferrer">
-                <img src={p.file_url} alt={p.file_name} style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }} />
+                <AttachmentImage orderId={orderId} fileKey={p.file_key} fileName={p.file_name} fileUrl={p.file_url} />
               </a>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
@@ -742,6 +778,7 @@ export function OrderDetailPage() {
                           isOptimistic={ev.id.startsWith('opt-')}
                           onRetry={() => handleRetry(ev as LocalOrderEvent)}
                           onDelete={perms.canDeleteComment && (ev.type === 'comment_added' || ev.type === 'attachment_added') ? () => handleDeleteComment(ev.id) : undefined}
+                          orderId={id!}
                         />
                       </div>
                     ))}

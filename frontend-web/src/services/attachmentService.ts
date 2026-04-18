@@ -69,6 +69,13 @@ export const attachmentService = {
     return res.data.attachments
   },
 
+  getSignedUrl: async (orderId: string, fileKey: string): Promise<string> => {
+    const res = await apiClient.get<{ url: string }>(
+      `/orders/${orderId}/attachments/signed-url?key=${encodeURIComponent(fileKey)}`,
+    )
+    return res.data.url
+  },
+
   deleteAttachment: async (orderId: string, attachmentId: string): Promise<void> => {
     await apiClient.delete(`/orders/${orderId}/attachments/${attachmentId}`)
   },

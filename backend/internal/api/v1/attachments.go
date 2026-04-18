@@ -80,6 +80,24 @@ func (h *AttachmentHandler) ListAttachments(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"attachments": items})
 }
 
+func (h *AttachmentHandler) GetSignedURL(c *gin.Context) {
+	fileKey := c.Query("key")
+	if fileKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "key is required"})
+		return
+	}
+	url, err := h.svc.GetSignedURL(c.Request.Context(), fileKey)
+	if err != nil {
+		if errors.Is(err, services.ErrStorageNotConfigured) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "storage not configured"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate signed URL"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"url": url})
+}
+
 func (h *AttachmentHandler) DeleteAttachment(c *gin.Context) {
 	orderID := c.Param("id")
 	attachmentID := c.Param("attachmentId")
