@@ -124,6 +124,72 @@ function TimelineEvent({ event, isOptimistic }: { event: OrderEvent; isOptimisti
   )
 }
 
+// ─── Status dropdown for right panel ─────────────────────────────────────────
+
+function StatusDropdown({ order, onUpdate }: { order: Order; onUpdate: (status: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const sm = STATUS_META[order.status] ?? STATUS_META.new
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+          padding: '7px 10px', borderRadius: 8, border: '1.5px solid #E4E6EF',
+          background: sm.bg, cursor: 'pointer', fontSize: 13, fontWeight: 600,
+          color: sm.color,
+        }}
+      >
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: sm.color, flexShrink: 0 }} />
+        <span style={{ flex: 1, textAlign: 'left' }}>{sm.label}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 999,
+          background: '#FFFFFF', border: '1px solid #E4E6EF', borderRadius: 10,
+          boxShadow: '0 4px 16px rgba(0,0,0,.08)', padding: 4,
+        }}>
+          {STATUS_OPTIONS.map(s => {
+            const m = STATUS_META[s]
+            const active = order.status === s
+            return (
+              <div
+                key={s}
+                onClick={() => { if (!active) onUpdate(s); setOpen(false) }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '8px 10px', borderRadius: 7, cursor: active ? 'default' : 'pointer',
+                  background: active ? m.bg : 'transparent',
+                  fontSize: 13, fontWeight: active ? 700 : 500,
+                  color: active ? m.color : '#374151',
+                }}
+                onMouseEnter={e => { if (!active) (e.currentTarget as HTMLDivElement).style.background = '#F3F4F6' }}
+                onMouseLeave={e => { if (!active) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+              >
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: active ? m.color : '#D1D5DB' }} />
+                {m.label}
+                {active && <svg style={{ marginLeft: 'auto' }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Right panel section ──────────────────────────────────────────────────────
 
 function PanelSection({ label, children }: { label: string; children: React.ReactNode }) {
@@ -364,23 +430,7 @@ export function OrderDetailPage() {
           </PanelSection>
 
           <PanelSection label="Status">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {STATUS_OPTIONS.map(s => {
-                const m = STATUS_META[s]
-                const active = order.status === s
-                return (
-                  <div
-                    key={s}
-                    className="panel-status-opt"
-                    style={{ background: active ? m.bg : 'transparent', color: active ? m.color : '#6B7280', fontWeight: active ? 700 : 500 }}
-                    onClick={() => !active && updateStatus({ id: order.id, status: s })}
-                  >
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: active ? m.color : '#D1D5DB', display: 'inline-block', marginRight: 8 }} />
-                    {m.label}
-                  </div>
-                )
-              })}
-            </div>
+            <StatusDropdown order={order} onUpdate={s => updateStatus({ id: order.id, status: s })} />
           </PanelSection>
 
           <PanelSection label="Priority">

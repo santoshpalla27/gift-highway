@@ -45,14 +45,19 @@ export function useUpdateOrderStatus() {
 
       // Snapshot every cached orders query
       const snapshots: { key: readonly unknown[]; data: unknown }[] = []
-      qc.getQueriesData<{ orders: Order[]; total: number }>({ queryKey: ['orders'] })
+      qc.getQueriesData<{ orders: Order[]; total: number } | Order>({ queryKey: ['orders'] })
         .forEach(([key, data]) => {
           snapshots.push({ key, data })
-          if (data) {
+          if (!data) return
+          // List query: { orders: Order[], total: number }
+          if ('orders' in data && Array.isArray(data.orders)) {
             qc.setQueryData(key, {
               ...data,
               orders: data.orders.map(o => o.id === id ? { ...o, status } : o),
             })
+          // Single order query: Order
+          } else if ('id' in data && (data as Order).id === id) {
+            qc.setQueryData(key, { ...data, status })
           }
         })
 
