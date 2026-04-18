@@ -38,14 +38,47 @@ const EVENT_TYPE_META: Record<string, { icon: string; label: (p: Record<string, 
   order_updated:     { icon: 'pencil-outline',      label: () => 'Order details updated' },
 }
 
-function formatTime(iso: string) {
+function formatTimestamp(iso: string): string {
   const d = new Date(iso)
   const now = new Date()
-  const diff = Math.floor((now.getTime() - d.getTime()) / 1000)
-  if (diff < 60) return 'just now'
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000)
+  if (diffSec < 60) return 'just now'
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`
+  if (diffSec < 7200) return `${Math.floor(diffSec / 3600)}h ago`
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
+  const dDay = new Date(d); dDay.setHours(0, 0, 0, 0)
+  if (dDay.getTime() === today.getTime()) return time
+  if (dDay.getTime() === yesterday.getTime()) return `Yesterday ${time}`
+  return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${time}`
+}
+
+function formatDateGroup(iso: string): string {
+  const d = new Date(iso)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
+  const dDay = new Date(d); dDay.setHours(0, 0, 0, 0)
+  if (dDay.getTime() === today.getTime()) return 'Today'
+  if (dDay.getTime() === yesterday.getTime()) return 'Yesterday'
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function dayKey(iso: string): string {
+  return new Date(iso).toISOString().slice(0, 10)
+}
+
+function groupByDate(events: OrderEvent[]): { label: string; events: OrderEvent[] }[] {
+  const map = new Map<string, OrderEvent[]>()
+  for (const ev of events) {
+    const k = dayKey(ev.created_at)
+    if (!map.has(k)) map.set(k, [])
+    map.get(k)!.push(ev)
+  }
+  return Array.from(map.entries()).map(([k, evs]) => ({
+    label: formatDateGroup(k + 'T12:00:00'),
+    events: evs,
+  }))
 }
 
 function getInitials(name: string) {
@@ -54,7 +87,11 @@ function getInitials(name: string) {
 
 // ─── Timeline Event ───────────────────────────────────────────────────────────
 
-function TimelineItem({ event, isOptimistic }: { event: OrderEvent; isOptimistic?: boolean }) {
+function TimelineItem({ event, isOptimistic, onRetry }: {
+  event: OrderEvent & { failed?: boolean }
+  isOptimistic?: boolean
+  onRetry?: () => void
+}) {
   const isComment = event.type === 'comment_added'
   const meta = EVENT_TYPE_META[event.type]
 
@@ -62,17 +99,30 @@ function TimelineItem({ event, isOptimistic }: { event: OrderEvent; isOptimistic
     const text = typeof event.payload === 'object' && event.payload !== null
       ? (event.payload as Record<string, string>).text ?? ''
       : ''
+    const isFailed = event.failed
     return (
-      <View style={[T.commentRow, isOptimistic && { opacity: 0.6 }]}>
+      <View style={[T.commentRow, isOptimistic && !isFailed && { opacity: 0.6 }]}>
         <View style={T.avatar}>
           <Text style={T.avatarText}>{getInitials(event.actor_name || '?')}</Text>
         </View>
-        <View style={T.bubble}>
+        <View style={{ flex: 1 }}>
           <View style={T.bubbleHeader}>
             <Text style={T.actorName}>{event.actor_name}</Text>
-            <Text style={T.time}>{formatTime(event.created_at)}</Text>
+            <Text style={[T.time, isFailed && { color: '#EF4444' }]}>
+              {isFailed ? 'Failed to send' : formatTimestamp(event.created_at)}
+            </Text>
           </View>
-          <Text style={T.commentText}>{text}</Text>
+          <View style={[T.bubble, isFailed && { backgroundColor: '#FFF5F5', borderColor: '#FCA5A5' }]}>
+            <Text style={T.commentText}>{text}</Text>
+          </View>
+          {isFailed && (
+            <View style={T.retryRow}>
+              <Text style={T.retryMsg}>Message not delivered.</Text>
+              <TouchableOpacity onPress={onRetry}>
+                <Text style={T.retryBtn}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </View>
     )
@@ -82,11 +132,14 @@ function TimelineItem({ event, isOptimistic }: { event: OrderEvent; isOptimistic
   return (
     <View style={T.systemRow}>
       <View style={T.systemIconWrap}>
-        <Ionicons name={(meta?.icon ?? 'ellipse-outline') as any} size={15} color="#64748B" />
+        <Ionicons name={(meta?.icon ?? 'ellipse-outline') as any} size={13} color="#6B7280" />
       </View>
       <View style={T.systemContent}>
-        <Text style={T.systemLabel}>{label}</Text>
-        <Text style={T.systemMeta}>{event.actor_name} · {formatTime(event.created_at)}</Text>
+        <Text style={T.systemLabel} numberOfLines={2}>
+          <Text style={T.systemActor}>{event.actor_name}</Text>
+          {' · '}{label}
+        </Text>
+        <Text style={T.systemMeta}>{formatTimestamp(event.created_at)}</Text>
       </View>
     </View>
   )
@@ -256,7 +309,7 @@ export default function OrderDetailScreen() {
 
   const [order, setOrder] = useState<Order | null>(null)
   const [events, setEvents] = useState<OrderEvent[]>([])
-  const [optimisticEvents, setOptimisticEvents] = useState<OrderEvent[]>([])
+  const [optimisticEvents, setOptimisticEvents] = useState<(OrderEvent & { failed?: boolean; originalText?: string })[]>([])
   const [loadingOrder, setLoadingOrder] = useState(true)
   const [loadingEvents, setLoadingEvents] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -320,35 +373,48 @@ export default function OrderDetailScreen() {
     Promise.all([fetchOrder(), fetchEvents(true)]).finally(() => setRefreshing(false))
   }
 
-  const handleSendComment = async () => {
-    const text = comment.trim()
-    if (!text || sending) return
+  const sendComment = async (text: string, tempId?: string) => {
     if (!isOnline) { Alert.alert('Offline', "You're offline. Please reconnect to send."); return }
-
-    const tempEvent: OrderEvent = {
-      id: `temp-${Date.now()}`,
-      order_id: id!,
-      type: 'comment_added',
-      actor_id: user?.id ?? null,
-      actor_name: user?.name ?? 'You',
-      payload: { text } as any,
-      created_at: new Date().toISOString(),
+    const id_ = tempId ?? `temp-${Date.now()}`
+    if (!tempId) {
+      const tempEvent = {
+        id: id_,
+        order_id: id!,
+        type: 'comment_added',
+        actor_id: user?.id ?? null,
+        actor_name: user?.name ?? 'You',
+        payload: { text } as any,
+        created_at: new Date().toISOString(),
+        originalText: text,
+      }
+      setOptimisticEvents(prev => [...prev, tempEvent])
     }
-
-    setComment('')
-    setOptimisticEvents(prev => [...prev, tempEvent])
     setSending(true)
-
     try {
       await orderService.addComment(id!, text)
-      setOptimisticEvents([])
+      setOptimisticEvents(prev => prev.filter(e => e.id !== id_))
       await fetchEvents(true)
     } catch {
-      setOptimisticEvents([])
-      Alert.alert('Error', 'Could not send comment.')
+      setOptimisticEvents(prev =>
+        prev.map(e => e.id === id_ ? { ...e, failed: true } : e)
+      )
     } finally {
       setSending(false)
     }
+  }
+
+  const handleSendComment = async () => {
+    const text = comment.trim()
+    if (!text || sending) return
+    setComment('')
+    await sendComment(text)
+  }
+
+  const handleRetry = async (ev: OrderEvent & { failed?: boolean; originalText?: string }) => {
+    const text = ev.originalText ?? (ev.payload as Record<string, string>).text
+    if (!text) return
+    setOptimisticEvents(prev => prev.map(e => e.id === ev.id ? { ...e, failed: false } : e))
+    await sendComment(text, ev.id)
   }
 
   const allEvents = [...events, ...optimisticEvents]
@@ -440,12 +506,22 @@ export default function OrderDetailScreen() {
               <Text style={S.emptyTimelineText}>No activity yet. Add a comment below.</Text>
             </View>
           ) : (
-            allEvents.map((ev, i) => (
-              <TimelineItem
-                key={ev.id}
-                event={ev}
-                isOptimistic={ev.id.startsWith('temp-')}
-              />
+            groupByDate(allEvents).map(group => (
+              <View key={group.label}>
+                <View style={S.dateDivider}>
+                  <View style={S.dateDividerLine} />
+                  <Text style={S.dateDividerLabel}>{group.label}</Text>
+                  <View style={S.dateDividerLine} />
+                </View>
+                {group.events.map(ev => (
+                  <TimelineItem
+                    key={ev.id}
+                    event={ev}
+                    isOptimistic={ev.id.startsWith('temp-')}
+                    onRetry={() => handleRetry(ev as any)}
+                  />
+                ))}
+              </View>
             ))
           )}
         </ScrollView>
@@ -527,6 +603,10 @@ const S = StyleSheet.create({
   emptyTimeline: { alignItems: 'center', paddingVertical: 48, gap: 12 },
   emptyTimelineText: { fontSize: 14, color: '#94A3B8', textAlign: 'center' },
 
+  dateDivider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 12 },
+  dateDividerLine: { flex: 1, height: 1, backgroundColor: '#E2E8F0' },
+  dateDividerLabel: { fontSize: 11.5, fontWeight: '600', color: '#94A3B8' },
+
   composer: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 10,
     paddingHorizontal: 12, paddingTop: 10, paddingBottom: Platform.OS === 'ios' ? 28 : 12,
@@ -560,11 +640,20 @@ const T = StyleSheet.create({
   time: { fontSize: 11, color: '#94A3B8' },
   commentText: { fontSize: 14, color: '#334155', lineHeight: 20 },
 
-  systemRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, paddingLeft: 4 },
-  systemIconWrap: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  retryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 5 },
+  retryMsg: { fontSize: 12, color: '#EF4444' },
+  retryBtn: { fontSize: 12, fontWeight: '700', color: '#6366F1', textDecorationLine: 'underline' },
+
+  systemRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10,
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9',
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
+  },
+  systemIconWrap: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   systemContent: { flex: 1 },
-  systemLabel: { fontSize: 13, color: '#475569', fontWeight: '500' },
-  systemMeta: { fontSize: 11, color: '#94A3B8', marginTop: 1 },
+  systemActor: { fontSize: 12.5, color: '#374151', fontWeight: '600' },
+  systemLabel: { fontSize: 12.5, color: '#64748B', fontWeight: '400' },
+  systemMeta: { fontSize: 11, color: '#94A3B8', marginTop: 2 },
 })
 
 const SS = StyleSheet.create({
