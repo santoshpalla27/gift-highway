@@ -66,6 +66,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState('medium')
   const [assignedTo, setAssignedTo] = useState('')
+  const [assignOpen, setAssignOpen] = useState(false)
   const [dueDate, setDueDate] = useState('')
   const [users, setUsers] = useState<UserOption[]>([])
   const [loading, setLoading] = useState(false)
@@ -168,25 +169,39 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
           <Text style={F.label}>Due Date (YYYY-MM-DD)</Text>
           <TextInput style={F.input} value={dueDate} onChangeText={setDueDate} placeholder="2026-05-01" keyboardType="numbers-and-punctuation" />
 
-          <Text style={F.label}>Assign To</Text>
-          <View style={F.assignList}>
-            <TouchableOpacity
-              style={[F.assignRow, !assignedTo && F.assignRowActive]}
-              onPress={() => setAssignedTo('')}
+          <View style={{ zIndex: 50, position: 'relative' }}>
+            <Text style={F.label}>Assign To</Text>
+            <TouchableOpacity 
+              style={[F.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} 
+              onPress={() => setAssignOpen(!assignOpen)}
             >
-              <Text style={[F.assignText, !assignedTo && { color: '#0F172A', fontWeight: '700' }]}>— Unassigned —</Text>
-              {!assignedTo && <Ionicons name="checkmark-circle" size={18} color="#0F172A" />}
+              <Text style={{ fontSize: 16, color: '#0F172A' }}>
+                {assignedTo ? users.find(u => u.id === assignedTo)?.name || '— Unassigned —' : '— Unassigned —'}
+              </Text>
+              <Ionicons name={assignOpen ? "chevron-up" : "chevron-down"} size={20} color="#94A3B8" />
             </TouchableOpacity>
-            {users.map(u => (
-              <TouchableOpacity
-                key={u.id}
-                style={[F.assignRow, assignedTo === u.id && F.assignRowActive]}
-                onPress={() => setAssignedTo(u.id)}
-              >
-                <Text style={[F.assignText, assignedTo === u.id && { color: '#0F172A', fontWeight: '700' }]}>{u.name}</Text>
-                {assignedTo === u.id && <Ionicons name="checkmark-circle" size={18} color="#0F172A" />}
-              </TouchableOpacity>
-            ))}
+
+            {assignOpen && (
+              <ScrollView style={[F.assignList, { position: 'absolute', top: 86, left: 0, right: 0, maxHeight: 200, zIndex: 100, elevation: 5, shadowColor: '#000', shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.1, shadowRadius: 8 }]} nestedScrollEnabled={true}>
+                <TouchableOpacity
+                  style={[F.assignRow, !assignedTo && F.assignRowActive]}
+                  onPress={() => { setAssignedTo(''); setAssignOpen(false); }}
+                >
+                  <Text style={[F.assignText, !assignedTo && { color: '#0F172A', fontWeight: '700' }]}>— Unassigned —</Text>
+                  {!assignedTo && <Ionicons name="checkmark-circle" size={18} color="#0F172A" />}
+                </TouchableOpacity>
+                {users.map(u => (
+                  <TouchableOpacity
+                    key={u.id}
+                    style={[F.assignRow, assignedTo === u.id && F.assignRowActive]}
+                    onPress={() => { setAssignedTo(u.id); setAssignOpen(false); }}
+                  >
+                    <Text style={[F.assignText, assignedTo === u.id && { color: '#0F172A', fontWeight: '700' }]}>{u.name}</Text>
+                    {assignedTo === u.id && <Ionicons name="checkmark-circle" size={18} color="#0F172A" />}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
           </View>
 
           <TouchableOpacity style={F.submitBtn} onPress={handleSubmit} disabled={loading}>
@@ -516,7 +531,7 @@ const F = StyleSheet.create({
     borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF',
   },
   chipText: { fontSize: 14, fontWeight: '600', color: '#64748B' },
-  assignList: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, overflow: 'hidden', backgroundColor: '#FFFFFF' },
+  assignList: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, overflow: 'hidden', backgroundColor: '#FFFFFF', flexDirection: 'column' },
   assignRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   assignRowActive: { backgroundColor: '#F8FAFC' },
   assignText: { fontSize: 15, color: '#475569' },
