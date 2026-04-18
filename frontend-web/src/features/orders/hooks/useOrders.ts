@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { orderService, ListOrdersParams } from '../../../services/orderService'
+import { orderService, ListOrdersParams, Order } from '../../../services/orderService'
 
 export function useOrders(params: ListOrdersParams = {}) {
   return useQuery({
@@ -39,6 +39,32 @@ export function useUpdateOrderStatus() {
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       orderService.updateStatus(id, status),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
+
+    onMutate: async ({ id, status }) => {
+      await qc.cancelQueries({ queryKey: ['orders'] })
+
+      // Snapshot every cached orders query
+      const snapshots: { key: readonly unknown[]; data: unknown }[] = []
+      qc.getQueriesData<{ orders: Order[]; total: number }>({ queryKey: ['orders'] })
+        .forEach(([key, data]) => {
+          snapshots.push({ key, data })
+          if (data) {
+            qc.setQueryData(key, {
+              ...data,
+              orders: data.orders.map(o => o.id === id ? { ...o, status } : o),
+            })
+          }
+        })
+
+      return { snapshots }
+    },
+
+    onError: (_err, _vars, ctx) => {
+      ctx?.snapshots.forEach(({ key, data }) => qc.setQueryData(key, data))
+    },
+
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['orders'] })
+    },
   })
 }

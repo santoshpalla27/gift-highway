@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useOrders, useUpdateOrderStatus } from '../hooks/useOrders'
 import { OrderModal } from '../components/OrderModal'
 import { useAuthStore } from '../../../store/authStore'
+import { EmptyState } from '../../../components/system/EmptyState'
+import { TableSkeleton } from '../../../components/system/Skeleton'
 import type { Order } from '../../../services/orderService'
 
 const STATUS_OPTIONS = ['new', 'in_progress', 'completed'] as const
@@ -276,12 +278,16 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px 0', color: '#9CA3AF' }}>Loading orders...</td></tr>
+              <TableSkeleton rows={7} cols={7} />
             ) : orders.length === 0 ? (
               <tr style={{ background: '#FFFFFF', cursor: 'default' }}>
-                <td colSpan={7} style={{ padding: '60px 20px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827', marginBottom: '4px' }}>No orders found</div>
-                  <div style={{ fontSize: '13px', color: '#6B7280' }}>Try adjusting your search or filters.</div>
+                <td colSpan={7}>
+                  <EmptyState
+                    title={search || statusFilter || priorityFilter ? 'No matching orders' : myOrdersOnly ? 'No orders assigned to you' : 'No orders yet'}
+                    description={search || statusFilter || priorityFilter ? 'Try adjusting your search or filters.' : 'Create the first order to get started.'}
+                    action={!search && !statusFilter && !priorityFilter ? { label: 'Create Order', onClick: handleOpenCreate } : undefined}
+                    icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>}
+                  />
                 </td>
               </tr>
             ) : orders.map(order => {

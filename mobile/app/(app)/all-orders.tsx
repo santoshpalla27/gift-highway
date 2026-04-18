@@ -7,6 +7,9 @@ import { Ionicons } from '@expo/vector-icons'
 import { orderService, Order, UserOption } from '../../services/orderService'
 import { useAuthStore } from '../../store/authStore'
 import { useOrderSocket } from '../../hooks/useOrderSocket'
+import { useNetworkStatus } from '../../hooks/useNetworkStatus'
+import { OfflineBanner } from '../../components/OfflineBanner'
+import { CardSkeleton } from '../../components/CardSkeleton'
 
 // ─── Metadata ────────────────────────────────────────────────────────────────
 
@@ -61,6 +64,7 @@ interface OrderFormProps {
 
 function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) {
   const isEdit = !!order
+  const { isOnline } = useNetworkStatus()
   const [title, setTitle] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [contactNumber, setContactNumber] = useState('')
@@ -96,6 +100,10 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
   }, [order, visible])
 
   const handleSubmit = async () => {
+    if (!isOnline) {
+      setError("You're offline. Please reconnect to save changes.")
+      return
+    }
     if (!title.trim() || !customerName.trim()) {
       setError('Title and Customer Name are required.')
       return
@@ -311,6 +319,7 @@ interface AllOrdersScreenProps {
 
 export default function AllOrdersScreen({ myOrdersOnly = false }: AllOrdersScreenProps) {
   const { user } = useAuthStore()
+  const { isOnline } = useNetworkStatus()
   const [orders, setOrders] = useState<Order[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -346,7 +355,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: AllOrdersScree
     return () => clearTimeout(t)
   }, [fetchOrders, search])
 
-  useOrderSocket(() => fetchOrders(true))
+  const { socketStatus } = useOrderSocket(() => fetchOrders(true))
 
   useEffect(() => {
     const interval = setInterval(() => fetchOrders(true), 60_000)
@@ -360,6 +369,13 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: AllOrdersScree
 
   return (
     <View style={S.screen}>
+      <OfflineBanner isOnline={isOnline} />
+      {!isOnline && socketStatus === 'reconnecting' ? null : socketStatus === 'reconnecting' ? (
+        <View style={S.socketBanner}>
+          <Text style={S.socketBannerText}>Reconnecting · Live updates paused</Text>
+        </View>
+      ) : null}
+
       {/* Search + Filter Header */}
       <View style={S.headerSurface}>
         <View style={[S.searchBox, isSearchFocused && S.searchFocused]}>
@@ -410,9 +426,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: AllOrdersScree
 
       {/* List */}
       {loading && orders.length === 0 ? (
-        <View style={S.center}>
-          <ActivityIndicator size="large" color="#0F172A" />
-        </View>
+        <CardSkeleton count={6} />
       ) : orders.length === 0 ? (
         <ScrollView contentContainerStyle={S.centerList} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F172A" />}>
           <View style={S.emptyIconWrap}>
@@ -486,6 +500,9 @@ const S = StyleSheet.create({
   filterChipTextActive: { color: '#0F172A', fontWeight: '800' },
   filterDivider: { width: 1, height: 20, backgroundColor: '#E2E8F0', alignSelf: 'center', marginHorizontal: 4 },
   
+  socketBanner: { backgroundColor: '#FEF3C7', paddingVertical: 7, paddingHorizontal: 16, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#FCD34D' },
+  socketBannerText: { fontSize: 12.5, fontWeight: '600', color: '#92400E' },
+
   countBar: { paddingHorizontal: 16, paddingVertical: 12 },
   countText: { fontSize: 13, fontWeight: '700', color: '#334155' },
   
