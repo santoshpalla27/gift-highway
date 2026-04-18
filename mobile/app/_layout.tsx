@@ -35,6 +35,7 @@ export default function RootLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(app)" />
+      <Stack.Screen name="order/[id]" options={{ animation: 'slide_from_right' }} />
     </Stack>
   )
 }

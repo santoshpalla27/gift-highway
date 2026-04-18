@@ -29,11 +29,13 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 	// Dependencies
 	userRepo := repositories.NewUserRepository(db)
 	orderRepo := repositories.NewOrderRepository(db)
+	eventRepo := repositories.NewEventRepository(db)
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret, cfg.JWTExpiry)
 	authSvc := services.NewAuthService(userRepo, jwtManager, cfg.RefreshExpiry)
 	adminSvc := services.NewAdminService(userRepo)
 	profileSvc := services.NewProfileService(userRepo, cfg)
 	orderSvc := services.NewOrderService(orderRepo)
+	eventSvc := services.NewEventService(eventRepo)
 
 	hub := realtime.NewHub()
 	go hub.Run()
@@ -41,7 +43,8 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 	authHandler := v1.NewAuthHandler(authSvc)
 	adminHandler := v1.NewAdminHandler(adminSvc)
 	profileHandler := v1.NewProfileHandler(profileSvc)
-	orderHandler := v1.NewOrderHandler(orderSvc, hub)
+	orderHandler := v1.NewOrderHandler(orderSvc, eventSvc, hub)
+	eventHandler := v1.NewEventHandler(eventSvc, hub)
 	usersHandler := v1.NewUsersHandler(userRepo)
 	wsHandler := v1.NewWSHandler(hub, jwtManager)
 
@@ -101,6 +104,8 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				ordersGroup.GET("/:id", orderHandler.GetOrder)
 				ordersGroup.PATCH("/:id", orderHandler.UpdateOrder)
 				ordersGroup.PATCH("/:id/status", orderHandler.UpdateStatus)
+				ordersGroup.GET("/:id/events", eventHandler.ListEvents)
+				ordersGroup.POST("/:id/comments", eventHandler.AddComment)
 			}
 		}
 	}

@@ -2,7 +2,8 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, Modal, Platform, Alert, RefreshControl
 } from 'react-native'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { orderService, Order, UserOption } from '../../services/orderService'
 import { useAuthStore } from '../../store/authStore'
@@ -274,13 +275,13 @@ function StatusPickerModal({ order, onClose, onRefresh }: { order: Order | null;
 
 // ─── Order Card ───────────────────────────────────────────────────────────────
 
-function OrderCard({ order, onEdit, onStatusPress }: { order: Order; onEdit: () => void; onStatusPress: () => void }) {
+function OrderCard({ order, onOpen, onStatusPress }: { order: Order; onOpen: () => void; onStatusPress: () => void }) {
   const due = formatDueDate(order.due_date)
   const sm = STATUS_META[order.status] ?? STATUS_META.new
   const pm = PRIORITY_META[order.priority] ?? PRIORITY_META.medium
 
   return (
-    <TouchableOpacity style={C.card} onPress={onEdit} activeOpacity={0.6}>
+    <TouchableOpacity style={C.card} onPress={onOpen} activeOpacity={0.6}>
       <View style={C.rowTop}>
         <Text style={C.orderNum} numberOfLines={1}>
           #{order.order_number} <Text style={C.title}>{order.title}</Text>
@@ -450,7 +451,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: AllOrdersScree
             <OrderCard
               key={o.id}
               order={o}
-              onEdit={() => { setEditOrder(o); setShowCreate(true) }}
+              onOpen={() => router.push(`/order/${o.id}`)}
               onStatusPress={() => setStatusOrder(o)}
             />
           ))}

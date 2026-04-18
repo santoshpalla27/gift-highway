@@ -32,6 +32,16 @@ export interface UserOption {
   name: string
 }
 
+export interface OrderEvent {
+  id: string
+  order_id: string
+  type: string
+  actor_id: string | null
+  actor_name: string
+  payload: Record<string, string>
+  created_at: string
+}
+
 export const orderService = {
   listOrders: async (params: ListOrdersParams = {}): Promise<{ orders: Order[]; total: number }> => {
     const res = await apiClient.get<{ orders: Order[]; total: number }>('/orders', { params })
@@ -75,5 +85,15 @@ export const orderService = {
   listUsersForAssignment: async (): Promise<UserOption[]> => {
     const res = await apiClient.get<{ users: UserOption[] }>('/users')
     return res.data.users
+  },
+
+  listEvents: async (orderId: string, page = 1): Promise<{ events: OrderEvent[]; total: number }> => {
+    const res = await apiClient.get<{ events: OrderEvent[]; total: number }>(`/orders/${orderId}/events`, { params: { page, limit: 50 } })
+    return res.data
+  },
+
+  addComment: async (orderId: string, text: string): Promise<OrderEvent> => {
+    const res = await apiClient.post<{ event: OrderEvent }>(`/orders/${orderId}/comments`, { text })
+    return res.data.event
   },
 }

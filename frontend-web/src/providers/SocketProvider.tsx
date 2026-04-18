@@ -108,6 +108,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
           ) {
             qc.invalidateQueries({ queryKey: ['orders'] })
           }
+
+          if (event.type === 'order.event_added' && event.entity_id) {
+            qc.invalidateQueries({ queryKey: ['orders', event.entity_id, 'events'] })
+            qc.invalidateQueries({ queryKey: ['orders', event.entity_id] })
+          }
         } catch {
           // ignore malformed frames
         }

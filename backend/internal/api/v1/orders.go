@@ -14,11 +14,12 @@ import (
 
 type OrderHandler struct {
 	orderService *services.OrderService
+	eventService *services.EventService
 	hub          *realtime.Hub
 }
 
-func NewOrderHandler(orderService *services.OrderService, hub *realtime.Hub) *OrderHandler {
-	return &OrderHandler{orderService: orderService, hub: hub}
+func NewOrderHandler(orderService *services.OrderService, eventService *services.EventService, hub *realtime.Hub) *OrderHandler {
+	return &OrderHandler{orderService: orderService, eventService: eventService, hub: hub}
 }
 
 type orderResponse struct {
@@ -124,6 +125,13 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	}
 	resp := toOrderResponse(o)
 	h.hub.Broadcast(realtime.NewEvent(realtime.EventOrderCreated, o.ID, resp))
+
+	uid := userID.(string)
+	if ev, err := h.eventService.Record(c.Request.Context(), o.ID, &uid, models.EvtOrderCreated,
+		map[string]string{"customer_name": o.CustomerName}); err == nil {
+		h.hub.Broadcast(realtime.NewEvent(realtime.EventTimelineEvent, o.ID, toEventResponse(ev)))
+	}
+
 	c.JSON(http.StatusCreated, gin.H{"order": resp})
 }
 
@@ -134,11 +142,79 @@ func (h *OrderHandler) UpdateOrder(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.orderService.UpdateOrder(c.Request.Context(), id, req); err != nil {
+
+	userID, _ := c.Get("user_id")
+	uid := userID.(string)
+	ctx := c.Request.Context()
+
+	// Snapshot old state for change detection
+	old, _ := h.orderService.GetOrder(ctx, id)
+
+	if err := h.orderService.UpdateOrder(ctx, id, req); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update order"})
 		return
 	}
+
 	h.hub.Broadcast(realtime.NewEvent(realtime.EventOrderUpdated, id, gin.H{"id": id}))
+
+	// Record per-field events
+	if old != nil {
+		if old.Priority != req.Priority {
+			if ev, err := h.eventService.Record(ctx, id, &uid, models.EvtPriorityChanged,
+				map[string]string{"from": old.Priority, "to": req.Priority}); err == nil {
+				h.hub.Broadcast(realtime.NewEvent(realtime.EventTimelineEvent, id, toEventResponse(ev)))
+			}
+		}
+
+		oldDue := ""
+		if old.DueDate != nil {
+			oldDue = old.DueDate.Format("2006-01-02")
+		}
+		newDue := ""
+		if req.DueDate != nil {
+			newDue = *req.DueDate
+		}
+		if oldDue != newDue {
+			if ev, err := h.eventService.Record(ctx, id, &uid, models.EvtDueDateChanged,
+				map[string]string{"from": oldDue, "to": newDue}); err == nil {
+				h.hub.Broadcast(realtime.NewEvent(realtime.EventTimelineEvent, id, toEventResponse(ev)))
+			}
+		}
+
+		// Assignees: record if set changed
+		oldSet := make(map[string]struct{}, len(old.AssignedTo))
+		for _, v := range old.AssignedTo {
+			oldSet[v] = struct{}{}
+		}
+		newSet := make(map[string]struct{}, len(req.AssignedTo))
+		for _, v := range req.AssignedTo {
+			newSet[v] = struct{}{}
+		}
+		assigneesChanged := len(oldSet) != len(newSet)
+		if !assigneesChanged {
+			for v := range newSet {
+				if _, ok := oldSet[v]; !ok {
+					assigneesChanged = true
+					break
+				}
+			}
+		}
+		if assigneesChanged {
+			if ev, err := h.eventService.Record(ctx, id, &uid, models.EvtAssigneesChanged,
+				map[string]interface{}{"assignee_ids": req.AssignedTo}); err == nil {
+				h.hub.Broadcast(realtime.NewEvent(realtime.EventTimelineEvent, id, toEventResponse(ev)))
+			}
+		}
+
+		if old.Title != req.Title || old.Description != req.Description ||
+			old.CustomerName != req.CustomerName || old.ContactNumber != req.ContactNumber {
+			if ev, err := h.eventService.Record(ctx, id, &uid, models.EvtOrderUpdated,
+				map[string]string{}); err == nil {
+				h.hub.Broadcast(realtime.NewEvent(realtime.EventTimelineEvent, id, toEventResponse(ev)))
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "updated"})
 }
 
@@ -149,10 +225,28 @@ func (h *OrderHandler) UpdateStatus(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.orderService.UpdateStatus(c.Request.Context(), id, req); err != nil {
+
+	userID, _ := c.Get("user_id")
+	uid := userID.(string)
+	ctx := c.Request.Context()
+
+	old, _ := h.orderService.GetOrder(ctx, id)
+
+	if err := h.orderService.UpdateStatus(ctx, id, req); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update status"})
 		return
 	}
+
 	h.hub.Broadcast(realtime.NewEvent(realtime.EventOrderStatus, id, gin.H{"id": id, "status": req.Status}))
+
+	fromStatus := ""
+	if old != nil {
+		fromStatus = old.Status
+	}
+	if ev, err := h.eventService.Record(ctx, id, &uid, models.EvtStatusChanged,
+		map[string]string{"from": fromStatus, "to": req.Status}); err == nil {
+		h.hub.Broadcast(realtime.NewEvent(realtime.EventTimelineEvent, id, toEventResponse(ev)))
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "status updated"})
 }

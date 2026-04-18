@@ -99,7 +99,8 @@ export function useOrderSocket(onOrderEvent: () => void): { socketStatus: Socket
           if (
             event.type === 'order.created' ||
             event.type === 'order.updated' ||
-            event.type === 'order.status_changed'
+            event.type === 'order.status_changed' ||
+            event.type === 'order.event_added'
           ) {
             callbackRef.current()
           }

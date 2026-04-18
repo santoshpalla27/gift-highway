@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useOrders, useUpdateOrderStatus } from '../hooks/useOrders'
 import { OrderModal } from '../components/OrderModal'
 import { useAuthStore } from '../../../store/authStore'
@@ -124,11 +125,11 @@ function getInitials(name: string) {
 
 export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean }) {
   const { user } = useAuthStore()
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [priorityFilter, setPriorityFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
-  const [editOrder, setEditOrder] = useState<Order | null>(null)
   const [modalKey, setModalKey] = useState(0)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -149,11 +150,10 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
   const orders = data?.orders ?? []
   const total = data?.total ?? 0
 
-  const handleOpenCreate = () => { setEditOrder(null); setModalKey(k => k + 1); setShowModal(true) }
-  const handleEdit = (order: Order) => { setEditOrder(order); setModalKey(k => k + 1); setShowModal(true) }
+  const handleOpenCreate = () => { setModalKey(k => k + 1); setShowModal(true) }
 
   return (
-    <div className="screen active" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', padding: '24px', background: '#F5F6FA', boxSizing: 'border-box' }}>
+    <div className="screen active" style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', padding: '24px', background: '#F5F6FA', boxSizing: 'border-box', overflow: 'hidden' }}>
       <style>{`
         .orders-table { width: 100%; border-collapse: collapse; }
         .orders-table th {
@@ -263,7 +263,8 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
       </div>
 
       {/* Table Container */}
-      <div style={{ margin: '0 0 24px 0', background: '#FFFFFF', border: '1px solid #E4E6EF', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)' }}>
+      <div style={{ flex: 1, minHeight: 0, background: '#FFFFFF', border: '1px solid #E4E6EF', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, overflowY: 'auto' }}>
         <table className="orders-table">
           <thead>
             <tr>
@@ -302,7 +303,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
               const dateColor = isRecent && hoursDiff < 5 ? '#111827' : '#6B7280'
 
               return (
-                <tr key={order.id} onClick={() => handleEdit(order)}>
+                <tr key={order.id} onClick={() => navigate(`/orders/${order.id}`)}>
                   <td>
                     <span style={{ fontWeight: 700, color: '#6366F1', fontSize: '12.5px', fontFamily: '"JetBrains Mono", "Fira Code", monospace' }}>
                       #{order.order_number}
@@ -366,11 +367,11 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
           </tbody>
         </table>
       </div>
+      </div>
 
       {showModal && (
         <OrderModal
           key={modalKey}
-          order={editOrder}
           onClose={() => setShowModal(false)}
           onSuccess={msg => setToast(msg)}
         />
