@@ -5,6 +5,7 @@ import (
 	"github.com/company/app/backend/internal/auth"
 	"github.com/company/app/backend/internal/config"
 	"github.com/company/app/backend/internal/middleware"
+	"github.com/company/app/backend/internal/realtime"
 	"github.com/company/app/backend/internal/repositories"
 	"github.com/company/app/backend/internal/services"
 	"github.com/gin-gonic/gin"
@@ -34,14 +35,21 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 	profileSvc := services.NewProfileService(userRepo, cfg)
 	orderSvc := services.NewOrderService(orderRepo)
 
+	hub := realtime.NewHub()
+	go hub.Run()
+
 	authHandler := v1.NewAuthHandler(authSvc)
 	adminHandler := v1.NewAdminHandler(adminSvc)
 	profileHandler := v1.NewProfileHandler(profileSvc)
-	orderHandler := v1.NewOrderHandler(orderSvc)
+	orderHandler := v1.NewOrderHandler(orderSvc, hub)
 	usersHandler := v1.NewUsersHandler(userRepo)
+	wsHandler := v1.NewWSHandler(hub, jwtManager)
 
 	// Health
 	r.GET("/health", v1.HealthCheck)
+
+	// WebSocket
+	r.GET("/ws", wsHandler.ServeWS)
 
 	// API v1
 	api := r.Group("/api/v1")

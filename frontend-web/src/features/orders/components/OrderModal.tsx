@@ -10,6 +10,15 @@ interface Props {
 
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const
 
+function extractErrorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === 'object') {
+    const e = err as { response?: { data?: { error?: string } }; message?: string }
+    if (e.response?.data?.error) return e.response.data.error
+    if (e.message) return e.message
+  }
+  return fallback
+}
+
 export function OrderModal({ order, onClose, onSuccess }: Props) {
   const isEdit = !!order
   const { mutate: createOrder, isPending: creating } = useCreateOrder()
@@ -51,6 +60,7 @@ export function OrderModal({ order, onClose, onSuccess }: Props) {
       setError('Title and Customer Name are required.')
       return
     }
+    if (isPending) return
     setError('')
     const payload = {
       title: title.trim(),
@@ -64,12 +74,12 @@ export function OrderModal({ order, onClose, onSuccess }: Props) {
     if (isEdit) {
       updateOrder({ id: order!.id, data: payload }, {
         onSuccess: () => { onClose(); onSuccess?.('Order updated successfully') },
-        onError: () => setError('Failed to update order. Please try again.'),
+        onError: (err) => setError(extractErrorMessage(err, 'Failed to update order. Please try again.')),
       })
     } else {
       createOrder(payload, {
         onSuccess: () => { onClose(); onSuccess?.('Order created successfully') },
-        onError: () => setError('Failed to create order. Please try again.'),
+        onError: (err) => setError(extractErrorMessage(err, 'Failed to create order. Please try again.')),
       })
     }
   }
@@ -268,13 +278,21 @@ export function OrderModal({ order, onClose, onSuccess }: Props) {
             disabled={isPending}
             style={{
               padding: '10px 24px', borderRadius: '8px', border: 'none',
-              background: '#0F172A', color: '#FFFFFF', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-              transition: 'background 0.15s ease', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              background: isPending ? '#64748B' : '#0F172A', color: '#FFFFFF',
+              fontSize: '14px', fontWeight: 600, cursor: isPending ? 'not-allowed' : 'pointer',
+              transition: 'background 0.15s ease', boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              display: 'flex', alignItems: 'center', gap: '8px', minWidth: '120px', justifyContent: 'center'
             }}
-            onMouseOver={e => e.currentTarget.style.background = '#1E293B'}
-            onMouseOut={e => e.currentTarget.style.background = '#0F172A'}
+            onMouseOver={e => { if (!isPending) e.currentTarget.style.background = '#1E293B' }}
+            onMouseOut={e => { if (!isPending) e.currentTarget.style.background = '#0F172A' }}
           >
-            {isPending ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Order'}
+            {isPending && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 0.8s linear infinite' }}>
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+              </svg>
+            )}
+            {isPending ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Order'}
           </button>
         </div>
       </div>

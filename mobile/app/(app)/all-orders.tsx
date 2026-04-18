@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { orderService, Order, UserOption } from '../../services/orderService'
 import { useAuthStore } from '../../store/authStore'
+import { useOrderSocket } from '../../hooks/useOrderSocket'
 
 // ─── Metadata ────────────────────────────────────────────────────────────────
 
@@ -118,8 +119,9 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
       }
       onRefresh()
       onClose()
-    } catch {
-      setError('Could not save order. Please try again.')
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error
+      setError(msg || 'Could not save order. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -343,6 +345,13 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: AllOrdersScree
     const t = setTimeout(() => fetchOrders(false), search ? 300 : 0)
     return () => clearTimeout(t)
   }, [fetchOrders, search])
+
+  useOrderSocket(() => fetchOrders(true))
+
+  useEffect(() => {
+    const interval = setInterval(() => fetchOrders(true), 60_000)
+    return () => clearInterval(interval)
+  }, [fetchOrders])
 
   const onRefresh = () => {
     setRefreshing(true)

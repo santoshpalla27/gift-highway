@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/company/app/backend/internal/models"
+	"github.com/company/app/backend/internal/realtime"
 	"github.com/company/app/backend/internal/repositories"
 	"github.com/company/app/backend/internal/services"
 	"github.com/gin-gonic/gin"
@@ -13,10 +14,11 @@ import (
 
 type OrderHandler struct {
 	orderService *services.OrderService
+	hub          *realtime.Hub
 }
 
-func NewOrderHandler(orderService *services.OrderService) *OrderHandler {
-	return &OrderHandler{orderService: orderService}
+func NewOrderHandler(orderService *services.OrderService, hub *realtime.Hub) *OrderHandler {
+	return &OrderHandler{orderService: orderService, hub: hub}
 }
 
 type orderResponse struct {
@@ -120,7 +122,9 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create order"})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"order": toOrderResponse(o)})
+	resp := toOrderResponse(o)
+	h.hub.Broadcast(realtime.Event{Type: realtime.EventOrderCreated, Payload: resp})
+	c.JSON(http.StatusCreated, gin.H{"order": resp})
 }
 
 func (h *OrderHandler) UpdateOrder(c *gin.Context) {
@@ -134,6 +138,7 @@ func (h *OrderHandler) UpdateOrder(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update order"})
 		return
 	}
+	h.hub.Broadcast(realtime.Event{Type: realtime.EventOrderUpdated, Payload: gin.H{"id": id}})
 	c.JSON(http.StatusOK, gin.H{"message": "updated"})
 }
 
@@ -148,5 +153,6 @@ func (h *OrderHandler) UpdateStatus(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update status"})
 		return
 	}
+	h.hub.Broadcast(realtime.Event{Type: realtime.EventOrderStatus, Payload: gin.H{"id": id, "status": req.Status}})
 	c.JSON(http.StatusOK, gin.H{"message": "status updated"})
 }

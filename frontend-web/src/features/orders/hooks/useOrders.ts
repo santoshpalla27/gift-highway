@@ -5,6 +5,7 @@ export function useOrders(params: ListOrdersParams = {}) {
   return useQuery({
     queryKey: ['orders', params],
     queryFn: () => orderService.listOrders(params),
+    refetchInterval: 60_000,
   })
 }
 
