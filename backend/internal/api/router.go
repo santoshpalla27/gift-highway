@@ -140,7 +140,11 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				ordersGroup.POST("/:id/portal/regenerate", portalHandler.RegenerateToken)
 				ordersGroup.POST("/:id/portal/reply", portalHandler.StaffReply)
 				ordersGroup.GET("/:id/portal/messages", portalHandler.GetPortalMessages)
+				ordersGroup.GET("/:id/portal/attachments", portalHandler.StaffListAttachments)
+				ordersGroup.POST("/:id/portal/attachments/upload-url", portalHandler.StaffGetUploadURL)
+				ordersGroup.POST("/:id/portal/attachments/confirm", portalHandler.StaffConfirmAttachment)
 				ordersGroup.DELETE("/:id/portal/attachments/:attId", portalHandler.DeletePortalAttachment)
+				ordersGroup.GET("/:id/portal/attachments/:attId/download-url", portalHandler.StaffGetAttachmentDownloadURL)
 			}
 		}
 	}

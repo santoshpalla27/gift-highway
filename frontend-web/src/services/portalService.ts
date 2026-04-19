@@ -87,6 +87,18 @@ export const staffPortalApi = {
 
   deleteAttachment: (orderId: string, attId: number) =>
     apiClient.delete(`/orders/${orderId}/portal/attachments/${attId}`).then(r => r.data),
+
+  getAttachmentDownloadURL: (orderId: string, attId: number, fileName: string) =>
+    apiClient.get<{ url: string }>(`/orders/${orderId}/portal/attachments/${attId}/download-url?name=${encodeURIComponent(fileName)}`).then(r => r.data.url),
+
+  listAttachments: (orderId: string) =>
+    apiClient.get<{ attachments: PortalAttachment[] }>(`/orders/${orderId}/portal/attachments`).then(r => r.data.attachments ?? []),
+
+  getAttachmentUploadURL: (orderId: string, fileName: string) =>
+    apiClient.post<PortalUploadURLResponse>(`/orders/${orderId}/portal/attachments/upload-url`, { file_name: fileName }).then(r => r.data),
+
+  confirmAttachment: (orderId: string, payload: { s3_key: string; file_name: string; file_type: string; file_size: number }) =>
+    apiClient.post<PortalAttachment>(`/orders/${orderId}/portal/attachments/confirm`, payload).then(r => r.data),
 }
 
 export function getPortalURL(token: string): string {

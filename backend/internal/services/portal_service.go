@@ -214,6 +214,21 @@ func (s *PortalService) ConfirmAttachment(ctx context.Context, portal *models.Cu
 	return &PortalAttachmentWithURL{PortalAttachment: *att, ViewURL: viewURL}, nil
 }
 
+func (s *PortalService) SaveAttachment(ctx context.Context, orderID, s3Key, fileName, fileType string, fileSize int64) (*PortalAttachmentWithURL, error) {
+	att, err := s.repo.CreateAttachment(ctx, &models.PortalAttachment{
+		OrderID:  orderID,
+		S3Key:    s3Key,
+		FileName: fileName,
+		FileType: fileType,
+		FileSize: fileSize,
+	})
+	if err != nil {
+		return nil, err
+	}
+	viewURL, _ := s.getViewURL(ctx, s3Key)
+	return &PortalAttachmentWithURL{PortalAttachment: *att, ViewURL: viewURL}, nil
+}
+
 func (s *PortalService) ListAttachments(ctx context.Context, orderID string) ([]*PortalAttachmentWithURL, error) {
 	atts, err := s.repo.ListAttachments(ctx, orderID)
 	if err != nil {
@@ -242,6 +257,27 @@ func (s *PortalService) DeleteAttachment(ctx context.Context, id int64) error {
 		})
 	}
 	return nil
+}
+
+func (s *PortalService) GetAttachmentDownloadURL(ctx context.Context, attID int64, fileName string) (string, error) {
+	att, err := s.repo.GetAttachment(ctx, attID)
+	if err != nil {
+		return "", repositories.ErrNotFound
+	}
+	client, err := s.newR2Client(ctx)
+	if err != nil {
+		return "", err
+	}
+	presignClient := s3.NewPresignClient(client)
+	req, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket:                     aws.String(s.cfg.R2Bucket),
+		Key:                        aws.String(att.S3Key),
+		ResponseContentDisposition: aws.String(fmt.Sprintf(`attachment; filename="%s"`, fileName)),
+	}, s3.WithPresignExpires(15*time.Minute))
+	if err != nil {
+		return "", err
+	}
+	return req.URL, nil
 }
 
 func (s *PortalService) getViewURL(ctx context.Context, s3Key string) (string, error) {

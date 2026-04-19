@@ -361,3 +361,112 @@ func (h *PortalHandler) DeletePortalAttachment(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
+
+func (h *PortalHandler) StaffListAttachments(c *gin.Context) {
+	orderID := c.Param("id")
+	atts, err := h.svc.ListAttachments(c.Request.Context(), orderID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch attachments"})
+		return
+	}
+	type attResp struct {
+		ID        int64  `json:"id"`
+		FileName  string `json:"file_name"`
+		FileType  string `json:"file_type"`
+		FileSize  int64  `json:"file_size"`
+		ViewURL   string `json:"view_url"`
+		CreatedAt string `json:"created_at"`
+	}
+	items := make([]attResp, len(atts))
+	for i, a := range atts {
+		items[i] = attResp{
+			ID:        a.ID,
+			FileName:  a.FileName,
+			FileType:  a.FileType,
+			FileSize:  a.FileSize,
+			ViewURL:   a.ViewURL,
+			CreatedAt: a.CreatedAt.Format(time.RFC3339),
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"attachments": items})
+}
+
+func (h *PortalHandler) StaffGetUploadURL(c *gin.Context) {
+	orderID := c.Param("id")
+	var req struct {
+		FileName string `json:"file_name" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file_name is required"})
+		return
+	}
+	resp, err := h.svc.GetUploadURL(c.Request.Context(), orderID, req.FileName)
+	if err != nil {
+		if errors.Is(err, services.ErrStorageNotConfigured) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "storage not configured"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate upload URL"})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+func (h *PortalHandler) StaffConfirmAttachment(c *gin.Context) {
+	orderID := c.Param("id")
+	staffID, _ := c.Get("user_id")
+	staffEmail, _ := c.Get("user_email")
+	uid := staffID.(string)
+	sname, _ := staffEmail.(string)
+
+	var req struct {
+		S3Key    string `json:"s3_key" binding:"required"`
+		FileName string `json:"file_name" binding:"required"`
+		FileType string `json:"file_type" binding:"required"`
+		FileSize int64  `json:"file_size" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	att, err := h.svc.SaveAttachment(c.Request.Context(), orderID, req.S3Key, req.FileName, req.FileType, req.FileSize)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save attachment"})
+		return
+	}
+
+	portal, err := h.svc.GetByOrderID(c.Request.Context(), orderID)
+	if err == nil {
+		msgText := "[attachment:" + strconv.FormatInt(att.ID, 10) + ":" + req.FileName + "]"
+		_, ev, _ := h.svc.SendStaffReply(c.Request.Context(), portal, msgText, sname, uid)
+		if ev != nil {
+			h.hub.Broadcast(realtime.NewEvent(realtime.EventTimelineEvent, orderID, toEventResponse(ev)))
+		}
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"id":         att.ID,
+		"file_name":  att.FileName,
+		"file_type":  att.FileType,
+		"file_size":  att.FileSize,
+		"view_url":   att.ViewURL,
+		"created_at": att.CreatedAt.Format(time.RFC3339),
+	})
+}
+
+func (h *PortalHandler) StaffGetAttachmentDownloadURL(c *gin.Context) {
+	attIDStr := c.Param("attId")
+	attID, err := strconv.ParseInt(attIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid attachment id"})
+		return
+	}
+	fileName := c.Query("name")
+	url, err := h.svc.GetAttachmentDownloadURL(c.Request.Context(), attID, fileName)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "attachment not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"url": url})
+}

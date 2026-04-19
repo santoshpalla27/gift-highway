@@ -10,7 +10,7 @@ import { useOrderPermissions } from '../hooks/useOrderPermissions'
 import { Skeleton } from '../../../components/system/Skeleton'
 import { useSocketEvent } from '../../../providers/SocketProvider'
 import type { Order } from '../../../services/orderService'
-import { staffPortalApi, getPortalURL, type PortalStatus } from '../../../services/portalService'
+import { staffPortalApi, getPortalURL, type PortalStatus, type PortalAttachment } from '../../../services/portalService'
 import { StaffPortalChatModal } from '../components/StaffPortalChatModal'
 
 // ─── Meta maps ───────────────────────────────────────────────────────────────
@@ -104,10 +104,10 @@ async function downloadFile(orderId: string, fileKey: string, fileName: string) 
     const url = await attachmentService.getDownloadUrl(orderId, fileKey, fileName)
     window.location.href = url
   } catch {
-    // fallback: open presigned view URL in new tab
     window.open(`about:blank`, '_blank')
   }
 }
+
 
 // ─── Attachment image with signed-url refresh on 403/load-error ─────────────
 
@@ -146,13 +146,14 @@ function AttachmentImage({ orderId, fileKey, fileName, fileUrl }: {
 
 // ─── Timeline event renderer ─────────────────────────────────────────────────
 
-function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, orderId }: {
+function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, orderId, portalAttachments }: {
   event: LocalOrderEvent
   isOptimistic?: boolean
   onRetry?: () => void
   onDelete?: () => void
   onEdit?: (newText: string) => void
   orderId: string
+  portalAttachments?: PortalAttachment[]
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -378,7 +379,74 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, orderId
     const p = event.payload as Record<string, string>
     const isStaff = event.type === 'staff_portal_reply'
     const senderName = isStaff ? event.actor_name : (p.customer_name ?? 'Customer')
-    const msgText = p.text ?? ''
+
+    // For customer_message: parse attachment tokens out of the text.
+    // If the entire message is just attachment tokens (no text), suppress it —
+    // the customer_attachment event already covers it in the timeline.
+    const rawText = p.text ?? ''
+    const parsed = (() => {
+      const tokens: { id: number; name: string }[] = []
+      const textLines: string[] = []
+      for (const line of rawText.split('\n')) {
+        const m = line.match(/^\[attachment:(\d+):(.+?)\]$/)
+        if (m) { tokens.push({ id: parseInt(m[1]), name: m[2] }); continue }
+        textLines.push(line)
+      }
+      return { text: textLines.join('\n').trim(), tokens }
+    })()
+
+    if (event.type === 'customer_message' && parsed.text === '' && parsed.tokens.length > 0) {
+      return null
+    }
+
+    const handlePortalDownload = (attId: number | null, fileName: string, viewUrl?: string) => {
+      if (attId != null) {
+        staffPortalApi.getAttachmentDownloadURL(orderId, attId, fileName)
+          .then(url => { window.location.href = url })
+          .catch(() => { if (viewUrl) window.open(viewUrl, '_blank') })
+      } else if (viewUrl) {
+        window.open(viewUrl, '_blank')
+      }
+    }
+
+    const renderPortalAttachment = (attId: number | null, fileName: string, fileType?: string) => {
+      const att = attId != null ? portalAttachments?.find(a => a.id === attId) : null
+      const ftype = (att?.file_type ?? fileType ?? '').toLowerCase()
+      const isImg = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic'].includes(ftype)
+      const viewUrl = att?.view_url
+      if (isImg && viewUrl) {
+        return (
+          <div style={{ marginTop: 6 }}>
+            <div style={{ width: 180, borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative' }}>
+              <img src={viewUrl} alt={fileName} style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+              <span style={{ fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{fileName}</span>
+              <button onClick={() => handlePortalDownload(attId, fileName, viewUrl)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', lineHeight: 1, flexShrink: 0, padding: 0 }} title="Download">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              </button>
+            </div>
+          </div>
+        )
+      }
+      return (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, marginTop: 4,
+          background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8,
+          padding: '6px 10px', width: 'fit-content',
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <span style={{ fontSize: 12, color: '#374151' }}>{fileName}</span>
+          {att && <span style={{ fontSize: 11, color: '#9CA3AF' }}>{att.file_size < 1024 * 1024 ? `${(att.file_size / 1024).toFixed(1)} KB` : `${(att.file_size / (1024 * 1024)).toFixed(1)} MB`}</span>}
+          {(attId != null || viewUrl) && (
+            <button onClick={() => handlePortalDownload(attId, fileName, viewUrl)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', lineHeight: 1, flexShrink: 0, padding: 0 }} title="Download">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            </button>
+          )}
+        </div>
+      )
+    }
+
     return (
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
         <div style={{
@@ -402,26 +470,19 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, orderId
             </span>
             <span style={{ fontSize: 11, color: '#9CA3AF' }}>{formatTimestamp(event.created_at)}</span>
           </div>
-          {msgText && (
+          {parsed.text && (
             <div style={{
               fontSize: 13.5, color: '#111827', background: isStaff ? '#EFF6FF' : '#ECFDF5',
               border: `1px solid ${isStaff ? '#BFDBFE' : '#A7F3D0'}`,
               borderRadius: 10, padding: '8px 12px', display: 'inline-block', maxWidth: '85%',
               lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
             }}>
-              {msgText}
+              {parsed.text}
             </div>
           )}
-          {event.type === 'customer_attachment' && p.file_name && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8, marginTop: 4,
-              background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8,
-              padding: '6px 10px', width: 'fit-content',
-            }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
-              <span style={{ fontSize: 12, color: '#374151' }}>{p.file_name}</span>
-            </div>
-          )}
+          {event.type === 'customer_attachment' && p.file_name &&
+            renderPortalAttachment(p.att_id ? parseInt(p.att_id) : null, p.file_name, p.file_type)
+          }
         </div>
       </div>
     )
@@ -604,6 +665,7 @@ export function OrderDetailPage() {
 
   // ── Portal management ───────────────────────────────────────────────────────
   const [portal, setPortal] = useState<PortalStatus | null | undefined>(undefined)
+  const [portalAttachments, setPortalAttachments] = useState<PortalAttachment[]>([])
   const [portalLoading, setPortalLoading] = useState(false)
   const [portalCopied, setPortalCopied] = useState(false)
   const [portalCustomerName, setPortalCustomerName] = useState('')
@@ -613,7 +675,10 @@ export function OrderDetailPage() {
   useEffect(() => {
     if (!id) return
     staffPortalApi.getPortal(id)
-      .then(p => setPortal(p))
+      .then(p => {
+        setPortal(p)
+        if (p) staffPortalApi.listAttachments(id).then(setPortalAttachments).catch(() => {})
+      })
       .catch(() => setPortal(null))
   }, [id])
 
@@ -666,23 +731,28 @@ export function OrderDetailPage() {
     if (!id) return
     const data = await orderService.listEvents(id, 1, LIMIT, 'desc')
     const latest = [...data.events].reverse()
-    const existingIds = new Set(evListRef.current.map(e => e.id))
-    const newEvs = latest.filter(e => !existingIds.has(e.id))
-    if (newEvs.length === 0) return
-    setEvList(prev => [...prev, ...newEvs])
+    setEvList(prev => {
+      const existingIds = new Set(prev.map(e => e.id))
+      const newEvs = latest.filter(e => !existingIds.has(e.id))
+      if (newEvs.length === 0) return prev
+      if (atBottomRef.current) {
+        setTimeout(() => feedEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+      } else {
+        setNewCount(n => n + newEvs.length)
+      }
+      return [...prev, ...newEvs]
+    })
     setOptimisticEvents(prev => prev.filter(e => e.failed))
     setTotalEvents(data.total)
-    if (atBottomRef.current) {
-      setTimeout(() => feedEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
-    } else {
-      setNewCount(n => n + newEvs.length)
-    }
   }, [id])
 
   // ── Realtime: react to socket events for this order ────────────────────────
   useSocketEvent(useCallback((event) => {
     if (event.type === 'order.event_added' && event.entity_id === id) {
       const incoming = (event as any).payload
+      if (incoming?.type === 'customer_message' && id) {
+        staffPortalApi.listAttachments(id).then(setPortalAttachments).catch(() => {})
+      }
       if (incoming?.id) {
         setEvList(prev => {
           if (prev.some(e => e.id === incoming.id)) {
@@ -1045,6 +1115,7 @@ export function OrderDetailPage() {
                             setEvList(prev => prev.map(e => e.id === ev.id ? { ...e, payload: { ...(e.payload as object), text: newText } as any } : e))
                           } : undefined}
                           orderId={id!}
+                          portalAttachments={portalAttachments}
                         />
                       </div>
                     ))}
