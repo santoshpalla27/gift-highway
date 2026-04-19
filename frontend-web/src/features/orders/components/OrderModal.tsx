@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useCreateOrder, useUpdateOrder, useUsersForAssignment } from '../hooks/useOrders'
 import type { Order } from '../../../services/orderService'
+import { staffPortalApi } from '../../../services/portalService'
 
 interface Props {
   order?: Order | null
@@ -35,6 +36,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
   const [dueDate, setDueDate] = useState('')
   const [assignOpen, setAssignOpen] = useState(false)
   const [error, setError] = useState('')
+  const [createPortal, setCreatePortal] = useState(false)
 
   useEffect(() => {
     if (order) {
@@ -79,7 +81,13 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
       })
     } else {
       createOrder(payload, {
-        onSuccess: () => { onClose(); onSuccess?.('Order created successfully') },
+        onSuccess: async (created) => {
+          if (createPortal) {
+            try { await staffPortalApi.createPortal(created.id, customerName.trim()) } catch (_) {}
+          }
+          onClose()
+          onSuccess?.('Order created successfully')
+        },
         onError: (err) => setError(extractErrorMessage(err, 'Failed to create order. Please try again.')),
       })
     }
@@ -258,6 +266,29 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
             </div>}
           </div>
         </div>
+
+        {/* Portal checkbox — create only */}
+        {!isEdit && (
+          <div style={{ padding: '0 32px 20px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+              <div
+                onClick={() => setCreatePortal(o => !o)}
+                style={{
+                  width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+                  border: createPortal ? 'none' : '1.5px solid #CBD5E1',
+                  background: createPortal ? '#10B981' : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                {createPortal && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+              </div>
+              <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>
+                Generate customer portal link after creation
+              </span>
+            </label>
+          </div>
+        )}
 
         {/* Footer */}
         <div style={{ padding: '20px 32px', borderTop: '1px solid #F1F5F9', background: '#FAFAFA', display: 'flex', gap: '12px', justifyContent: 'flex-end', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>

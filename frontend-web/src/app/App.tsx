@@ -9,10 +9,14 @@ import { UsersPage } from '../features/admin/pages/UsersPage'
 import { ProfileSettingsPage } from '../features/profile/pages/ProfileSettingsPage'
 import { OrdersPage } from '../features/orders/pages/OrdersPage'
 import { OrderDetailPage } from '../features/orders/pages/OrderDetailPage'
+import CustomerPortalPage from '../features/portal/pages/CustomerPortalPage'
 
 export default function App() {
   return (
     <Routes>
+      {/* Public portal route — no auth required */}
+      <Route path="/portal/:token" element={<CustomerPortalPage />} />
+
       <Route element={<PublicRoute />}>
         <Route path="/login" element={<LoginPage />} />
       </Route>

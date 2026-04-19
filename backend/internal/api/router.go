@@ -35,13 +35,16 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 	adminSvc := services.NewAdminService(userRepo)
 	profileSvc := services.NewProfileService(userRepo, cfg)
 	attachmentRepo := repositories.NewAttachmentRepository(db)
+	portalRepo := repositories.NewPortalRepository(db)
 	orderSvc := services.NewOrderService(orderRepo)
 	eventSvc := services.NewEventService(eventRepo)
 	attachmentSvc := services.NewAttachmentService(attachmentRepo, eventRepo, cfg)
+	portalSvc := services.NewPortalService(portalRepo, orderRepo, eventRepo, cfg)
 
 	hub := realtime.NewHub()
 	go hub.Run()
 
+	portalHandler := v1.NewPortalHandler(portalSvc, hub)
 	authHandler := v1.NewAuthHandler(authSvc)
 	adminHandler := v1.NewAdminHandler(adminSvc)
 	profileHandler := v1.NewProfileHandler(profileSvc)
@@ -53,6 +56,18 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 
 	// Health
 	r.GET("/health", v1.HealthCheck)
+
+	// Public portal routes (token-based, no auth) — under /api/portal to avoid SPA route conflict
+	apiPortal := r.Group("/api/portal")
+	{
+		apiPortal.GET("/:token", portalHandler.GetPortal)
+		apiPortal.GET("/:token/messages", portalHandler.GetMessages)
+		apiPortal.POST("/:token/messages", portalHandler.SendMessage)
+		apiPortal.GET("/:token/attachments", portalHandler.GetAttachments)
+		apiPortal.POST("/:token/attachments/upload-url", portalHandler.GetAttachmentUploadURL)
+		apiPortal.POST("/:token/attachments", portalHandler.ConfirmAttachment)
+		apiPortal.DELETE("/:token/attachments/:attId", portalHandler.DeletePortalAttachmentPublic)
+	}
 
 	// WebSocket
 	r.GET("/ws", wsHandler.ServeWS)
@@ -117,6 +132,15 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				ordersGroup.GET("/:id/attachments/signed-url", attachmentHandler.GetSignedURL)
 				ordersGroup.GET("/:id/attachments/download-url", attachmentHandler.GetDownloadURL)
 				ordersGroup.DELETE("/:id/attachments/:attachmentId", attachmentHandler.DeleteAttachment)
+
+				// Portal management (staff)
+				ordersGroup.POST("/:id/portal", portalHandler.CreatePortal)
+				ordersGroup.GET("/:id/portal", portalHandler.GetOrderPortal)
+				ordersGroup.PATCH("/:id/portal/revoke", portalHandler.RevokePortal)
+				ordersGroup.POST("/:id/portal/regenerate", portalHandler.RegenerateToken)
+				ordersGroup.POST("/:id/portal/reply", portalHandler.StaffReply)
+				ordersGroup.GET("/:id/portal/messages", portalHandler.GetPortalMessages)
+				ordersGroup.DELETE("/:id/portal/attachments/:attId", portalHandler.DeletePortalAttachment)
 			}
 		}
 	}

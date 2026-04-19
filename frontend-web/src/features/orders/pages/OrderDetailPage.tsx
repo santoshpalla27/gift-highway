@@ -10,6 +10,8 @@ import { useOrderPermissions } from '../hooks/useOrderPermissions'
 import { Skeleton } from '../../../components/system/Skeleton'
 import { useSocketEvent } from '../../../providers/SocketProvider'
 import type { Order } from '../../../services/orderService'
+import { staffPortalApi, getPortalURL, type PortalStatus } from '../../../services/portalService'
+import { StaffPortalChatModal } from '../components/StaffPortalChatModal'
 
 // ─── Meta maps ───────────────────────────────────────────────────────────────
 
@@ -371,6 +373,60 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, orderId
     )
   }
 
+  // Customer portal message / attachment
+  if (event.type === 'customer_message' || event.type === 'customer_attachment' || event.type === 'staff_portal_reply') {
+    const p = event.payload as Record<string, string>
+    const isStaff = event.type === 'staff_portal_reply'
+    const senderName = isStaff ? event.actor_name : (p.customer_name ?? 'Customer')
+    const msgText = p.text ?? ''
+    return (
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        <div style={{
+          width: 32, height: 32, borderRadius: '50%',
+          background: isStaff ? '#DBEAFE' : '#D1FAE5',
+          color: isStaff ? '#3B82F6' : '#10B981',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 11, fontWeight: 700, flexShrink: 0, marginTop: 2,
+        }}>
+          {getInitials(senderName)}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: isStaff ? '#3B82F6' : '#10B981' }}>{senderName}</span>
+            <span style={{
+              fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 999,
+              background: isStaff ? '#DBEAFE' : '#D1FAE5',
+              color: isStaff ? '#2563EB' : '#059669',
+            }}>
+              {isStaff ? 'Staff reply' : 'Customer'}
+            </span>
+            <span style={{ fontSize: 11, color: '#9CA3AF' }}>{formatTimestamp(event.created_at)}</span>
+          </div>
+          {msgText && (
+            <div style={{
+              fontSize: 13.5, color: '#111827', background: isStaff ? '#EFF6FF' : '#ECFDF5',
+              border: `1px solid ${isStaff ? '#BFDBFE' : '#A7F3D0'}`,
+              borderRadius: 10, padding: '8px 12px', display: 'inline-block', maxWidth: '85%',
+              lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            }}>
+              {msgText}
+            </div>
+          )}
+          {event.type === 'customer_attachment' && p.file_name && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8, marginTop: 4,
+              background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8,
+              padding: '6px 10px', width: 'fit-content',
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+              <span style={{ fontSize: 12, color: '#374151' }}>{p.file_name}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   // System event
   let icon: React.ReactNode
   let text = ''
@@ -545,6 +601,21 @@ export function OrderDetailPage() {
 
   const [showEdit, setShowEdit] = useState(false)
   const [commentText, setCommentText] = useState('')
+
+  // ── Portal management ───────────────────────────────────────────────────────
+  const [portal, setPortal] = useState<PortalStatus | null | undefined>(undefined)
+  const [portalLoading, setPortalLoading] = useState(false)
+  const [portalCopied, setPortalCopied] = useState(false)
+  const [portalCustomerName, setPortalCustomerName] = useState('')
+  const [showPortalCreate, setShowPortalCreate] = useState(false)
+  const [showPortalChat, setShowPortalChat] = useState(false)
+
+  useEffect(() => {
+    if (!id) return
+    staffPortalApi.getPortal(id)
+      .then(p => setPortal(p))
+      .catch(() => setPortal(null))
+  }, [id])
 
   // ── File uploads ────────────────────────────────────────────────────────────
   type UploadingFile = {
@@ -849,8 +920,53 @@ export function OrderDetailPage() {
         <div style={{ width: 1, height: 20, background: '#E4E6EF' }} />
         <span style={{ fontSize: 13, fontWeight: 700, color: '#6366F1', fontFamily: 'monospace' }}>#{order.order_number}</span>
         <span style={{ fontSize: 15, fontWeight: 700, color: '#111827', flex: 1 }}>{order.title}</span>
-        {perms.canEditOrder && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+          {/* Customer portal button */}
+          {portal !== undefined && (
+            portal ? (
+              <button
+                onClick={() => { if (portal.enabled) setShowPortalChat(true) }}
+                title={portal.enabled ? 'Open customer portal chat' : 'Portal is revoked'}
+                style={{
+                  padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  cursor: portal.enabled ? 'pointer' : 'default',
+                  border: `1.5px solid ${portal.enabled ? '#A7F3D0' : '#E5E7EB'}`,
+                  background: portal.enabled ? '#F0FDF4' : '#F9FAFB',
+                  color: portal.enabled ? '#059669' : '#9CA3AF',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                </svg>
+                {portal.enabled ? 'Portal Chat' : 'Portal (revoked)'}
+              </button>
+            ) : (
+              <button
+                onClick={async () => {
+                  setPortalLoading(true)
+                  try {
+                    const p = await staffPortalApi.createPortal(id!, order.customer_name)
+                    setPortal(p)
+                  } finally {
+                    setPortalLoading(false)
+                  }
+                }}
+                disabled={portalLoading}
+                title="Create customer portal link"
+                style={{
+                  padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  cursor: portalLoading ? 'default' : 'pointer',
+                  border: '1.5px solid #A7F3D0', background: '#F0FDF4', color: '#059669',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+                {portalLoading ? '…' : 'Create Portal'}
+              </button>
+            )
+          )}
+          {perms.canEditOrder && (
             <button
               onClick={() => setShowEdit(true)}
               style={{
@@ -860,8 +976,8 @@ export function OrderDetailPage() {
             >
               Edit
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Body: two columns */}
@@ -1157,8 +1273,148 @@ export function OrderDetailPage() {
               <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, margin: 0 }}>{order.description}</p>
             </PanelSection>
           )}
+
+          <PanelSection label="Customer Portal">
+            {portal === undefined ? (
+              <div style={{ fontSize: 12, color: '#9CA3AF' }}>Loading…</div>
+            ) : portal === null ? (
+              showPortalCreate ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <input
+                    value={portalCustomerName}
+                    onChange={e => setPortalCustomerName(e.target.value)}
+                    placeholder={order.customer_name || 'Customer name'}
+                    style={{
+                      fontSize: 13, padding: '6px 10px', borderRadius: 6,
+                      border: '1px solid #D1D5DB', outline: 'none', color: '#111827',
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      disabled={portalLoading}
+                      onClick={async () => {
+                        setPortalLoading(true)
+                        try {
+                          const p = await staffPortalApi.createPortal(id!, portalCustomerName || order.customer_name)
+                          setPortal(p)
+                          setShowPortalCreate(false)
+                        } finally {
+                          setPortalLoading(false)
+                        }
+                      }}
+                      style={{
+                        flex: 1, fontSize: 12, fontWeight: 600, padding: '6px 0', borderRadius: 6,
+                        background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer',
+                      }}
+                    >
+                      {portalLoading ? '…' : 'Create'}
+                    </button>
+                    <button
+                      onClick={() => setShowPortalCreate(false)}
+                      style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, border: '1px solid #E5E7EB', background: '#fff', cursor: 'pointer', color: '#6B7280' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowPortalCreate(true)}
+                  style={{
+                    width: '100%', fontSize: 12, fontWeight: 600, padding: '7px 0', borderRadius: 6,
+                    background: '#F0FDF4', color: '#10B981', border: '1px solid #A7F3D0', cursor: 'pointer',
+                  }}
+                >
+                  + Create portal link
+                </button>
+              )
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{
+                    width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                    background: portal.enabled ? '#10B981' : '#9CA3AF',
+                  }} />
+                  <span style={{ fontSize: 12, color: portal.enabled ? '#10B981' : '#9CA3AF', fontWeight: 600 }}>
+                    {portal.enabled ? 'Active' : 'Revoked'}
+                  </span>
+                </div>
+                {portal.enabled && (
+                  <button
+                    onClick={() => {
+                      const url = getPortalURL(portal.token)
+                      navigator.clipboard.writeText(url).then(() => {
+                        setPortalCopied(true)
+                        setTimeout(() => setPortalCopied(false), 2000)
+                      })
+                    }}
+                    style={{
+                      fontSize: 11.5, fontWeight: 600, padding: '6px 10px', borderRadius: 6,
+                      background: portalCopied ? '#ECFDF5' : '#F9FAFB',
+                      color: portalCopied ? '#10B981' : '#374151',
+                      border: `1px solid ${portalCopied ? '#A7F3D0' : '#E5E7EB'}`,
+                      cursor: 'pointer', width: '100%', textAlign: 'left' as const,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const,
+                    }}
+                  >
+                    {portalCopied ? '✓ Copied!' : '📋 Copy portal link'}
+                  </button>
+                )}
+<div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    disabled={portalLoading}
+                    onClick={async () => {
+                      setPortalLoading(true)
+                      try {
+                        const p = await staffPortalApi.regenerateToken(id!)
+                        setPortal(p)
+                      } finally {
+                        setPortalLoading(false)
+                      }
+                    }}
+                    style={{
+                      flex: 1, fontSize: 11, fontWeight: 600, padding: '5px 0', borderRadius: 6,
+                      background: '#EFF6FF', color: '#3B82F6', border: '1px solid #BFDBFE', cursor: 'pointer',
+                    }}
+                  >
+                    Regenerate
+                  </button>
+                  <button
+                    disabled={portalLoading}
+                    onClick={async () => {
+                      if (!portal.enabled) return
+                      setPortalLoading(true)
+                      try {
+                        await staffPortalApi.revokePortal(id!)
+                        setPortal(p => p ? { ...p, enabled: false } : p)
+                      } finally {
+                        setPortalLoading(false)
+                      }
+                    }}
+                    style={{
+                      flex: 1, fontSize: 11, fontWeight: 600, padding: '5px 0', borderRadius: 6,
+                      background: portal.enabled ? '#FEF2F2' : '#F3F4F6',
+                      color: portal.enabled ? '#EF4444' : '#9CA3AF',
+                      border: `1px solid ${portal.enabled ? '#FECACA' : '#E5E7EB'}`,
+                      cursor: portal.enabled ? 'pointer' : 'default',
+                    }}
+                  >
+                    {portal.enabled ? 'Revoke' : 'Revoked'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </PanelSection>
         </div>
       </div>
+
+      {showPortalChat && portal && (
+        <StaffPortalChatModal
+          orderId={order.id}
+          portal={portal}
+          onClose={() => setShowPortalChat(false)}
+        />
+      )}
 
       {showEdit && (
         <OrderModal
