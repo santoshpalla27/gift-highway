@@ -458,6 +458,144 @@ function StatusSheet({ order, onClose, onChanged }: { order: Order; onClose: () 
   )
 }
 
+// ─── Info Sheet ───────────────────────────────────────────────────────────────
+
+function InfoSheet({ order, portal, onClose }: { order: Order; portal: PortalStatus | null | undefined; onClose: () => void }) {
+  const sm = STATUS_META[order.status] ?? STATUS_META.new
+  const pm = PRIORITY_META[order.priority] ?? PRIORITY_META.low
+  const due = order.due_date ? new Date(order.due_date) : null
+  const dueOverdue = due ? due < new Date() && order.status !== 'completed' : false
+  const [copied, setCopied] = useState(false)
+
+  function getInitials(name: string) {
+    return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+  }
+
+  const handleCopyLink = async () => {
+    if (!portal?.token) return
+    const url = getPortalURL(portal.token)
+    try {
+      const { Clipboard } = await import('@react-native-clipboard/clipboard').catch(() => ({ Clipboard: null }))
+      if (Clipboard) {
+        Clipboard.setString(url)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } else {
+        await Share.share({ message: url })
+      }
+    } catch {
+      await Share.share({ message: url })
+    }
+  }
+
+  return (
+    <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+        <View style={E.header}>
+          <TouchableOpacity onPress={onClose}>
+            <Ionicons name="close" size={24} color="#0F172A" />
+          </TouchableOpacity>
+          <Text style={E.headerTitle}>Order Info</Text>
+          <View style={{ width: 24 }} />
+        </View>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+
+          {/* Customer */}
+          <View style={IN.section}>
+            <Text style={IN.label}>CUSTOMER</Text>
+            <Text style={IN.value}>{order.customer_name}</Text>
+            {!!order.contact_number && <Text style={IN.sub}>{order.contact_number}</Text>}
+          </View>
+
+          {/* Status */}
+          <View style={IN.section}>
+            <Text style={IN.label}>STATUS</Text>
+            <View style={[IN.badge, { backgroundColor: sm.bg }]}>
+              <Text style={[IN.badgeText, { color: sm.color }]}>{sm.label}</Text>
+            </View>
+          </View>
+
+          {/* Priority */}
+          <View style={IN.section}>
+            <Text style={IN.label}>PRIORITY</Text>
+            <View style={[IN.badge, { backgroundColor: pm.bg }]}>
+              <Text style={[IN.badgeText, { color: pm.color }]}>{pm.label}</Text>
+            </View>
+          </View>
+
+          {/* Assigned to */}
+          {order.assigned_names && order.assigned_names.length > 0 && (
+            <View style={IN.section}>
+              <Text style={IN.label}>ASSIGNED TO</Text>
+              <View style={{ gap: 8, marginTop: 2 }}>
+                {order.assigned_names.map((name, i) => (
+                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={IN.avatar}>
+                      <Text style={IN.avatarText}>{getInitials(name)}</Text>
+                    </View>
+                    <Text style={IN.value}>{name}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Due date */}
+          {due && (
+            <View style={IN.section}>
+              <Text style={IN.label}>DUE DATE</Text>
+              <Text style={[IN.value, dueOverdue && { color: '#EF4444' }]}>
+                {due.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                {dueOverdue ? '  ·  Overdue' : ''}
+              </Text>
+            </View>
+          )}
+
+          {/* Created by */}
+          <View style={IN.section}>
+            <Text style={IN.label}>CREATED BY</Text>
+            <Text style={IN.value}>{order.created_by_name}</Text>
+            <Text style={IN.sub}>{new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
+          </View>
+
+          {/* Description */}
+          {!!order.description && (
+            <View style={IN.section}>
+              <Text style={IN.label}>DESCRIPTION</Text>
+              <Text style={[IN.value, { lineHeight: 22 }]}>{order.description}</Text>
+            </View>
+          )}
+
+          {/* Customer Portal */}
+          <View style={IN.section}>
+            <Text style={IN.label}>CUSTOMER PORTAL</Text>
+            {portal === undefined ? (
+              <Text style={IN.sub}>Loading…</Text>
+            ) : portal === null ? (
+              <Text style={IN.sub}>No portal created</Text>
+            ) : (
+              <View style={{ gap: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={[IN.dot, { backgroundColor: portal.enabled ? '#10B981' : '#9CA3AF' }]} />
+                  <Text style={IN.value}>{portal.enabled ? 'Active' : 'Revoked'}</Text>
+                </View>
+                {portal.customer_name ? <Text style={IN.sub}>For: {portal.customer_name}</Text> : null}
+                {portal.enabled && (
+                  <TouchableOpacity style={IN.copyBtn} onPress={handleCopyLink}>
+                    <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={14} color={copied ? '#10B981' : '#64748B'} />
+                    <Text style={[IN.copyBtnText, copied && { color: '#10B981' }]}>{copied ? 'Copied!' : 'Copy portal link'}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+
+        </ScrollView>
+      </View>
+    </Modal>
+  )
+}
+
 // ─── Edit Order Sheet ─────────────────────────────────────────────────────────
 
 function EditOrderSheet({ order, onClose, onSaved }: { order: Order; onClose: () => void; onSaved: () => void }) {
@@ -1009,6 +1147,7 @@ export default function OrderDetailScreen() {
   const [sending, setSending] = useState(false)
   const sendingRef = useRef(false)
   const [showStatus, setShowStatus] = useState(false)
+  const [showInfo, setShowInfo] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [showAttachSheet, setShowAttachSheet] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
@@ -1293,6 +1432,9 @@ export default function OrderDetailScreen() {
             <Text style={S.headerOrderNum}>#{order.order_number}</Text>
             <Text style={S.headerTitle} numberOfLines={1}>{order.title}</Text>
           </View>
+          <TouchableOpacity onPress={() => setShowInfo(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="information-circle-outline" size={22} color="#0F172A" />
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowEdit(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="create-outline" size={22} color="#0F172A" />
           </TouchableOpacity>
@@ -1503,6 +1645,13 @@ export default function OrderDetailScreen() {
           order={order}
           onClose={() => setShowStatus(false)}
           onChanged={() => { fetchOrder(); fetchLatest() }}
+        />
+      )}
+      {showInfo && order && (
+        <InfoSheet
+          order={order}
+          portal={portal}
+          onClose={() => setShowInfo(false)}
         />
       )}
       {showEdit && order && (
@@ -1809,4 +1958,23 @@ const PC = StyleSheet.create({
   bubbleStaff: { backgroundColor: '#1E40AF' },
   msgText: { fontSize: 14, color: '#334155', lineHeight: 20 },
   msgTime: { fontSize: 10, color: '#9CA3AF', marginTop: 3 },
+})
+
+const IN = StyleSheet.create({
+  section: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  label: { fontSize: 10, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.8, marginBottom: 6 },
+  value: { fontSize: 14, fontWeight: '600', color: '#0F172A' },
+  sub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  badge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  badgeText: { fontSize: 13, fontWeight: '700' },
+  avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 10, fontWeight: '700', color: '#6366F1' },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  copyBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC',
+    marginTop: 2,
+  },
+  copyBtnText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
 })
