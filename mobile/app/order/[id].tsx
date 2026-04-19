@@ -3,6 +3,7 @@ import {
   TextInput, ActivityIndicator, KeyboardAvoidingView, Platform,
   Alert, RefreshControl, Modal, Image, Linking, Share,
 } from 'react-native'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useLocalSearchParams, router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -49,6 +50,13 @@ function parsePortalMsg(text: string): { text: string; tokens: { id: number; nam
     return ''
   }).trim()
   return { text: clean, tokens }
+}
+
+function fmt12hr(time: string): string {
+  const [h, m] = time.split(':').map(Number)
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 || 12
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
 }
 
 function formatTimestamp(iso: string): string {
@@ -546,6 +554,7 @@ function InfoSheet({ order, portal, onClose }: { order: Order; portal: PortalSta
               <Text style={IN.label}>DUE DATE</Text>
               <Text style={[IN.value, dueOverdue && { color: '#EF4444' }]}>
                 {due.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                {order.due_time ? `  ·  ${fmt12hr(order.due_time)}` : ''}
                 {dueOverdue ? '  ·  Overdue' : ''}
               </Text>
             </View>
@@ -606,6 +615,9 @@ function EditOrderSheet({ order, onClose, onSaved }: { order: Order; onClose: ()
   const [description, setDescription] = useState(order.description)
   const [priority, setPriority] = useState(order.priority)
   const [dueDate, setDueDate] = useState(order.due_date ?? '')
+  const [dueTime, setDueTime] = useState(order.due_time ?? '')
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [showTimePicker, setShowTimePicker] = useState(false)
   const [assignedTo, setAssignedTo] = useState<string[]>(order.assigned_to ?? [])
   const [users, setUsers] = useState<UserOption[]>([])
   const [loading, setLoading] = useState(false)
@@ -624,7 +636,7 @@ function EditOrderSheet({ order, onClose, onSaved }: { order: Order; onClose: ()
       await orderService.updateOrder(order.id, {
         title: title.trim(), customer_name: customerName.trim(),
         contact_number: contactNumber.trim(), description: description.trim(),
-        priority, assigned_to: assignedTo, due_date: dueDate || null,
+        priority, assigned_to: assignedTo, due_date: dueDate || null, due_time: dueTime || null,
       })
       onSaved()
       onClose()
@@ -678,8 +690,67 @@ function EditOrderSheet({ order, onClose, onSaved }: { order: Order; onClose: ()
             ))}
           </View>
 
-          <Text style={E.label}>Due Date (YYYY-MM-DD)</Text>
-          <TextInput style={E.input} value={dueDate} onChangeText={setDueDate} keyboardType="numbers-and-punctuation" placeholder="2026-05-01" />
+          <Text style={E.label}>Due Date & Time</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
+            <TouchableOpacity
+              style={[E.input, { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text style={{ fontSize: 15, color: dueDate ? '#0F172A' : '#94A3B8' }}>
+                {dueDate || 'Select date'}
+              </Text>
+              <Ionicons name="calendar-outline" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[E.input, { width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+              onPress={() => setShowTimePicker(true)}
+            >
+              <Text style={{ fontSize: 15, color: dueTime ? '#0F172A' : '#94A3B8' }}>
+                {dueTime ? fmt12hr(dueTime) : 'Time'}
+              </Text>
+              <Ionicons name="time-outline" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
+          {showDatePicker && (
+            <DateTimePicker
+              value={dueDate ? new Date(dueDate) : new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(_, date) => {
+                setShowDatePicker(Platform.OS === 'ios')
+                if (date) {
+                  const y = date.getFullYear()
+                  const m = String(date.getMonth() + 1).padStart(2, '0')
+                  const d = String(date.getDate()).padStart(2, '0')
+                  setDueDate(`${y}-${m}-${d}`)
+                }
+                if (Platform.OS !== 'ios') setShowDatePicker(false)
+              }}
+            />
+          )}
+          {showTimePicker && (
+            <DateTimePicker
+              value={(() => {
+                const base = dueDate ? new Date(dueDate) : new Date()
+                if (dueTime) {
+                  const [h, min] = dueTime.split(':').map(Number)
+                  base.setHours(h, min, 0, 0)
+                }
+                return base
+              })()}
+              mode="time"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(_, date) => {
+                setShowTimePicker(Platform.OS === 'ios')
+                if (date) {
+                  const h = String(date.getHours()).padStart(2, '0')
+                  const min = String(date.getMinutes()).padStart(2, '0')
+                  setDueTime(`${h}:${min}`)
+                }
+                if (Platform.OS !== 'ios') setShowTimePicker(false)
+              }}
+            />
+          )}
 
           <Text style={E.label}>Assign To</Text>
           <View style={E.assignList}>

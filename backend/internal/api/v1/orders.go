@@ -36,6 +36,7 @@ type orderResponse struct {
 	CreatedBy     string   `json:"created_by"`
 	CreatedByName string   `json:"created_by_name"`
 	DueDate       *string  `json:"due_date"`
+	DueTime       *string  `json:"due_time"`
 	CreatedAt     string   `json:"created_at"`
 	UpdatedAt     string   `json:"updated_at"`
 }
@@ -68,6 +69,7 @@ func toOrderResponse(o *models.OrderWithNames) orderResponse {
 		CreatedBy:     o.CreatedBy,
 		CreatedByName: o.CreatedByName,
 		DueDate:       dueDate,
+		DueTime:       o.DueTime,
 		CreatedAt:     o.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:     o.UpdatedAt.Format(time.RFC3339),
 	}

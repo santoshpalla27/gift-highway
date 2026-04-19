@@ -25,6 +25,7 @@ type CreateOrderRequest struct {
 	Priority      string   `json:"priority" binding:"required,oneof=low medium high urgent"`
 	AssignedTo    []string `json:"assigned_to"`
 	DueDate       *string  `json:"due_date"`
+	DueTime       *string  `json:"due_time"`
 }
 
 type UpdateOrderRequest struct {
@@ -35,6 +36,7 @@ type UpdateOrderRequest struct {
 	Priority      string   `json:"priority" binding:"required,oneof=low medium high urgent"`
 	AssignedTo    []string `json:"assigned_to"`
 	DueDate       *string  `json:"due_date"`
+	DueTime       *string  `json:"due_time"`
 }
 
 type UpdateOrderStatusRequest struct {
@@ -89,12 +91,13 @@ func (s *OrderService) CreateOrder(ctx context.Context, createdBy string, req Cr
 		Priority:      req.Priority,
 		CreatedBy:     createdBy,
 		DueDate:       dueDate,
+		DueTime:       req.DueTime,
 	}
 	return s.orderRepo.Create(ctx, o, req.AssignedTo)
 }
 
 func (s *OrderService) UpdateOrder(ctx context.Context, id string, req UpdateOrderRequest) error {
-	return s.orderRepo.Update(ctx, id, req.Title, req.Description, req.CustomerName, req.ContactNumber, req.Priority, req.AssignedTo, req.DueDate)
+	return s.orderRepo.Update(ctx, id, req.Title, req.Description, req.CustomerName, req.ContactNumber, req.Priority, req.AssignedTo, req.DueDate, req.DueTime)
 }
 
 func (s *OrderService) UpdateStatus(ctx context.Context, id string, req UpdateOrderStatusRequest) error {

@@ -1327,6 +1327,7 @@ export function OrderDetailPage() {
             <PanelSection label="Due date">
               <span style={{ fontSize: 13, fontWeight: 600, color: dueOverdue ? '#EF4444' : '#111827' }}>
                 {due.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                {order.due_time && ` · ${(() => { const [h, m] = order.due_time!.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}` })()}`}
                 {dueOverdue && ' · Overdue'}
               </span>
             </PanelSection>

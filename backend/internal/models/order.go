@@ -17,6 +17,7 @@ type Order struct {
 	Priority      string     `db:"priority"`
 	CreatedBy     string     `db:"created_by"`
 	DueDate       *time.Time `db:"due_date"`
+	DueTime       *string    `db:"due_time"`
 	CreatedAt     time.Time  `db:"created_at"`
 	UpdatedAt     time.Time  `db:"updated_at"`
 }
@@ -32,6 +33,7 @@ type OrderWithNames struct {
 	Priority      string         `db:"priority"`
 	CreatedBy     string         `db:"created_by"`
 	DueDate       *time.Time     `db:"due_date"`
+	DueTime       *string        `db:"due_time"`
 	CreatedAt     time.Time      `db:"created_at"`
 	UpdatedAt     time.Time      `db:"updated_at"`
 	AssignedTo    pq.StringArray `db:"assigned_to"`

@@ -33,7 +33,7 @@ func NewOrderRepository(db *sqlx.DB) *OrderRepository {
 const orderSelectBase = `
 	SELECT
 		o.id, o.order_number, o.title, o.description, o.customer_name, o.contact_number,
-		o.status, o.priority, o.created_by, o.due_date, o.created_at, o.updated_at,
+		o.status, o.priority, o.created_by, o.due_date, o.due_time, o.created_at, o.updated_at,
 		ARRAY(
 			SELECT oa.user_id::text
 			FROM order_assignees oa
@@ -149,9 +149,9 @@ func (r *OrderRepository) Create(ctx context.Context, o *models.Order, assignedT
 	defer tx.Rollback()
 
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO orders (id, title, description, customer_name, contact_number, status, priority, created_by, due_date)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-	`, o.ID, o.Title, o.Description, o.CustomerName, o.ContactNumber, o.Status, o.Priority, o.CreatedBy, o.DueDate)
+		INSERT INTO orders (id, title, description, customer_name, contact_number, status, priority, created_by, due_date, due_time)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	`, o.ID, o.Title, o.Description, o.CustomerName, o.ContactNumber, o.Status, o.Priority, o.CreatedBy, o.DueDate, o.DueTime)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +171,7 @@ func (r *OrderRepository) Create(ctx context.Context, o *models.Order, assignedT
 	return r.GetByID(ctx, o.ID)
 }
 
-func (r *OrderRepository) Update(ctx context.Context, id, title, description, customerName, contactNumber, priority string, assignedTo []string, dueDate *string) error {
+func (r *OrderRepository) Update(ctx context.Context, id, title, description, customerName, contactNumber, priority string, assignedTo []string, dueDate *string, dueTime *string) error {
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return err
@@ -182,10 +182,14 @@ func (r *OrderRepository) Update(ctx context.Context, id, title, description, cu
 	if dueDate != nil && *dueDate != "" {
 		dd = *dueDate
 	}
+	var dt interface{}
+	if dueTime != nil && *dueTime != "" {
+		dt = *dueTime
+	}
 	_, err = tx.ExecContext(ctx, `
-		UPDATE orders SET title=$1, description=$2, customer_name=$3, contact_number=$4, priority=$5, due_date=$6, updated_at=NOW()
-		WHERE id=$7
-	`, title, description, customerName, contactNumber, priority, dd, id)
+		UPDATE orders SET title=$1, description=$2, customer_name=$3, contact_number=$4, priority=$5, due_date=$6, due_time=$7, updated_at=NOW()
+		WHERE id=$8
+	`, title, description, customerName, contactNumber, priority, dd, dt, id)
 	if err != nil {
 		return err
 	}

@@ -34,6 +34,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
   const [priority, setPriority] = useState<string>('medium')
   const [assignedTo, setAssignedTo] = useState<string[]>([])
   const [dueDate, setDueDate] = useState('')
+  const [dueTime, setDueTime] = useState('')
   const [assignOpen, setAssignOpen] = useState(false)
   const [error, setError] = useState('')
   const [createPortal, setCreatePortal] = useState(false)
@@ -47,6 +48,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
       setPriority(order.priority)
       setAssignedTo(order.assigned_to ?? [])
       setDueDate(order.due_date ?? '')
+      setDueTime(order.due_time ?? '')
     }
   }, [order])
 
@@ -73,6 +75,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
       priority,
       assigned_to: assignedTo,
       due_date: dueDate || null,
+      due_time: dueTime || null,
     }
     if (isEdit) {
       updateOrder({ id: order!.id, data: payload }, {
@@ -192,7 +195,10 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
             </div>
             <div>
               <label className="modal-label">Due Date</label>
-              <input className="modal-input" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input className="modal-input" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ flex: 1 }} />
+                <input className="modal-input" type="time" value={dueTime} onChange={e => setDueTime(e.target.value)} style={{ width: '120px' }} />
+              </div>
             </div>
             {canReassign && <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
               <label className="modal-label">Assign To</label>

@@ -5,6 +5,7 @@ import {
 import { useState, useEffect, useCallback } from 'react'
 import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import { orderService, Order, UserOption } from '../../services/orderService'
 import { useAuthStore } from '../../store/authStore'
 import { useOrderSocket } from '../../hooks/useOrderSocket'
@@ -28,6 +29,13 @@ const PRIORITY_META: Record<string, { label: string; color: string; bg: string }
   medium: { label: 'Medium', color: '#F59E0B', bg: '#FFFBEB' },
   high:   { label: 'High',   color: '#8B5CF6', bg: '#F3E8FF' },
   urgent: { label: 'Urgent', color: '#EF4444', bg: '#FEF2F2' },
+}
+
+function fmt12hr(time: string): string {
+  const [h, m] = time.split(':').map(Number)
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 || 12
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
 }
 
 function formatDueDate(dateStr: string | null): { text: string; overdue: boolean } | null {
@@ -282,6 +290,9 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
   const [assignedTo, setAssignedTo] = useState<string[]>([])
   const [assignOpen, setAssignOpen] = useState(false)
   const [dueDate, setDueDate] = useState('')
+  const [dueTime, setDueTime] = useState('')
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [showTimePicker, setShowTimePicker] = useState(false)
   const [users, setUsers] = useState<UserOption[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -294,10 +305,10 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
     if (order) {
       setTitle(order.title); setCustomerName(order.customer_name)
       setContactNumber(order.contact_number ?? ''); setDescription(order.description)
-      setPriority(order.priority); setAssignedTo(order.assigned_to ?? []); setDueDate(order.due_date ?? '')
+      setPriority(order.priority); setAssignedTo(order.assigned_to ?? []); setDueDate(order.due_date ?? ''); setDueTime(order.due_time ?? '')
     } else {
       setTitle(''); setCustomerName(''); setContactNumber(''); setDescription('')
-      setPriority('medium'); setAssignedTo([]); setDueDate('')
+      setPriority('medium'); setAssignedTo([]); setDueDate(''); setDueTime('')
     }
     setError('')
   }, [order, visible])
@@ -307,7 +318,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
     if (!title.trim() || !customerName.trim()) { setError('Title and Customer Name are required.'); return }
     setLoading(true); setError('')
     try {
-      const payload = { title: title.trim(), customer_name: customerName.trim(), contact_number: contactNumber.trim(), description: description.trim(), priority, assigned_to: assignedTo, due_date: dueDate || null }
+      const payload = { title: title.trim(), customer_name: customerName.trim(), contact_number: contactNumber.trim(), description: description.trim(), priority, assigned_to: assignedTo, due_date: dueDate || null, due_time: dueTime || null }
       if (isEdit) await orderService.updateOrder(order!.id, payload)
       else await orderService.createOrder(payload)
       onRefresh(); onClose()
@@ -347,8 +358,67 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
               </TouchableOpacity>
             ))}
           </View>
-          <Text style={F.label}>Due Date (YYYY-MM-DD)</Text>
-          <TextInput style={F.input} value={dueDate} onChangeText={setDueDate} placeholder="2026-05-01" keyboardType="numbers-and-punctuation" />
+          <Text style={F.label}>Due Date & Time</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
+            <TouchableOpacity
+              style={[F.input, { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text style={{ fontSize: 15, color: dueDate ? '#0F172A' : '#94A3B8' }}>
+                {dueDate || 'Select date'}
+              </Text>
+              <Ionicons name="calendar-outline" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[F.input, { width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+              onPress={() => setShowTimePicker(true)}
+            >
+              <Text style={{ fontSize: 15, color: dueTime ? '#0F172A' : '#94A3B8' }}>
+                {dueTime ? fmt12hr(dueTime) : 'Time'}
+              </Text>
+              <Ionicons name="time-outline" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
+          {(showDatePicker || (Platform.OS === 'ios' && showDatePicker)) && (
+            <DateTimePicker
+              value={dueDate ? new Date(dueDate) : new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(_, date) => {
+                setShowDatePicker(Platform.OS === 'ios')
+                if (date) {
+                  const y = date.getFullYear()
+                  const m = String(date.getMonth() + 1).padStart(2, '0')
+                  const d = String(date.getDate()).padStart(2, '0')
+                  setDueDate(`${y}-${m}-${d}`)
+                }
+                if (Platform.OS !== 'ios') setShowDatePicker(false)
+              }}
+            />
+          )}
+          {showTimePicker && (
+            <DateTimePicker
+              value={(() => {
+                const base = dueDate ? new Date(dueDate) : new Date()
+                if (dueTime) {
+                  const [h, min] = dueTime.split(':').map(Number)
+                  base.setHours(h, min, 0, 0)
+                }
+                return base
+              })()}
+              mode="time"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(_, date) => {
+                setShowTimePicker(Platform.OS === 'ios')
+                if (date) {
+                  const h = String(date.getHours()).padStart(2, '0')
+                  const min = String(date.getMinutes()).padStart(2, '0')
+                  setDueTime(`${h}:${min}`)
+                }
+                if (Platform.OS !== 'ios') setShowTimePicker(false)
+              }}
+            />
+          )}
           <Text style={F.label}>Assign To</Text>
           <TouchableOpacity style={[F.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setAssignOpen(o => !o)}>
             <Text style={{ fontSize: 15, color: assignedTo.length > 0 ? '#0F172A' : '#94A3B8' }} numberOfLines={1}>

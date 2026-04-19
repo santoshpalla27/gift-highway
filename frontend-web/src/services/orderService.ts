@@ -14,6 +14,7 @@ export interface Order {
   created_by: string
   created_by_name: string
   due_date: string | null
+  due_time: string | null
   created_at: string
   updated_at: string
 }
@@ -63,6 +64,7 @@ export const orderService = {
     priority: string
     assigned_to?: string[]
     due_date?: string | null
+    due_time?: string | null
   }): Promise<Order> => {
     const res = await apiClient.post<{ order: Order }>('/orders', data)
     return res.data.order
@@ -76,6 +78,7 @@ export const orderService = {
     priority: string
     assigned_to?: string[]
     due_date?: string | null
+    due_time?: string | null
   }): Promise<void> => {
     await apiClient.patch(`/orders/${id}`, data)
   },
