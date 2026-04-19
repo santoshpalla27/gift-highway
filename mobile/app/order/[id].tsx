@@ -1,7 +1,7 @@
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, KeyboardAvoidingView, Platform,
-  Alert, RefreshControl, Modal, Image, Linking
+  Alert, RefreshControl, Modal, Image, Linking, Share,
 } from 'react-native'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useLocalSearchParams, router } from 'expo-router'
@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker'
 import * as DocumentPicker from 'expo-document-picker'
 import { orderService, Order, OrderEvent, UserOption } from '../../services/orderService'
 import { attachmentService, isImage, formatBytes, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from '../../services/attachmentService'
+import { staffPortalApi, getPortalURL, type PortalStatus, type PortalMessage, type PortalAttachment } from '../../services/portalService'
 import { useAuthStore } from '../../store/authStore'
 import { useNetworkStatus } from '../../hooks/useNetworkStatus'
 import { useOrderSocket } from '../../hooks/useOrderSocket'
@@ -39,6 +40,15 @@ const EVENT_TYPE_META: Record<string, { icon: string; label: (p: Record<string, 
   due_date_changed:  { icon: 'calendar-outline',    label: p => p.to ? `Due date set to ${p.to}` : 'Due date removed' },
   priority_changed:  { icon: 'flag-outline',        label: p => `Priority changed to ${PRIORITY_META[p.to]?.label ?? p.to}` },
   order_updated:     { icon: 'pencil-outline',      label: () => 'Order details updated' },
+}
+
+function parsePortalMsg(text: string): { text: string; tokens: { id: number; name: string }[] } {
+  const tokens: { id: number; name: string }[] = []
+  const clean = text.replace(/\[attachment:(\d+):([^\]]+)\]/g, (_, id, name) => {
+    tokens.push({ id: Number(id), name })
+    return ''
+  }).trim()
+  return { text: clean, tokens }
 }
 
 function formatTimestamp(iso: string): string {
@@ -165,6 +175,63 @@ function AttachmentCard({ orderId, payload, onDelete }: {
   )
 }
 
+// ─── Portal Attachment Card ───────────────────────────────────────────────────
+// Fetches its own view URL so it doesn't depend on parent portalAttachments state
+
+function PortalAttachmentCard({ orderId, attId, fileName, fileType }: {
+  orderId: string
+  attId: number | null
+  fileName: string
+  fileType?: string
+}) {
+  const ext = ('.' + (fileName.split('.').pop() ?? '')).toLowerCase()
+  const isImg = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic'].includes(ext)
+  const [viewUrl, setViewUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (attId == null) return
+    staffPortalApi.getAttachmentDownloadURL(orderId, attId, fileName)
+      .then(setViewUrl)
+      .catch(() => {})
+  }, [orderId, attId, fileName])
+
+  const handleDownload = async () => {
+    if (!viewUrl) return
+    Linking.openURL(viewUrl)
+  }
+
+  if (isImg) {
+    return (
+      <View style={{ marginTop: 6 }}>
+        <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}
+          style={{ width: 180, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#E5E7EB', minHeight: 80, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
+          {viewUrl
+            ? <Image source={{ uri: viewUrl }} style={{ width: 180, height: 140 }} resizeMode="cover" />
+            : <ActivityIndicator size="small" color="#94A3B8" />
+          }
+        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+          <Text style={{ fontSize: 11, color: '#6B7280', flex: 1 }} numberOfLines={1}>{fileName}</Text>
+          {viewUrl && (
+            <TouchableOpacity onPress={handleDownload} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+              <Ionicons name="download-outline" size={14} color="#6366F1" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    )
+  }
+
+  return (
+    <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 8 }}>
+      <Ionicons name="document-outline" size={16} color="#6B7280" />
+      <Text style={{ fontSize: 12, color: '#374151', flex: 1 }} numberOfLines={1}>{fileName}</Text>
+      <Ionicons name="download-outline" size={14} color="#6366F1" />
+    </TouchableOpacity>
+  )
+}
+
 // ─── Timeline Event ───────────────────────────────────────────────────────────
 
 function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, orderId }: {
@@ -267,6 +334,57 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, orderId 
             )}
           </View>
           <AttachmentCard orderId={orderId} payload={p} />
+        </View>
+      </View>
+    )
+  }
+
+  if (event.type === 'customer_message' || event.type === 'customer_attachment' || event.type === 'staff_portal_reply') {
+    const p = event.payload as Record<string, string>
+    const isStaff = event.type === 'staff_portal_reply'
+    const senderName = isStaff ? (event.actor_name || 'Staff') : (p.customer_name || 'Customer')
+    const avatarBg = isStaff ? '#DBEAFE' : '#D1FAE5'
+    const avatarColor = isStaff ? '#3B82F6' : '#10B981'
+
+    if (event.type === 'customer_attachment') {
+      const attIdRaw = p.att_id != null ? Number(p.att_id) : null
+      const fileName = p.file_name ?? ''
+      if (!fileName) return null
+      return (
+        <View style={T.commentRow}>
+          <View style={[T.avatar, { backgroundColor: avatarBg }]}>
+            <Text style={[T.avatarText, { color: avatarColor }]}>{getInitials(senderName)}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={T.bubbleHeader}>
+              <Text style={T.actorName}>{senderName}</Text>
+              <Text style={T.time}>{formatTimestamp(event.created_at)}</Text>
+            </View>
+            <PortalAttachmentCard orderId={orderId} attId={attIdRaw} fileName={fileName} fileType={p.file_type} />
+          </View>
+        </View>
+      )
+    }
+
+    const parsed = parsePortalMsg(p.text ?? '')
+    if (event.type === 'customer_message' && parsed.text === '' && parsed.tokens.length > 0) return null
+
+    return (
+      <View style={T.commentRow}>
+        <View style={[T.avatar, { backgroundColor: avatarBg }]}>
+          <Text style={[T.avatarText, { color: avatarColor }]}>{getInitials(senderName)}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={T.bubbleHeader}>
+            <Text style={T.actorName}>{senderName}</Text>
+            <Text style={T.time}>{formatTimestamp(event.created_at)}</Text>
+          </View>
+          <View style={[T.bubble, { borderColor: isStaff ? '#BFDBFE' : '#A7F3D0', backgroundColor: isStaff ? '#EFF6FF' : '#F0FDF4' }]}>
+            {parsed.text !== '' && <Text style={T.commentText}>{parsed.text}</Text>}
+            {event.type === 'staff_portal_reply' && parsed.tokens.map(tok =>
+              <PortalAttachmentCard key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} />
+            )}
+          </View>
         </View>
       </View>
     )
@@ -458,6 +576,390 @@ function EditOrderSheet({ order, onClose, onSaved }: { order: Order; onClose: ()
   )
 }
 
+// ─── Portal Chat Modal ────────────────────────────────────────────────────────
+
+function PortalChatModal({
+  orderId, portal, portalAttachments, onClose, onPortalChange, onAttachmentsChange, refreshRef,
+}: {
+  orderId: string
+  portal: PortalStatus
+  portalAttachments: PortalAttachment[]
+  onClose: () => void
+  onPortalChange: (p: PortalStatus | null) => void
+  onAttachmentsChange: (atts: PortalAttachment[]) => void
+  refreshRef: React.MutableRefObject<(() => void) | null>
+}) {
+  const [messages, setMessages] = useState<PortalMessage[]>([])
+  const [loadingMsgs, setLoadingMsgs] = useState(true)
+  const [reply, setReply] = useState('')
+  const [sending, setSending] = useState(false)
+  const [showOptions, setShowOptions] = useState(false)
+  const [showAttachSheet, setShowAttachSheet] = useState(false)
+  const scrollRef = useRef<ScrollView>(null)
+
+  type UploadingFile = { id: string; name: string; mime: string; progress: number; previewUri?: string; done?: boolean; error?: string }
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
+
+  const reload = useCallback(async () => {
+    const [msgs, atts] = await Promise.all([
+      staffPortalApi.getMessages(orderId).catch(() => messages),
+      staffPortalApi.listAttachments(orderId).catch(() => portalAttachments),
+    ])
+    setMessages(msgs)
+    onAttachmentsChange(atts)
+  }, [orderId, messages, portalAttachments, onAttachmentsChange])
+
+  useEffect(() => {
+    refreshRef.current = () => {
+      staffPortalApi.getMessages(orderId).then(setMessages).catch(() => {})
+      staffPortalApi.listAttachments(orderId).then(onAttachmentsChange).catch(() => {})
+    }
+    return () => { refreshRef.current = null }
+  }, [orderId, refreshRef, onAttachmentsChange])
+
+  useEffect(() => {
+    staffPortalApi.getMessages(orderId)
+      .then(msgs => { setMessages(msgs); setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 120) })
+      .catch(() => {})
+      .finally(() => setLoadingMsgs(false))
+  }, [orderId])
+
+  const handleSend = async () => {
+    const text = reply.trim()
+    if (!text || sending) return
+    setReply('')
+    setSending(true)
+    try {
+      const msg = await staffPortalApi.sendReply(orderId, text)
+      setMessages(prev => [...prev, msg])
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50)
+    } catch {
+      Alert.alert('Error', 'Could not send message')
+      setReply(text)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const runPortalUpload = async (uid: string, uri: string, name: string, _mimeType: string, size: number) => {
+    try {
+      const { upload_url, content_type, s3_key } = await staffPortalApi.getAttachmentUploadURL(orderId, name)
+      await attachmentService.uploadToR2(upload_url, uri, content_type, pct =>
+        setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, progress: pct } : f))
+      )
+      await staffPortalApi.confirmAttachment(orderId, { s3_key, file_name: name, file_type: content_type, file_size: size })
+      setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, done: true, progress: 100 } : f))
+      await reload()
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)
+      setTimeout(() => setUploadingFiles(prev => prev.filter(f => f.id !== uid)), 1500)
+    } catch {
+      setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, error: 'Upload failed' } : f))
+    }
+  }
+
+  const uploadPortalFile = async (uri: string, name: string, mimeType: string, size: number) => {
+    if (!ALLOWED_MIME_TYPES.includes(mimeType)) { Alert.alert('Error', `"${name}" has an unsupported file type.`); return }
+    if (size > MAX_FILE_SIZE) { Alert.alert('Error', `"${name}" exceeds the 50 MB limit.`); return }
+    const uid = `portal-${Date.now()}`
+    setUploadingFiles(prev => [...prev, { id: uid, name, mime: mimeType, progress: 0, previewUri: mimeType.startsWith('image/') ? uri : undefined }])
+    runPortalUpload(uid, uri, name, mimeType, size)
+  }
+
+  const handlePickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') { Alert.alert('Permission required', 'Allow photo access to upload images.'); return }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsMultipleSelection: true, quality: 0.85 })
+    if (!result.canceled) {
+      for (const asset of result.assets) {
+        await uploadPortalFile(asset.uri, asset.fileName ?? `photo-${Date.now()}.jpg`, asset.mimeType ?? 'image/jpeg', asset.fileSize ?? 0)
+      }
+    }
+  }
+
+  const handlePickDocument = async () => {
+    const result = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true })
+    if (!result.canceled) {
+      for (const asset of result.assets) {
+        await uploadPortalFile(asset.uri, asset.name, asset.mimeType ?? 'application/octet-stream', asset.size ?? 0)
+      }
+    }
+  }
+
+  const renderMessage = (msg: PortalMessage) => {
+    const isCustomer = msg.sender_type === 'customer'
+    const parsed = parsePortalMsg(msg.message)
+    const hasText = parsed.text !== ''
+    const hasTokens = parsed.tokens.length > 0
+
+    return (
+      <View key={msg.id} style={[PC.msgRow, isCustomer ? PC.msgLeft : PC.msgRight]}>
+        {isCustomer && (
+          <View style={[PC.msgAvatar, { backgroundColor: '#D1FAE5' }]}>
+            <Text style={[PC.msgAvatarText, { color: '#10B981' }]}>{getInitials(msg.portal_sender || 'C')}</Text>
+          </View>
+        )}
+        <View style={{ flex: 1, maxWidth: '80%', alignItems: isCustomer ? 'flex-start' : 'flex-end' }}>
+          <Text style={PC.msgSender}>{msg.portal_sender}</Text>
+          {(hasText || !hasTokens) && (
+            <View style={[PC.msgBubble, isCustomer ? PC.bubbleCustomer : PC.bubbleStaff]}>
+              {hasText && <Text style={[PC.msgText, !isCustomer && { color: '#FFFFFF' }]}>{parsed.text}</Text>}
+            </View>
+          )}
+          {hasTokens && parsed.tokens.map(tok =>
+            <PortalAttachmentCard key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} />
+          )}
+          <Text style={PC.msgTime}>{formatTimestamp(msg.created_at)}</Text>
+        </View>
+        {!isCustomer && (
+          <View style={[PC.msgAvatar, { backgroundColor: '#DBEAFE' }]}>
+            <Text style={[PC.msgAvatarText, { color: '#3B82F6' }]}>{getInitials(msg.portal_sender || 'S')}</Text>
+          </View>
+        )}
+      </View>
+    )
+  }
+
+  const handleShareLink = () => {
+    const url = getPortalURL(portal.token)
+    Share.share({ message: `Customer portal link:\n${url}`, url })
+  }
+
+  const handleRevoke = () => {
+    Alert.alert('Revoke portal?', 'The customer link will stop working.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Revoke', style: 'destructive',
+        onPress: async () => {
+          try {
+            await staffPortalApi.revokePortal(orderId)
+            const p = await staffPortalApi.getPortal(orderId)
+            onPortalChange(p)
+          } catch { Alert.alert('Error', 'Could not revoke portal') }
+        },
+      },
+    ])
+  }
+
+  const handleRegenerate = () => {
+    Alert.alert('Regenerate link?', 'The old link will stop working immediately.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Regenerate',
+        onPress: async () => {
+          try {
+            const p = await staffPortalApi.regenerateToken(orderId)
+            onPortalChange(p)
+          } catch { Alert.alert('Error', 'Could not regenerate link') }
+        },
+      },
+    ])
+  }
+
+  return (
+    <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
+        <View style={PC.screen}>
+          {/* Header */}
+          <View style={PC.header}>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close" size={24} color="#0F172A" />
+            </TouchableOpacity>
+            <View style={{ flex: 1, marginHorizontal: 12 }}>
+              <Text style={PC.headerTitle}>Portal Chat</Text>
+              <Text style={PC.headerSub} numberOfLines={1}>
+                {portal.enabled ? `${portal.customer_name} · Active` : `${portal.customer_name} · Revoked`}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={handleShareLink} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginRight: 12 }}>
+              <Ionicons name="share-outline" size={22} color="#6366F1" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowOptions(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="ellipsis-vertical" size={22} color="#0F172A" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Status banner if revoked */}
+          {!portal.enabled && (
+            <View style={PC.revokedBanner}>
+              <Ionicons name="ban-outline" size={14} color="#DC2626" />
+              <Text style={PC.revokedText}>Portal link is revoked — customer cannot send messages</Text>
+            </View>
+          )}
+
+          {/* Messages */}
+          <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={PC.msgList}>
+            {loadingMsgs ? (
+              <ActivityIndicator style={{ marginTop: 40 }} color="#94A3B8" />
+            ) : messages.length === 0 ? (
+              <View style={PC.empty}>
+                <Ionicons name="chatbubbles-outline" size={36} color="#CBD5E1" />
+                <Text style={PC.emptyText}>No messages yet</Text>
+              </View>
+            ) : messages.map(renderMessage)}
+          </ScrollView>
+
+          {/* Upload progress */}
+          {uploadingFiles.length > 0 && (
+            <View style={{ paddingHorizontal: 12, paddingVertical: 6, gap: 5, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+              {uploadingFiles.map(f => (
+                <View key={f.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 6, borderRadius: 8, backgroundColor: f.done ? '#F0FDF4' : f.error ? '#FFF5F5' : '#FFFFFF', borderWidth: 1, borderColor: f.done ? '#BBF7D0' : f.error ? '#FCA5A5' : '#E5E7EB' }}>
+                  {f.previewUri ? (
+                    <Image source={{ uri: f.previewUri }} style={{ width: 28, height: 28, borderRadius: 4 }} />
+                  ) : (
+                    <View style={{ width: 28, height: 28, borderRadius: 6, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="document-outline" size={14} color="#6B7280" />
+                    </View>
+                  )}
+                  <Text style={{ fontSize: 12, color: '#374151', flex: 1 }} numberOfLines={1}>{f.name}</Text>
+                  {f.done ? (
+                    <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                  ) : f.error ? (
+                    <Text style={{ fontSize: 11, color: '#EF4444' }}>Failed</Text>
+                  ) : (
+                    <Text style={{ fontSize: 11, color: '#9CA3AF' }}>{f.progress}%</Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Composer */}
+          {portal.enabled && (
+            <View style={S.composer}>
+              <TouchableOpacity onPress={() => setShowAttachSheet(true)} style={S.attachBtn}>
+                <Ionicons name="attach-outline" size={22} color="#64748B" />
+              </TouchableOpacity>
+              <TextInput
+                style={S.composerInput}
+                value={reply}
+                onChangeText={setReply}
+                placeholder="Reply to customer..."
+                placeholderTextColor="#94A3B8"
+                multiline
+                maxLength={2000}
+              />
+              <TouchableOpacity
+                style={[S.sendBtn, (!reply.trim() || sending) && S.sendBtnDisabled]}
+                onPress={handleSend}
+                disabled={!reply.trim() || sending}
+              >
+                {sending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="send" size={18} color="#FFFFFF" />}
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </KeyboardAvoidingView>
+
+      {/* Options sheet */}
+      <Modal visible={showOptions} transparent animationType="fade" onRequestClose={() => setShowOptions(false)}>
+        <TouchableOpacity style={TM.overlay} activeOpacity={1} onPress={() => setShowOptions(false)}>
+          <TouchableOpacity activeOpacity={1} style={TM.sheet}>
+            <TouchableOpacity style={TM.row} onPress={() => { setShowOptions(false); handleShareLink() }}>
+              <Ionicons name="share-outline" size={20} color="#374151" />
+              <Text style={TM.rowText}>Share portal link</Text>
+            </TouchableOpacity>
+            {portal.enabled && (
+              <TouchableOpacity style={TM.row} onPress={() => { setShowOptions(false); handleRegenerate() }}>
+                <Ionicons name="refresh-outline" size={20} color="#374151" />
+                <Text style={TM.rowText}>Regenerate link</Text>
+              </TouchableOpacity>
+            )}
+            {portal.enabled && (
+              <TouchableOpacity style={TM.row} onPress={() => { setShowOptions(false); handleRevoke() }}>
+                <Ionicons name="ban-outline" size={20} color="#EF4444" />
+                <Text style={[TM.rowText, { color: '#EF4444' }]}>Revoke portal</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={[TM.row, TM.cancelRow]} onPress={() => setShowOptions(false)}>
+              <Text style={TM.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Attach sheet */}
+      <Modal visible={showAttachSheet} transparent animationType="slide" onRequestClose={() => setShowAttachSheet(false)}>
+        <TouchableOpacity style={SS.overlay} activeOpacity={1} onPress={() => setShowAttachSheet(false)}>
+          <TouchableOpacity activeOpacity={1} style={SS.sheet}>
+            <Text style={SS.title}>Attach File</Text>
+            <TouchableOpacity style={TM.row} onPress={() => { setShowAttachSheet(false); setTimeout(handlePickImage, 100) }}>
+              <Ionicons name="image-outline" size={20} color="#374151" />
+              <Text style={TM.rowText}>Photo Library</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={TM.row} onPress={() => { setShowAttachSheet(false); setTimeout(handlePickDocument, 100) }}>
+              <Ionicons name="document-outline" size={20} color="#374151" />
+              <Text style={TM.rowText}>Files</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[TM.row, TM.cancelRow]} onPress={() => setShowAttachSheet(false)}>
+              <Text style={TM.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+    </Modal>
+  )
+}
+
+// ─── Create Portal Sheet ──────────────────────────────────────────────────────
+
+function CreatePortalSheet({ orderId, defaultName, onClose, onCreated }: {
+  orderId: string
+  defaultName: string
+  onClose: () => void
+  onCreated: (p: PortalStatus) => void
+}) {
+  const [name, setName] = useState(defaultName)
+  const [loading, setLoading] = useState(false)
+
+  const handleCreate = async () => {
+    if (!name.trim()) return
+    setLoading(true)
+    try {
+      const p = await staffPortalApi.createPortal(orderId, name.trim())
+      onCreated(p)
+    } catch {
+      Alert.alert('Error', 'Could not create portal')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity style={EC.overlay} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={EC.sheet}>
+          <Text style={EC.title}>Create Customer Portal</Text>
+          <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>
+            A unique link will be created for the customer to send messages and files.
+          </Text>
+          <Text style={[E.label, { marginTop: 0 }]}>Customer Name</Text>
+          <TextInput
+            style={EC.input}
+            value={name}
+            onChangeText={setName}
+            autoFocus
+            autoCapitalize="words"
+            placeholder="Customer name"
+            placeholderTextColor="#9CA3AF"
+          />
+          <View style={EC.actions}>
+            <TouchableOpacity style={EC.cancelBtn} onPress={onClose}>
+              <Text style={EC.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[EC.saveBtn, (!name.trim() || loading) && { opacity: 0.5 }]}
+              onPress={handleCreate}
+              disabled={!name.trim() || loading}
+            >
+              {loading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={EC.saveText}>Create</Text>}
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  )
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function OrderDetailScreen() {
@@ -495,6 +997,13 @@ export default function OrderDetailScreen() {
   const [newCount, setNewCount] = useState(0)
   const atBottomRef = useRef(true)
   const [refreshing, setRefreshing] = useState(false)
+
+  // ── Portal ───────────────────────────────────────────────────────────────────
+  const [portal, setPortal] = useState<PortalStatus | null | undefined>(undefined)
+  const [portalAttachments, setPortalAttachments] = useState<PortalAttachment[]>([])
+  const [showPortalChat, setShowPortalChat] = useState(false)
+  const [showCreatePortal, setShowCreatePortal] = useState(false)
+  const portalChatRefreshRef = useRef<(() => void) | null>(null)
 
   const [comment, setComment] = useState('')
   const [sending, setSending] = useState(false)
@@ -548,7 +1057,11 @@ export default function OrderDetailScreen() {
   useEffect(() => {
     fetchOrder()
     loadInitialEvents()
-  }, [fetchOrder, loadInitialEvents])
+    if (id) {
+      staffPortalApi.getPortal(id).then(setPortal).catch(() => setPortal(null))
+      staffPortalApi.listAttachments(id).then(setPortalAttachments).catch(() => {})
+    }
+  }, [fetchOrder, loadInitialEvents, id])
 
   // ── Load older ───────────────────────────────────────────────────────────────
   const loadOlder = async () => {
@@ -591,6 +1104,10 @@ export default function OrderDetailScreen() {
     (event) => {
       if (event.type === 'order.event_added') {
         const incoming = event.payload as any
+        if (incoming?.type === 'customer_message' && id) {
+          portalChatRefreshRef.current?.()
+          staffPortalApi.listAttachments(id).then(setPortalAttachments).catch(() => {})
+        }
         if (incoming?.id) {
           setEvList(prev => {
             if (prev.some(e => e.id === incoming.id)) {
@@ -651,7 +1168,7 @@ export default function OrderDetailScreen() {
   const handlePickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== 'granted') { Alert.alert('Permission required', 'Allow photo access to upload images.'); return }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, quality: 0.85 })
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsMultipleSelection: true, quality: 0.85 })
     if (!result.canceled) {
       for (const asset of result.assets) {
         const name = asset.fileName ?? `photo-${Date.now()}.jpg`
@@ -809,6 +1326,29 @@ export default function OrderDetailScreen() {
                 {new Date(order.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
               </Text>
             </View>
+          )}
+          {portal !== undefined && (
+            portal ? (
+              <TouchableOpacity
+                style={[S.chip, { backgroundColor: portal.enabled ? '#F0FDF4' : '#F9FAFB', borderWidth: 1, borderColor: portal.enabled ? '#A7F3D0' : '#E5E7EB' }]}
+                onPress={portal.enabled ? () => setShowPortalChat(true) : undefined}
+                activeOpacity={portal.enabled ? 0.7 : 1}
+              >
+                <Ionicons name="chatbubbles-outline" size={13} color={portal.enabled ? '#059669' : '#9CA3AF'} />
+                <Text style={[S.chipText, { color: portal.enabled ? '#059669' : '#9CA3AF', marginLeft: 4 }]}>
+                  {portal.enabled ? 'Portal Chat' : 'Revoked'}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[S.chip, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }]}
+                onPress={() => setShowCreatePortal(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add-outline" size={13} color="#64748B" />
+                <Text style={[S.chipText, { color: '#64748B', marginLeft: 4 }]}>Create Portal</Text>
+              </TouchableOpacity>
+            )
           )}
         </View>
 
@@ -1045,6 +1585,25 @@ export default function OrderDetailScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+      {showPortalChat && portal && (
+        <PortalChatModal
+          orderId={id!}
+          portal={portal}
+          portalAttachments={portalAttachments}
+          onClose={() => setShowPortalChat(false)}
+          onPortalChange={p => { if (p) setPortal(p); else setPortal(null) }}
+          onAttachmentsChange={setPortalAttachments}
+          refreshRef={portalChatRefreshRef}
+        />
+      )}
+      {showCreatePortal && (
+        <CreatePortalSheet
+          orderId={id!}
+          defaultName={order?.customer_name ?? ''}
+          onClose={() => setShowCreatePortal(false)}
+          onCreated={p => { setPortal(p); setShowCreatePortal(false); setShowPortalChat(true) }}
+        />
+      )}
     </KeyboardAvoidingView>
   )
 }
@@ -1218,4 +1777,36 @@ const E = StyleSheet.create({
   assignText: { fontSize: 15, color: '#475569' },
   saveBtn: { backgroundColor: '#0F172A', borderRadius: 10, paddingVertical: 16, alignItems: 'center', marginTop: 32, marginBottom: 40 },
   saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+})
+
+const PC = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: '#FFFFFF' },
+  header: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? 54 : 16,
+    paddingBottom: 12, paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
+  },
+  headerTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  headerSub: { fontSize: 12, color: '#94A3B8', marginTop: 1 },
+  revokedBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#FEF2F2', paddingHorizontal: 16, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: '#FEE2E2',
+  },
+  revokedText: { fontSize: 13, color: '#DC2626', flex: 1 },
+  msgList: { padding: 16, paddingBottom: 8, gap: 4 },
+  empty: { alignItems: 'center', paddingVertical: 60, gap: 12 },
+  emptyText: { fontSize: 14, color: '#94A3B8' },
+  msgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 12 },
+  msgLeft: { justifyContent: 'flex-start' },
+  msgRight: { justifyContent: 'flex-end' },
+  msgAvatar: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  msgAvatarText: { fontSize: 11, fontWeight: '700' },
+  msgSender: { fontSize: 11, fontWeight: '600', color: '#6B7280', marginBottom: 3 },
+  msgBubble: { borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 },
+  bubbleCustomer: { backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#A7F3D0' },
+  bubbleStaff: { backgroundColor: '#1E40AF' },
+  msgText: { fontSize: 14, color: '#334155', lineHeight: 20 },
+  msgTime: { fontSize: 10, color: '#9CA3AF', marginTop: 3 },
 })
