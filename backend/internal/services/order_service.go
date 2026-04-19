@@ -46,6 +46,8 @@ type ListOrdersParams struct {
 	Status     string
 	Priority   string
 	AssignedTo string
+	DueFrom    string
+	DueTo      string
 	Page       int
 	Limit      int
 }
@@ -56,6 +58,8 @@ func (s *OrderService) ListOrders(ctx context.Context, p ListOrdersParams) ([]*m
 		Status:     p.Status,
 		Priority:   p.Priority,
 		AssignedTo: p.AssignedTo,
+		DueFrom:    p.DueFrom,
+		DueTo:      p.DueTo,
 		Page:       p.Page,
 		Limit:      p.Limit,
 	})

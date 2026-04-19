@@ -16,6 +16,8 @@ type OrderFilter struct {
 	Status     string
 	Priority   string
 	AssignedTo string
+	DueFrom    string
+	DueTo      string
 	Page       int
 	Limit      int
 }
@@ -57,9 +59,14 @@ func (r *OrderRepository) buildWhere(f OrderFilter) (string, []interface{}) {
 	idx := 1
 
 	if f.Search != "" {
-		conditions = append(conditions, fmt.Sprintf("(o.title ILIKE $%d OR o.customer_name ILIKE $%d)", idx, idx+1))
-		args = append(args, "%"+f.Search+"%", "%"+f.Search+"%")
-		idx += 2
+		// Strip leading '#' so "#1042" matches order_number 1042
+		numSearch := strings.TrimPrefix(f.Search, "#")
+		conditions = append(conditions, fmt.Sprintf(
+			"(o.title ILIKE $%d OR o.customer_name ILIKE $%d OR CAST(o.order_number AS TEXT) ILIKE $%d)",
+			idx, idx+1, idx+2,
+		))
+		args = append(args, "%"+f.Search+"%", "%"+f.Search+"%", "%"+numSearch+"%")
+		idx += 3
 	}
 	if f.Status != "" {
 		conditions = append(conditions, fmt.Sprintf("o.status = $%d", idx))
@@ -76,6 +83,16 @@ func (r *OrderRepository) buildWhere(f OrderFilter) (string, []interface{}) {
 			"EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = o.id AND oa.user_id = $%d)", idx,
 		))
 		args = append(args, f.AssignedTo)
+		idx++
+	}
+	if f.DueFrom != "" {
+		conditions = append(conditions, fmt.Sprintf("o.due_date >= $%d", idx))
+		args = append(args, f.DueFrom)
+		idx++
+	}
+	if f.DueTo != "" {
+		conditions = append(conditions, fmt.Sprintf("o.due_date <= $%d", idx))
+		args = append(args, f.DueTo)
 		idx++
 	}
 	_ = idx

@@ -82,6 +82,8 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 		Status:     c.Query("status"),
 		Priority:   c.Query("priority"),
 		AssignedTo: c.Query("assigned_to"),
+		DueFrom:    c.Query("due_from"),
+		DueTo:      c.Query("due_to"),
 		Page:       page,
 		Limit:      limit,
 	})

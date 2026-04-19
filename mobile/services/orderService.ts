@@ -38,6 +38,8 @@ export interface ListOrdersParams {
   status?: string
   priority?: string
   assigned_to?: string
+  due_from?: string
+  due_to?: string
   page?: number
   limit?: number
 }
