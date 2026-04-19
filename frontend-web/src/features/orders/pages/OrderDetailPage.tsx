@@ -668,8 +668,6 @@ export function OrderDetailPage() {
   const [portalAttachments, setPortalAttachments] = useState<PortalAttachment[]>([])
   const [portalLoading, setPortalLoading] = useState(false)
   const [portalCopied, setPortalCopied] = useState(false)
-  const [portalCustomerName, setPortalCustomerName] = useState('')
-  const [showPortalCreate, setShowPortalCreate] = useState(false)
   const [showPortalChat, setShowPortalChat] = useState(false)
 
   useEffect(() => {
@@ -1350,56 +1348,24 @@ export function OrderDetailPage() {
             {portal === undefined ? (
               <div style={{ fontSize: 12, color: '#9CA3AF' }}>Loading…</div>
             ) : portal === null ? (
-              showPortalCreate ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <input
-                    value={portalCustomerName}
-                    onChange={e => setPortalCustomerName(e.target.value)}
-                    placeholder={order.customer_name || 'Customer name'}
-                    style={{
-                      fontSize: 13, padding: '6px 10px', borderRadius: 6,
-                      border: '1px solid #D1D5DB', outline: 'none', color: '#111827',
-                    }}
-                  />
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button
-                      disabled={portalLoading}
-                      onClick={async () => {
-                        setPortalLoading(true)
-                        try {
-                          const p = await staffPortalApi.createPortal(id!, portalCustomerName || order.customer_name)
-                          setPortal(p)
-                          setShowPortalCreate(false)
-                        } finally {
-                          setPortalLoading(false)
-                        }
-                      }}
-                      style={{
-                        flex: 1, fontSize: 12, fontWeight: 600, padding: '6px 0', borderRadius: 6,
-                        background: '#10B981', color: '#fff', border: 'none', cursor: 'pointer',
-                      }}
-                    >
-                      {portalLoading ? '…' : 'Create'}
-                    </button>
-                    <button
-                      onClick={() => setShowPortalCreate(false)}
-                      style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, border: '1px solid #E5E7EB', background: '#fff', cursor: 'pointer', color: '#6B7280' }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowPortalCreate(true)}
-                  style={{
-                    width: '100%', fontSize: 12, fontWeight: 600, padding: '7px 0', borderRadius: 6,
-                    background: '#F0FDF4', color: '#10B981', border: '1px solid #A7F3D0', cursor: 'pointer',
-                  }}
-                >
-                  + Create portal link
-                </button>
-              )
+              <button
+                disabled={portalLoading}
+                onClick={async () => {
+                  setPortalLoading(true)
+                  try {
+                    const p = await staffPortalApi.createPortal(id!, order.customer_name)
+                    setPortal(p)
+                  } finally {
+                    setPortalLoading(false)
+                  }
+                }}
+                style={{
+                  width: '100%', fontSize: 12, fontWeight: 600, padding: '7px 0', borderRadius: 6,
+                  background: '#F0FDF4', color: '#10B981', border: '1px solid #A7F3D0', cursor: portalLoading ? 'default' : 'pointer',
+                }}
+              >
+                {portalLoading ? '…' : '+ Create portal link'}
+              </button>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

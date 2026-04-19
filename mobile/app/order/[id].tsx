@@ -1109,65 +1109,6 @@ function PortalChatModal({
   )
 }
 
-// ─── Create Portal Sheet ──────────────────────────────────────────────────────
-
-function CreatePortalSheet({ orderId, defaultName, onClose, onCreated }: {
-  orderId: string
-  defaultName: string
-  onClose: () => void
-  onCreated: (p: PortalStatus) => void
-}) {
-  const [name, setName] = useState(defaultName)
-  const [loading, setLoading] = useState(false)
-
-  const handleCreate = async () => {
-    if (!name.trim()) return
-    setLoading(true)
-    try {
-      const p = await staffPortalApi.createPortal(orderId, name.trim())
-      onCreated(p)
-    } catch {
-      Alert.alert('Error', 'Could not create portal')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={EC.overlay} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={EC.sheet}>
-          <Text style={EC.title}>Create Customer Portal</Text>
-          <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>
-            A unique link will be created for the customer to send messages and files.
-          </Text>
-          <Text style={[E.label, { marginTop: 0 }]}>Customer Name</Text>
-          <TextInput
-            style={EC.input}
-            value={name}
-            onChangeText={setName}
-            autoFocus
-            autoCapitalize="words"
-            placeholder="Customer name"
-            placeholderTextColor="#9CA3AF"
-          />
-          <View style={EC.actions}>
-            <TouchableOpacity style={EC.cancelBtn} onPress={onClose}>
-              <Text style={EC.cancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[EC.saveBtn, (!name.trim() || loading) && { opacity: 0.5 }]}
-              onPress={handleCreate}
-              disabled={!name.trim() || loading}
-            >
-              {loading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={EC.saveText}>Create</Text>}
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
-    </Modal>
-  )
-}
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
@@ -1211,7 +1152,7 @@ export default function OrderDetailScreen() {
   const [portal, setPortal] = useState<PortalStatus | null | undefined>(undefined)
   const [portalAttachments, setPortalAttachments] = useState<PortalAttachment[]>([])
   const [showPortalChat, setShowPortalChat] = useState(false)
-  const [showCreatePortal, setShowCreatePortal] = useState(false)
+  const [portalCreating, setPortalCreating] = useState(false)
   const portalChatRefreshRef = useRef<(() => void) | null>(null)
 
   const [comment, setComment] = useState('')
@@ -1555,11 +1496,26 @@ export default function OrderDetailScreen() {
             ) : (
               <TouchableOpacity
                 style={[S.chip, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }]}
-                onPress={() => setShowCreatePortal(true)}
+                onPress={async () => {
+                  if (portalCreating || !order) return
+                  setPortalCreating(true)
+                  try {
+                    const p = await staffPortalApi.createPortal(order.id, order.customer_name)
+                    setPortal(p)
+                    setShowPortalChat(true)
+                  } catch {
+                    Alert.alert('Error', 'Could not create portal')
+                  } finally {
+                    setPortalCreating(false)
+                  }
+                }}
                 activeOpacity={0.7}
+                disabled={portalCreating}
               >
-                <Ionicons name="add-outline" size={13} color="#64748B" />
-                <Text style={[S.chipText, { color: '#64748B', marginLeft: 4 }]}>Create Portal</Text>
+                {portalCreating
+                  ? <ActivityIndicator size="small" color="#64748B" />
+                  : <><Ionicons name="add-outline" size={13} color="#64748B" /><Text style={[S.chipText, { color: '#64748B', marginLeft: 4 }]}>Create Portal</Text></>
+                }
               </TouchableOpacity>
             )
           )}
@@ -1814,14 +1770,6 @@ export default function OrderDetailScreen() {
           onPortalChange={p => { if (p) setPortal(p); else setPortal(null) }}
           onAttachmentsChange={setPortalAttachments}
           refreshRef={portalChatRefreshRef}
-        />
-      )}
-      {showCreatePortal && (
-        <CreatePortalSheet
-          orderId={id!}
-          defaultName={order?.customer_name ?? ''}
-          onClose={() => setShowCreatePortal(false)}
-          onCreated={p => { setPortal(p); setShowCreatePortal(false); setShowPortalChat(true) }}
         />
       )}
     </KeyboardAvoidingView>
