@@ -40,6 +40,8 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 	eventSvc := services.NewEventService(eventRepo)
 	attachmentSvc := services.NewAttachmentService(attachmentRepo, eventRepo, cfg)
 	portalSvc := services.NewPortalService(portalRepo, orderRepo, eventRepo, cfg)
+	dashboardRepo := repositories.NewDashboardRepository(db)
+	dashboardSvc := services.NewDashboardService(dashboardRepo)
 
 	hub := realtime.NewHub()
 	go hub.Run()
@@ -51,6 +53,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 	orderHandler := v1.NewOrderHandler(orderSvc, eventSvc, hub)
 	eventHandler := v1.NewEventHandler(eventSvc, orderSvc, attachmentSvc, hub)
 	attachmentHandler := v1.NewAttachmentHandler(attachmentSvc, hub)
+	dashboardHandler := v1.NewDashboardHandler(dashboardSvc)
 	usersHandler := v1.NewUsersHandler(userRepo)
 	wsHandler := v1.NewWSHandler(hub, jwtManager)
 
@@ -109,6 +112,13 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				profileGroup.GET("/avatar/signed-url", profileHandler.GetAvatarSignedURL)
 				profileGroup.POST("/avatar/upload-url", profileHandler.GetAvatarUploadURL)
 				profileGroup.PATCH("/avatar", profileHandler.UpdateAvatarURL)
+			}
+
+			// Dashboard
+			dashboardGroup := protected.Group("/dashboard")
+			{
+				dashboardGroup.GET("/team", dashboardHandler.GetTeamDashboard)
+				dashboardGroup.GET("/me", dashboardHandler.GetMyDashboard)
 			}
 
 			// Users list for assignment dropdowns

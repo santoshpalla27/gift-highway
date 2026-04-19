@@ -71,6 +71,15 @@ export default function AppLayout() {
       }}
     >
       <Tabs.Screen
+        name="dashboard"
+        options={{
+          tabBarLabel: 'Dashboard',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="grid" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="my-orders"
         options={{
           tabBarLabel: 'My Orders',
