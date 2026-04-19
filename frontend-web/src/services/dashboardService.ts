@@ -34,6 +34,7 @@ export interface DashboardOrder {
 export interface TeamDashboard {
   stats: TeamStats
   due_today_list: DashboardOrder[]
+  overdue_orders: DashboardOrder[]
   stale_orders: DashboardOrder[]
   unread_customer_orders: DashboardOrder[]
 }
@@ -45,10 +46,16 @@ export interface MyDashboard {
   unread_customer_orders: DashboardOrder[]
 }
 
+function localDateStr(offsetDays = 0): string {
+  const d = new Date()
+  d.setDate(d.getDate() + offsetDays)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export const dashboardService = {
   getTeam: (): Promise<TeamDashboard> =>
-    apiClient.get<TeamDashboard>('/dashboard/team').then(r => r.data),
+    apiClient.get<TeamDashboard>('/dashboard/team', { params: { local_date: localDateStr() } }).then(r => r.data),
 
   getMe: (): Promise<MyDashboard> =>
-    apiClient.get<MyDashboard>('/dashboard/me').then(r => r.data),
+    apiClient.get<MyDashboard>('/dashboard/me', { params: { local_date: localDateStr() } }).then(r => r.data),
 }

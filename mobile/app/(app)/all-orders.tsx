@@ -490,7 +490,10 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
   const [editOrder, setEditOrder] = useState<Order | null>(null)
   const [statusOrder, setStatusOrder] = useState<Order | null>(null)
 
-  const today = new Date().toISOString().split('T')[0]
+  const d0 = new Date()
+  const today = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
+  const d1 = new Date(d0); d1.setDate(d1.getDate() - 1)
+  const yesterday = `${d1.getFullYear()}-${String(d1.getMonth() + 1).padStart(2, '0')}-${String(d1.getDate()).padStart(2, '0')}`
 
   const fetchOrders = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true)
@@ -501,17 +504,10 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
         priority: filters.priority || undefined,
         assigned_to: myOrdersOnly && user ? user.id : (filters.assigneeId || undefined),
         due_from: filters.overdueOnly ? undefined : filters.dueTodayOnly ? today : (filters.dueDateFrom || undefined),
-        due_to: filters.overdueOnly ? today : filters.dueTodayOnly ? today : (filters.dueDateTo || undefined),
+        due_to: filters.overdueOnly ? yesterday : filters.dueTodayOnly ? today : (filters.dueDateTo || undefined),
       })
-      let result = data.orders
-      if (filters.overdueOnly) {
-        result = result.filter(o => {
-          const d = o.due_date ? new Date(o.due_date) : null
-          return d && d < new Date(today) && o.status !== 'completed'
-        })
-      }
-      setOrders(result)
-      setTotal(filters.overdueOnly || filters.dueTodayOnly ? result.length : data.total)
+      setOrders(data.orders)
+      setTotal(filters.overdueOnly || filters.dueTodayOnly ? data.orders.length : data.total)
     } catch {
       // silently fail
     } finally {

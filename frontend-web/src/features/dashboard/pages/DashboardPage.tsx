@@ -164,8 +164,8 @@ function TeamDashboardTab() {
         {kpis.map(k => <KpiCard key={k.label} loading={isLoading} {...k} />)}
       </div>
 
-      {/* Row 2: Due today + Stale */}
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16 }}>
+      {/* Row 2: Due today + Overdue */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <SectionCard
           title="Due Today"
           count={(data?.due_today_list ?? []).length}
@@ -176,13 +176,23 @@ function TeamDashboardTab() {
         </SectionCard>
 
         <SectionCard
-          title="Stale Orders"
-          count={(data?.stale_orders ?? []).length}
-          emptyText={!isLoading && (data?.stale_orders ?? []).length === 0 ? 'No stale orders' : undefined}
+          title="Overdue"
+          count={(data?.overdue_orders ?? []).length}
+          onViewAll={() => navigate('/orders')}
+          emptyText={!isLoading && (data?.overdue_orders ?? []).length === 0 ? 'No overdue orders' : undefined}
         >
-          {(data?.stale_orders ?? []).map(o => <OrderRow key={o.id} order={o} onClick={() => navigate(`/orders/${o.id}`)} />)}
+          {(data?.overdue_orders ?? []).map(o => <OrderRow key={o.id} order={o} onClick={() => navigate(`/orders/${o.id}`)} />)}
         </SectionCard>
       </div>
+
+      {/* Row 3: Stale orders */}
+      <SectionCard
+        title="Stale Orders"
+        count={(data?.stale_orders ?? []).length}
+        emptyText={!isLoading && (data?.stale_orders ?? []).length === 0 ? 'No stale orders' : undefined}
+      >
+        {(data?.stale_orders ?? []).map(o => <OrderRow key={o.id} order={o} onClick={() => navigate(`/orders/${o.id}`)} />)}
+      </SectionCard>
 
       {/* Row 3: Unread customer orders */}
       <SectionCard

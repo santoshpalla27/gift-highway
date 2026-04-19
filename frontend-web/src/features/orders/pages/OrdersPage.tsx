@@ -236,25 +236,24 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
     return () => clearTimeout(t)
   }, [toast])
 
-  const today = new Date().toISOString().split('T')[0]
+  const d0 = new Date()
+  const today = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
+  const d1 = new Date(d0); d1.setDate(d1.getDate() - 1)
+  const yesterday = `${d1.getFullYear()}-${String(d1.getMonth() + 1).padStart(2, '0')}-${String(d1.getDate()).padStart(2, '0')}`
 
   const params = {
     search: search || undefined,
     status: statusFilter || undefined,
     priority: priorityFilter || undefined,
     assigned_to: myOrdersOnly && user ? user.id : (assigneeFilter || undefined),
+    // overdue: due_date <= yesterday (strictly before today)
+    // today: due_date = today (both bounds same day)
     due_from: overdueOnly ? undefined : dueTodayOnly ? today : (dueDateFrom || undefined),
-    due_to: overdueOnly ? today : dueTodayOnly ? today : (dueDateTo || undefined),
+    due_to: overdueOnly ? yesterday : dueTodayOnly ? today : (dueDateTo || undefined),
   }
 
   const { data, isLoading } = useOrders(params)
-  const orders = (data?.orders ?? []).filter(o => {
-    if (overdueOnly) {
-      const d = o.due_date ? new Date(o.due_date) : null
-      return d && d < new Date(today) && o.status !== 'completed'
-    }
-    return true
-  })
+  const orders = data?.orders ?? []
   const total = data?.total ?? 0
 
   const hasFilters = !!(statusFilter || priorityFilter || assigneeFilter || dueDateFrom || dueDateTo || overdueOnly || dueTodayOnly)

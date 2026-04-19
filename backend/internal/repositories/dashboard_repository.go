@@ -70,15 +70,15 @@ const dashboardOrderSelect = `
 	FROM orders o
 `
 
-func (r *DashboardRepository) GetTeamStats(ctx context.Context) (*TeamStats, error) {
+func (r *DashboardRepository) GetTeamStats(ctx context.Context, localDate string) (*TeamStats, error) {
 	var s TeamStats
 	err := r.db.GetContext(ctx, &s, `
 		SELECT
 			COUNT(*) FILTER (WHERE status = 'new') AS new_orders,
 			COUNT(*) FILTER (WHERE status = 'in_progress') AS working_orders,
-			COUNT(*) FILTER (WHERE status = 'completed' AND DATE(updated_at AT TIME ZONE 'UTC') = CURRENT_DATE) AS completed_today,
-			COUNT(*) FILTER (WHERE due_date < CURRENT_DATE AND status != 'completed') AS overdue,
-			COUNT(*) FILTER (WHERE DATE(due_date) = CURRENT_DATE AND status != 'completed') AS due_today,
+			COUNT(*) FILTER (WHERE status = 'completed' AND due_date = $1::date) AS completed_today,
+			COUNT(*) FILTER (WHERE due_date < $1::date AND status != 'completed') AS overdue,
+			COUNT(*) FILTER (WHERE due_date = $1::date AND status != 'completed') AS due_today,
 			(
 				SELECT COUNT(DISTINCT order_id)
 				FROM (
@@ -90,19 +90,19 @@ func (r *DashboardRepository) GetTeamStats(ctx context.Context) (*TeamStats, err
 			) AS unread_customer,
 			COUNT(*) FILTER (WHERE updated_at < NOW() - INTERVAL '7 days' AND status != 'completed') AS stale_orders
 		FROM orders
-	`)
+	`, localDate)
 	return &s, err
 }
 
-func (r *DashboardRepository) GetMyStats(ctx context.Context, userID string) (*MyStats, error) {
+func (r *DashboardRepository) GetMyStats(ctx context.Context, userID, localDate string) (*MyStats, error) {
 	var s MyStats
 	err := r.db.GetContext(ctx, &s, `
 		SELECT
 			(SELECT COUNT(*) FROM order_assignees WHERE user_id = $1) AS assigned_to_me,
 			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
-			 WHERE oa.user_id = $1 AND DATE(o.due_date) = CURRENT_DATE AND o.status != 'completed') AS due_today,
+			 WHERE oa.user_id = $1 AND o.due_date = $2::date AND o.status != 'completed') AS due_today,
 			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
-			 WHERE oa.user_id = $1 AND o.due_date < CURRENT_DATE AND o.status != 'completed') AS overdue,
+			 WHERE oa.user_id = $1 AND o.due_date < $2::date AND o.status != 'completed') AS overdue,
 			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
 			 WHERE oa.user_id = $1 AND o.status = 'completed'
 			 AND o.updated_at >= DATE_TRUNC('week', NOW() AT TIME ZONE 'UTC')) AS completed_this_week,
@@ -119,17 +119,28 @@ func (r *DashboardRepository) GetMyStats(ctx context.Context, userID string) (*M
 					AND pm2.created_at > pm.created_at
 				)
 			) AS unread_customer
-	`, userID)
+	`, userID, localDate)
 	return &s, err
 }
 
-func (r *DashboardRepository) GetDueTodayOrders(ctx context.Context) ([]DashboardOrder, error) {
+func (r *DashboardRepository) GetDueTodayOrders(ctx context.Context, localDate string) ([]DashboardOrder, error) {
 	var orders []DashboardOrder
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
-		WHERE DATE(o.due_date) = CURRENT_DATE AND o.status != 'completed'
+		WHERE o.due_date = $1::date AND o.status != 'completed'
 		ORDER BY CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END, o.order_number
 		LIMIT 10
-	`)
+	`, localDate)
+	return orders, err
+}
+
+func (r *DashboardRepository) GetOverdueOrders(ctx context.Context, localDate string) ([]DashboardOrder, error) {
+	var orders []DashboardOrder
+	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
+		WHERE o.due_date < $1::date AND o.status != 'completed'
+		ORDER BY o.due_date ASC,
+			CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END
+		LIMIT 15
+	`, localDate)
 	return orders, err
 }
 
@@ -161,26 +172,26 @@ func (r *DashboardRepository) GetUnreadCustomerOrders(ctx context.Context) ([]Da
 	return orders, err
 }
 
-func (r *DashboardRepository) GetMyDueTodayOrders(ctx context.Context, userID string) ([]DashboardOrder, error) {
+func (r *DashboardRepository) GetMyDueTodayOrders(ctx context.Context, userID, localDate string) ([]DashboardOrder, error) {
 	var orders []DashboardOrder
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
 		JOIN order_assignees oa ON o.id = oa.order_id
-		WHERE oa.user_id = $1 AND DATE(o.due_date) = CURRENT_DATE AND o.status != 'completed'
+		WHERE oa.user_id = $1 AND o.due_date = $2::date AND o.status != 'completed'
 		ORDER BY CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END, o.order_number
 		LIMIT 15
-	`, userID)
+	`, userID, localDate)
 	return orders, err
 }
 
-func (r *DashboardRepository) GetMyOverdueOrders(ctx context.Context, userID string) ([]DashboardOrder, error) {
+func (r *DashboardRepository) GetMyOverdueOrders(ctx context.Context, userID, localDate string) ([]DashboardOrder, error) {
 	var orders []DashboardOrder
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
 		JOIN order_assignees oa ON o.id = oa.order_id
-		WHERE oa.user_id = $1 AND o.due_date < CURRENT_DATE AND o.status != 'completed'
+		WHERE oa.user_id = $1 AND o.due_date < $2::date AND o.status != 'completed'
 		ORDER BY o.due_date ASC,
 			CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END
 		LIMIT 15
-	`, userID)
+	`, userID, localDate)
 	return orders, err
 }
 

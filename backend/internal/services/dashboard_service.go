@@ -17,6 +17,7 @@ func NewDashboardService(repo *repositories.DashboardRepository) *DashboardServi
 type TeamDashboard struct {
 	Stats                *repositories.TeamStats       `json:"stats"`
 	DueTodayList         []repositories.DashboardOrder `json:"due_today_list"`
+	OverdueOrders        []repositories.DashboardOrder `json:"overdue_orders"`
 	StaleOrders          []repositories.DashboardOrder `json:"stale_orders"`
 	UnreadCustomerOrders []repositories.DashboardOrder `json:"unread_customer_orders"`
 }
@@ -28,12 +29,16 @@ type MyDashboard struct {
 	UnreadCustomerOrders []repositories.DashboardOrder `json:"unread_customer_orders"`
 }
 
-func (s *DashboardService) GetTeamDashboard(ctx context.Context) (*TeamDashboard, error) {
-	stats, err := s.repo.GetTeamStats(ctx)
+func (s *DashboardService) GetTeamDashboard(ctx context.Context, localDate string) (*TeamDashboard, error) {
+	stats, err := s.repo.GetTeamStats(ctx, localDate)
 	if err != nil {
 		return nil, err
 	}
-	dueToday, err := s.repo.GetDueTodayOrders(ctx)
+	dueToday, err := s.repo.GetDueTodayOrders(ctx, localDate)
+	if err != nil {
+		return nil, err
+	}
+	overdue, err := s.repo.GetOverdueOrders(ctx, localDate)
 	if err != nil {
 		return nil, err
 	}
@@ -48,6 +53,9 @@ func (s *DashboardService) GetTeamDashboard(ctx context.Context) (*TeamDashboard
 	if dueToday == nil {
 		dueToday = []repositories.DashboardOrder{}
 	}
+	if overdue == nil {
+		overdue = []repositories.DashboardOrder{}
+	}
 	if stale == nil {
 		stale = []repositories.DashboardOrder{}
 	}
@@ -57,21 +65,22 @@ func (s *DashboardService) GetTeamDashboard(ctx context.Context) (*TeamDashboard
 	return &TeamDashboard{
 		Stats:                stats,
 		DueTodayList:         dueToday,
+		OverdueOrders:        overdue,
 		StaleOrders:          stale,
 		UnreadCustomerOrders: unread,
 	}, nil
 }
 
-func (s *DashboardService) GetMyDashboard(ctx context.Context, userID string) (*MyDashboard, error) {
-	stats, err := s.repo.GetMyStats(ctx, userID)
+func (s *DashboardService) GetMyDashboard(ctx context.Context, userID, localDate string) (*MyDashboard, error) {
+	stats, err := s.repo.GetMyStats(ctx, userID, localDate)
 	if err != nil {
 		return nil, err
 	}
-	dueToday, err := s.repo.GetMyDueTodayOrders(ctx, userID)
+	dueToday, err := s.repo.GetMyDueTodayOrders(ctx, userID, localDate)
 	if err != nil {
 		return nil, err
 	}
-	overdue, err := s.repo.GetMyOverdueOrders(ctx, userID)
+	overdue, err := s.repo.GetMyOverdueOrders(ctx, userID, localDate)
 	if err != nil {
 		return nil, err
 	}

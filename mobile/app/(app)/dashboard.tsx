@@ -192,6 +192,13 @@ function TeamTab({
         ))}
       </SectionCard>
 
+      {/* Overdue */}
+      <SectionCard title="Overdue" count={(data.overdue_orders ?? []).length} emptyText="No overdue orders">
+        {(data.overdue_orders ?? []).map(o => (
+          <OrderRow key={o.id} order={o} onPress={() => goToOrder(o.id)} />
+        ))}
+      </SectionCard>
+
       {/* Stale Orders */}
       <SectionCard title="Stale Orders" count={(data.stale_orders ?? []).length} emptyText="No stale orders">
         {(data.stale_orders ?? []).map(o => (
