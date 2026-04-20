@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatDate } from '../../../utils/date'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../../store/authStore'
 import { useTeamDashboard, useMyDashboard } from '../hooks/useDashboard'
@@ -27,7 +28,7 @@ function fmtDue(dateStr: string | null) {
   if (diff === 0) return { label: 'Today', color: '#F59E0B' }
   if (diff < 0) return { label: `${Math.abs(diff)}d overdue`, color: '#EF4444' }
   if (diff === 1) return { label: 'Tomorrow', color: '#6B7280' }
-  return { label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), color: '#6B7280' }
+  return { label: formatDate(d), color: '#6B7280' }
 }
 
 
@@ -290,7 +291,7 @@ export function DashboardPage() {
               Dashboard
             </h1>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0' }}>
-              Welcome back, {user?.first_name} · {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              Welcome back, {user?.first_name} · {formatDate(new Date())}
             </p>
           </div>
         </div>

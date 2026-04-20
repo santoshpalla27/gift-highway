@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient'
+import { localDateStr } from '../utils/date'
 
 export interface TeamStats {
   new_orders: number
@@ -46,11 +47,6 @@ export interface MyDashboard {
   unread_customer_orders: DashboardOrder[]
 }
 
-function localDateStr(offsetDays = 0): string {
-  const d = new Date()
-  d.setDate(d.getDate() + offsetDays)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 export const dashboardService = {
   getTeam: (): Promise<TeamDashboard> =>

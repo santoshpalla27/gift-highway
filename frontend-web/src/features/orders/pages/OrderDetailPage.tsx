@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { formatDate, formatDateTime, formatRelative, formatDayGroup, fmt12hrStr } from '../../../utils/date'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { orderService, OrderEvent } from '../../../services/orderService'
@@ -43,31 +44,9 @@ function getInitials(name: string) {
   return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
 }
 
-function formatTimestamp(iso: string): string {
-  const d = new Date(iso)
-  const now = new Date()
-  const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000)
-  if (diffSec < 60) return 'just now'
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`
-  if (diffSec < 7200) return `${Math.floor(diffSec / 3600)}h ago`
-  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
-  const dDay = new Date(d); dDay.setHours(0, 0, 0, 0)
-  if (dDay.getTime() === today.getTime()) return time
-  if (dDay.getTime() === yesterday.getTime()) return `Yesterday ${time}`
-  return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${time}`
-}
+function formatTimestamp(iso: string): string { return formatRelative(iso) }
 
-function formatDateGroup(iso: string): string {
-  const d = new Date(iso)
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
-  const dDay = new Date(d); dDay.setHours(0, 0, 0, 0)
-  if (dDay.getTime() === today.getTime()) return 'Today'
-  if (dDay.getTime() === yesterday.getTime()) return 'Yesterday'
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
+function formatDateGroup(iso: string): string { return formatDayGroup(iso) }
 
 function dayKey(iso: string): string {
   return new Date(iso).toISOString().slice(0, 10)
@@ -1324,8 +1303,8 @@ export function OrderDetailPage() {
           {due && (
             <PanelSection label="Due date">
               <span style={{ fontSize: 13, fontWeight: 600, color: dueOverdue ? '#EF4444' : '#111827' }}>
-                {due.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                {order.due_time && ` · ${(() => { const [h, m] = order.due_time!.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}` })()}`}
+                {formatDate(order.due_date)}
+                {order.due_time && ` · ${fmt12hrStr(order.due_time)}`}
                 {dueOverdue && ' · Overdue'}
               </span>
             </PanelSection>
@@ -1334,7 +1313,7 @@ export function OrderDetailPage() {
           <PanelSection label="Created by">
             <div style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{order.created_by_name}</div>
             <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>
-              {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              {formatDate(order.created_at)}
             </div>
           </PanelSection>
 

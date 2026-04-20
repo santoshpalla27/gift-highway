@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { formatTime } from '../../../utils/date'
 import { staffPortalApi, getPortalURL, type PortalMessage, type PortalAttachment, type PortalStatus } from '../../../services/portalService'
 import { useSocketEvent } from '../../../providers/SocketProvider'
 
@@ -299,7 +300,7 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
                       )
                     })}
                     <p style={{ margin: '4px 0 0', fontSize: 10, color: '#667781', textAlign: 'right' }}>
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {formatTime(msg.created_at)}
                     </p>
                   </div>
                 </div>

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { formatDate, formatRelative } from '../../../utils/date'
 import { useNavigate } from 'react-router-dom'
 import { useOrders, useUpdateOrderStatus } from '../hooks/useOrders'
 import { OrderModal } from '../components/OrderModal'
@@ -175,17 +176,12 @@ function formatDueDate(dateStr: string | null) {
   const d = new Date(dateStr); d.setHours(0, 0, 0, 0)
   const now = new Date(); now.setHours(0, 0, 0, 0)
   const isOverdue = d < now, isToday = d.getTime() === now.getTime()
-  const formatted = isToday ? 'Today' : d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+  const formatted = isToday ? 'Today' : formatDate(dateStr)
   return { formatted, isOverdue, isToday }
 }
 
 function getInitials(name: string) {
   return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
-}
-
-function fmtDate(iso: string) {
-  if (!iso) return ''
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 // ─── Pill dropdown contents ───────────────────────────────────────────────────
@@ -264,9 +260,9 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
   }
 
   const dueDateLabel = dueDateFrom && dueDateTo
-    ? `${fmtDate(dueDateFrom)} – ${fmtDate(dueDateTo)}`
-    : dueDateFrom ? `From ${fmtDate(dueDateFrom)}`
-    : dueDateTo ? `Until ${fmtDate(dueDateTo)}`
+    ? `${formatDate(dueDateFrom)} – ${formatDate(dueDateTo)}`
+    : dueDateFrom ? `From ${formatDate(dueDateFrom)}`
+    : dueDateTo ? `Until ${formatDate(dueDateTo)}`
     : undefined
 
   return (
@@ -551,9 +547,8 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                 </tr>
               ) : orders.map(order => {
                 const due = formatDueDate(order.due_date)
-                const updateDate = new Date(order.updated_at)
-                const hoursDiff = Math.round((Date.now() - updateDate.getTime()) / 3_600_000)
-                const updatedText = hoursDiff < 24 ? (hoursDiff === 0 ? 'Just now' : `${hoursDiff}h ago`) : updateDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                const updatedText = formatRelative(order.updated_at)
+                const hoursDiff = Math.round((Date.now() - new Date(order.updated_at).getTime()) / 3_600_000)
                 const dateColor = hoursDiff < 5 ? '#111827' : '#6B7280'
 
                 return (

@@ -15,6 +15,7 @@ import { staffPortalApi, getPortalURL, type PortalStatus, type PortalMessage, ty
 import { useAuthStore } from '../../store/authStore'
 import { useNetworkStatus } from '../../hooks/useNetworkStatus'
 import { useOrderSocket } from '../../hooks/useOrderSocket'
+import { formatDate, formatRelative, formatDayGroup, fmt12hrStr } from '../../utils/date'
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
@@ -52,38 +53,9 @@ function parsePortalMsg(text: string): { text: string; tokens: { id: number; nam
   return { text: clean, tokens }
 }
 
-function fmt12hr(time: string): string {
-  const [h, m] = time.split(':').map(Number)
-  const ampm = h >= 12 ? 'PM' : 'AM'
-  const h12 = h % 12 || 12
-  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
-}
+function formatTimestamp(iso: string): string { return formatRelative(iso) }
 
-function formatTimestamp(iso: string): string {
-  const d = new Date(iso)
-  const now = new Date()
-  const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000)
-  if (diffSec < 60) return 'just now'
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`
-  if (diffSec < 7200) return `${Math.floor(diffSec / 3600)}h ago`
-  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
-  const dDay = new Date(d); dDay.setHours(0, 0, 0, 0)
-  if (dDay.getTime() === today.getTime()) return time
-  if (dDay.getTime() === yesterday.getTime()) return `Yesterday ${time}`
-  return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${time}`
-}
-
-function formatDateGroup(iso: string): string {
-  const d = new Date(iso)
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
-  const dDay = new Date(d); dDay.setHours(0, 0, 0, 0)
-  if (dDay.getTime() === today.getTime()) return 'Today'
-  if (dDay.getTime() === yesterday.getTime()) return 'Yesterday'
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
+function formatDateGroup(iso: string): string { return formatDayGroup(iso) }
 
 function dayKey(iso: string): string {
   return new Date(iso).toISOString().slice(0, 10)
@@ -553,8 +525,8 @@ function InfoSheet({ order, portal, onClose }: { order: Order; portal: PortalSta
             <View style={IN.section}>
               <Text style={IN.label}>DUE DATE</Text>
               <Text style={[IN.value, dueOverdue && { color: '#EF4444' }]}>
-                {due.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                {order.due_time ? `  ·  ${fmt12hr(order.due_time)}` : ''}
+                {formatDate(order.due_date)}
+                {order.due_time ? `  ·  ${fmt12hrStr(order.due_time)}` : ''}
                 {dueOverdue ? '  ·  Overdue' : ''}
               </Text>
             </View>
@@ -564,7 +536,7 @@ function InfoSheet({ order, portal, onClose }: { order: Order; portal: PortalSta
           <View style={IN.section}>
             <Text style={IN.label}>CREATED BY</Text>
             <Text style={IN.value}>{order.created_by_name}</Text>
-            <Text style={IN.sub}>{new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
+            <Text style={IN.sub}>{formatDate(order.created_at)}</Text>
           </View>
 
           {/* Description */}
@@ -706,7 +678,7 @@ function EditOrderSheet({ order, onClose, onSaved }: { order: Order; onClose: ()
               onPress={() => setShowTimePicker(true)}
             >
               <Text style={{ fontSize: 15, color: dueTime ? '#0F172A' : '#94A3B8' }}>
-                {dueTime ? fmt12hr(dueTime) : 'Time'}
+                {dueTime ? fmt12hrStr(dueTime) : 'Time'}
               </Text>
               <Ionicons name="time-outline" size={18} color="#94A3B8" />
             </TouchableOpacity>
@@ -1477,7 +1449,7 @@ export default function OrderDetailScreen() {
             <View style={[S.chip, { backgroundColor: '#F8FAFC' }]}>
               <Ionicons name="calendar-outline" size={13} color="#64748B" />
               <Text style={[S.chipText, { color: '#64748B', marginLeft: 4 }]}>
-                {new Date(order.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                {formatDate(order.due_date)}
               </Text>
             </View>
           )}

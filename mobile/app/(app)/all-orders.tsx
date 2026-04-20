@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker from '@react-native-community/datetimepicker'
+import { formatDate, fmt12hrStr } from '../../utils/date'
 import { orderService, Order, UserOption } from '../../services/orderService'
 import { useAuthStore } from '../../store/authStore'
 import { useOrderSocket } from '../../hooks/useOrderSocket'
@@ -31,29 +32,21 @@ const PRIORITY_META: Record<string, { label: string; color: string; bg: string }
   urgent: { label: 'Urgent', color: '#EF4444', bg: '#FEF2F2' },
 }
 
-function fmt12hr(time: string): string {
-  const [h, m] = time.split(':').map(Number)
-  const ampm = h >= 12 ? 'PM' : 'AM'
-  const h12 = h % 12 || 12
-  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
-}
-
 function formatDueDate(dateStr: string | null): { text: string; overdue: boolean } | null {
   if (!dateStr) return null
-  const d = new Date(dateStr)
+  const d = new Date(dateStr); d.setHours(0, 0, 0, 0)
   const now = new Date(); now.setHours(0, 0, 0, 0)
+  const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1)
   const overdue = d < now
-  const today = new Date()
-  const tomorrow = new Date(); tomorrow.setDate(today.getDate() + 1)
   let text = ''
-  if (d.toDateString() === today.toDateString()) text = 'Due Today'
-  else if (d.toDateString() === tomorrow.toDateString()) text = 'Due Tomorrow'
-  else text = `Due ${d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}`
+  if (d.getTime() === now.getTime()) text = 'Due Today'
+  else if (d.getTime() === tomorrow.getTime()) text = 'Due Tomorrow'
+  else text = `Due ${formatDate(dateStr)}`
   return { text, overdue }
 }
 
 function fmtDateShort(iso: string) {
-  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  return formatDate(iso)
 }
 
 // ─── Filter Sheet ─────────────────────────────────────────────────────────────
@@ -374,7 +367,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
               onPress={() => setShowTimePicker(true)}
             >
               <Text style={{ fontSize: 15, color: dueTime ? '#0F172A' : '#94A3B8' }}>
-                {dueTime ? fmt12hr(dueTime) : 'Time'}
+                {dueTime ? fmt12hrStr(dueTime) : 'Time'}
               </Text>
               <Ionicons name="time-outline" size={18} color="#94A3B8" />
             </TouchableOpacity>

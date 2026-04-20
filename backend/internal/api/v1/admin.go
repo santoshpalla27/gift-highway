@@ -3,6 +3,7 @@ package v1
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/company/app/backend/internal/models"
 	"github.com/company/app/backend/internal/services"
@@ -37,7 +38,7 @@ func toListItem(u *models.User) userListItem {
 		Email:     u.Email,
 		Role:      u.Role,
 		IsActive:  u.IsActive,
-		CreatedAt: u.CreatedAt.Format("Jan 2, 2006"),
+		CreatedAt: u.CreatedAt.Format(time.RFC3339),
 	}
 }
 

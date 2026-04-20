@@ -17,6 +17,7 @@ import {
   MyDashboard,
   DashboardOrder,
 } from '../../services/dashboardService'
+import { formatDate } from '../../utils/date'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ function fmtDue(iso: string | null): { label: string; overdue: boolean } | null 
   if (diff === 0) return { label: 'Due today', overdue: false }
   if (diff === 1) return { label: 'Due tomorrow', overdue: false }
   return {
-    label: new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    label: formatDate(iso),
     overdue: false,
   }
 }

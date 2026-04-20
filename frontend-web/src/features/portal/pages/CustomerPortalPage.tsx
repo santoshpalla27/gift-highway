@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { formatTime } from '../../../utils/date'
 import { useParams } from 'react-router-dom'
 import {
   publicPortalApi,
@@ -534,7 +535,7 @@ export default function CustomerPortalPage() {
                       )
                     })}
                     <p className="text-[10px] text-right mt-0.5" style={{ color: '#667781' }}>
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {formatTime(msg.created_at)}
                     </p>
                   </div>
                 </div>
