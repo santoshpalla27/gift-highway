@@ -244,7 +244,6 @@ export default function AdminScreen() {
   
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [confirmModal, setConfirmModal] = useState<Omit<ConfirmModalProps, 'visible'> | null>(null)
 
   const fetchUsers = useCallback(async () => {
@@ -321,8 +320,8 @@ export default function AdminScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={[S.searchContainer, isSearchFocused && S.searchContainerFocused]}>
-        <Ionicons name="search" size={20} color={isSearchFocused ? "#4F46E5" : "#9CA3AF"} />
+      <View style={S.searchContainer}>
+        <Ionicons name="search" size={20} color="#9CA3AF" />
         <TextInput
           style={S.searchInput}
           placeholder="Search users by name or email…"
@@ -331,8 +330,6 @@ export default function AdminScreen() {
           onChangeText={setSearchQuery}
           autoCapitalize="none"
           autoCorrect={false}
-          onFocus={() => setIsSearchFocused(true)}
-          onBlur={() => setIsSearchFocused(false)}
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{top:10,bottom:10,left:10,right:10}}>

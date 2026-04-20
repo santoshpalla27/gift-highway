@@ -1252,13 +1252,16 @@ export default function OrderDetailScreen() {
         added = newEvs.length
         return newEvs.length === 0 ? prev : [...prev, ...newEvs]
       })
-      if (added === 0) return
+      // Always clear non-failed optimistic events: socket may have inserted the
+      // real event before this fetch ran, so added===0 but the dimmed copy is still visible
       setOptimisticEvents(prev => prev.filter(e => e.failed))
       setTotalEvents(data.total)
-      if (atBottomRef.current) {
-        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50)
-      } else {
-        setNewCount(n => n + newEvs.length)
+      if (added > 0) {
+        if (atBottomRef.current) {
+          setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50)
+        } else {
+          setNewCount(n => n + added)
+        }
       }
     } catch { /* ignore */ }
   }, [id])
@@ -1445,10 +1448,10 @@ export default function OrderDetailScreen() {
   const pm = PRIORITY_META[order.priority] ?? PRIORITY_META.medium
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={keyboardOffset}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={keyboardOffset}>
       <View style={S.screen}>
         {/* Header */}
-        <View style={S.header}>
+        <View style={[S.header, { paddingTop: insets.top + 10 }]}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="arrow-back" size={24} color="#0F172A" />
           </TouchableOpacity>
