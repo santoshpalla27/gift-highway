@@ -968,7 +968,7 @@ function PortalChatModal({
 
   return (
     <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#FFFFFF' }} behavior="padding" keyboardVerticalOffset={0} enabled={Platform.OS === 'ios'}>
+      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#FFFFFF' }} behavior="padding" keyboardVerticalOffset={0}>
         <View style={PC.screen}>
           {/* Header */}
           <View style={PC.header}>
