@@ -1176,13 +1176,16 @@ export default function OrderDetailScreen() {
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
 
   const scrollRef = useRef<ScrollView>(null)
+  const [keyboardVisible, setKeyboardVisible] = useState(false)
 
-  // Scroll to bottom when keyboard opens so latest message stays visible
+  // Scroll to bottom when keyboard opens; track visibility for composer padding
   useEffect(() => {
-    const sub = Keyboard.addListener('keyboardDidShow', () => {
+    const show = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true)
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50)
     })
-    return () => sub.remove()
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false))
+    return () => { show.remove(); hide.remove() }
   }, [])
 
   // ── Fetch order ──────────────────────────────────────────────────────────────
@@ -1657,7 +1660,7 @@ export default function OrderDetailScreen() {
         )}
 
         {/* Composer */}
-        <View style={[S.composer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <View style={[S.composer, { paddingBottom: keyboardVisible ? 8 : Math.max(insets.bottom, 12) }]}>
           <TouchableOpacity onPress={handleAttachPress} style={S.attachBtn}>
             <Ionicons name="attach-outline" size={22} color="#64748B" />
           </TouchableOpacity>
