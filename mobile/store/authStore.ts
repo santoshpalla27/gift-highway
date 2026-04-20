@@ -15,6 +15,7 @@ interface AuthState {
   accessToken: string | null
   isAuthenticated: boolean
   setAuth: (user: User, accessToken: string, refreshToken: string) => Promise<void>
+  setAccessToken: (accessToken: string) => void
   clearAuth: () => Promise<void>
   loadAuth: () => Promise<void>
 }
@@ -46,6 +47,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   accessToken: null,
   isAuthenticated: false,
+
+  setAccessToken: (accessToken) => {
+    set({ accessToken })
+  },
 
   setAuth: async (user, accessToken, refreshToken) => {
     await storage.set('access_token', accessToken)

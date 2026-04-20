@@ -3,7 +3,7 @@ import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
 import { Platform } from 'react-native'
 import { useAuthStore } from '../store/authStore'
-import apiClient from '../services/apiClient'
+import { apiClient } from '../services/apiClient'
 
 // When the app is in foreground, suppress the system alert (WS toasts handle it).
 // Sound still plays so the user knows something arrived.
@@ -12,6 +12,8 @@ if (Platform.OS !== 'web') {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: false,
+      shouldShowBanner: false,
+      shouldShowList: false,
       shouldPlaySound: true,
       shouldSetBadge: false,
     }),
@@ -62,7 +64,7 @@ async function getExpoPushToken(): Promise<string | null> {
 }
 
 export function usePushToken() {
-  const token = useAuthStore((s) => s.token)
+  const token = useAuthStore((s) => s.accessToken)
   const user = useAuthStore((s) => s.user)
   const pushTokenRef = useRef<string | null>(null)
 

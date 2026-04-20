@@ -18,7 +18,7 @@ import { authService } from '../../services/authService'
 import { profileService, Profile } from '../../services/profileService'
 
 // ─── Skeleton Pulse ────────────────────────────────────────────────────────────
-function SkeletonBlock({ width, height, borderRadius = 8 }: { width: number | string; height: number; borderRadius?: number }) {
+function SkeletonBlock({ width, height, borderRadius = 8 }: { width: number | `${number}%`; height: number; borderRadius?: number }) {
   const anim = useRef(new Animated.Value(0.4)).current
   useEffect(() => {
     Animated.loop(
