@@ -19,7 +19,8 @@ export function DateInput({ value, onChange, placeholder = 'DD/MM/YYYY', min, cl
 
   return (
     <div
-      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', ...style }}
+      className={className}
+      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', ...style }}
       onClick={() => inputRef.current?.showPicker?.()}
     >
       {/* Visible styled label */}
@@ -43,7 +44,6 @@ export function DateInput({ value, onChange, placeholder = 'DD/MM/YYYY', min, cl
         value={value}
         min={min}
         onChange={e => onChange(e.target.value)}
-        className={className}
         style={{
           position: 'absolute', inset: 0, opacity: 0,
           cursor: 'pointer', width: '100%', height: '100%',
