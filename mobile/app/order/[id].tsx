@@ -443,8 +443,9 @@ function StatusSheet({ order, onClose, onChanged }: { order: Order; onClose: () 
 function InfoSheet({ order, portal, onClose }: { order: Order; portal: PortalStatus | null | undefined; onClose: () => void }) {
   const sm = STATUS_META[order.status] ?? STATUS_META.new
   const pm = PRIORITY_META[order.priority] ?? PRIORITY_META.low
-  const due = order.due_date ? new Date(order.due_date) : null
-  const dueOverdue = due ? due < new Date() && order.status !== 'completed' : false
+  const due = order.due_date ? new Date(order.due_date + 'T00:00:00') : null
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const dueOverdue = due ? due < today && order.status !== 'completed' : false
   const [copied, setCopied] = useState(false)
 
   function getInitials(name: string) {

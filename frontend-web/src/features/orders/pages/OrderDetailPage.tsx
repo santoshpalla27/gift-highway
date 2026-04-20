@@ -931,8 +931,9 @@ export function OrderDetailPage() {
 
   const sm = STATUS_META[order.status] ?? STATUS_META.new
   const pm = PRIORITY_META[order.priority] ?? PRIORITY_META.medium
-  const due = order.due_date ? new Date(order.due_date) : null
-  const dueOverdue = due && due < new Date()
+  const due = order.due_date ? new Date(order.due_date + 'T00:00:00') : null
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const dueOverdue = due && due < today
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, background: '#F5F6FA', overflow: 'hidden' }}>
