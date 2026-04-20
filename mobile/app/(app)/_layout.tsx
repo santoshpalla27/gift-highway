@@ -43,7 +43,7 @@ function NotificationIcon() {
 
 export default function AppLayout() {
   const insets = useSafeAreaInsets()
-  const tabBarHeight = 58 + insets.bottom
+  const tabBarHeight = 62 + insets.bottom
 
   return (
     <Tabs
@@ -55,7 +55,7 @@ export default function AppLayout() {
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: '#C6C6C8',
           height: tabBarHeight,
-          paddingBottom: Math.max(insets.bottom, 10),
+          paddingBottom: Math.max(insets.bottom, 14),
           paddingTop: 10,
         },
         tabBarLabelStyle: {

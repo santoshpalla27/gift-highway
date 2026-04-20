@@ -797,6 +797,8 @@ function PortalChatModal({
   onAttachmentsChange: (atts: PortalAttachment[]) => void
   refreshRef: React.MutableRefObject<(() => void) | null>
 }) {
+  const portalInsets = useSafeAreaInsets()
+  const [portalKeyboardVisible, setPortalKeyboardVisible] = useState(false)
   const [messages, setMessages] = useState<PortalMessage[]>([])
   const [loadingMsgs, setLoadingMsgs] = useState(true)
   const [reply, setReply] = useState('')
@@ -804,6 +806,12 @@ function PortalChatModal({
   const [showOptions, setShowOptions] = useState(false)
   const [showAttachSheet, setShowAttachSheet] = useState(false)
   const scrollRef = useRef<ScrollView>(null)
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setPortalKeyboardVisible(true))
+    const hide = Keyboard.addListener('keyboardDidHide', () => setPortalKeyboardVisible(false))
+    return () => { show.remove(); hide.remove() }
+  }, [])
 
   type UploadingFile = { id: string; name: string; mime: string; progress: number; previewUri?: string; done?: boolean; error?: string }
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
@@ -1033,7 +1041,7 @@ function PortalChatModal({
 
           {/* Composer */}
           {portal.enabled && (
-            <View style={S.composer}>
+            <View style={[S.composer, { paddingBottom: portalKeyboardVisible ? 8 : Math.max(portalInsets.bottom + 4, 16) }]}>
               <TouchableOpacity onPress={() => setShowAttachSheet(true)} style={S.attachBtn}>
                 <Ionicons name="attach-outline" size={22} color="#64748B" />
               </TouchableOpacity>
@@ -1451,7 +1459,7 @@ export default function OrderDetailScreen() {
   const pm = PRIORITY_META[order.priority] ?? PRIORITY_META.medium
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={keyboardOffset}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? keyboardOffset : 0}>
       <View style={S.screen}>
         {/* Header */}
         <View style={[S.header, { paddingTop: insets.top + 10 }]}>
@@ -1660,7 +1668,7 @@ export default function OrderDetailScreen() {
         )}
 
         {/* Composer */}
-        <View style={[S.composer, { paddingBottom: keyboardVisible ? 8 : Math.max(insets.bottom, 12) }]}>
+        <View style={[S.composer, { paddingBottom: keyboardVisible ? 8 : Math.max(insets.bottom + 4, 16) }]}>
           <TouchableOpacity onPress={handleAttachPress} style={S.attachBtn}>
             <Ionicons name="attach-outline" size={22} color="#64748B" />
           </TouchableOpacity>
