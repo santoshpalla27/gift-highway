@@ -738,7 +738,6 @@ export function OrderDetailPage() {
           fetchLatest()
           return prev
         })
-        setOptimisticEvents(prev => prev.filter(e => e.failed))
       } else {
         fetchLatest()
       }
