@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:       #0d1117;
+  --surface:  #161b22;
+  --surface2: #21262d;
+  --border:   #30363d;
+  --text:     #e6edf3;
+  --muted:    #8b949e;
+  --green:    #3fb950;
+  --yellow:   #d29922;
+  --red:      #f85149;
+  --blue:     #58a6ff;
+  --r:        8px;
+}
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; min-height: 100vh; }
+
+/* ── Header ── */
+.header { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 10; gap: 12px; flex-wrap: wrap; }
+.header-left { display: flex; align-items: center; gap: 20px; }
+.logo { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.logo-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); }
+.header-meta { display: flex; gap: 16px; color: var(--muted); font-size: 12px; }
+.header-meta span { display: flex; align-items: center; gap: 4px; }
+.header-right { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.refresh-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.refresh-dot.loading { background: var(--yellow); animation: blink 0.8s ease infinite; }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* ── Layout ── */
+.wrap { max-width: 1440px; margin: 0 auto; padding: 24px; }
+
+/* ── Metric cards ── */
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; }
+.card-label { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.card-value { font-size: 30px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+.card-sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; min-height: 16px; }
+.bar { height: 5px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width .6s ease, background .4s; }
+.bar-fill.ok   { background: var(--green); }
+.bar-fill.warn { background: var(--yellow); }
+.bar-fill.crit { background: var(--red); }
+.net-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+.net-row span { display: flex; align-items: center; gap: 5px; }
+.net-up { color: var(--blue); }
+.net-dn { color: var(--green); }
+
+/* ── Section heading ── */
+.section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.section-title { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.container-count { font-size: 12px; color: var(--muted); }
+
+/* ── Table ── */
+.table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 700px; }
+th { text-align: left; padding: 10px 16px; font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: .07em; text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--surface2); white-space: nowrap; }
+td { padding: 11px 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: rgba(255,255,255,.025); }
+.name-cell strong { display: block; font-size: 13px; }
+.name-cell span { font-size: 11px; color: var(--muted); font-family: monospace; }
+
+/* ── Badges ── */
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.badge.running    { color: var(--green);  background: rgba(63,185,80,.12); }
+.badge.exited     { color: var(--red);    background: rgba(248,81,73,.12); }
+.badge.stopped    { color: var(--red);    background: rgba(248,81,73,.12); }
+.badge.paused     { color: var(--yellow); background: rgba(210,153,34,.12); }
+.badge.restarting { color: var(--yellow); background: rgba(210,153,34,.12); }
+.badge.created    { color: var(--blue);   background: rgba(88,166,255,.12); }
+.badge.dead       { color: var(--muted);  background: rgba(139,148,158,.12); }
+
+/* ── Mini progress inside table ── */
+.mini { display: flex; align-items: center; gap: 8px; }
+.mini .bar { flex: 1; min-width: 50px; }
+.mini-label { min-width: 46px; font-size: 12px; }
+
+/* ── Error section ── */
+.error-line { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 11px; word-break: break-all; white-space: pre-wrap; color: var(--red); }
+.error-ts { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.error-container { font-size: 11px; font-weight: 600; color: var(--yellow); white-space: nowrap; }
+.error-badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 700; background: rgba(248,81,73,.15); color: var(--red); }
+
+/* ── Log button ── */
+.log-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 4px 12px; border-radius: 5px; cursor: pointer; font-size: 12px; transition: background .15s; white-space: nowrap; }
+.log-btn:hover { background: var(--border); }
+
+/* ── Modal ── */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
+.overlay.open { display: flex; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); width: 100%; max-width: 960px; max-height: 85vh; display: flex; flex-direction: column; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border); gap: 12px; }
+.modal-title { font-weight: 600; font-size: 14px; }
+.modal-actions { display: flex; gap: 8px; align-items: center; }
+.close-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 22px; line-height: 1; padding: 0 2px; }
+.close-btn:hover { color: var(--text); }
+.refresh-logs-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+.refresh-logs-btn:hover { color: var(--text); }
+.log-body { flex: 1; overflow-y: auto; padding: 0; background: #010409; border-radius: 0 0 var(--r) var(--r); }
+.log-body pre { padding: 16px 20px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 12px; line-height: 1.65; white-space: pre-wrap; word-break: break-all; color: #adbac7; min-height: 100%; }
+.empty { text-align: center; padding: 48px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo"><span class="logo-dot"></span><span id="hostname">Monitor</span></div>
+    <div class="header-meta">
+      <span>⏱ <span id="uptime">—</span></span>
+      <span>⚡ <span id="load">—</span></span>
+      <span id="cpu-cores-label" style="display:none">🖥 <span id="cores">—</span> cores</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="refresh-dot" id="dot"></span>
+    <span id="updated">connecting…</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- Metric cards -->
+  <div class="metrics">
+    <div class="card">
+      <div class="card-label">CPU Usage</div>
+      <div class="card-value" id="cpu-val">—</div>
+      <div class="card-sub" id="cpu-sub">&nbsp;</div>
+      <div class="bar"><div class="bar-fill" id="cpu-bar" style="width:0%"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Memory</div>
+      <div class="card-value" id="mem-val">—</div>
+      <div class="card-sub" id="mem-sub">&nbsp;</div>
+      <div class="bar"><div class="bar-fill" id="mem-bar" style="width:0%"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Disk ( / )</div>
+      <div class="card-value" id="disk-val">—</div>
+      <div class="card-sub" id="disk-sub">&nbsp;</div>
+      <div class="bar"><div class="bar-fill" id="disk-bar" style="width:0%"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Network I/O (total)</div>
+      <div class="card-value" id="net-val">—</div>
+      <div class="card-sub">&nbsp;</div>
+      <div class="net-row">
+        <span><span class="net-dn">↓</span><span id="net-rx">—</span></span>
+        <span><span class="net-up">↑</span><span id="net-tx">—</span></span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">Last Backup</div>
+      <div class="card-value" id="backup-val">—</div>
+      <div class="card-sub" id="backup-sub">&nbsp;</div>
+      <div class="bar"><div class="bar-fill ok" id="backup-bar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- Containers -->
+  <div class="section-head">
+    <span class="section-title">Containers</span>
+    <span class="container-count" id="container-count"></span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name / ID</th>
+          <th>Image</th>
+          <th>State</th>
+          <th>CPU %</th>
+          <th>Memory</th>
+          <th>Disk I/O</th>
+          <th>Network I/O</th>
+          <th>Logs</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr><td colspan="8" class="empty">Connecting…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Volumes -->
+  <div class="section-head" style="margin-top:28px">
+    <span class="section-title">Volumes</span>
+    <span class="container-count" id="volume-count"></span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Links</th>
+          <th>Size</th>
+        </tr>
+      </thead>
+      <tbody id="vbody">
+        <tr><td colspan="3" class="empty">Connecting…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Errors -->
+  <div class="section-head" style="margin-top:28px">
+    <span class="section-title">Container Errors</span>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span class="container-count" id="error-count"></span>
+      <select id="error-filter" onchange="renderErrors()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:5px;font-size:12px;cursor:pointer;">
+        <option value="">All Containers</option>
+      </select>
+      <button class="log-btn" id="error-refresh-btn" onclick="refreshErrors()">↺ Refresh</button>
+      <button class="log-btn" onclick="clearErrors()" style="color:var(--muted)">✕ Clear</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Container</th>
+          <th>Timestamp</th>
+          <th>Log Line</th>
+        </tr>
+      </thead>
+      <tbody id="ebody">
+        <tr><td colspan="3" class="empty">Connecting…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- Log modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="modal-title">Logs</span>
+      <div class="modal-actions">
+        <input type="text" id="log-search" placeholder="Filter logs..." style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:4px 8px; border-radius:5px; font-size:12px; margin-right:8px;" oninput="filterLogs()">
+        <button class="refresh-logs-btn" onclick="reloadLogs()">↺ Refresh</button>
+        <button class="close-btn" onclick="closeModal()">×</button>
+      </div>
+    </div>
+    <div class="log-body"><pre id="log-pre">Loading…</pre></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+let currentLogId = null;
+let currentLogLines = [];
+let allContainers = [];
+
+// ── Time helper ────────────────────────────────────────────────────────────
+function timeAgo(secs) {
+  if (secs < 60)    return secs + 's ago';
+  if (secs < 3600)  return Math.floor(secs / 60) + 'm ago';
+  if (secs < 86400) return Math.floor(secs / 3600) + 'h ago';
+  return Math.floor(secs / 86400) + 'd ago';
+}
+
+// ── Formatting helpers ──────────────────────────────────────────────────────
+const B = (n) => {
+  if (!n) return '0 B';
+  const u = ['B','KB','MB','GB','TB'], i = Math.floor(Math.log(n) / Math.log(1024));
+  return (n / Math.pow(1024, i)).toFixed(1) + ' ' + u[i];
+};
+const pct = (n) => n.toFixed(1) + '%';
+const uptime = (s) => {
+  const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  if (d) return `${d}d ${h}h`;
+  if (h) return `${h}h ${m}m`;
+  return `${m}m`;
+};
+const barClass = (p) => p >= 85 ? 'crit' : p >= 65 ? 'warn' : 'ok';
+
+function setBar(id, p) {
+  const el = document.getElementById(id);
+  el.style.width = Math.min(p, 100) + '%';
+  el.className = 'bar-fill ' + barClass(p);
+}
+
+// ── System stats ───────────────────────────────────────────────────────────
+async function fetchSystem() {
+  const d = await fetch('/api/system').then(r => r.json());
+
+  document.getElementById('hostname').textContent = d.hostname || 'server';
+  document.getElementById('uptime').textContent = uptime(d.uptime);
+  document.getElementById('load').textContent = `${d.load.load1} · ${d.load.load5} · ${d.load.load15}`;
+  document.getElementById('cores').textContent = d.cpu.cores;
+  document.getElementById('cpu-cores-label').style.display = '';
+
+  document.getElementById('cpu-val').textContent = pct(d.cpu.percent);
+  document.getElementById('cpu-sub').textContent = d.cpu.cores + ' cores';
+  setBar('cpu-bar', d.cpu.percent);
+
+  document.getElementById('mem-val').textContent = pct(d.memory.percent);
+  document.getElementById('mem-sub').textContent = B(d.memory.used) + ' / ' + B(d.memory.total);
+  setBar('mem-bar', d.memory.percent);
+
+  document.getElementById('disk-val').textContent = pct(d.disk.percent);
+  document.getElementById('disk-sub').textContent = B(d.disk.used) + ' / ' + B(d.disk.total);
+  setBar('disk-bar', d.disk.percent);
+
+  document.getElementById('net-val').textContent = B(d.network.bytes_recv + d.network.bytes_sent);
+  document.getElementById('net-rx').textContent = B(d.network.bytes_recv) + ' recv';
+  document.getElementById('net-tx').textContent = B(d.network.bytes_sent) + ' sent';
+}
+
+// ── Container stats ────────────────────────────────────────────────────────
+async function fetchContainers() {
+  const list = await fetch('/api/containers').then(r => r.json());
+
+  list.sort((a, b) => {
+    const rank = { running: 0, restarting: 1, paused: 2, created: 3, exited: 4, dead: 5 };
+    const ra = rank[a.state] ?? 9, rb = rank[b.state] ?? 9;
+    return ra !== rb ? ra - rb : a.name.localeCompare(b.name);
+  });
+  allContainers = list;
+
+  const running = list.filter(c => c.state === 'running').length;
+  document.getElementById('container-count').textContent =
+    `${running} running · ${list.length - running} stopped`;
+
+  if (!list.length) {
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="7" class="empty">No containers found</td></tr>';
+    return;
+  }
+
+  document.getElementById('tbody').innerHTML = list.map(c => {
+    const on = c.state === 'running';
+    const img = c.image.length > 36 ? c.image.slice(0, 36) + '…' : c.image;
+
+    const cpuCell = on
+      ? `<div class="mini">
+           <span class="mini-label">${pct(c.cpu_percent)}</span>
+           <div class="bar"><div class="bar-fill ${barClass(c.cpu_percent)}" style="width:${Math.min(c.cpu_percent,100)}%"></div></div>
+         </div>`
+      : `<span style="color:var(--muted)">—</span>`;
+
+    const memCell = on
+      ? `<div class="mini">
+           <span class="mini-label" style="min-width:56px">${B(c.mem_used)}</span>
+           <div class="bar"><div class="bar-fill ${barClass(c.mem_percent)}" style="width:${Math.min(c.mem_percent,100)}%"></div></div>
+         </div>`
+      : `<span style="color:var(--muted)">—</span>`;
+
+    const netCell = on
+      ? `<span style="color:var(--muted);font-size:12px">↓${B(c.net_rx)} ↑${B(c.net_tx)}</span>`
+      : `<span style="color:var(--muted)">—</span>`;
+
+    const diskCell = on
+      ? `<span style="color:var(--muted);font-size:12px">R ${B(c.disk_read)}<br>W ${B(c.disk_write)}</span>`
+      : `<span style="color:var(--muted)">—</span>`;
+
+    return `<tr>
+      <td class="name-cell"><strong>${c.name}</strong><span>${c.id}</span></td>
+      <td style="color:var(--muted);font-size:12px">${img}</td>
+      <td><span class="badge ${c.state}">${c.state}</span></td>
+      <td>${cpuCell}</td>
+      <td>${memCell}</td>
+      <td>${diskCell}</td>
+      <td>${netCell}</td>
+      <td><button class="log-btn" onclick="openLogs('${c.id}','${c.name}')">Logs</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Volume stats ───────────────────────────────────────────────────────────
+async function fetchVolumes() {
+  const list = await fetch('/api/volumes').then(r => r.json());
+  
+  if (!list || !list.length) {
+    document.getElementById('vbody').innerHTML = '<tr><td colspan="3" class="empty">No volumes found</td></tr>';
+    document.getElementById('volume-count').textContent = '0 volumes';
+    return;
+  }
+
+  list.sort((a, b) => a.name.localeCompare(b.name));
+
+  document.getElementById('volume-count').textContent = list.length + (list.length === 1 ? ' volume' : ' volumes');
+
+  document.getElementById('vbody').innerHTML = list.map(v => {
+    const sizeStr = (v.size === undefined || v.size < 0) ? 'Unknown' : B(v.size);
+    return `<tr>
+      <td class="name-cell"><strong>${v.name}</strong></td>
+      <td style="color:var(--muted)">${v.links}</td>
+      <td><strong>${sizeStr}</strong></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Error logs ─────────────────────────────────────────────────────────────
+let allErrors = [];
+
+function clearErrors() {
+  allErrors = [];
+  document.getElementById('error-count').textContent = '';
+  document.getElementById('error-filter').innerHTML = '<option value="">All Containers</option>';
+  document.getElementById('ebody').innerHTML = '<tr><td colspan="3" class="empty">Cleared — click Refresh to reload</td></tr>';
+}
+
+async function refreshErrors() {
+  const btn = document.getElementById('error-refresh-btn');
+  btn.textContent = '↺ Loading…';
+  btn.disabled = true;
+  await fetchErrors();
+  btn.textContent = '↺ Refresh';
+  btn.disabled = false;
+}
+
+function renderErrors() {
+  const selected = document.getElementById('error-filter').value;
+  const tbody = document.getElementById('ebody');
+  const filtered = selected ? allErrors.filter(e => e.container_name === selected) : allErrors;
+
+  const countEl = document.getElementById('error-count');
+  if (!filtered.length) {
+    countEl.textContent = selected ? '0 errors in this container' : '0 errors';
+    tbody.innerHTML = `<tr><td colspan="3" class="empty" style="color:var(--green)">✓ No errors found${selected ? ' in ' + selected : ''}</td></tr>`;
+    return;
+  }
+  countEl.innerHTML = `<span class="error-badge">${filtered.length} error${filtered.length !== 1 ? 's' : ''}${selected ? ' in ' + selected : ''}</span>`;
+
+  tbody.innerHTML = filtered.slice(-200).reverse().map(e => {
+    const tsMatch = e.line.match(/^(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\s*/);
+    const ts = tsMatch ? new Date(tsMatch[1]).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+    const msg = tsMatch ? e.line.slice(tsMatch[0].length) : e.line;
+    return `<tr>
+      <td class="error-container">${e.container_name}</td>
+      <td class="error-ts">${ts}</td>
+      <td class="error-line">${msg.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function fetchErrors() {
+  const list = await fetch('/api/errors').then(r => r.json());
+  allErrors = list || [];
+
+  // Build dropdown from ALL containers (not just those with errors)
+  const sel = document.getElementById('error-filter');
+  const prev = sel.value;
+  const names = allContainers.length
+    ? allContainers.map(c => c.name).sort()
+    : [...new Set(allErrors.map(e => e.container_name))].sort();
+  sel.innerHTML = '<option value="">All Containers</option>' +
+    names.map(n => {
+      const count = allErrors.filter(e => e.container_name === n).length;
+      const label = count > 0 ? `${n} (${count})` : n;
+      return `<option value="${n}"${n === prev ? ' selected' : ''}>${label}</option>`;
+    }).join('');
+
+  renderErrors();
+}
+
+// ── Backup status ──────────────────────────────────────────────────────────
+async function fetchBackup() {
+  const d = await fetch('/api/backup').then(r => r.json());
+  const valEl = document.getElementById('backup-val');
+  const subEl = document.getElementById('backup-sub');
+  const barEl = document.getElementById('backup-bar');
+
+  if (d.status === 'never') {
+    valEl.textContent = 'Never';
+    valEl.style.color = 'var(--muted)';
+    subEl.textContent = 'No backups run yet';
+    barEl.style.width = '0%';
+    barEl.className = 'bar-fill ok';
+    return;
+  }
+
+  if (d.status === 'running') {
+    valEl.textContent = 'Running…';
+    valEl.style.color = 'var(--yellow)';
+    subEl.textContent = 'Backup in progress';
+    barEl.style.width = '50%';
+    barEl.className = 'bar-fill warn';
+    return;
+  }
+
+  if (d.status === 'failed') {
+    valEl.textContent = 'Failed';
+    valEl.style.color = 'var(--red)';
+    const ago = d.last_run ? timeAgo(Math.floor(Date.now() / 1000) - d.last_run) : '—';
+    subEl.textContent = 'Last attempt: ' + ago;
+    barEl.style.width = '100%';
+    barEl.className = 'bar-fill crit';
+    return;
+  }
+
+  // ok
+  const now = Math.floor(Date.now() / 1000);
+  const secs = now - d.last_ok;
+  const hours = secs / 3600;
+  valEl.textContent = timeAgo(secs);
+  valEl.style.color = hours < 25 ? 'var(--green)' : hours < 49 ? 'var(--yellow)' : 'var(--red)';
+  subEl.textContent = new Date(d.last_ok * 1000).toLocaleString();
+  const freshness = Math.min((secs / 86400) * 100, 100);
+  barEl.style.width = freshness + '%';
+  barEl.className = 'bar-fill ' + (hours < 25 ? 'ok' : hours < 49 ? 'warn' : 'crit');
+}
+
+// ── Refresh loop ───────────────────────────────────────────────────────────
+async function refresh() {
+  document.getElementById('dot').classList.add('loading');
+  try {
+    await Promise.all([fetchSystem(), fetchContainers(), fetchVolumes(), fetchBackup()]);
+    await fetchErrors(); // after fetchContainers so allContainers is populated
+    document.getElementById('updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    document.getElementById('updated').textContent = 'Error — retrying…';
+    console.error(e);
+  }
+  document.getElementById('dot').classList.remove('loading');
+}
+
+refresh();
+setInterval(refresh, 5000);
+
+// ── Log modal ──────────────────────────────────────────────────────────────
+async function openLogs(id, name) {
+  currentLogId = id;
+  document.getElementById('modal-title').textContent = name + ' — last 300 lines';
+  document.getElementById('log-pre').textContent = 'Loading…';
+  document.getElementById('log-search').value = '';
+  document.getElementById('overlay').classList.add('open');
+  await loadLogs(id);
+}
+
+async function loadLogs(id) {
+  try {
+    const d = await fetch('/api/logs/' + id).then(r => r.json());
+    currentLogLines = d.logs || [];
+    filterLogs();
+  } catch (e) {
+    document.getElementById('log-pre').textContent = 'Error fetching logs: ' + e.message;
+  }
+}
+
+function filterLogs() {
+  const term = document.getElementById('log-search').value.toLowerCase();
+  const pre = document.getElementById('log-pre');
+  if (!currentLogLines.length) {
+    pre.textContent = '(no log output)';
+    return;
+  }
+  if (!term) {
+    pre.textContent = currentLogLines.join('\n');
+  } else {
+    const filtered = currentLogLines.filter(line => line.toLowerCase().includes(term));
+    pre.textContent = filtered.length ? filtered.join('\n') : '(no logs match filter)';
+  }
+  pre.parentElement.scrollTop = pre.parentElement.scrollHeight;
+}
+
+async function reloadLogs() {
+  if (!currentLogId) return;
+  document.getElementById('log-pre').textContent = 'Loading…';
+  await loadLogs(currentLogId);
+}
+
+function closeModal() {
+  currentLogId = null;
+  currentLogLines = [];
+  document.getElementById('log-pre').textContent = '';
+  document.getElementById('log-search').value = '';
+  document.getElementById('overlay').classList.remove('open');
+}
+
+document.getElementById('overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+</script>
+</body>
+</html>
