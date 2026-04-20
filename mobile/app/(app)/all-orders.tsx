@@ -83,6 +83,8 @@ function FilterSheet({
   const [draft, setDraft] = useState<FilterState>(filters)
   const [users, setUsers] = useState<UserOption[]>([])
   const [usersLoaded, setUsersLoaded] = useState(false)
+  const [showFromPicker, setShowFromPicker] = useState(false)
+  const [showToPicker, setShowToPicker] = useState(false)
 
   useEffect(() => {
     if (visible) {
@@ -190,28 +192,84 @@ function FilterSheet({
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <View style={{ flex: 1 }}>
                 <Text style={FS.dateLabel}>From</Text>
-                <TextInput
-                  style={FS.dateInput}
-                  value={draft.dueDateFrom}
-                  onChangeText={v => set({ dueDateFrom: v })}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="numbers-and-punctuation"
-                />
+                {Platform.OS === 'web' ? (
+                  <View style={FS.dateInput}>
+                    <input type="date" value={draft.dueDateFrom || ''} onChange={(e: any) => set({ dueDateFrom: e.target.value })}
+                      style={{ fontSize: 14, border: 'none', outline: 'none', background: 'transparent', color: draft.dueDateFrom ? '#0F172A' : '#94A3B8', cursor: 'pointer', width: '100%' }} />
+                  </View>
+                ) : (
+                  <TouchableOpacity style={FS.dateInput} onPress={() => setShowFromPicker(true)}>
+                    <Text style={{ color: draft.dueDateFrom ? '#0F172A' : '#94A3B8', fontSize: 14 }}>
+                      {draft.dueDateFrom ? formatDate(draft.dueDateFrom) : 'DD/MM/YYYY'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={FS.dateLabel}>To</Text>
-                <TextInput
-                  style={FS.dateInput}
-                  value={draft.dueDateTo}
-                  onChangeText={v => set({ dueDateTo: v })}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#94A3B8"
-                  keyboardType="numbers-and-punctuation"
-                />
+                {Platform.OS === 'web' ? (
+                  <View style={FS.dateInput}>
+                    <input type="date" value={draft.dueDateTo || ''} onChange={(e: any) => set({ dueDateTo: e.target.value })}
+                      style={{ fontSize: 14, border: 'none', outline: 'none', background: 'transparent', color: draft.dueDateTo ? '#0F172A' : '#94A3B8', cursor: 'pointer', width: '100%' }} />
+                  </View>
+                ) : (
+                  <TouchableOpacity style={FS.dateInput} onPress={() => setShowToPicker(true)}>
+                    <Text style={{ color: draft.dueDateTo ? '#0F172A' : '#94A3B8', fontSize: 14 }}>
+                      {draft.dueDateTo ? formatDate(draft.dueDateTo) : 'DD/MM/YYYY'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           </View>
+
+          {/* From date picker (native only) */}
+          {Platform.OS !== 'web' && (
+            <Modal visible={showFromPicker} transparent animationType="fade" onRequestClose={() => setShowFromPicker(false)}>
+              <View style={F.pickerOverlay}>
+                <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowFromPicker(false)} />
+                <View style={F.pickerSheet}>
+                  <View style={F.pickerHeader}>
+                    <Text style={F.pickerTitle}>From Date</Text>
+                    <TouchableOpacity onPress={() => setShowFromPicker(false)}>
+                      <Text style={F.pickerDone}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker
+                    value={draft.dueDateFrom ? new Date(draft.dueDateFrom + 'T00:00:00') : new Date()}
+                    mode="date"
+                    display="spinner"
+                    onChange={(_, d) => { if (d) { const iso = d.toISOString().split('T')[0]; set({ dueDateFrom: iso }) } }}
+                    style={{ width: '100%', height: 216 }}
+                  />
+                </View>
+              </View>
+            </Modal>
+          )}
+
+          {/* To date picker (native only) */}
+          {Platform.OS !== 'web' && (
+            <Modal visible={showToPicker} transparent animationType="fade" onRequestClose={() => setShowToPicker(false)}>
+              <View style={F.pickerOverlay}>
+                <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowToPicker(false)} />
+                <View style={F.pickerSheet}>
+                  <View style={F.pickerHeader}>
+                    <Text style={F.pickerTitle}>To Date</Text>
+                    <TouchableOpacity onPress={() => setShowToPicker(false)}>
+                      <Text style={F.pickerDone}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker
+                    value={draft.dueDateTo ? new Date(draft.dueDateTo + 'T00:00:00') : new Date()}
+                    mode="date"
+                    display="spinner"
+                    onChange={(_, d) => { if (d) { const iso = d.toISOString().split('T')[0]; set({ dueDateTo: iso }) } }}
+                    style={{ width: '100%', height: 216 }}
+                  />
+                </View>
+              </View>
+            </Modal>
+          )}
 
           {/* Quick filters */}
           <View style={FS.section}>
@@ -353,65 +411,95 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
           </View>
           <Text style={F.label}>Due Date & Time</Text>
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
-            <TouchableOpacity
-              style={[F.input, { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Text style={{ fontSize: 15, color: dueDate ? '#0F172A' : '#94A3B8' }}>
-                {dueDate ? formatDate(dueDate) : 'DD/MM/YYYY'}
-              </Text>
-              <Ionicons name="calendar-outline" size={18} color="#94A3B8" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[F.input, { width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
-              onPress={() => setShowTimePicker(true)}
-            >
-              <Text style={{ fontSize: 15, color: dueTime ? '#0F172A' : '#94A3B8' }}>
-                {dueTime ? fmt12hrStr(dueTime) : 'Time'}
-              </Text>
-              <Ionicons name="time-outline" size={18} color="#94A3B8" />
-            </TouchableOpacity>
+            {Platform.OS === 'web' ? (
+              <>
+                <View style={[F.input, { flex: 1, flexDirection: 'row', alignItems: 'center' }]}>
+                  <input type="date" value={dueDate || ''} onChange={(e: any) => setDueDate(e.target.value)}
+                    style={{ flex: 1, fontSize: 15, border: 'none', outline: 'none', background: 'transparent', color: dueDate ? '#0F172A' : '#94A3B8', cursor: 'pointer' }} />
+                </View>
+                <View style={[F.input, { width: 110, flexDirection: 'row', alignItems: 'center' }]}>
+                  <input type="time" value={dueTime || ''} onChange={(e: any) => setDueTime(e.target.value)}
+                    style={{ flex: 1, fontSize: 15, border: 'none', outline: 'none', background: 'transparent', color: dueTime ? '#0F172A' : '#94A3B8', cursor: 'pointer' }} />
+                </View>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={[F.input, { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Text style={{ fontSize: 15, color: dueDate ? '#0F172A' : '#94A3B8' }}>
+                    {dueDate ? formatDate(dueDate) : 'DD/MM/YYYY'}
+                  </Text>
+                  <Ionicons name="calendar-outline" size={18} color="#94A3B8" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[F.input, { width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                  onPress={() => setShowTimePicker(true)}
+                >
+                  <Text style={{ fontSize: 15, color: dueTime ? '#0F172A' : '#94A3B8' }}>
+                    {dueTime ? fmt12hrStr(dueTime) : 'Time'}
+                  </Text>
+                  <Ionicons name="time-outline" size={18} color="#94A3B8" />
+                </TouchableOpacity>
+                <Modal visible={showDatePicker} transparent animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
+                  <View style={F.pickerOverlay}>
+                    <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowDatePicker(false)} />
+                    <View style={F.pickerSheet}>
+                      <View style={F.pickerHeader}>
+                        <Text style={F.pickerTitle}>Select Date</Text>
+                        <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                          <Text style={F.pickerDone}>Done</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <DateTimePicker
+                        value={dueDate ? new Date(dueDate + 'T00:00:00') : new Date()}
+                        mode="date"
+                        display="spinner"
+                        onChange={(_, date) => {
+                          if (date) {
+                            const y = date.getFullYear()
+                            const m = String(date.getMonth() + 1).padStart(2, '0')
+                            const d = String(date.getDate()).padStart(2, '0')
+                            setDueDate(`${y}-${m}-${d}`)
+                          }
+                        }}
+                        style={{ width: '100%', height: 216 }}
+                      />
+                    </View>
+                  </View>
+                </Modal>
+                <Modal visible={showTimePicker} transparent animationType="fade" onRequestClose={() => setShowTimePicker(false)}>
+                  <View style={F.pickerOverlay}>
+                    <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowTimePicker(false)} />
+                    <View style={F.pickerSheet}>
+                      <View style={F.pickerHeader}>
+                        <Text style={F.pickerTitle}>Select Time</Text>
+                        <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                          <Text style={F.pickerDone}>Done</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <DateTimePicker
+                        value={(() => {
+                          const base = dueDate ? new Date(dueDate + 'T00:00:00') : new Date()
+                          if (dueTime) { const [h, min] = dueTime.split(':').map(Number); base.setHours(h, min, 0, 0) }
+                          return base
+                        })()}
+                        mode="time"
+                        display="spinner"
+                        onChange={(_, date) => {
+                          if (date) {
+                            setDueTime(`${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`)
+                          }
+                        }}
+                        style={{ width: '100%', height: 216 }}
+                      />
+                    </View>
+                  </View>
+                </Modal>
+              </>
+            )}
           </View>
-          {(showDatePicker || (Platform.OS === 'ios' && showDatePicker)) && (
-            <DateTimePicker
-              value={dueDate ? new Date(dueDate) : new Date()}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(_, date) => {
-                setShowDatePicker(Platform.OS === 'ios')
-                if (date) {
-                  const y = date.getFullYear()
-                  const m = String(date.getMonth() + 1).padStart(2, '0')
-                  const d = String(date.getDate()).padStart(2, '0')
-                  setDueDate(`${y}-${m}-${d}`)
-                }
-                if (Platform.OS !== 'ios') setShowDatePicker(false)
-              }}
-            />
-          )}
-          {showTimePicker && (
-            <DateTimePicker
-              value={(() => {
-                const base = dueDate ? new Date(dueDate) : new Date()
-                if (dueTime) {
-                  const [h, min] = dueTime.split(':').map(Number)
-                  base.setHours(h, min, 0, 0)
-                }
-                return base
-              })()}
-              mode="time"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(_, date) => {
-                setShowTimePicker(Platform.OS === 'ios')
-                if (date) {
-                  const h = String(date.getHours()).padStart(2, '0')
-                  const min = String(date.getMinutes()).padStart(2, '0')
-                  setDueTime(`${h}:${min}`)
-                }
-                if (Platform.OS !== 'ios') setShowTimePicker(false)
-              }}
-            />
-          )}
           <Text style={F.label}>Assign To</Text>
           <TouchableOpacity style={[F.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setAssignOpen(o => !o)}>
             <Text style={{ fontSize: 15, color: assignedTo.length > 0 ? '#0F172A' : '#94A3B8' }} numberOfLines={1}>
@@ -860,6 +948,11 @@ const F = StyleSheet.create({
   assignText: { fontSize: 15, color: '#475569' },
   submitBtn: { backgroundColor: '#0F172A', borderRadius: 10, paddingVertical: 16, alignItems: 'center', marginTop: 32, marginBottom: 40 },
   submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  pickerSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 32, overflow: 'hidden' },
+  pickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  pickerTitle: { fontSize: 15, fontWeight: '600', color: '#0F172A' },
+  pickerDone: { fontSize: 15, fontWeight: '700', color: '#6366F1' },
 })
 
 const SP = StyleSheet.create({

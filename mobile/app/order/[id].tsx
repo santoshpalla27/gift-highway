@@ -665,65 +665,95 @@ function EditOrderSheet({ order, onClose, onSaved }: { order: Order; onClose: ()
 
           <Text style={E.label}>Due Date & Time</Text>
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
-            <TouchableOpacity
-              style={[E.input, { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Text style={{ fontSize: 15, color: dueDate ? '#0F172A' : '#94A3B8' }}>
-                {dueDate ? formatDate(dueDate) : 'DD/MM/YYYY'}
-              </Text>
-              <Ionicons name="calendar-outline" size={18} color="#94A3B8" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[E.input, { width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
-              onPress={() => setShowTimePicker(true)}
-            >
-              <Text style={{ fontSize: 15, color: dueTime ? '#0F172A' : '#94A3B8' }}>
-                {dueTime ? fmt12hrStr(dueTime) : 'Time'}
-              </Text>
-              <Ionicons name="time-outline" size={18} color="#94A3B8" />
-            </TouchableOpacity>
+            {Platform.OS === 'web' ? (
+              <>
+                <View style={[E.input, { flex: 1, flexDirection: 'row', alignItems: 'center' }]}>
+                  <input type="date" value={dueDate || ''} onChange={(e: any) => setDueDate(e.target.value)}
+                    style={{ flex: 1, fontSize: 15, border: 'none', outline: 'none', background: 'transparent', color: dueDate ? '#0F172A' : '#94A3B8', cursor: 'pointer' }} />
+                </View>
+                <View style={[E.input, { width: 110, flexDirection: 'row', alignItems: 'center' }]}>
+                  <input type="time" value={dueTime || ''} onChange={(e: any) => setDueTime(e.target.value)}
+                    style={{ flex: 1, fontSize: 15, border: 'none', outline: 'none', background: 'transparent', color: dueTime ? '#0F172A' : '#94A3B8', cursor: 'pointer' }} />
+                </View>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={[E.input, { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Text style={{ fontSize: 15, color: dueDate ? '#0F172A' : '#94A3B8' }}>
+                    {dueDate ? formatDate(dueDate) : 'DD/MM/YYYY'}
+                  </Text>
+                  <Ionicons name="calendar-outline" size={18} color="#94A3B8" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[E.input, { width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                  onPress={() => setShowTimePicker(true)}
+                >
+                  <Text style={{ fontSize: 15, color: dueTime ? '#0F172A' : '#94A3B8' }}>
+                    {dueTime ? fmt12hrStr(dueTime) : 'Time'}
+                  </Text>
+                  <Ionicons name="time-outline" size={18} color="#94A3B8" />
+                </TouchableOpacity>
+                <Modal visible={showDatePicker} transparent animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
+                  <View style={PK.overlay}>
+                    <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowDatePicker(false)} />
+                    <View style={PK.sheet}>
+                      <View style={PK.header}>
+                        <Text style={PK.title}>Select Date</Text>
+                        <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                          <Text style={PK.done}>Done</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <DateTimePicker
+                        value={dueDate ? new Date(dueDate + 'T00:00:00') : new Date()}
+                        mode="date"
+                        display="spinner"
+                        onChange={(_, date) => {
+                          if (date) {
+                            const y = date.getFullYear()
+                            const m = String(date.getMonth() + 1).padStart(2, '0')
+                            const d = String(date.getDate()).padStart(2, '0')
+                            setDueDate(`${y}-${m}-${d}`)
+                          }
+                        }}
+                        style={{ width: '100%', height: 216 }}
+                      />
+                    </View>
+                  </View>
+                </Modal>
+                <Modal visible={showTimePicker} transparent animationType="fade" onRequestClose={() => setShowTimePicker(false)}>
+                  <View style={PK.overlay}>
+                    <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowTimePicker(false)} />
+                    <View style={PK.sheet}>
+                      <View style={PK.header}>
+                        <Text style={PK.title}>Select Time</Text>
+                        <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                          <Text style={PK.done}>Done</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <DateTimePicker
+                        value={(() => {
+                          const base = dueDate ? new Date(dueDate + 'T00:00:00') : new Date()
+                          if (dueTime) { const [h, min] = dueTime.split(':').map(Number); base.setHours(h, min, 0, 0) }
+                          return base
+                        })()}
+                        mode="time"
+                        display="spinner"
+                        onChange={(_, date) => {
+                          if (date) {
+                            setDueTime(`${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`)
+                          }
+                        }}
+                        style={{ width: '100%', height: 216 }}
+                      />
+                    </View>
+                  </View>
+                </Modal>
+              </>
+            )}
           </View>
-          {showDatePicker && (
-            <DateTimePicker
-              value={dueDate ? new Date(dueDate) : new Date()}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(_, date) => {
-                setShowDatePicker(Platform.OS === 'ios')
-                if (date) {
-                  const y = date.getFullYear()
-                  const m = String(date.getMonth() + 1).padStart(2, '0')
-                  const d = String(date.getDate()).padStart(2, '0')
-                  setDueDate(`${y}-${m}-${d}`)
-                }
-                if (Platform.OS !== 'ios') setShowDatePicker(false)
-              }}
-            />
-          )}
-          {showTimePicker && (
-            <DateTimePicker
-              value={(() => {
-                const base = dueDate ? new Date(dueDate) : new Date()
-                if (dueTime) {
-                  const [h, min] = dueTime.split(':').map(Number)
-                  base.setHours(h, min, 0, 0)
-                }
-                return base
-              })()}
-              mode="time"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(_, date) => {
-                setShowTimePicker(Platform.OS === 'ios')
-                if (date) {
-                  const h = String(date.getHours()).padStart(2, '0')
-                  const min = String(date.getMinutes()).padStart(2, '0')
-                  setDueTime(`${h}:${min}`)
-                }
-                if (Platform.OS !== 'ios') setShowTimePicker(false)
-              }}
-            />
-          )}
 
           <Text style={E.label}>Assign To</Text>
           <View style={E.assignList}>
@@ -1867,6 +1897,14 @@ const TM = StyleSheet.create({
   rowText: { fontSize: 15, color: '#111827', fontWeight: '500' },
   cancelRow: { borderTopWidth: 1, borderTopColor: '#F1F5F9', marginTop: 4 },
   cancelText: { fontSize: 15, color: '#6B7280', fontWeight: '500', flex: 1, textAlign: 'center' },
+})
+
+const PK = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 32, overflow: 'hidden' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  title: { fontSize: 15, fontWeight: '600', color: '#0F172A' },
+  done: { fontSize: 15, fontWeight: '700', color: '#6366F1' },
 })
 
 const EC = StyleSheet.create({
