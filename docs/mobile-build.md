@@ -68,8 +68,8 @@ free -h
 
 ```bash
 cd /root
-git clone <your-repo-url> company-app
-cd company-app/mobile
+git clone https://github.com/santoshpalla27/gift-highway.git
+cd gift-highway/mobile
 npm install
 ```
 
@@ -91,7 +91,7 @@ cd /root/company-app/mobile
 
 # Set production API URL
 
-echo "EXPO_PUBLIC_API_URL=https://app.yourdomain.com/api/v1" > .env
+echo "EXPO_PUBLIC_API_URL=https://main.santoshdevops.cloud/api/v1" > .env
 
 npx expo prebuild --clean --platform android
 cd android && ./gradlew assembleRelease --max-workers=2
