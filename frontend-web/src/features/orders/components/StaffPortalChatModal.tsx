@@ -100,8 +100,8 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
     return () => clearInterval(interval)
   }, [orderId, loading])
 
-  useSocketEvent('order.event_added', (event: any) => {
-    if (event.entity_id !== orderId) return
+  useSocketEvent((event: any) => {
+    if (event.type !== 'order.event_added' || event.entity_id !== orderId) return
     const payload = event.payload as any
     if (payload?.type === 'customer_message') {
       Promise.all([

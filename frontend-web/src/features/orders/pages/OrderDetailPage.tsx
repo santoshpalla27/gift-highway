@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { formatDate, formatDateTime, formatRelative, formatDayGroup, fmt12hrStr } from '../../../utils/date'
+import { formatDate, formatRelative, formatDayGroup, fmt12hrStr } from '../../../utils/date'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { orderService, OrderEvent } from '../../../services/orderService'
@@ -618,7 +618,7 @@ export function OrderDetailPage() {
 
   // ── Events: state-based pagination ─────────────────────────────────────────
   const [evList, setEvList] = useState<OrderEvent[]>([])
-  const [totalEvents, setTotalEvents] = useState(0)
+  const [, setTotalEvents] = useState(0)
   const [hasOlder, setHasOlder] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
   const [eventsLoading, setEventsLoading] = useState(true)

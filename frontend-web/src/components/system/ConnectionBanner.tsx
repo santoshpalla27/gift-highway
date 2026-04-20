@@ -19,7 +19,6 @@ export function ConnectionBanner() {
   if (status === 'connected' && !showConnected) return null
 
   const isReconnecting = status === 'reconnecting'
-  const isDisconnected = status === 'disconnected'
   const isConnected = showConnected && status === 'connected'
 
   const bg = isConnected ? '#D1FAE5' : isReconnecting ? '#FEF3C7' : '#FEE2E2'

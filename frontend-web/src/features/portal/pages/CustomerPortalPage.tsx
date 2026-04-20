@@ -8,16 +8,6 @@ import {
   type PortalAttachment,
 } from '../../../services/portalService'
 
-const STATUS_LABELS: Record<string, string> = {
-  new: 'New',
-  in_progress: 'Working',
-  completed: 'Done',
-}
-const STATUS_COLORS: Record<string, string> = {
-  new: 'bg-gray-100 text-gray-600',
-  in_progress: 'bg-blue-100 text-blue-600',
-  completed: 'bg-emerald-100 text-emerald-700',
-}
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
