@@ -4,6 +4,7 @@ import { CreateUserModal } from '../components/CreateUserModal'
 import { EditUserModal } from '../components/EditUserModal'
 import { ChangePasswordModal } from '../components/ChangePasswordModal'
 import type { AdminUser } from '../../../services/adminService'
+import { formatDate } from '../../../utils/date'
 
 interface ConfirmDialogProps {
   title: string
@@ -535,7 +536,7 @@ export function UsersPage() {
                   </td>
                   <td>
                     <span style={{ fontSize: '13px', color: '#6B7280', fontWeight: 500 }}>
-                      {user.created_at || 'Just now'}
+                      {formatDate(user.created_at) || 'Just now'}
                     </span>
                   </td>
                   <td>
