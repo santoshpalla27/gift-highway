@@ -3,6 +3,7 @@ import {
   TextInput, ActivityIndicator, KeyboardAvoidingView, Platform,
   Alert, RefreshControl, Modal, Image, Linking, Share,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useLocalSearchParams, router } from 'expo-router'
@@ -1114,6 +1115,8 @@ export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { user } = useAuthStore()
   const { isOnline } = useNetworkStatus()
+  const insets = useSafeAreaInsets()
+  const keyboardOffset = insets.top + 56
 
   const LIMIT = 30
 
@@ -1435,7 +1438,7 @@ export default function OrderDetailScreen() {
   const pm = PRIORITY_META[order.priority] ?? PRIORITY_META.medium
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={keyboardOffset}>
       <View style={S.screen}>
         {/* Header */}
         <View style={S.header}>
@@ -1643,7 +1646,7 @@ export default function OrderDetailScreen() {
         )}
 
         {/* Composer */}
-        <View style={S.composer}>
+        <View style={[S.composer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <TouchableOpacity onPress={handleAttachPress} style={S.attachBtn}>
             <Ionicons name="attach-outline" size={22} color="#64748B" />
           </TouchableOpacity>
@@ -1825,7 +1828,7 @@ const S = StyleSheet.create({
 
   composer: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 10,
-    paddingHorizontal: 12, paddingTop: 10, paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+    paddingHorizontal: 12, paddingTop: 10,
     backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E2E8F0',
   },
   composerInput: {
