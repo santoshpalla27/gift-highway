@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { formatDate, fmt12hrStr } from '../../utils/date'
 import { orderService, Order, UserOption } from '../../services/orderService'
+import { staffPortalApi } from '../../services/portalService'
 import { useAuthStore } from '../../store/authStore'
 import { useOrderSocket } from '../../hooks/useOrderSocket'
 import { useNetworkStatus } from '../../hooks/useNetworkStatus'
@@ -344,6 +345,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
   const [dueTime, setDueTime] = useState('')
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [showTimePicker, setShowTimePicker] = useState(false)
+  const [createPortal, setCreatePortal] = useState(false)
   const [users, setUsers] = useState<UserOption[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -359,7 +361,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
       setPriority(order.priority); setAssignedTo(order.assigned_to ?? []); setDueDate(order.due_date ?? ''); setDueTime(order.due_time ?? '')
     } else {
       setTitle(''); setCustomerName(''); setContactNumber(''); setDescription('')
-      setPriority('medium'); setAssignedTo([]); setDueDate(''); setDueTime('')
+      setPriority('medium'); setAssignedTo([]); setDueDate(''); setDueTime(''); setCreatePortal(false)
     }
     setError('')
   }, [order, visible])
@@ -370,8 +372,14 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
     setLoading(true); setError('')
     try {
       const payload = { title: title.trim(), customer_name: customerName.trim(), contact_number: contactNumber.trim(), description: description.trim(), priority, assigned_to: assignedTo, due_date: dueDate || null, due_time: dueTime || null }
-      if (isEdit) await orderService.updateOrder(order!.id, payload)
-      else await orderService.createOrder(payload)
+      if (isEdit) {
+        await orderService.updateOrder(order!.id, payload)
+      } else {
+        const created = await orderService.createOrder(payload)
+        if (createPortal) {
+          try { await staffPortalApi.createPortal(created.id, customerName.trim()) } catch (_) {}
+        }
+      }
       onRefresh(); onClose()
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error
@@ -523,6 +531,14 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
                 )
               })}
             </View>
+          )}
+          {!isEdit && (
+            <TouchableOpacity style={F.portalRow} onPress={() => setCreatePortal(v => !v)} activeOpacity={0.7}>
+              <View style={[F.checkbox, createPortal && F.checkboxOn]}>
+                {createPortal && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
+              </View>
+              <Text style={F.portalLabel}>Generate customer portal link after creation</Text>
+            </TouchableOpacity>
           )}
           <TouchableOpacity style={F.submitBtn} onPress={handleSubmit} disabled={loading}>
             {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={F.submitText}>{isEdit ? 'Save Changes' : 'Create Order'}</Text>}
@@ -953,6 +969,10 @@ const F = StyleSheet.create({
   pickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   pickerTitle: { fontSize: 15, fontWeight: '600', color: '#0F172A' },
   pickerDone: { fontSize: 15, fontWeight: '700', color: '#6366F1' },
+  portalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 28, marginBottom: 16 },
+  checkbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: '#CBD5E1', alignItems: 'center', justifyContent: 'center' },
+  checkboxOn: { backgroundColor: '#10B981', borderColor: '#10B981' },
+  portalLabel: { flex: 1, fontSize: 14, color: '#475569' },
 })
 
 const SP = StyleSheet.create({

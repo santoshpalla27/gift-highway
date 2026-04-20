@@ -456,16 +456,11 @@ function InfoSheet({ order, portal, onClose }: { order: Order; portal: PortalSta
     if (!portal?.token) return
     const url = getPortalURL(portal.token)
     try {
-      const { Clipboard } = await import('@react-native-clipboard/clipboard').catch(() => ({ Clipboard: null }))
-      if (Clipboard) {
-        Clipboard.setString(url)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      } else {
-        await Share.share({ message: url })
-      }
-    } catch {
       await Share.share({ message: url })
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // user dismissed share sheet
     }
   }
 
