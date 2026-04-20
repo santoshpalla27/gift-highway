@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   View,
   Text,
@@ -163,6 +164,7 @@ function TeamTab({
   onRefresh: () => void
 }) {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const { stats } = data
 
   function goToOrder(id: string) {
@@ -171,7 +173,7 @@ function TeamTab({
 
   return (
     <ScrollView
-      contentContainerStyle={S.tabContent}
+      contentContainerStyle={[S.tabContent, { paddingBottom: Math.max(insets.bottom + 16, 32) }]}
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}
     >
@@ -233,6 +235,7 @@ function MyTab({
   onRefresh: () => void
 }) {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const { stats } = data
 
   function goToOrder(id: string) {
@@ -241,7 +244,7 @@ function MyTab({
 
   return (
     <ScrollView
-      contentContainerStyle={S.tabContent}
+      contentContainerStyle={[S.tabContent, { paddingBottom: Math.max(insets.bottom + 16, 32) }]}
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />}
     >
@@ -314,6 +317,7 @@ function useDashboardData<T>(fetcher: () => Promise<T>) {
 }
 
 export default function DashboardScreen() {
+  const insets = useSafeAreaInsets()
   const [activeTab, setActiveTab] = useState<TabKey>('team')
 
   const team = useDashboardData<TeamDashboard>(dashboardService.getTeam)

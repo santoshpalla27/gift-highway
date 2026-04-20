@@ -2,6 +2,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, Modal, Platform, Alert, RefreshControl,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useState, useEffect, useCallback } from 'react'
 import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -81,6 +82,7 @@ function FilterSheet({
   onClose: () => void
   myOrdersOnly: boolean
 }) {
+  const insets = useSafeAreaInsets()
   const [draft, setDraft] = useState<FilterState>(filters)
   const [users, setUsers] = useState<UserOption[]>([])
   const [usersLoaded, setUsersLoaded] = useState(false)
@@ -114,7 +116,7 @@ function FilterSheet({
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40) }}>
 
           {/* Status */}
           <View style={FS.section}>
@@ -306,7 +308,7 @@ function FilterSheet({
         </ScrollView>
 
         {/* Apply button */}
-        <View style={FS.footer}>
+        <View style={[FS.footer, { paddingBottom: Math.max(insets.bottom + 16, 20) }]}>
           <TouchableOpacity
             style={[FS.applyBtn, !hasChanges && { opacity: 0.5 }]}
             onPress={() => { onApply(draft); onClose() }}
@@ -332,6 +334,7 @@ interface OrderFormProps {
 }
 
 function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) {
+  const insets = useSafeAreaInsets()
   const isEdit = !!order
   const { isOnline } = useNetworkStatus()
   const [title, setTitle] = useState('')
@@ -399,7 +402,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
           <Text style={F.title}>{isEdit ? 'Edit Order' : 'Create Order'}</Text>
           <View style={{ width: 24 }} />
         </View>
-        <ScrollView style={F.body} keyboardShouldPersistTaps="handled">
+        <ScrollView style={F.body} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40) }} keyboardShouldPersistTaps="handled">
           {error ? <View style={F.errorBox}><Text style={F.errorText}>{error}</Text></View> : null}
           <Text style={F.label}>Title *</Text>
           <TextInput style={F.input} value={title} onChangeText={setTitle} placeholder="e.g. Wedding Banner" autoCapitalize="words" />
@@ -552,6 +555,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
 // ─── Status Picker Modal ──────────────────────────────────────────────────────
 
 function StatusPickerModal({ order, onClose, onRefresh }: { order: Order | null; onClose: () => void; onRefresh: () => void }) {
+  const insets = useSafeAreaInsets()
   const handlePick = async (status: string) => {
     if (!order) return
     try { await orderService.updateStatus(order.id, status); onRefresh() }
@@ -561,7 +565,7 @@ function StatusPickerModal({ order, onClose, onRefresh }: { order: Order | null;
   return (
     <Modal visible={!!order} transparent animationType="fade" onRequestClose={onClose}>
       <View style={SP.overlay}>
-        <View style={SP.sheet}>
+        <View style={[SP.sheet, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
           <Text style={SP.title}>Change Status</Text>
           <Text style={SP.sub}>Updating #{order?.order_number} — {order?.title}</Text>
           {STATUS_OPTIONS.map(s => (
@@ -643,6 +647,7 @@ function ActiveFilterPills({ filters, onClear }: { filters: FilterState; onClear
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly?: boolean }) {
+  const insets = useSafeAreaInsets()
   const { user } = useAuthStore()
   const { isOnline } = useNetworkStatus()
   const [orders, setOrders] = useState<Order[]>([])
@@ -782,7 +787,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
       ) : (
         <ScrollView
           style={S.list}
-          contentContainerStyle={{ paddingBottom: 40, padding: 12, backgroundColor: '#F8FAFC' }}
+          contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40), padding: 12, backgroundColor: '#F8FAFC' }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F172A" />}
         >
           {orders.map(o => (

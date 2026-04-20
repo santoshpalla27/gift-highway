@@ -405,6 +405,7 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, orderId 
 // ─── Status Picker Sheet ──────────────────────────────────────────────────────
 
 function StatusSheet({ order, onClose, onChanged }: { order: Order; onClose: () => void; onChanged: () => void }) {
+  const insets = useSafeAreaInsets()
   const handlePick = async (status: string) => {
     try {
       await orderService.updateStatus(order.id, status)
@@ -418,7 +419,7 @@ function StatusSheet({ order, onClose, onChanged }: { order: Order; onClose: () 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={SS.overlay} activeOpacity={1} onPress={onClose}>
-        <View style={SS.sheet}>
+        <View style={[SS.sheet, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
           <Text style={SS.title}>Change Status</Text>
           {STATUS_OPTIONS.map(s => (
             <TouchableOpacity
@@ -475,7 +476,7 @@ function InfoSheet({ order, portal, onClose }: { order: Order; portal: PortalSta
           <Text style={E.headerTitle}>Order Info</Text>
           <View style={{ width: 24 }} />
         </View>
-        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: Math.max(insets.bottom + 16, 48) }}>
 
           {/* Customer */}
           <View style={IN.section}>
@@ -577,6 +578,7 @@ function InfoSheet({ order, portal, onClose }: { order: Order; portal: PortalSta
 // ─── Edit Order Sheet ─────────────────────────────────────────────────────────
 
 function EditOrderSheet({ order, onClose, onSaved }: { order: Order; onClose: () => void; onSaved: () => void }) {
+  const insets = useSafeAreaInsets()
   const { isOnline } = useNetworkStatus()
   const [title, setTitle] = useState(order.title)
   const [customerName, setCustomerName] = useState(order.customer_name)
@@ -629,7 +631,7 @@ function EditOrderSheet({ order, onClose, onSaved }: { order: Order; onClose: ()
           <Text style={E.headerTitle}>Edit Order</Text>
           <View style={{ width: 24 }} />
         </View>
-        <ScrollView style={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+        <ScrollView style={{ padding: 20 }} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40) }} keyboardShouldPersistTaps="handled">
           {error ? <View style={E.errorBox}><Text style={E.errorText}>{error}</Text></View> : null}
 
           <Text style={E.label}>Title *</Text>
@@ -695,7 +697,7 @@ function EditOrderSheet({ order, onClose, onSaved }: { order: Order; onClose: ()
                 <Modal visible={showDatePicker} transparent animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
                   <View style={PK.overlay}>
                     <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowDatePicker(false)} />
-                    <View style={PK.sheet}>
+                    <View style={[PK.sheet, { paddingBottom: Math.max(insets.bottom + 16, 32) }]}>
                       <View style={PK.header}>
                         <Text style={PK.title}>Select Date</Text>
                         <TouchableOpacity onPress={() => setShowDatePicker(false)}>
@@ -722,7 +724,7 @@ function EditOrderSheet({ order, onClose, onSaved }: { order: Order; onClose: ()
                 <Modal visible={showTimePicker} transparent animationType="fade" onRequestClose={() => setShowTimePicker(false)}>
                   <View style={PK.overlay}>
                     <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowTimePicker(false)} />
-                    <View style={PK.sheet}>
+                    <View style={[PK.sheet, { paddingBottom: Math.max(insets.bottom + 16, 32) }]}>
                       <View style={PK.header}>
                         <Text style={PK.title}>Select Time</Text>
                         <TouchableOpacity onPress={() => setShowTimePicker(false)}>
@@ -966,7 +968,7 @@ function PortalChatModal({
 
   return (
     <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
+      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#FFFFFF' }} behavior="padding" keyboardVerticalOffset={0} enabled={Platform.OS === 'ios'}>
         <View style={PC.screen}>
           {/* Header */}
           <View style={PC.header}>
@@ -1089,7 +1091,7 @@ function PortalChatModal({
       {/* Attach sheet */}
       <Modal visible={showAttachSheet} transparent animationType="slide" onRequestClose={() => setShowAttachSheet(false)}>
         <TouchableOpacity style={SS.overlay} activeOpacity={1} onPress={() => setShowAttachSheet(false)}>
-          <TouchableOpacity activeOpacity={1} style={SS.sheet}>
+          <TouchableOpacity activeOpacity={1} style={[SS.sheet, { paddingBottom: Math.max(portalInsets.bottom + 16, 24) }]}>
             <Text style={SS.title}>Attach File</Text>
             <TouchableOpacity style={TM.row} onPress={() => { setShowAttachSheet(false); setTimeout(handlePickImage, 100) }}>
               <Ionicons name="image-outline" size={20} color="#374151" />
@@ -1449,7 +1451,7 @@ export default function OrderDetailScreen() {
   const pm = PRIORITY_META[order.priority] ?? PRIORITY_META.medium
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? keyboardOffset : 0}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#FFFFFF' }} behavior="padding" keyboardVerticalOffset={keyboardOffset} enabled={Platform.OS === 'ios'}>
       <View style={S.screen}>
         {/* Header */}
         <View style={[S.header, { paddingTop: insets.top + 10 }]}>
@@ -1723,7 +1725,7 @@ export default function OrderDetailScreen() {
       </Modal>
       <Modal visible={showAttachSheet} transparent animationType="slide" onRequestClose={() => setShowAttachSheet(false)}>
         <TouchableOpacity style={SS.overlay} activeOpacity={1} onPress={() => setShowAttachSheet(false)}>
-          <TouchableOpacity activeOpacity={1} style={SS.sheet}>
+          <TouchableOpacity activeOpacity={1} style={[SS.sheet, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
             <Text style={SS.title}>Attach File</Text>
             <TouchableOpacity style={TM.row} onPress={() => { setShowAttachSheet(false); setTimeout(handlePickImage, 100) }}>
               <Ionicons name="image-outline" size={20} color="#374151" />

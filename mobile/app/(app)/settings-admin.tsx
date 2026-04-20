@@ -1,3 +1,4 @@
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   View,
   Text,
@@ -234,6 +235,7 @@ function ChangePasswordModal({ user, onClose }: { user: AdminUser | null; onClos
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function AdminScreen() {
+  const insets = useSafeAreaInsets()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -351,7 +353,7 @@ export default function AdminScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView style={S.list} contentContainerStyle={S.listContent} keyboardShouldPersistTaps="handled">
+        <ScrollView style={S.list} contentContainerStyle={[S.listContent, { paddingBottom: Math.max(insets.bottom + 16, 40) }]} keyboardShouldPersistTaps="handled">
           {filteredUsers.length === 0 && !loading ? (
             <View style={S.emptyState}>
               <Ionicons name="search-outline" size={48} color="#D1D5DB" />

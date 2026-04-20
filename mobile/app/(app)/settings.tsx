@@ -1,3 +1,4 @@
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   View,
   Text,
@@ -191,6 +192,7 @@ function AvatarSection({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function SettingsScreen() {
+  const insets = useSafeAreaInsets()
   const { user, clearAuth } = useAuthStore()
 
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -300,7 +302,7 @@ export default function SettingsScreen() {
   return (
     <ScrollView
       style={S.screen}
-      contentContainerStyle={S.scrollContent}
+      contentContainerStyle={[S.scrollContent, { paddingBottom: Math.max(insets.bottom + 16, 40) }]}
       showsVerticalScrollIndicator={false}
     >
       {/* ── Header ───────────────────────────────────────────────────────── */}
