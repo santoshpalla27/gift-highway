@@ -120,9 +120,6 @@ export default function LoginScreen() {
           <Text style={styles.footerText}>
             Internal use only — unauthorized access is prohibited
           </Text>
-          <Text style={styles.backendText}>
-            {process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1'}
-          </Text>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -202,16 +199,10 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.7 },
   buttonText: { color: '#ffffff', fontSize: 13, fontWeight: '600' },
-  footerText: {
-    textAlign: 'center',
-    marginTop: 24,
-    fontSize: 11,
-    color: '#9CA3AF'
-  },
-  backendText: {
-    textAlign: 'center',
-    marginTop: 6,
-    fontSize: 10,
-    color: '#C4C4D0',
+  footerText: { 
+    textAlign: 'center', 
+    marginTop: 24, 
+    fontSize: 11, 
+    color: '#9CA3AF' 
   },
 })
