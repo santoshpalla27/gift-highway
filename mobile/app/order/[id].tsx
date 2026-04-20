@@ -798,7 +798,6 @@ function PortalChatModal({
   refreshRef: React.MutableRefObject<(() => void) | null>
 }) {
   const portalInsets = useSafeAreaInsets()
-  const [portalKeyboardVisible, setPortalKeyboardVisible] = useState(false)
   const [messages, setMessages] = useState<PortalMessage[]>([])
   const [loadingMsgs, setLoadingMsgs] = useState(true)
   const [reply, setReply] = useState('')
@@ -806,12 +805,6 @@ function PortalChatModal({
   const [showOptions, setShowOptions] = useState(false)
   const [showAttachSheet, setShowAttachSheet] = useState(false)
   const scrollRef = useRef<ScrollView>(null)
-
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => setPortalKeyboardVisible(true))
-    const hide = Keyboard.addListener('keyboardDidHide', () => setPortalKeyboardVisible(false))
-    return () => { show.remove(); hide.remove() }
-  }, [])
 
   type UploadingFile = { id: string; name: string; mime: string; progress: number; previewUri?: string; done?: boolean; error?: string }
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
@@ -1041,7 +1034,7 @@ function PortalChatModal({
 
           {/* Composer */}
           {portal.enabled && (
-            <View style={[S.composer, { paddingBottom: portalKeyboardVisible ? 8 : Math.max(portalInsets.bottom + 4, 16) }]}>
+            <View style={[S.composer, { paddingBottom: Math.max(portalInsets.bottom + 4, 16) }]}>
               <TouchableOpacity onPress={() => setShowAttachSheet(true)} style={S.attachBtn}>
                 <Ionicons name="attach-outline" size={22} color="#64748B" />
               </TouchableOpacity>
@@ -1184,16 +1177,13 @@ export default function OrderDetailScreen() {
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
 
   const scrollRef = useRef<ScrollView>(null)
-  const [keyboardVisible, setKeyboardVisible] = useState(false)
 
-  // Scroll to bottom when keyboard opens; track visibility for composer padding
+  // Scroll to bottom when keyboard opens so latest message stays visible
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => {
-      setKeyboardVisible(true)
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50)
     })
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false))
-    return () => { show.remove(); hide.remove() }
+    return () => sub.remove()
   }, [])
 
   // ── Fetch order ──────────────────────────────────────────────────────────────
@@ -1668,7 +1658,7 @@ export default function OrderDetailScreen() {
         )}
 
         {/* Composer */}
-        <View style={[S.composer, { paddingBottom: keyboardVisible ? 8 : Math.max(insets.bottom + 4, 16) }]}>
+        <View style={[S.composer, { paddingBottom: Math.max(insets.bottom + 4, 16) }]}>
           <TouchableOpacity onPress={handleAttachPress} style={S.attachBtn}>
             <Ionicons name="attach-outline" size={22} color="#64748B" />
           </TouchableOpacity>
