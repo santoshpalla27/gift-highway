@@ -1,7 +1,7 @@
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, KeyboardAvoidingView, Platform,
-  Alert, RefreshControl, Modal, Image, Linking, Share,
+  Alert, RefreshControl, Modal, Image, Linking, Share, Keyboard,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import DateTimePicker from '@react-native-community/datetimepicker'
@@ -1177,6 +1177,14 @@ export default function OrderDetailScreen() {
 
   const scrollRef = useRef<ScrollView>(null)
 
+  // Scroll to bottom when keyboard opens so latest message stays visible
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50)
+    })
+    return () => sub.remove()
+  }, [])
+
   // ── Fetch order ──────────────────────────────────────────────────────────────
   const fetchOrder = useCallback(async () => {
     if (!id) return
@@ -1369,7 +1377,6 @@ export default function OrderDetailScreen() {
     setSending(true)
     try {
       await orderService.addComment(id!, text)
-      setOptimisticEvents(prev => prev.filter(e => e.id !== id_))
       await fetchLatest()
     } catch {
       setOptimisticEvents(prev => prev.map(e => e.id === id_ ? { ...e, failed: true } : e))
@@ -1438,7 +1445,7 @@ export default function OrderDetailScreen() {
   const pm = PRIORITY_META[order.priority] ?? PRIORITY_META.medium
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={keyboardOffset}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={keyboardOffset}>
       <View style={S.screen}>
         {/* Header */}
         <View style={S.header}>
@@ -1539,6 +1546,7 @@ export default function OrderDetailScreen() {
               if (atBottomRef.current && newCount > 0) setNewCount(0)
             }}
             scrollEventThrottle={100}
+            keyboardShouldPersistTaps="handled"
           >
             {hasOlder && (
               <TouchableOpacity style={S.loadOlderBtn} onPress={loadOlder} disabled={loadingOlder}>

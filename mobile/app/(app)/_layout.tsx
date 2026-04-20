@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { Platform, StyleSheet, View, Text, TouchableOpacity } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Circle, Path, G } from 'react-native-svg'
 
 function GiftHighwayHeaderLogo() {
@@ -41,6 +42,9 @@ function NotificationIcon() {
 }
 
 export default function AppLayout() {
+  const insets = useSafeAreaInsets()
+  const tabBarHeight = 50 + insets.bottom
+
   return (
     <Tabs
       screenOptions={{
@@ -50,8 +54,8 @@ export default function AppLayout() {
           backgroundColor: '#FFFFFF',
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: '#C6C6C8',
-          height: Platform.OS === 'ios' ? 88 : 60,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+          height: tabBarHeight,
+          paddingBottom: Math.max(insets.bottom, 8),
           paddingTop: 8,
         },
         tabBarLabelStyle: {

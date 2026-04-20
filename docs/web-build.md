@@ -4,11 +4,13 @@
 
 ```bash
 # Stop and remove current containers
-docker compose stop frontend backend monitor
-docker compose rm -f frontend backend monitor
+docker compose -f docker-compose.staging.yml stop frontend backend monitor
+docker compose -f docker-compose.staging.yml rm -f frontend backend monitor
 
 # Build fresh from source using the staging compose
 docker compose -f docker-compose.staging.yml build --no-cache frontend backend monitor
+
+docker compose -f docker-compose.staging.yml up -d
 
 # Tag for Docker Hub
 docker tag hmmm-frontend santoshpalla27/company-app:frontend

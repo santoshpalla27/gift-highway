@@ -354,7 +354,7 @@ export default function AdminScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView style={S.list} contentContainerStyle={S.listContent}>
+        <ScrollView style={S.list} contentContainerStyle={S.listContent} keyboardShouldPersistTaps="handled">
           {filteredUsers.length === 0 && !loading ? (
             <View style={S.emptyState}>
               <Ionicons name="search-outline" size={48} color="#D1D5DB" />
