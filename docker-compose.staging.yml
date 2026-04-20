@@ -1,0 +1,158 @@
+# Staging / testing compose — builds from local source (no pre-built images needed).
+# Uses Traefik on a separate subdomain so prod and staging can coexist on the same server.
+#
+# Usage:
+#   1. Copy .env.staging.example → .env.staging and fill in values.
+#      Set DOMAIN=staging.yourdomain.com (different subdomain from prod).
+#   2. Run: docker compose -f docker-compose.staging.yml --env-file .env.staging up -d --build
+#   3. Tear down: docker compose -f docker-compose.staging.yml --env-file .env.staging down
+
+services:
+  traefik:
+    image: traefik:v3.6.10
+    container_name: staging-traefik
+    restart: unless-stopped
+    environment:
+      - DOCKER_API_VERSION=1.41
+      - CF_API_TOKEN=${CF_API_TOKEN}
+    command:
+      - --api.dashboard=false
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.endpoint=unix:///var/run/docker.sock
+      - --providers.docker.constraints=label(com.docker.compose.project,staging)
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt-staging/acme.json
+      - --log.level=INFO
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt-staging-data:/letsencrypt-staging
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: staging-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-appdb_staging}
+      - POSTGRES_USER=${POSTGRES_USER:-app}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-staging-secret}
+    volumes:
+      - postgres-staging-data:/var/lib/postgresql/data
+    networks:
+      - staging-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app} -d ${POSTGRES_DB:-appdb_staging}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.50"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: staging-backend
+    restart: unless-stopped
+    environment:
+      - APP_ENV=staging
+      - PORT=8080
+      - DATABASE_URL=postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-staging-secret}@postgres:5432/${POSTGRES_DB:-appdb_staging}?sslmode=disable
+      - JWT_SECRET=${JWT_SECRET:-staging-jwt-secret-change-me-32chars}
+      - JWT_EXPIRY=${JWT_EXPIRY:-15m}
+      - REFRESH_EXPIRY=${REFRESH_EXPIRY:-720h}
+      - ALLOWED_ORIGINS=https://${DOMAIN}
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID:-}
+      - R2_ACCESS_KEY=${R2_ACCESS_KEY:-}
+      - R2_SECRET_KEY=${R2_SECRET_KEY:-}
+      - R2_BUCKET=${R2_BUCKET:-}
+      - R2_PUBLIC_URL=${R2_PUBLIC_URL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - staging-net
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.staging-backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)
+      - traefik.http.routers.staging-backend.entrypoints=websecure
+      - traefik.http.routers.staging-backend.tls.certresolver=letsencrypt
+      - traefik.http.routers.staging-backend.priority=10
+      - traefik.http.services.staging-backend.loadbalancer.server.port=8080
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.50"
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  frontend:
+    build:
+      context: ./frontend-web
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=https://${DOMAIN}/api/v1
+    container_name: staging-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - staging-net
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.staging-frontend.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.staging-frontend.entrypoints=websecure
+      - traefik.http.routers.staging-frontend.tls.certresolver=letsencrypt
+      - traefik.http.routers.staging-frontend.priority=1
+      - traefik.http.services.staging-frontend.loadbalancer.server.port=80
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+          cpus: "0.25"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+volumes:
+  postgres-staging-data:
+  letsencrypt-staging-data:
+
+networks:
+  staging-net:
+    driver: bridge
