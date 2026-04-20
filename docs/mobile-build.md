@@ -87,6 +87,15 @@ cd app/build/outputs/apk/release/
 python3 -m http.server 8000 --bind 0.0.0.0
 ```
 
+cd /root/company-app/mobile
+
+# Set production API URL
+
+echo "EXPO_PUBLIC_API_URL=https://app.yourdomain.com/api/v1" > .env
+
+npx expo prebuild --clean --platform android
+cd android && ./gradlew assembleRelease --max-workers=2
+
 ---
 
 ## Firebase Push Notifications Setup
@@ -94,12 +103,14 @@ python3 -m http.server 8000 --bind 0.0.0.0
 > **Note:** The existing Firebase project (`android-app-834d8`, package `com.gifthighway`) is already configured and working from the order-kanban-app. `google-services.json` has been copied to `mobile/` as a reference. When building for production, either reuse this project (if package name stays `com.gifthighway`) or create a new one for `com.company.app` following the steps below.
 
 ### Step 1 — Create new Firebase project
+
 - Go to [console.firebase.google.com](https://console.firebase.google.com)
 - Click **Add project**
 - Name: `kanban-push` → Continue
 - Disable Google Analytics → Create project
 
 ### Step 2 — Add Android app
+
 - Click Android icon (Add app)
 - Package name: `com.gifthighway`
 - Nickname: `KanbanFlow` → Register app
@@ -107,6 +118,7 @@ python3 -m http.server 8000 --bind 0.0.0.0
 - Click Next → Next → Continue to console
 
 ### Step 3 — Download Service Account Key
+
 - Click gear icon → **Project Settings**
 - **Service Accounts** tab
 - Click **Generate new private key** → Generate key
