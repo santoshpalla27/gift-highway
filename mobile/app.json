@@ -8,10 +8,10 @@
     "platforms": ["ios", "android", "web"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.company.app"
+      "bundleIdentifier": "com.gifthighway"
     },
     "android": {
-      "package": "com.company.app",
+      "package": "com.gifthighway",
       "adaptiveIcon": {
         "backgroundColor": "#1d4ed8"
       },
