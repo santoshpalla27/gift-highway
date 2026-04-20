@@ -76,7 +76,10 @@ npm install
 ## 9. Prebuild & build APK
 
 ```bash
-cd /root/company-app/mobile
+git clone https://github.com/santoshpalla27/gift-highway.git
+cd gift-highway/mobile
+npm install
+
 npx expo prebuild --clean --platform android
 
 cd android

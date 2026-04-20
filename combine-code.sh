@@ -18,6 +18,8 @@ find "$ROOT" \
   -not -path "*/order-kanban-app/*" \
   -not -path "*/frontend-sample/*" \
   -not -name ".DS_Store" \
+  -not -name ".env" \
+  -not -name ".env.*" \
   | sort \
   | sed "s|$ROOT/||; s|$ROOT||" \
   | grep -v '^$' \
@@ -69,6 +71,8 @@ done < <(find "$ROOT" -type f \
   -not -name "*.ttf" \
   -not -name "*.map" \
   -not -name "combined-code.txt" \
+  -not -name ".env" \
+  -not -name ".env.*" \
   -not -path "*/order-kanban-app/*" \
   -not -path "*/frontend-sample/*" \
   | sort)
