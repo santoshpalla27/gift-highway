@@ -91,16 +91,18 @@ python3 -m http.server 8000 --bind 0.0.0.0
 
 ## Firebase Push Notifications Setup
 
+> **Note:** The existing Firebase project (`android-app-834d8`, package `com.gifthighway`) is already configured and working from the order-kanban-app. `google-services.json` has been copied to `mobile/` as a reference. When building for production, either reuse this project (if package name stays `com.gifthighway`) or create a new one for `com.company.app` following the steps below.
+
 ### Step 1 — Create new Firebase project
 - Go to [console.firebase.google.com](https://console.firebase.google.com)
 - Click **Add project**
-- Name: `company-app-push` → Continue
+- Name: `kanban-push` → Continue
 - Disable Google Analytics → Create project
 
 ### Step 2 — Add Android app
 - Click Android icon (Add app)
-- Package name: `com.company.app`
-- Nickname: `Company App` → Register app
+- Package name: `com.gifthighway`
+- Nickname: `KanbanFlow` → Register app
 - Download `google-services.json` → save it
 - Click Next → Next → Continue to console
 
@@ -124,7 +126,7 @@ eas credentials --platform android
 # Choose: production → Google Service Account
 # → Manage your Google Service Account Key for Push Notifications (FCM V1)
 # → Set up a Google Service Account Key for Push Notifications (FCM V1)
-# Path: ~/Downloads/company-app-push-firebase-adminsdk-xxxxx.json
+# Path: ~/Downloads/kanban-push-firebase-adminsdk-xxxxx.json
 ```
 
 ### Step 6 — Push & rebuild

@@ -14,6 +14,23 @@
       "package": "com.company.app",
       "adaptiveIcon": {
         "backgroundColor": "#1d4ed8"
+      },
+      "googleServicesFile": "./google-services.json"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "color": "#6366F1",
+          "defaultChannel": "default"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": ""
       }
     }
   }

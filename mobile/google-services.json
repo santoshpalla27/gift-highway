@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "646126602297",
+    "project_id": "android-app-834d8",
+    "storage_bucket": "android-app-834d8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:646126602297:android:cee0e220cd046f32f1e5e8",
+        "android_client_info": {
+          "package_name": "com.gifthighway"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDWY5RwhJInEfvrxq6vKwtpxc-ZRSwLHOc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
