@@ -16,7 +16,8 @@
         "backgroundColor": "#1d4ed8"
       },
       "googleServicesFile": "./google-services.json",
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "edgeToEdgeEnabled": false
     },
     "plugins": [
       "expo-secure-store",
