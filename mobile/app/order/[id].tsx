@@ -1234,10 +1234,14 @@ export default function OrderDetailScreen() {
     try {
       const data = await orderService.listEvents(id, 1, LIMIT, 'desc')
       const latest = [...data.events].reverse()
-      const existingIds = new Set(evListRef.current.map(e => e.id))
-      const newEvs = latest.filter(e => !existingIds.has(e.id))
-      if (newEvs.length === 0) return
-      setEvList(prev => [...prev, ...newEvs])
+      let added = 0
+      setEvList(prev => {
+        const existingIds = new Set(prev.map(e => e.id))
+        const newEvs = latest.filter(e => !existingIds.has(e.id))
+        added = newEvs.length
+        return newEvs.length === 0 ? prev : [...prev, ...newEvs]
+      })
+      if (added === 0) return
       setOptimisticEvents(prev => prev.filter(e => e.failed))
       setTotalEvents(data.total)
       if (atBottomRef.current) {

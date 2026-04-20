@@ -129,7 +129,7 @@ func (h *AttachmentHandler) DeleteAttachment(c *gin.Context) {
 		switch {
 		case errors.Is(err, repositories.ErrNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"error": "attachment not found"})
-		case err.Error() == "forbidden":
+		case errors.Is(err, services.ErrForbidden):
 			c.JSON(http.StatusForbidden, gin.H{"error": "only the uploader or an admin can delete this file"})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete attachment"})

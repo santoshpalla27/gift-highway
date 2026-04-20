@@ -21,6 +21,7 @@ import (
 var (
 	ErrFileTooLarge    = errors.New("file exceeds 50 MB limit")
 	ErrInvalidMIMEType = errors.New("file type not allowed")
+	ErrForbidden       = errors.New("forbidden")
 )
 
 var allowedMIMETypes = map[string]bool{
@@ -233,7 +234,7 @@ func (s *AttachmentService) DeleteAttachment(ctx context.Context, attachmentID, 
 		uploaderID = *att.UploadedBy
 	}
 	if role != "admin" && uploaderID != userID {
-		return nil, errors.New("forbidden")
+		return nil, ErrForbidden
 	}
 
 	if err := s.repo.Delete(ctx, attachmentID); err != nil {
