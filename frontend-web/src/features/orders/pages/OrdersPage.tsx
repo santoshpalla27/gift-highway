@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { formatDate, formatRelative } from '../../../utils/date'
+import { DateInput } from '../../../components/system/DateInput'
 import { useNavigate } from 'react-router-dom'
 import { useOrders, useUpdateOrderStatus } from '../hooks/useOrders'
 import { OrderModal } from '../components/OrderModal'
@@ -416,19 +417,14 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>From</label>
-                  <input type="date" value={dueDraftFrom} onChange={e => setDueDraftFrom(e.target.value)}
-                    style={{ width: '100%', padding: '7px 10px', border: '1.5px solid #E4E6EF', borderRadius: 8, fontSize: 13, color: '#111827', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                    onFocus={e => e.currentTarget.style.borderColor = '#6366F1'}
-                    onBlur={e => e.currentTarget.style.borderColor = '#E4E6EF'}
+                  <DateInput value={dueDraftFrom} onChange={setDueDraftFrom}
+                    style={{ width: '100%', padding: '7px 10px', border: '1.5px solid #E4E6EF', borderRadius: 8, boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>To</label>
-                  <input type="date" value={dueDraftTo} onChange={e => setDueDraftTo(e.target.value)}
-                    min={dueDraftFrom || undefined}
-                    style={{ width: '100%', padding: '7px 10px', border: '1.5px solid #E4E6EF', borderRadius: 8, fontSize: 13, color: '#111827', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                    onFocus={e => e.currentTarget.style.borderColor = '#6366F1'}
-                    onBlur={e => e.currentTarget.style.borderColor = '#E4E6EF'}
+                  <DateInput value={dueDraftTo} onChange={setDueDraftTo} min={dueDraftFrom || undefined}
+                    style={{ width: '100%', padding: '7px 10px', border: '1.5px solid #E4E6EF', borderRadius: 8, boxSizing: 'border-box' }}
                   />
                 </div>
               </div>

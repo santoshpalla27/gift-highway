@@ -358,7 +358,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
               onPress={() => setShowDatePicker(true)}
             >
               <Text style={{ fontSize: 15, color: dueDate ? '#0F172A' : '#94A3B8' }}>
-                {dueDate || 'Select date'}
+                {dueDate ? formatDate(dueDate) : 'DD/MM/YYYY'}
               </Text>
               <Ionicons name="calendar-outline" size={18} color="#94A3B8" />
             </TouchableOpacity>

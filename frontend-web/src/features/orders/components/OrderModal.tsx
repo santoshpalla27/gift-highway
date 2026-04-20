@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useCreateOrder, useUpdateOrder, useUsersForAssignment } from '../hooks/useOrders'
 import type { Order } from '../../../services/orderService'
 import { staffPortalApi } from '../../../services/portalService'
+import { DateInput } from '../../../components/system/DateInput'
 
 interface Props {
   order?: Order | null
@@ -196,7 +197,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
             <div>
               <label className="modal-label">Due Date</label>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <input className="modal-input" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ flex: 1 }} />
+                <DateInput value={dueDate} onChange={setDueDate} className="modal-input" style={{ flex: 1 }} />
                 <input className="modal-input" type="time" value={dueTime} onChange={e => setDueTime(e.target.value)} style={{ width: '120px' }} />
               </div>
             </div>
