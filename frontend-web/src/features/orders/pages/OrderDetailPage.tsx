@@ -11,7 +11,7 @@ import { useOrderPermissions } from '../hooks/useOrderPermissions'
 import { Skeleton } from '../../../components/system/Skeleton'
 import { useSocketEvent } from '../../../providers/SocketProvider'
 import type { Order } from '../../../services/orderService'
-import { staffPortalApi, getPortalURL, type PortalStatus, type PortalAttachment } from '../../../services/portalService'
+import { staffPortalApi, getPortalURL, type PortalStatus, type PortalAttachment, type PortalMessage } from '../../../services/portalService'
 import { StaffPortalChatModal } from '../components/StaffPortalChatModal'
 
 // ─── Meta maps ───────────────────────────────────────────────────────────────
@@ -78,6 +78,46 @@ function DateDivider({ label }: { label: string }) {
 // ─── Extended event type for local optimistic state ──────────────────────────
 type LocalOrderEvent = OrderEvent & { failed?: boolean; originalText?: string }
 
+function parseCommentText(raw: string): { replyEventId: string | null; replyPreview: string | null; cleanText: string } {
+  const match = raw.match(/^\[reply:([^:\]]+):(.+?)\]\n?([\s\S]*)$/)
+  if (match) return { replyEventId: match[1], replyPreview: match[2], cleanText: match[3].trim() }
+  return { replyEventId: null, replyPreview: null, cleanText: raw }
+}
+
+function getEventPreview(event: LocalOrderEvent): string {
+  if (event.type === 'attachment_added') {
+    const p = event.payload as any
+    return `📎 ${p.file_name || 'Attachment'}`
+  }
+  const text = (event.payload as any)?.text ?? ''
+  const { cleanText } = parseCommentText(text)
+  return (cleanText || text).slice(0, 60)
+}
+
+function getPortalMsgPreview(msg: PortalMessage): string {
+  const textLines: string[] = []
+  let attName = ''
+  for (const line of msg.message.split('\n')) {
+    if (line.match(/^\[reply:\d+\]$/)) continue
+    const att = line.match(/^\[attachment:\d+:(.+?)\]$/)
+    if (att) { attName = att[1]; continue }
+    textLines.push(line)
+  }
+  const text = textLines.join('\n').trim()
+  if (text) return text.slice(0, 60)
+  if (attName) return `📎 ${attName}`
+  return msg.message.slice(0, 60)
+}
+
+function getPortalMsgThumb(msg: PortalMessage, atts: PortalAttachment[]): string | null {
+  const m = msg.message.match(/\[attachment:(\d+):.+?\]/)
+  if (!m) return null
+  const att = atts.find(a => a.id === parseInt(m[1]))
+  const imgExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic']
+  if (att && imgExts.includes(att.file_type.toLowerCase()) && att.view_url) return att.view_url
+  return null
+}
+
 async function downloadFile(orderId: string, fileKey: string, fileName: string) {
   try {
     const url = await attachmentService.getDownloadUrl(orderId, fileKey, fileName)
@@ -125,14 +165,20 @@ function AttachmentImage({ orderId, fileKey, fileName, fileUrl }: {
 
 // ─── Timeline event renderer ─────────────────────────────────────────────────
 
-function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, orderId, portalAttachments }: {
+function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply, onHighlightQuoted, onHighlightPortalMsg, orderId, portalAttachments, portalMessages, portalAttCaptions, quotedEvent }: {
   event: LocalOrderEvent
   isOptimistic?: boolean
   onRetry?: () => void
   onDelete?: () => void
   onEdit?: (newText: string) => void
+  onReply?: () => void
+  onHighlightQuoted?: () => void
+  onHighlightPortalMsg?: (portalMsgId: number) => void
   orderId: string
   portalAttachments?: PortalAttachment[]
+  portalMessages?: PortalMessage[]
+  portalAttCaptions?: Map<number, string>
+  quotedEvent?: LocalOrderEvent | null
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -149,10 +195,12 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, orderId
   }, [menuOpen])
 
   const isComment = event.type === 'comment_added'
-  const canMenu = (onDelete || onEdit) && !isOptimistic
+  const canMenu = (onDelete || onEdit || onReply) && !isOptimistic
 
   if (isComment) {
     const isFailed = event.failed
+    const rawText = (event.payload as any).text ?? ''
+    const { replyPreview, cleanText } = parseCommentText(rawText)
     return (
       <div style={{ display: 'flex', gap: 10, opacity: isOptimistic && !isFailed ? 0.6 : 1 }}>
         <div style={{
@@ -184,9 +232,20 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, orderId
                     background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8,
                     boxShadow: '0 4px 12px rgba(0,0,0,.1)', minWidth: 130, overflow: 'hidden',
                   }}>
+                    {onReply && (
+                      <button
+                        onClick={() => { setMenuOpen(false); onReply() }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#374151', textAlign: 'left' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                        Reply
+                      </button>
+                    )}
                     {onEdit && (
                       <button
-                        onClick={() => { setEditText((event.payload as any).text ?? ''); setEditing(true); setMenuOpen(false) }}
+                        onClick={() => { setEditText(cleanText); setEditing(true); setMenuOpen(false) }}
                         style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#374151', textAlign: 'left' }}
                         onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
                         onMouseLeave={e => (e.currentTarget.style.background = 'none')}
@@ -240,7 +299,38 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, orderId
               padding: '10px 14px', fontSize: 13.5, color: '#374151', lineHeight: 1.6,
               boxShadow: '0 1px 3px rgba(0,0,0,.04)',
             }}>
-              {(event.payload as any).text}
+              {replyPreview && (
+                <div
+                  onClick={onHighlightQuoted}
+                  style={{
+                    display: 'flex', alignItems: 'stretch', marginBottom: 8,
+                    borderLeft: '3px solid #6366F1', background: '#EEF2FF',
+                    borderRadius: '0 6px 6px 0', overflow: 'hidden',
+                    cursor: onHighlightQuoted ? 'pointer' : 'default',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0, padding: '4px 8px' }}>
+                    {quotedEvent && (
+                      <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: '#6366F1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {quotedEvent.actor_name}
+                      </p>
+                    )}
+                    <p style={{ margin: 0, fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {replyPreview}
+                    </p>
+                  </div>
+                  {quotedEvent?.type === 'attachment_added' && (() => {
+                    const qp = quotedEvent.payload as any
+                    if (!isImage(qp.mime_type ?? '')) return null
+                    return (
+                      <div style={{ width: 44, height: 44, flexShrink: 0, overflow: 'hidden' }}>
+                        <img src={qp.file_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
+              {cleanText}
             </div>
           )}
           {isFailed && (
@@ -280,7 +370,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, orderId
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{event.actor_name}</span>
             <span style={{ fontSize: 11, color: '#9CA3AF' }}>{formatTimestamp(event.created_at)}</span>
-            {onDelete && (
+            {(onReply || onDelete) && (
               <div ref={menuRef} style={{ marginLeft: 'auto', position: 'relative' }}>
                 <button
                   onClick={() => setMenuOpen(o => !o)}
@@ -292,15 +382,28 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, orderId
                 </button>
                 {menuOpen && (
                   <div style={{ position: 'absolute', right: 0, top: '100%', zIndex: 50, marginTop: 4, background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,.1)', minWidth: 130, overflow: 'hidden' }}>
-                    <button
-                      onClick={() => { setMenuOpen(false); onDelete() }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#EF4444', textAlign: 'left' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#FFF5F5')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                      Delete
-                    </button>
+                    {onReply && (
+                      <button
+                        onClick={() => { setMenuOpen(false); onReply() }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#374151', textAlign: 'left' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                        Reply
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button
+                        onClick={() => { setMenuOpen(false); onDelete() }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#EF4444', textAlign: 'left' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#FFF5F5')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                        Delete
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -363,18 +466,24 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, orderId
     // If the entire message is just attachment tokens (no text), suppress it —
     // the customer_attachment event already covers it in the timeline.
     const rawText = p.text ?? ''
+    let portalReplyMsgId: number | null = null
     const parsed = (() => {
       const tokens: { id: number; name: string }[] = []
       const textLines: string[] = []
       for (const line of rawText.split('\n')) {
-        const m = line.match(/^\[attachment:(\d+):(.+?)\]$/)
-        if (m) { tokens.push({ id: parseInt(m[1]), name: m[2] }); continue }
+        const att = line.match(/^\[attachment:(\d+):(.+?)\]$/)
+        if (att) { tokens.push({ id: parseInt(att[1]), name: att[2] }); continue }
+        const replyTok = line.match(/^\[reply:(\d+)\]$/)
+        if (replyTok) { portalReplyMsgId = parseInt(replyTok[1]); continue }
         textLines.push(line)
       }
       return { text: textLines.join('\n').trim(), tokens }
     })()
+    const quotedPortalMsg = portalReplyMsgId !== null
+      ? (portalMessages ?? []).find(m => m.id === portalReplyMsgId) ?? null
+      : null
 
-    if (event.type === 'customer_message' && parsed.text === '' && parsed.tokens.length > 0) {
+    if (event.type === 'customer_message' && parsed.tokens.length > 0) {
       return null
     }
 
@@ -449,19 +558,65 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, orderId
             </span>
             <span style={{ fontSize: 11, color: '#9CA3AF' }}>{formatTimestamp(event.created_at)}</span>
           </div>
-          {parsed.text && (
+          {(parsed.text || quotedPortalMsg) && (
             <div style={{
               fontSize: 13.5, color: '#111827', background: isStaff ? '#EFF6FF' : '#ECFDF5',
               border: `1px solid ${isStaff ? '#BFDBFE' : '#A7F3D0'}`,
               borderRadius: 10, padding: '8px 12px', display: 'inline-block', maxWidth: '85%',
               lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
             }}>
+              {quotedPortalMsg && (() => {
+                const qIsStaff = quotedPortalMsg.sender_type === 'staff'
+                const thumb = getPortalMsgThumb(quotedPortalMsg, portalAttachments ?? [])
+                return (
+                  <div
+                    onClick={() => portalReplyMsgId !== null && onHighlightPortalMsg?.(portalReplyMsgId)}
+                    style={{
+                      display: 'flex', alignItems: 'stretch', marginBottom: parsed.text ? 8 : 0,
+                      borderLeft: `3px solid ${qIsStaff ? '#3B82F6' : '#10B981'}`,
+                      background: 'rgba(0,0,0,0.05)', borderRadius: '0 6px 6px 0',
+                      overflow: 'hidden',
+                      cursor: onHighlightPortalMsg && portalReplyMsgId !== null ? 'pointer' : 'default',
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0, padding: '3px 8px' }}>
+                      <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: qIsStaff ? '#3B82F6' : '#10B981', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {quotedPortalMsg.portal_sender}
+                      </p>
+                      <p style={{ margin: 0, fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {getPortalMsgPreview(quotedPortalMsg)}
+                      </p>
+                    </div>
+                    {thumb && (
+                      <div style={{ width: 40, height: 40, flexShrink: 0, overflow: 'hidden' }}>
+                        <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
               {parsed.text}
             </div>
           )}
-          {event.type === 'customer_attachment' && p.file_name &&
-            renderPortalAttachment(p.att_id ? parseInt(p.att_id) : null, p.file_name, p.file_type)
-          }
+          {event.type === 'customer_attachment' && p.file_name && (() => {
+            const attId = p.att_id ? parseInt(p.att_id) : null
+            const caption = attId != null ? portalAttCaptions?.get(attId) : undefined
+            return (
+              <>
+                {renderPortalAttachment(attId, p.file_name, p.file_type)}
+                {caption && (
+                  <div style={{
+                    fontSize: 13.5, color: '#111827', background: '#ECFDF5',
+                    border: '1px solid #A7F3D0', borderRadius: 10, padding: '6px 10px',
+                    marginTop: 6, display: 'inline-block', maxWidth: '85%',
+                    lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  }}>
+                    {caption}
+                  </div>
+                )}
+              </>
+            )
+          })()}
         </div>
       </div>
     )
@@ -641,23 +796,40 @@ export function OrderDetailPage() {
 
   const [showEdit, setShowEdit] = useState(false)
   const [commentText, setCommentText] = useState('')
+  const [replyToEvent, setReplyToEvent] = useState<LocalOrderEvent | null>(null)
+  const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null)
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const eventRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   // ── Portal management ───────────────────────────────────────────────────────
   const [portal, setPortal] = useState<PortalStatus | null | undefined>(undefined)
   const [portalAttachments, setPortalAttachments] = useState<PortalAttachment[]>([])
+  const [portalMessages, setPortalMessages] = useState<PortalMessage[]>([])
   const [portalLoading, setPortalLoading] = useState(false)
   const [portalCopied, setPortalCopied] = useState(false)
   const [showPortalChat, setShowPortalChat] = useState(false)
+
+  const refreshPortalData = useCallback(async () => {
+    if (!id) return
+    try {
+      const [atts, msgs] = await Promise.all([
+        staffPortalApi.listAttachments(id),
+        staffPortalApi.getMessages(id),
+      ])
+      setPortalAttachments(atts ?? [])
+      setPortalMessages(msgs ?? [])
+    } catch (_) {}
+  }, [id])
 
   useEffect(() => {
     if (!id) return
     staffPortalApi.getPortal(id)
       .then(p => {
         setPortal(p)
-        if (p) staffPortalApi.listAttachments(id).then(setPortalAttachments).catch(() => {})
+        if (p) refreshPortalData()
       })
       .catch(() => setPortal(null))
-  }, [id])
+  }, [id, refreshPortalData])
 
   // ── File uploads ────────────────────────────────────────────────────────────
   type UploadingFile = {
@@ -727,8 +899,8 @@ export function OrderDetailPage() {
   useSocketEvent(useCallback((event) => {
     if (event.type === 'order.event_added' && event.entity_id === id) {
       const incoming = (event as any).payload
-      if (incoming?.type === 'customer_message' && id) {
-        staffPortalApi.listAttachments(id).then(setPortalAttachments).catch(() => {})
+      if ((incoming?.type === 'customer_message' || incoming?.type === 'staff_portal_reply') && id) {
+        refreshPortalData()
       }
       if (incoming?.id) {
         setEvList(prev => {
@@ -812,10 +984,50 @@ export function OrderDetailPage() {
     },
   })
 
+  const highlightEvent = useCallback((eventId: string) => {
+    const el = eventRefs.current[eventId]
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current)
+    setHighlightedEventId(eventId)
+    highlightTimerRef.current = setTimeout(() => setHighlightedEventId(null), 5000)
+  }, [])
+
+  const handleSelectReplyEvent = useCallback((ev: LocalOrderEvent) => {
+    setReplyToEvent(ev)
+    const el = eventRefs.current[ev.id]
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setTimeout(() => feedEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 600)
+    }
+  }, [])
+
+  // Find the timeline event that corresponds to a portal message, matched by timestamp proximity
+  const highlightPortalMsg = useCallback((portalMsgId: number) => {
+    const pm = portalMessages.find(m => m.id === portalMsgId)
+    if (!pm) return
+    const pmTime = new Date(pm.created_at).getTime()
+    const matchTypes = pm.sender_type === 'staff' ? ['staff_portal_reply'] : ['customer_message', 'customer_attachment']
+    let bestId: string | null = null
+    let bestDiff = Infinity
+    for (const ev of [...evList, ...optimisticEvents]) {
+      if (!matchTypes.includes(ev.type)) continue
+      const diff = Math.abs(new Date(ev.created_at).getTime() - pmTime)
+      if (diff < bestDiff) { bestDiff = diff; bestId = ev.id }
+    }
+    if (bestId && bestDiff < 60000) highlightEvent(bestId)
+  }, [portalMessages, evList, optimisticEvents, highlightEvent])
+
   const handleSend = (text?: string) => {
-    const t = (text ?? commentText).trim()
-    if (!t || commenting) return
-    addComment(t)
+    const rawText = (text ?? commentText).trim()
+    if (!rawText || commenting) return
+    if (text !== undefined) {
+      // Retry path — text already contains any reply prefix
+      addComment(rawText)
+      return
+    }
+    const replyPrefix = replyToEvent ? `[reply:${replyToEvent.id}:${getEventPreview(replyToEvent)}]\n` : ''
+    setReplyToEvent(null)
+    addComment(replyPrefix + rawText)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -823,6 +1035,7 @@ export function OrderDetailPage() {
       e.preventDefault()
       handleSend()
     }
+    if (e.key === 'Escape') setReplyToEvent(null)
   }
 
   const handleRetry = (ev: LocalOrderEvent) => {
@@ -1075,31 +1288,69 @@ export function OrderDetailPage() {
               <div style={{ textAlign: 'center', padding: '40px 0', color: '#9CA3AF', fontSize: 13 }}>
                 No activity yet. Be the first to leave a note.
               </div>
-            ) : (
-              groupByDate(allEvents).map(group => (
+            ) : (() => {
+              // Build att_id → caption map from customer_message events that have attachment tokens
+              const portalAttCaptions = new Map<number, string>()
+              for (const ev of allEvents) {
+                if (ev.type !== 'customer_message') continue
+                const rawText = (ev.payload as any)?.text ?? ''
+                const tokens: number[] = []
+                const textLines: string[] = []
+                for (const line of (rawText as string).split('\n')) {
+                  const att = line.match(/^\[attachment:(\d+):/)
+                  if (att) { tokens.push(parseInt(att[1])); continue }
+                  if (!line.match(/^\[reply:\d+\]$/)) textLines.push(line)
+                }
+                const caption = textLines.join('\n').trim()
+                if (tokens.length > 0 && caption) {
+                  for (const id of tokens) portalAttCaptions.set(id, caption)
+                }
+              }
+              return groupByDate(allEvents).map(group => (
                 <div key={group.label}>
                   <DateDivider label={group.label} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {group.events.map(ev => (
-                      <div key={ev.id} style={{ animation: 'fadeSlideIn 0.2s ease' }}>
-                        <TimelineEvent
-                          event={ev as LocalOrderEvent}
-                          isOptimistic={ev.id.startsWith('opt-')}
-                          onRetry={() => handleRetry(ev as LocalOrderEvent)}
-                          onDelete={perms.canDeleteComment && (ev.type === 'comment_added' || ev.type === 'attachment_added') ? () => handleDeleteComment(ev.id) : undefined}
-                          onEdit={perms.canDeleteComment && ev.type === 'comment_added' ? async (newText: string) => {
-                            await orderService.editComment(id!, ev.id, newText)
-                            setEvList(prev => prev.map(e => e.id === ev.id ? { ...e, payload: { ...(e.payload as object), text: newText } as any } : e))
-                          } : undefined}
-                          orderId={id!}
-                          portalAttachments={portalAttachments}
-                        />
-                      </div>
-                    ))}
+                    {group.events.map(ev => {
+                      const rawText = ev.type === 'comment_added' ? ((ev as any).payload?.text ?? '') : ''
+                      const { replyEventId } = rawText ? parseCommentText(rawText) : { replyEventId: null }
+                      const quotedEv = replyEventId ? allEvents.find(e => e.id === replyEventId) as LocalOrderEvent | undefined : undefined
+                      const isHighlighted = highlightedEventId === ev.id
+                      return (
+                        <div
+                          key={ev.id}
+                          ref={(el) => { eventRefs.current[ev.id] = el }}
+                          style={{
+                            animation: 'fadeSlideIn 0.2s ease',
+                            borderRadius: 8, padding: '2px 0',
+                            background: isHighlighted ? 'rgba(99,102,241,0.1)' : 'transparent',
+                            transition: 'background 0.5s',
+                          }}
+                        >
+                          <TimelineEvent
+                            event={ev as LocalOrderEvent}
+                            isOptimistic={ev.id.startsWith('opt-')}
+                            onRetry={() => handleRetry(ev as LocalOrderEvent)}
+                            onDelete={perms.canDeleteComment && (ev.type === 'comment_added' || ev.type === 'attachment_added') ? () => handleDeleteComment(ev.id) : undefined}
+                            onEdit={perms.canDeleteComment && ev.type === 'comment_added' ? async (newText: string) => {
+                              await orderService.editComment(id!, ev.id, newText)
+                              setEvList(prev => prev.map(e => e.id === ev.id ? { ...e, payload: { ...(e.payload as object), text: newText } as any } : e))
+                            } : undefined}
+                            onReply={(ev.type === 'comment_added' || ev.type === 'attachment_added') && !ev.id.startsWith('opt-') ? () => handleSelectReplyEvent(ev as LocalOrderEvent) : undefined}
+                            onHighlightQuoted={replyEventId ? () => highlightEvent(replyEventId) : undefined}
+                            onHighlightPortalMsg={highlightPortalMsg}
+                            quotedEvent={quotedEv ?? null}
+                            orderId={id!}
+                            portalAttachments={portalAttachments}
+                            portalMessages={portalMessages}
+                            portalAttCaptions={portalAttCaptions}
+                          />
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               ))
-            )}
+            })()}
             <div ref={feedEndRef} style={{ height: 16 }} />
           </div>
 
@@ -1171,6 +1422,38 @@ export function OrderDetailPage() {
                   </div>
                 )
               })}
+            </div>
+          )}
+
+          {/* Reply bar */}
+          {replyToEvent && (
+            <div style={{ padding: '6px 20px', background: '#FFFFFF', borderTop: '1px solid #F3F4F6', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'stretch', borderLeft: '3px solid #6366F1', background: '#EEF2FF', borderRadius: '0 6px 6px 0', overflow: 'hidden' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2" style={{ flexShrink: 0, alignSelf: 'center', margin: '0 0 0 8px' }}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                <div style={{ flex: 1, minWidth: 0, padding: '6px 8px' }}>
+                  <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: '#6366F1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    Replying to {replyToEvent.actor_name}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {getEventPreview(replyToEvent)}
+                  </p>
+                </div>
+                {replyToEvent.type === 'attachment_added' && (() => {
+                  const rp = replyToEvent.payload as any
+                  if (!isImage(rp.mime_type ?? '')) return null
+                  return (
+                    <div style={{ width: 44, height: 44, flexShrink: 0, overflow: 'hidden' }}>
+                      <img src={rp.file_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+                    </div>
+                  )
+                })()}
+                <button
+                  onClick={() => setReplyToEvent(null)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: '0 8px', lineHeight: 1, display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
             </div>
           )}
 

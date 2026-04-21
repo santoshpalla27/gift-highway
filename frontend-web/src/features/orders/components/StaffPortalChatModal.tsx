@@ -24,19 +24,38 @@ const isImageType = (ext: string) =>
 
 interface ParsedMsg {
   text: string
+  replyToId: number | null
   attachmentTokens: { id: number; name: string }[]
 }
 
 function parseMsg(raw: string): ParsedMsg {
-  const result: ParsedMsg = { text: '', attachmentTokens: [] }
+  const result: ParsedMsg = { text: '', replyToId: null, attachmentTokens: [] }
   const textLines: string[] = []
   for (const line of raw.split('\n')) {
-    const m = line.match(/^\[attachment:(\d+):(.+?)\]$/)
-    if (m) { result.attachmentTokens.push({ id: parseInt(m[1]), name: m[2] }); continue }
+    const att = line.match(/^\[attachment:(\d+):(.+?)\]$/)
+    if (att) { result.attachmentTokens.push({ id: parseInt(att[1]), name: att[2] }); continue }
+    const reply = line.match(/^\[reply:(\d+)\]$/)
+    if (reply) { result.replyToId = parseInt(reply[1]); continue }
     textLines.push(line)
   }
   result.text = textLines.join('\n').trim()
   return result
+}
+
+function getMsgPreview(msg: PortalMessage, atts: PortalAttachment[]): string {
+  const parsed = parseMsg(msg.message)
+  if (parsed.text) return parsed.text.slice(0, 80)
+  if (parsed.attachmentTokens.length) return `📎 ${parsed.attachmentTokens[0].name}`
+  return msg.message.slice(0, 80)
+}
+
+function getMsgThumbnail(msg: PortalMessage, atts: PortalAttachment[]): string | null {
+  const parsed = parseMsg(msg.message)
+  for (const tok of parsed.attachmentTokens) {
+    const att = atts.find(a => a.id === tok.id)
+    if (att && isImageType(att.file_type) && att.view_url) return att.view_url
+  }
+  return null
 }
 
 interface StagedFile {
@@ -55,12 +74,16 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
   const [sending, setSending] = useState(false)
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
   const [lightbox, setLightbox] = useState<{ src: string; filename: string } | null>(null)
+  const [replyTo, setReplyTo] = useState<PortalMessage | null>(null)
+  const [highlightedMsgId, setHighlightedMsgId] = useState<number | null>(null)
 
   const sendingRef = useRef(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const lastMsgIdRef = useRef(0)
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const messageRefs = useRef<Record<number, HTMLDivElement | null>>({})
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -118,6 +141,54 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
     }
   })
 
+  const QuotedBlock = ({ quotedMsg, onClick }: { quotedMsg: PortalMessage; onClick?: () => void }) => {
+    const thumb = getMsgThumbnail(quotedMsg, attachments)
+    const isQStaff = quotedMsg.sender_type === 'staff'
+    return (
+      <div
+        onClick={onClick}
+        style={{
+          display: 'flex', alignItems: 'stretch', borderRadius: 8, overflow: 'hidden',
+          borderLeft: `3px solid ${isQStaff ? '#3B82F6' : '#25d366'}`,
+          background: 'rgba(0,0,0,0.06)',
+          cursor: onClick ? 'pointer' : 'default',
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0, padding: '4px 8px' }}>
+          <p style={{ margin: 0, fontSize: 10, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isQStaff ? '#3B82F6' : '#25d366' }}>
+            {quotedMsg.portal_sender}
+          </p>
+          <p style={{ margin: 0, fontSize: 11, color: '#667781', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {getMsgPreview(quotedMsg, attachments)}
+          </p>
+        </div>
+        {thumb && (
+          <div style={{ width: 44, height: 44, flexShrink: 0, overflow: 'hidden' }}>
+            <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const highlightMessage = useCallback((msgId: number) => {
+    const el = messageRefs.current[msgId]
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (highlightTimer.current) clearTimeout(highlightTimer.current)
+    setHighlightedMsgId(msgId)
+    highlightTimer.current = setTimeout(() => setHighlightedMsgId(null), 5000)
+  }, [])
+
+  const handleSelectReply = useCallback((msg: PortalMessage) => {
+    setReplyTo(msg)
+    const el = messageRefs.current[msg.id]
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 800)
+    }
+    setTimeout(() => textareaRef.current?.focus(), 900)
+  }, [])
+
   const stageFiles = (files: File[]) => {
     const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.docx', '.doc', '.xlsx', '.txt', '.csv', '.zip']
     const valid = files.filter(f => allowed.includes('.' + (f.name.split('.').pop() ?? '').toLowerCase()))
@@ -173,6 +244,7 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
     if (!replyText.trim() && stagedFiles.length === 0) return
     sendingRef.current = true
     setSending(true)
+    const replyPrefix = replyTo ? `[reply:${replyTo.id}]\n` : ''
     const hasFiles = stagedFiles.length > 0
     try {
       for (let i = 0; i < stagedFiles.length; i++) {
@@ -182,13 +254,14 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
       setStagedFiles([])
 
       if (replyText.trim()) {
-        const msg = await staffPortalApi.sendReply(orderId, replyText.trim())
+        const msg = await staffPortalApi.sendReply(orderId, replyPrefix + replyText.trim())
         setMessages(prev => {
           lastMsgIdRef.current = msg.id
           return [...prev, msg]
         })
         setReplyText('')
       }
+      setReplyTo(null)
 
       if (hasFiles) {
         const [msgs, atts] = await Promise.all([
@@ -210,6 +283,7 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+    if (e.key === 'Escape') setReplyTo(null)
   }
 
   return (
@@ -260,49 +334,74 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
             const isStaff = msg.sender_type === 'staff'
             const parsed = parseMsg(msg.message)
             if (!parsed.text && parsed.attachmentTokens.length === 0) return null
+            const quotedMsg = parsed.replyToId ? messages.find(m => m.id === parsed.replyToId) : null
+            const isHighlighted = highlightedMsgId === msg.id
 
             return (
-              <div key={msg.id} style={{ display: 'flex', justifyContent: isStaff ? 'flex-end' : 'flex-start', padding: '2px 0' }}>
-                {!isStaff && (
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#25d366', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 700, flexShrink: 0, alignSelf: 'flex-end', marginRight: 6, marginBottom: 2 }}>
-                    {getInitials(msg.portal_sender || 'C')}
-                  </div>
-                )}
-                <div style={{ maxWidth: '75%' }}>
+              <div
+                key={msg.id}
+                ref={(el) => { messageRefs.current[msg.id] = el }}
+                style={{ borderRadius: 8, padding: '2px 0', background: isHighlighted ? 'rgba(37,211,102,0.22)' : 'transparent', transition: 'background 0.5s' }}
+              >
+                <div style={{ display: 'flex', justifyContent: isStaff ? 'flex-end' : 'flex-start', alignItems: 'center', gap: 4 }}>
+                  {/* Reply button for customer messages */}
                   {!isStaff && (
-                    <p style={{ margin: '0 0 2px 4px', fontSize: 10, color: '#25d366', fontWeight: 600 }}>{msg.portal_sender}</p>
+                    <button onClick={() => handleSelectReply(msg)} title="Reply" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: '50%', color: '#667781', flexShrink: 0, display: 'flex', lineHeight: 1 }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                    </button>
                   )}
-                  <div style={{ padding: '8px 12px', borderRadius: isStaff ? '12px 12px 2px 12px' : '12px 12px 12px 2px', background: isStaff ? '#d9fdd3' : '#ffffff', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
-                    {parsed.text && (
-                      <p style={{ margin: 0, fontSize: 13, color: '#111b21', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5 }}>{parsed.text}</p>
+                  {!isStaff && (
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#25d366', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 700, flexShrink: 0, alignSelf: 'flex-end', marginBottom: 2 }}>
+                      {getInitials(msg.portal_sender || 'C')}
+                    </div>
+                  )}
+                  <div style={{ maxWidth: '75%' }}>
+                    {!isStaff && (
+                      <p style={{ margin: '0 0 2px 4px', fontSize: 10, color: '#25d366', fontWeight: 600 }}>{msg.portal_sender}</p>
                     )}
-                    {parsed.attachmentTokens.map(tok => {
-                      const att = attachments.find(a => a.id === tok.id)
-                      if (!att) return null
-                      const isImg = isImageType(att.file_type)
-                      return (
-                        <div key={tok.id} style={{ marginTop: parsed.text ? 6 : 0 }}>
-                          {isImg && att.view_url ? (
-                            <div
-                              onClick={() => setLightbox({ src: att.view_url, filename: att.file_name })}
-                              style={{ width: 160, height: 160, borderRadius: 8, overflow: 'hidden', cursor: 'pointer' }}
-                            >
-                              <img src={att.view_url} alt={att.file_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            </div>
-                          ) : (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.06)', borderRadius: 8, padding: '6px 10px' }}>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#667781" strokeWidth="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                              <span style={{ fontSize: 12, color: '#111b21', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.file_name}</span>
-                              <span style={{ fontSize: 10, color: '#667781', flexShrink: 0 }}>{formatSize(att.file_size)}</span>
-                            </div>
-                          )}
+                    <div style={{ padding: '8px 12px', borderRadius: isStaff ? '12px 12px 2px 12px' : '12px 12px 12px 2px', background: isStaff ? '#d9fdd3' : '#ffffff', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
+                      {quotedMsg && (
+                        <div style={{ marginBottom: 6 }}>
+                          <QuotedBlock quotedMsg={quotedMsg} onClick={() => highlightMessage(quotedMsg.id)} />
                         </div>
-                      )
-                    })}
-                    <p style={{ margin: '4px 0 0', fontSize: 10, color: '#667781', textAlign: 'right' }}>
-                      {formatTime(msg.created_at)}
-                    </p>
+                      )}
+                      {parsed.text && (
+                        <p style={{ margin: 0, fontSize: 13, color: '#111b21', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5 }}>{parsed.text}</p>
+                      )}
+                      {parsed.attachmentTokens.map(tok => {
+                        const att = attachments.find(a => a.id === tok.id)
+                        if (!att) return null
+                        const isImg = isImageType(att.file_type)
+                        return (
+                          <div key={tok.id} style={{ marginTop: parsed.text ? 6 : 0 }}>
+                            {isImg && att.view_url ? (
+                              <div
+                                onClick={() => setLightbox({ src: att.view_url, filename: att.file_name })}
+                                style={{ width: 160, height: 160, borderRadius: 8, overflow: 'hidden', cursor: 'pointer' }}
+                              >
+                                <img src={att.view_url} alt={att.file_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.06)', borderRadius: 8, padding: '6px 10px' }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#667781" strokeWidth="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                <span style={{ fontSize: 12, color: '#111b21', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.file_name}</span>
+                                <span style={{ fontSize: 10, color: '#667781', flexShrink: 0 }}>{formatSize(att.file_size)}</span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                      <p style={{ margin: '4px 0 0', fontSize: 10, color: '#667781', textAlign: 'right' }}>
+                        {formatTime(msg.created_at)}
+                      </p>
+                    </div>
                   </div>
+                  {/* Reply button for staff messages */}
+                  {isStaff && (
+                    <button onClick={() => handleSelectReply(msg)} title="Reply" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: '50%', color: '#667781', flexShrink: 0, display: 'flex', lineHeight: 1 }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                    </button>
+                  )}
                 </div>
               </div>
             )
@@ -336,6 +435,22 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Reply preview bar */}
+        {replyTo && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderTop: '1px solid #d1d7db', background: '#f0f2f5', flexShrink: 0 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#25d366" strokeWidth="2" style={{ flexShrink: 0 }}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <QuotedBlock quotedMsg={replyTo} />
+            </div>
+            <button
+              onClick={() => setReplyTo(null)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#667781', padding: 4, flexShrink: 0, lineHeight: 1, display: 'flex' }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
         )}
 
