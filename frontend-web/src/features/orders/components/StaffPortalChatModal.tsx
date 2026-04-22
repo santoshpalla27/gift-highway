@@ -42,7 +42,7 @@ function parseMsg(raw: string): ParsedMsg {
   return result
 }
 
-function getMsgPreview(msg: PortalMessage, atts: PortalAttachment[]): string {
+function getMsgPreview(msg: PortalMessage): string {
   const parsed = parseMsg(msg.message)
   if (parsed.text) return parsed.text.slice(0, 80)
   if (parsed.attachmentTokens.length) return `📎 ${parsed.attachmentTokens[0].name}`
@@ -159,7 +159,7 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
             {quotedMsg.portal_sender}
           </p>
           <p style={{ margin: 0, fontSize: 11, color: '#667781', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {getMsgPreview(quotedMsg, attachments)}
+            {getMsgPreview(quotedMsg)}
           </p>
         </div>
         {thumb && (
