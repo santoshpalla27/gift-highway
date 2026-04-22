@@ -221,12 +221,9 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4,
             flexDirection: isOwn ? 'row-reverse' : 'row',
-            marginRight: isOwn ? 42 : 0, marginLeft: isOwn ? 0 : 42 // Account for avatar width
+            marginRight: isOwn ? 42 : 0, marginLeft: isOwn ? 0 : 42
           }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{isOwn ? 'You' : event.actor_name}</span>
-            <span style={{ fontSize: 11, color: isFailed ? '#EF4444' : '#9CA3AF' }}>
-              {isFailed ? 'Failed to send' : formatTimestamp(event.created_at)}
-            </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexDirection: isOwn ? 'row-reverse' : 'row', width: '100%' }}>
             <div style={{
@@ -356,6 +353,13 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
               </div>
             )}
           </div>
+          <div style={{
+            marginRight: isOwn ? 42 : 0, marginLeft: isOwn ? 0 : 42,
+            marginTop: 2, fontSize: 10, color: isFailed ? '#EF4444' : '#9CA3AF',
+            textAlign: isOwn ? 'right' : 'left'
+          }}>
+            {isFailed ? 'Failed to send' : formatTimestamp(event.created_at)}
+          </div>
 
           {isFailed && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
@@ -400,7 +404,6 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
             marginRight: isOwn ? 42 : 0, marginLeft: isOwn ? 0 : 42
           }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{isOwn ? 'You' : event.actor_name}</span>
-            <span style={{ fontSize: 11, color: '#9CA3AF' }}>{formatTimestamp(event.created_at)}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexDirection: isOwn ? 'row-reverse' : 'row', width: '100%' }}>
             <div style={{
@@ -481,6 +484,13 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                 )}
               </div>
             )}
+          </div>
+          <div style={{
+            marginRight: isOwn ? 42 : 0, marginLeft: isOwn ? 0 : 42,
+            marginTop: 2, fontSize: 10, color: '#9CA3AF',
+            textAlign: isOwn ? 'right' : 'left'
+          }}>
+            {formatTimestamp(event.created_at)}
           </div>
         </div>
       </div>
@@ -605,7 +615,6 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
             }}>
               {isOwn ? 'Staff reply' : (isStaff ? 'Staff reply' : 'Customer')}
             </span>
-            <span style={{ fontSize: 11, color: '#9CA3AF' }}>{formatTimestamp(event.created_at)}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexDirection: isOwn ? 'row-reverse' : 'row', width: '100%' }}>
             <div style={{
@@ -683,6 +692,13 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                 )
               })()}
             </div>
+          </div>
+          <div style={{
+            marginRight: isOwn ? 42 : 0, marginLeft: isOwn ? 0 : 42,
+            marginTop: 2, fontSize: 10, color: '#9CA3AF',
+            textAlign: isOwn ? 'right' : 'left'
+          }}>
+            {formatTimestamp(event.created_at)}
           </div>
         </div>
       </div>
