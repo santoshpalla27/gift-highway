@@ -228,8 +228,8 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexDirection: isOwn ? 'row-reverse' : 'row', width: '100%' }}>
             <div style={{
               width: 32, height: 32, borderRadius: '50%',
-              background: isOwn ? '#DBEAFE' : '#EEF2FF',
-              color: isOwn ? '#3B82F6' : '#6366F1',
+              background: '#0F172A',
+              color: '#FFFFFF',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 11, fontWeight: 700, flexShrink: 0,
             }}>
@@ -258,8 +258,8 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
               </div>
             ) : (
               <div style={{
-                background: isFailed ? '#FFF5F5' : (isOwn ? '#EEF2FF' : '#FFFFFF'),
-                border: `1px solid ${isFailed ? '#FCA5A5' : (isOwn ? '#BFDBFE' : '#E5E7EB')}`,
+                background: isFailed ? '#FFF5F5' : '#FFFFFF',
+                border: `1px solid ${isFailed ? '#FCA5A5' : '#E2E8F0'}`,
                 borderRadius: isOwn ? '12px 4px 12px 12px' : '4px 12px 12px 12px',
                 padding: '10px 14px', fontSize: 13.5, color: '#374151', lineHeight: 1.6,
                 boxShadow: '0 1px 3px rgba(0,0,0,.04)',
@@ -408,16 +408,16 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexDirection: isOwn ? 'row-reverse' : 'row', width: '100%' }}>
             <div style={{
               width: 32, height: 32, borderRadius: '50%',
-              background: isOwn ? '#DBEAFE' : '#EEF2FF',
-              color: isOwn ? '#3B82F6' : '#6366F1',
+              background: '#0F172A',
+              color: '#FFFFFF',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 11, fontWeight: 700, flexShrink: 0,
             }}>
               {getInitials(event.actor_name)}
             </div>
             <div style={{
-              background: isOwn ? '#EEF2FF' : '#FFFFFF',
-              border: `1px solid ${isOwn ? '#BFDBFE' : '#E5E7EB'}`,
+              background: '#FFFFFF',
+              border: '1px solid #E2E8F0',
               borderRadius: isOwn ? '12px 4px 12px 12px' : '4px 12px 12px 12px',
               overflow: 'hidden', maxWidth: '60%', boxShadow: '0 1px 3px rgba(0,0,0,.04)',
             }}>
@@ -619,8 +619,8 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexDirection: isOwn ? 'row-reverse' : 'row', width: '100%' }}>
             <div style={{
               width: 32, height: 32, borderRadius: '50%',
-              background: isOwn ? '#DBEAFE' : (isStaff ? '#DBEAFE' : '#D1FAE5'),
-              color: isOwn ? '#3B82F6' : (isStaff ? '#3B82F6' : '#10B981'),
+              background: isStaff ? '#DBEAFE' : '#D1FAE5',
+              color: isStaff ? '#2563EB' : '#10B981',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 11, fontWeight: 700, flexShrink: 0,
             }}>
@@ -630,8 +630,8 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
               {(parsed.text || quotedPortalMsg) && (
                 <div style={{
                   fontSize: 13.5, color: '#111827',
-                  background: isOwn ? '#EFF6FF' : (isStaff ? '#EFF6FF' : '#ECFDF5'),
-                  border: `1px solid ${isOwn ? '#BFDBFE' : (isStaff ? '#BFDBFE' : '#A7F3D0')}`,
+                  background: isStaff ? '#EFF6FF' : '#F0FDF4',
+                  border: `1px solid ${isStaff ? '#BFDBFE' : '#A7F3D0'}`,
                   borderRadius: isOwn ? '12px 4px 12px 12px' : '4px 12px 12px 12px',
                   padding: '8px 12px', display: 'inline-block', maxWidth: '60%',
                   lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
@@ -678,8 +678,8 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                     {caption && (
                       <div style={{
                         fontSize: 13.5, color: '#111827',
-                        background: isOwn ? '#EFF6FF' : '#ECFDF5',
-                        border: `1px solid ${isOwn ? '#BFDBFE' : '#A7F3D0'}`,
+                        background: isStaff ? '#EFF6FF' : '#F0FDF4',
+                        border: `1px solid ${isStaff ? '#BFDBFE' : '#A7F3D0'}`,
                         borderRadius: isOwn ? '12px 4px 12px 12px' : '4px 12px 12px 12px',
                         padding: '6px 10px',
                         marginTop: 6, display: 'inline-block', maxWidth: '60%',
