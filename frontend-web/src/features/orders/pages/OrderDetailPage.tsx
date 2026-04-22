@@ -165,7 +165,7 @@ function AttachmentImage({ orderId, fileKey, fileName, fileUrl }: {
 
 // ─── Timeline event renderer ─────────────────────────────────────────────────
 
-function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply, onHighlightQuoted, onHighlightPortalMsg, orderId, portalAttachments, portalMessages, portalAttCaptions, quotedEvent }: {
+function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply, onHighlightQuoted, onHighlightPortalMsg, orderId, portalAttachments, portalMessages, portalAttCaptions, quotedEvent, currentUserId }: {
   event: LocalOrderEvent
   isOptimistic?: boolean
   onRetry?: () => void
@@ -179,6 +179,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
   portalMessages?: PortalMessage[]
   portalAttCaptions?: Map<number, string>
   quotedEvent?: LocalOrderEvent | null
+  currentUserId?: string | null
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -196,31 +197,116 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
 
   const isComment = event.type === 'comment_added'
   const canMenu = (onDelete || onEdit || onReply) && !isOptimistic
+  const isOwn = event.actor_id === currentUserId
 
   if (isComment) {
     const isFailed = event.failed
     const rawText = (event.payload as any).text ?? ''
     const { replyPreview, cleanText } = parseCommentText(rawText)
     return (
-      <div style={{ display: 'flex', gap: 10, opacity: isOptimistic && !isFailed ? 0.6 : 1 }}>
+      <div style={{
+        display: 'flex',
+        flexDirection: isOwn ? 'row-reverse' : 'row',
+        gap: 10,
+        opacity: isOptimistic && !isFailed ? 0.6 : 1,
+        alignItems: 'flex-start'
+      }}>
         <div style={{
-          width: 32, height: 32, borderRadius: '50%', background: '#EEF2FF', color: '#6366F1',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, fontWeight: 700, flexShrink: 0, marginTop: 2,
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: isOwn ? 'flex-end' : 'flex-start',
+          maxWidth: '85%'
         }}>
-          {getInitials(event.actor_name)}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{event.actor_name}</span>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4,
+            flexDirection: isOwn ? 'row-reverse' : 'row',
+            marginRight: isOwn ? 42 : 0, marginLeft: isOwn ? 0 : 42 // Account for avatar width
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{isOwn ? 'You' : event.actor_name}</span>
             <span style={{ fontSize: 11, color: isFailed ? '#EF4444' : '#9CA3AF' }}>
               {isFailed ? 'Failed to send' : formatTimestamp(event.created_at)}
             </span>
-            {canMenu && (
-              <div ref={menuRef} style={{ marginLeft: 'auto', position: 'relative' }}>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexDirection: isOwn ? 'row-reverse' : 'row', width: '100%' }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: '50%',
+              background: isOwn ? '#DBEAFE' : '#EEF2FF',
+              color: isOwn ? '#3B82F6' : '#6366F1',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 11, fontWeight: 700, flexShrink: 0,
+            }}>
+              {getInitials(event.actor_name)}
+            </div>
+            {editing ? (
+              <div style={{ flex: 1 }}>
+                <textarea
+                  value={editText}
+                  onChange={e => setEditText(e.target.value)}
+                  autoFocus
+                  style={{
+                    width: '100%', boxSizing: 'border-box', padding: '10px 14px', fontSize: 13.5,
+                    border: '1.5px solid #6366F1', borderRadius: '4px 12px 12px 12px',
+                    outline: 'none', resize: 'none', minHeight: 72, fontFamily: 'inherit', lineHeight: 1.6,
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (editText.trim()) { onEdit!(editText.trim()); setEditing(false) } }
+                    if (e.key === 'Escape') setEditing(false)
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                  <button onClick={() => { if (editText.trim()) { onEdit!(editText.trim()); setEditing(false) } }} style={{ padding: '4px 12px', background: '#6366F1', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Save</button>
+                  <button onClick={() => setEditing(false)} style={{ padding: '4px 12px', background: 'none', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 12, cursor: 'pointer', color: '#6B7280' }}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                background: isFailed ? '#FFF5F5' : (isOwn ? '#EEF2FF' : '#FFFFFF'),
+                border: `1px solid ${isFailed ? '#FCA5A5' : (isOwn ? '#BFDBFE' : '#E5E7EB')}`,
+                borderRadius: isOwn ? '12px 4px 12px 12px' : '4px 12px 12px 12px',
+                padding: '10px 14px', fontSize: 13.5, color: '#374151', lineHeight: 1.6,
+                boxShadow: '0 1px 3px rgba(0,0,0,.04)',
+                width: 'fit-content'
+              }}>
+                {replyPreview && (
+                  <div
+                    onClick={onHighlightQuoted}
+                    style={{
+                      display: 'flex', alignItems: 'stretch', marginBottom: 8,
+                      borderLeft: '3px solid #6366F1', background: '#EEF2FF',
+                      borderRadius: '0 6px 6px 0', overflow: 'hidden',
+                      cursor: onHighlightQuoted ? 'pointer' : 'default',
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0, padding: '4px 8px' }}>
+                      {quotedEvent && (
+                        <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: '#6366F1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {quotedEvent.actor_name}
+                        </p>
+                      )}
+                      <p style={{ margin: 0, fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {replyPreview}
+                      </p>
+                    </div>
+                    {quotedEvent?.type === 'attachment_added' && (() => {
+                      const qp = quotedEvent.payload as any
+                      if (!isImage(qp.mime_type ?? '')) return null
+                      return (
+                        <div style={{ width: 44, height: 44, flexShrink: 0, overflow: 'hidden' }}>
+                          <img src={qp.file_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
+                {cleanText}
+              </div>
+            )}
+            {canMenu && !editing && (
+              <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
                 <button
                   onClick={() => setMenuOpen(o => !o)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', color: '#9CA3AF', lineHeight: 1, borderRadius: 4 }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#9CA3AF', lineHeight: 1, borderRadius: 4 }}
                   onMouseEnter={e => (e.currentTarget.style.color = '#374151')}
                   onMouseLeave={e => (e.currentTarget.style.color = '#9CA3AF')}
                 >
@@ -228,7 +314,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                 </button>
                 {menuOpen && (
                   <div style={{
-                    position: 'absolute', right: 0, top: '100%', zIndex: 50, marginTop: 4,
+                    position: 'absolute', right: isOwn ? 'auto' : 0, left: isOwn ? 0 : 'auto', top: '100%', zIndex: 50, marginTop: 4,
                     background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8,
                     boxShadow: '0 4px 12px rgba(0,0,0,.1)', minWidth: 130, overflow: 'hidden',
                   }}>
@@ -270,69 +356,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
               </div>
             )}
           </div>
-          {editing ? (
-            <div>
-              <textarea
-                value={editText}
-                onChange={e => setEditText(e.target.value)}
-                autoFocus
-                style={{
-                  width: '100%', boxSizing: 'border-box', padding: '10px 14px', fontSize: 13.5,
-                  border: '1.5px solid #6366F1', borderRadius: '4px 12px 12px 12px',
-                  outline: 'none', resize: 'none', minHeight: 72, fontFamily: 'inherit', lineHeight: 1.6,
-                }}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (editText.trim()) { onEdit!(editText.trim()); setEditing(false) } }
-                  if (e.key === 'Escape') setEditing(false)
-                }}
-              />
-              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                <button onClick={() => { if (editText.trim()) { onEdit!(editText.trim()); setEditing(false) } }} style={{ padding: '4px 12px', background: '#6366F1', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Save</button>
-                <button onClick={() => setEditing(false)} style={{ padding: '4px 12px', background: 'none', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 12, cursor: 'pointer', color: '#6B7280' }}>Cancel</button>
-              </div>
-            </div>
-          ) : (
-            <div style={{
-              background: isFailed ? '#FFF5F5' : '#FFFFFF',
-              border: `1px solid ${isFailed ? '#FCA5A5' : '#E5E7EB'}`,
-              borderRadius: '4px 12px 12px 12px',
-              padding: '10px 14px', fontSize: 13.5, color: '#374151', lineHeight: 1.6,
-              boxShadow: '0 1px 3px rgba(0,0,0,.04)',
-            }}>
-              {replyPreview && (
-                <div
-                  onClick={onHighlightQuoted}
-                  style={{
-                    display: 'flex', alignItems: 'stretch', marginBottom: 8,
-                    borderLeft: '3px solid #6366F1', background: '#EEF2FF',
-                    borderRadius: '0 6px 6px 0', overflow: 'hidden',
-                    cursor: onHighlightQuoted ? 'pointer' : 'default',
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0, padding: '4px 8px' }}>
-                    {quotedEvent && (
-                      <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: '#6366F1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {quotedEvent.actor_name}
-                      </p>
-                    )}
-                    <p style={{ margin: 0, fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {replyPreview}
-                    </p>
-                  </div>
-                  {quotedEvent?.type === 'attachment_added' && (() => {
-                    const qp = quotedEvent.payload as any
-                    if (!isImage(qp.mime_type ?? '')) return null
-                    return (
-                      <div style={{ width: 44, height: 44, flexShrink: 0, overflow: 'hidden' }}>
-                        <img src={qp.file_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
-                      </div>
-                    )
-                  })()}
-                </div>
-              )}
-              {cleanText}
-            </div>
-          )}
+
           {isFailed && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
               <span style={{ fontSize: 12, color: '#EF4444' }}>Message not delivered.</span>
@@ -358,30 +382,79 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
     const p = event.payload as Record<string, string>
     const fileIsImage = isImage(p.mime_type ?? '')
     return (
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{
+        display: 'flex',
+        flexDirection: isOwn ? 'row-reverse' : 'row',
+        gap: 10,
+        alignItems: 'flex-start'
+      }}>
         <div style={{
-          width: 32, height: 32, borderRadius: '50%', background: '#EEF2FF', color: '#6366F1',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, fontWeight: 700, flexShrink: 0, marginTop: 2,
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: isOwn ? 'flex-end' : 'flex-start'
         }}>
-          {getInitials(event.actor_name)}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{event.actor_name}</span>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4,
+            flexDirection: isOwn ? 'row-reverse' : 'row',
+            marginRight: isOwn ? 42 : 0, marginLeft: isOwn ? 0 : 42
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{isOwn ? 'You' : event.actor_name}</span>
             <span style={{ fontSize: 11, color: '#9CA3AF' }}>{formatTimestamp(event.created_at)}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexDirection: isOwn ? 'row-reverse' : 'row', width: '100%' }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: '50%',
+              background: isOwn ? '#DBEAFE' : '#EEF2FF',
+              color: isOwn ? '#3B82F6' : '#6366F1',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 11, fontWeight: 700, flexShrink: 0,
+            }}>
+              {getInitials(event.actor_name)}
+            </div>
+            <div style={{
+              background: isOwn ? '#EEF2FF' : '#FFFFFF',
+              border: `1px solid ${isOwn ? '#BFDBFE' : '#E5E7EB'}`,
+              borderRadius: isOwn ? '12px 4px 12px 12px' : '4px 12px 12px 12px',
+              overflow: 'hidden', maxWidth: '60%', boxShadow: '0 1px 3px rgba(0,0,0,.04)',
+            }}>
+              {fileIsImage ? (
+                <AttachmentImage orderId={orderId} fileKey={p.file_key} fileName={p.file_name} fileUrl={p.file_url} />
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.file_name}</div>
+                    <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{formatBytes(Number(p.size_bytes))}</div>
+                  </div>
+                  <button onClick={() => downloadFile(orderId, p.file_key, p.file_name)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, padding: 0, lineHeight: 1 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  </button>
+                </div>
+              )}
+              {fileIsImage && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #F3F4F6' }}>
+                  <span style={{ fontSize: 11, color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.file_name}</span>
+                  <button onClick={() => downloadFile(orderId, p.file_key, p.file_name)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, marginLeft: 8, padding: 0, lineHeight: 1 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  </button>
+                </div>
+              )}
+            </div>
             {(onReply || onDelete) && (
-              <div ref={menuRef} style={{ marginLeft: 'auto', position: 'relative' }}>
+              <div ref={menuRef} style={{ position: 'relative' }}>
                 <button
                   onClick={() => setMenuOpen(o => !o)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', color: '#9CA3AF', lineHeight: 1, borderRadius: 4 }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#9CA3AF', lineHeight: 1, borderRadius: 4 }}
                   onMouseEnter={e => (e.currentTarget.style.color = '#374151')}
                   onMouseLeave={e => (e.currentTarget.style.color = '#9CA3AF')}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="12" cy="19" r="2.5"/></svg>
                 </button>
                 {menuOpen && (
-                  <div style={{ position: 'absolute', right: 0, top: '100%', zIndex: 50, marginTop: 4, background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,.1)', minWidth: 130, overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', right: isOwn ? 'auto' : 0, left: isOwn ? 0 : 'auto', top: '100%', zIndex: 50, marginTop: 4, background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,.1)', minWidth: 130, overflow: 'hidden' }}>
                     {onReply && (
                       <button
                         onClick={() => { setMenuOpen(false); onReply() }}
@@ -406,35 +479,6 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                     )}
                   </div>
                 )}
-              </div>
-            )}
-          </div>
-          <div style={{
-            background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '4px 12px 12px 12px',
-            overflow: 'hidden', maxWidth: 320, boxShadow: '0 1px 3px rgba(0,0,0,.04)',
-          }}>
-            {fileIsImage ? (
-              <AttachmentImage orderId={orderId} fileKey={p.file_key} fileName={p.file_name} fileUrl={p.file_url} />
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.file_name}</div>
-                  <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{formatBytes(Number(p.size_bytes))}</div>
-                </div>
-                <button onClick={() => downloadFile(orderId, p.file_key, p.file_name)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, padding: 0, lineHeight: 1 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                </button>
-              </div>
-            )}
-            {fileIsImage && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #F3F4F6' }}>
-                <span style={{ fontSize: 11, color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.file_name}</span>
-                <button onClick={() => downloadFile(orderId, p.file_key, p.file_name)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, marginLeft: 8, padding: 0, lineHeight: 1 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                </button>
               </div>
             )}
           </div>
@@ -536,87 +580,110 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
     }
 
     return (
-      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+      <div style={{
+        display: 'flex',
+        flexDirection: isOwn ? 'row-reverse' : 'row',
+        gap: 10,
+        alignItems: 'flex-start'
+      }}>
         <div style={{
-          width: 32, height: 32, borderRadius: '50%',
-          background: isStaff ? '#DBEAFE' : '#D1FAE5',
-          color: isStaff ? '#3B82F6' : '#10B981',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, fontWeight: 700, flexShrink: 0, marginTop: 2,
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: isOwn ? 'flex-end' : 'flex-start'
         }}>
-          {getInitials(senderName)}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: isStaff ? '#3B82F6' : '#10B981' }}>{senderName}</span>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4,
+            flexDirection: isOwn ? 'row-reverse' : 'row',
+            marginRight: isOwn ? 42 : 0, marginLeft: isOwn ? 0 : 42
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: (isOwn || isStaff) ? '#3B82F6' : '#10B981' }}>{isOwn ? 'You' : senderName}</span>
             <span style={{
               fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 999,
-              background: isStaff ? '#DBEAFE' : '#D1FAE5',
-              color: isStaff ? '#2563EB' : '#059669',
+              background: (isOwn || isStaff) ? '#DBEAFE' : '#D1FAE5',
+              color: (isOwn || isStaff) ? '#2563EB' : '#059669',
             }}>
-              {isStaff ? 'Staff reply' : 'Customer'}
+              {isOwn ? 'Staff reply' : (isStaff ? 'Staff reply' : 'Customer')}
             </span>
             <span style={{ fontSize: 11, color: '#9CA3AF' }}>{formatTimestamp(event.created_at)}</span>
           </div>
-          {(parsed.text || quotedPortalMsg) && (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexDirection: isOwn ? 'row-reverse' : 'row', width: '100%' }}>
             <div style={{
-              fontSize: 13.5, color: '#111827', background: isStaff ? '#EFF6FF' : '#ECFDF5',
-              border: `1px solid ${isStaff ? '#BFDBFE' : '#A7F3D0'}`,
-              borderRadius: 10, padding: '8px 12px', display: 'inline-block', maxWidth: '85%',
-              lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+              width: 32, height: 32, borderRadius: '50%',
+              background: isOwn ? '#DBEAFE' : (isStaff ? '#DBEAFE' : '#D1FAE5'),
+              color: isOwn ? '#3B82F6' : (isStaff ? '#3B82F6' : '#10B981'),
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 11, fontWeight: 700, flexShrink: 0,
             }}>
-              {quotedPortalMsg && (() => {
-                const qIsStaff = quotedPortalMsg.sender_type === 'staff'
-                const thumb = getPortalMsgThumb(quotedPortalMsg, portalAttachments ?? [])
+              {getInitials(senderName)}
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
+              {(parsed.text || quotedPortalMsg) && (
+                <div style={{
+                  fontSize: 13.5, color: '#111827',
+                  background: isOwn ? '#EFF6FF' : (isStaff ? '#EFF6FF' : '#ECFDF5'),
+                  border: `1px solid ${isOwn ? '#BFDBFE' : (isStaff ? '#BFDBFE' : '#A7F3D0')}`,
+                  borderRadius: isOwn ? '12px 4px 12px 12px' : '4px 12px 12px 12px',
+                  padding: '8px 12px', display: 'inline-block', maxWidth: '60%',
+                  lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                }}>
+                  {quotedPortalMsg && (() => {
+                    const qIsStaff = quotedPortalMsg.sender_type === 'staff'
+                    const thumb = getPortalMsgThumb(quotedPortalMsg, portalAttachments ?? [])
+                    return (
+                      <div
+                        onClick={() => portalReplyMsgId !== null && onHighlightPortalMsg?.(portalReplyMsgId)}
+                        style={{
+                          display: 'flex', alignItems: 'stretch', marginBottom: parsed.text ? 8 : 0,
+                          borderLeft: `3px solid ${qIsStaff ? '#3B82F6' : '#10B981'}`,
+                          background: 'rgba(0,0,0,0.05)', borderRadius: '0 6px 6px 0',
+                          overflow: 'hidden',
+                          cursor: onHighlightPortalMsg && portalReplyMsgId !== null ? 'pointer' : 'default',
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0, padding: '3px 8px' }}>
+                          <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: qIsStaff ? '#3B82F6' : '#10B981', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {quotedPortalMsg.portal_sender}
+                          </p>
+                          <p style={{ margin: 0, fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {getPortalMsgPreview(quotedPortalMsg)}
+                          </p>
+                        </div>
+                        {thumb && (
+                          <div style={{ width: 40, height: 40, flexShrink: 0, overflow: 'hidden' }}>
+                            <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+                  {parsed.text}
+                </div>
+              )}
+              {event.type === 'customer_attachment' && p.file_name && (() => {
+                const attId = p.att_id ? parseInt(p.att_id) : null
+                const caption = attId != null ? portalAttCaptions?.get(attId) : undefined
                 return (
-                  <div
-                    onClick={() => portalReplyMsgId !== null && onHighlightPortalMsg?.(portalReplyMsgId)}
-                    style={{
-                      display: 'flex', alignItems: 'stretch', marginBottom: parsed.text ? 8 : 0,
-                      borderLeft: `3px solid ${qIsStaff ? '#3B82F6' : '#10B981'}`,
-                      background: 'rgba(0,0,0,0.05)', borderRadius: '0 6px 6px 0',
-                      overflow: 'hidden',
-                      cursor: onHighlightPortalMsg && portalReplyMsgId !== null ? 'pointer' : 'default',
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0, padding: '3px 8px' }}>
-                      <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: qIsStaff ? '#3B82F6' : '#10B981', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {quotedPortalMsg.portal_sender}
-                      </p>
-                      <p style={{ margin: 0, fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {getPortalMsgPreview(quotedPortalMsg)}
-                      </p>
-                    </div>
-                    {thumb && (
-                      <div style={{ width: 40, height: 40, flexShrink: 0, overflow: 'hidden' }}>
-                        <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div style={{ marginTop: parsed.text ? 8 : 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
+                    {renderPortalAttachment(attId, p.file_name, p.file_type)}
+                    {caption && (
+                      <div style={{
+                        fontSize: 13.5, color: '#111827',
+                        background: isOwn ? '#EFF6FF' : '#ECFDF5',
+                        border: `1px solid ${isOwn ? '#BFDBFE' : '#A7F3D0'}`,
+                        borderRadius: isOwn ? '12px 4px 12px 12px' : '4px 12px 12px 12px',
+                        padding: '6px 10px',
+                        marginTop: 6, display: 'inline-block', maxWidth: '60%',
+                        lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                      }}>
+                        {caption}
                       </div>
                     )}
                   </div>
                 )
               })()}
-              {parsed.text}
             </div>
-          )}
-          {event.type === 'customer_attachment' && p.file_name && (() => {
-            const attId = p.att_id ? parseInt(p.att_id) : null
-            const caption = attId != null ? portalAttCaptions?.get(attId) : undefined
-            return (
-              <>
-                {renderPortalAttachment(attId, p.file_name, p.file_type)}
-                {caption && (
-                  <div style={{
-                    fontSize: 13.5, color: '#111827', background: '#ECFDF5',
-                    border: '1px solid #A7F3D0', borderRadius: 10, padding: '6px 10px',
-                    marginTop: 6, display: 'inline-block', maxWidth: '85%',
-                    lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                  }}>
-                    {caption}
-                  </div>
-                )}
-              </>
-            )
-          })()}
+          </div>
         </div>
       </div>
     )
@@ -1343,6 +1410,7 @@ export function OrderDetailPage() {
                             portalAttachments={portalAttachments}
                             portalMessages={portalMessages}
                             portalAttCaptions={portalAttCaptions}
+                            currentUserId={user?.id}
                           />
                         </div>
                       )
