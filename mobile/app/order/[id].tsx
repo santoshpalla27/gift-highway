@@ -295,8 +295,13 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
   useEffect(() => { onReplyRef.current = onReply }, [onReply])
 
   const panResponder = useRef(PanResponder.create({
-    onMoveShouldSetPanResponder: (_, gs) =>
-      onReplyRef.current && Math.abs(gs.dx) > 5 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2,
+    onMoveShouldSetPanResponder: (_, gs) => {
+      if (!onReplyRef.current || Math.abs(gs.dx) <= 5) return false
+      const isHorizontal = Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2
+      if (!isHorizontal) return false
+      // Only capture if swiping "into" the screen
+      return isOwnRef.current ? gs.dx < 0 : gs.dx > 0
+    },
     onPanResponderGrant: () => { replyTriggered.current = false },
     onPanResponderTerminationRequest: () => false,
     onPanResponderMove: (_, gs) => {
@@ -1001,8 +1006,13 @@ function PortalMessageItem({ msg, messages, portalAttachments, orderId, highligh
   useEffect(() => { isStaffRef.current = isStaff }, [isStaff])
 
   const panResponder = useRef(PanResponder.create({
-    onMoveShouldSetPanResponder: (_, gs) =>
-      onReplyRef.current && Math.abs(gs.dx) > 5 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2,
+    onMoveShouldSetPanResponder: (_, gs) => {
+      if (!onReplyRef.current || Math.abs(gs.dx) <= 5) return false
+      const isHorizontal = Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2
+      if (!isHorizontal) return false
+      // Only capture if swiping "into" the screen
+      return isStaffRef.current ? gs.dx < 0 : gs.dx > 0
+    },
     onPanResponderGrant: () => { replyTriggered.current = false },
     onPanResponderTerminationRequest: () => false,
     onPanResponderMove: (_, gs) => {
