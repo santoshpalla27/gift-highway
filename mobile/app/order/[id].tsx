@@ -428,8 +428,8 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
       if (!fileName) return null
       return (
         <View style={[T.commentRow, { flexDirection: isOwn ? 'row-reverse' : 'row' }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
-          <View style={[T.avatar, { backgroundColor: avatarBg }]}>
-            <Text style={[T.avatarText, { color: avatarColor }]}>{getInitials(senderName)}</Text>
+          <View style={[T.avatar, isStaff ? { backgroundColor: '#DBEAFE' } : { backgroundColor: '#D1FAE5' }]}>
+            <Text style={[T.avatarText, { color: isStaff ? '#2563EB' : '#10B981' }]}>{getInitials(senderName)}</Text>
           </View>
           <View style={{ flex: 1, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
             <View style={{ marginBottom: 2 }}>
@@ -458,8 +458,8 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
 
     return (
       <View style={[T.commentRow, { flexDirection: isOwn ? 'row-reverse' : 'row' }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
-        <View style={[T.avatar, { backgroundColor: avatarBg }]}>
-          <Text style={[T.avatarText, { color: avatarColor }]}>{getInitials(senderName)}</Text>
+        <View style={[T.avatar, isStaff ? { backgroundColor: '#DBEAFE' } : { backgroundColor: '#D1FAE5' }]}>
+          <Text style={[T.avatarText, { color: isStaff ? '#2563EB' : '#10B981' }]}>{getInitials(senderName)}</Text>
         </View>
         <View style={{ flex: 1, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
           <View style={{ marginBottom: 2 }}>
@@ -928,6 +928,9 @@ function PortalMessageItem({ msg, messages, portalAttachments, orderId, highligh
   const [actionOpen, setActionOpen] = useState(false)
   const translateX = useRef(new Animated.Value(0)).current
   const replyTriggered = useRef(false)
+  const isCustomer = msg.sender_type === 'customer'
+  const isStaff = msg.sender_type === 'staff'
+  const parsed = parsePortalMsg(msg.message)
 
   // Keep latest callbacks in refs so PanResponder closure stays fresh
   const onReplyRef = useRef(onReply)
@@ -957,8 +960,6 @@ function PortalMessageItem({ msg, messages, portalAttachments, orderId, highligh
     },
   })).current
 
-  const parsed = parsePortalMsg(msg.message)
-  const isCustomer = msg.sender_type === 'customer'
   const hasText = parsed.text !== ''
   const hasTokens = parsed.tokens.length > 0
   const quotedMsg = parsed.replyToId !== null ? messages.find(m => m.id === parsed.replyToId) ?? null : null
@@ -966,7 +967,7 @@ function PortalMessageItem({ msg, messages, portalAttachments, orderId, highligh
   return (
     <View
       onLayout={(e) => onLayout(e.nativeEvent.layout.y)}
-      style={[PC.msgRow, isCustomer ? PC.msgLeft : PC.msgRight, highlighted && { backgroundColor: 'rgba(37,211,102,0.15)', borderRadius: 8 }]}
+      style={[PC.msgRow, isStaff ? PC.msgRight : PC.msgLeft, highlighted && { backgroundColor: 'rgba(37,211,102,0.15)', borderRadius: 8 }]}
     >
       {/* Long-press action sheet */}
       <Modal visible={actionOpen} transparent animationType="fade" onRequestClose={() => setActionOpen(false)}>
@@ -984,62 +985,71 @@ function PortalMessageItem({ msg, messages, portalAttachments, orderId, highligh
       </Modal>
 
       {isCustomer && (
-        <View style={[PC.msgAvatar, { backgroundColor: '#D1FAE5' }]}>
-          <Text style={[PC.msgAvatarText, { color: '#10B981' }]}>{getInitials(msg.portal_sender || 'C')}</Text>
+        <View style={[PC.msgAvatar, { backgroundColor: '#25d366', marginRight: 8 }]}>
+          <Text style={[PC.msgAvatarText, { color: '#ffffff' }]}>{getInitials(msg.portal_sender || 'C')}</Text>
         </View>
       )}
-      <View style={{ flex: 1, maxWidth: '80%', alignItems: isCustomer ? 'flex-start' : 'flex-end' }}>
-        <Text style={[PC.msgSender, !isCustomer && { color: '#3B82F6' }]}>{!isCustomer ? 'You' : msg.portal_sender}</Text>
+      <View style={{ flex: 1, maxWidth: '80%', alignItems: isStaff ? 'flex-end' : 'flex-start' }}>
+        {isCustomer && (
+          <Text style={[PC.msgSender, { color: '#25d366' }]}>{msg.portal_sender}</Text>
+        )}
 
         {/* Swipeable area */}
-        <Animated.View style={{ alignSelf: isCustomer ? 'flex-start' : 'flex-end', transform: [{ translateX }] }} {...panResponder.panHandlers}>
-          {(hasText || !hasTokens || quotedMsg) && (
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onLongPress={() => setActionOpen(true)}
-              style={[
-                PC.msgBubble,
-                isCustomer ? PC.bubbleCustomer : PC.bubbleStaff,
-                isCustomer ? { borderTopLeftRadius: 4 } : { borderTopRightRadius: 4, backgroundColor: '#2563EB' }
-              ]}
-            >
-              {quotedMsg && (() => {
-                const qIsCustomer = quotedMsg.sender_type === 'customer'
-                const qPreview = getPortalMsgPreview(quotedMsg)
-                const qThumb = getPortalMsgThumb(quotedMsg, portalAttachments)
-                return (
-                  <TouchableOpacity
-                    onPress={() => onHighlight(quotedMsg.id)}
-                    activeOpacity={0.7}
-                    style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: 6, borderLeftWidth: 3, borderLeftColor: qIsCustomer ? '#10B981' : '#25D366', backgroundColor: isCustomer ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden' }}
-                  >
-                    <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: qIsCustomer ? '#10B981' : '#25D366', marginBottom: 1 }} numberOfLines={1}>{quotedMsg.portal_sender}</Text>
-                      <Text style={{ fontSize: 11, color: isCustomer ? '#6B7280' : 'rgba(255,255,255,0.8)' }} numberOfLines={2}>{qPreview}</Text>
-                    </View>
-                    {qThumb && (
-                      <Image source={{ uri: qThumb }} style={{ width: 44, height: 44, flexShrink: 0 }} resizeMode="cover" />
-                    )}
-                  </TouchableOpacity>
-                )
-              })()}
-              {hasText && <Text style={[PC.msgText, !isCustomer && { color: '#FFFFFF' }]}>{parsed.text}</Text>}
-            </TouchableOpacity>
-          )}
-          {hasTokens && parsed.tokens.map(tok => (
-            <TouchableOpacity key={tok.id} activeOpacity={0.85} onLongPress={() => setActionOpen(true)}>
-              <PortalAttachmentCard orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={!isCustomer} />
-            </TouchableOpacity>
-          ))}
+        <Animated.View style={{ alignSelf: isStaff ? 'flex-end' : 'flex-start', transform: [{ translateX }] }} {...panResponder.panHandlers}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {/* Bubble content */}
+            <View style={{ flexShrink: 1 }}>
+              {(hasText || !hasTokens || quotedMsg) && (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onLongPress={() => setActionOpen(true)}
+                  style={[
+                    PC.msgBubble,
+                    isCustomer ? PC.bubbleCustomer : PC.bubbleStaff,
+                    isStaff ? { borderTopRightRadius: 2 } : { borderTopLeftRadius: 2 }
+                  ]}
+                >
+                  {quotedMsg && (() => {
+                    const qIsCustomer = quotedMsg.sender_type === 'customer'
+                    const qPreview = getPortalMsgPreview(quotedMsg)
+                    const qThumb = getPortalMsgThumb(quotedMsg, portalAttachments)
+                    return (
+                      <TouchableOpacity
+                        onPress={() => onHighlight(quotedMsg.id)}
+                        activeOpacity={0.7}
+                        style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: 6, borderLeftWidth: 3, borderLeftColor: qIsCustomer ? '#10B981' : '#25D366', backgroundColor: isCustomer ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden' }}
+                      >
+                        <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: qIsCustomer ? '#10B981' : '#25D366', marginBottom: 1 }} numberOfLines={1}>{quotedMsg.portal_sender}</Text>
+                          <Text style={{ fontSize: 11, color: isCustomer ? '#6B7280' : 'rgba(255,255,255,0.8)' }} numberOfLines={2}>{qPreview}</Text>
+                        </View>
+                        {qThumb && (
+                          <Image source={{ uri: qThumb }} style={{ width: 44, height: 44, flexShrink: 0 }} resizeMode="cover" />
+                        )}
+                      </TouchableOpacity>
+                    )
+                  })()}
+                  {hasText && <Text style={[PC.msgText, !isCustomer && { color: '#334155' }]}>{parsed.text}</Text>}
+                </TouchableOpacity>
+              )}
+              {hasTokens && parsed.tokens.map(tok => (
+                <TouchableOpacity key={tok.id} activeOpacity={0.85} onLongPress={() => setActionOpen(true)}>
+                  <PortalAttachmentCard orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={!isCustomer} />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Staff Avatar on the right */}
+            {isStaff && (
+              <View style={[PC.msgAvatar, { backgroundColor: '#DBEAFE', marginLeft: 8 }]}>
+                <Text style={[PC.msgAvatarText, { color: '#2563EB' }]}>{getInitials(msg.portal_sender || 'S')}</Text>
+              </View>
+            )}
+          </View>
         </Animated.View>
 
-        <Text style={PC.msgTime}>{formatTimestamp(msg.created_at)}</Text>
+        <Text style={[PC.msgTime, { textAlign: isStaff ? 'right' : 'left' }]}>{formatTimestamp(msg.created_at)}</Text>
       </View>
-      {!isCustomer && (
-        <View style={[PC.msgAvatar, { backgroundColor: '#DBEAFE' }]}>
-          <Text style={[PC.msgAvatarText, { color: '#3B82F6' }]}>{getInitials(msg.portal_sender || 'S')}</Text>
-        </View>
-      )}
     </View>
   )
 }
@@ -1209,21 +1219,21 @@ function PortalChatModal({
       <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#FFFFFF' }} behavior="padding" keyboardVerticalOffset={0}>
         <View style={PC.screen}>
           {/* Header */}
-          <View style={PC.header}>
+          <View style={[PC.header, { backgroundColor: '#075e54' }]}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={24} color="#0F172A" />
+              <Ionicons name="close" size={24} color="#FFFFFF" />
             </TouchableOpacity>
             <View style={{ flex: 1, marginHorizontal: 12 }}>
-              <Text style={PC.headerTitle}>Portal Chat</Text>
-              <Text style={PC.headerSub} numberOfLines={1}>
-                {portal.enabled ? `${portal.customer_name} · Active` : `${portal.customer_name} · Revoked`}
+              <Text style={[PC.headerTitle, { color: '#FFFFFF' }]}>{portal.customer_name || 'Customer'}</Text>
+              <Text style={[PC.headerSub, { color: 'rgba(255,255,255,0.7)' }]} numberOfLines={1}>
+                Customer portal chat
               </Text>
             </View>
             <TouchableOpacity onPress={handleShareLink} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginRight: 12 }}>
-              <Ionicons name="share-outline" size={22} color="#6366F1" />
+              <Ionicons name="share-outline" size={22} color="#FFFFFF" />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setShowOptions(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="ellipsis-vertical" size={22} color="#0F172A" />
+              <Ionicons name="ellipsis-vertical" size={22} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
 
@@ -2364,9 +2374,9 @@ const PC = StyleSheet.create({
   msgAvatar: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   msgAvatarText: { fontSize: 11, fontWeight: '700' },
   msgSender: { fontSize: 11, fontWeight: '600', color: '#6B7280', marginBottom: 3 },
-  msgBubble: { borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, maxWidth: '75%' },
-  bubbleCustomer: { backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#A7F3D0' },
-  bubbleStaff: { backgroundColor: '#1E40AF' },
+  msgBubble: { borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, maxWidth: '75%', minWidth: 60 },
+  bubbleCustomer: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
+  bubbleStaff: { backgroundColor: '#D9FDD3' },
   msgText: { fontSize: 14, color: '#334155', lineHeight: 20 },
   msgTime: { fontSize: 10, color: '#9CA3AF', marginTop: 3 },
 })
