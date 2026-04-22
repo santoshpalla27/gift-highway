@@ -286,8 +286,40 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
   const { user } = useAuthStore()
   const currentUserId = user?.id
   const [menuFor, setMenuFor] = useState<'comment' | 'attachment' | null>(null)
+  const isOwn = String(event.actor_id) === String(currentUserId)
+  const isOwnRef = useRef(isOwn)
+  useEffect(() => { isOwnRef.current = isOwn }, [isOwn])
+  const translateX = useRef(new Animated.Value(0)).current
+  const replyTriggered = useRef(false)
+  const onReplyRef = useRef(onReply)
+  useEffect(() => { onReplyRef.current = onReply }, [onReply])
+
+  const panResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gs) =>
+      onReplyRef.current && Math.abs(gs.dx) > 5 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2,
+    onPanResponderGrant: () => { replyTriggered.current = false },
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderMove: (_, gs) => {
+      const clamp = isOwnRef.current ? Math.max(-80, Math.min(0, gs.dx)) : Math.max(0, Math.min(80, gs.dx))
+      translateX.setValue(clamp)
+      if (Math.abs(clamp) > 40 && !replyTriggered.current) {
+        replyTriggered.current = true
+      }
+      if (Math.abs(clamp) < 20 && replyTriggered.current) {
+        replyTriggered.current = false
+      }
+    },
+    onPanResponderRelease: () => {
+      if (replyTriggered.current && !isOptimistic) onReplyRef.current?.()
+      replyTriggered.current = false
+      Animated.spring(translateX, { toValue: 0, useNativeDriver: true, tension: 40, friction: 7 }).start()
+    },
+    onPanResponderTerminate: () => {
+      replyTriggered.current = false
+      Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start()
+    },
+  })).current
   const isComment = event.type === 'comment_added'
-  const isOwn = event.actor_id === currentUserId
   const meta = EVENT_TYPE_META[event.type]
 
   const menuSheet = menuFor !== null && (
@@ -341,31 +373,53 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
           <View style={{ marginBottom: 2 }}>
             <Text style={T.actorName}>{isOwn ? 'You' : event.actor_name}</Text>
           </View>
-          <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, width: '100%', justifyContent: 'flex-start' }}>
-            <View style={[
-              T.bubble,
-              isFailed && { backgroundColor: '#FFF5F5', borderColor: '#FCA5A5' },
-              isOwn ? { borderTopRightRadius: 4 } : { borderTopLeftRadius: 4 }
-            ]}>
-              {replyPreview && (
-                <TouchableOpacity
-                  onPress={onHighlightQuoted}
-                  activeOpacity={onHighlightQuoted ? 0.7 : 1}
-                  style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#6366F1', backgroundColor: '#EEF2FF', borderRadius: 4, overflow: 'hidden' }}
-                >
-                  <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
-                    {quotedEvent && (
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#6366F1', marginBottom: 1 }} numberOfLines={1}>{quotedEvent.actor_name}</Text>
+          <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
+            {/* Visual Indicator for Reply */}
+            <Animated.View style={{
+              position: 'absolute',
+              [isOwn ? 'right' : 'left']: -40,
+              opacity: translateX.interpolate({
+                inputRange: isOwn ? [-40, -20] : [20, 40],
+                outputRange: isOwn ? [1, 0] : [0, 1],
+                extrapolate: 'clamp'
+              }),
+              transform: [{
+                scale: translateX.interpolate({
+                  inputRange: isOwn ? [-40, 0] : [0, 40],
+                  outputRange: [1, 0.5],
+                  extrapolate: 'clamp'
+                })
+              }]
+            }}>
+              <Ionicons name="return-up-back-outline" size={20} color="#6366F1" />
+            </Animated.View>
+
+            <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
+              <View style={[
+                T.bubble,
+                isFailed && { backgroundColor: '#FFF5F5', borderColor: '#FCA5A5' },
+                isOwn ? { borderTopRightRadius: 4 } : { borderTopLeftRadius: 4 }
+              ]}>
+                {replyPreview && (
+                  <TouchableOpacity
+                    onPress={onHighlightQuoted}
+                    activeOpacity={onHighlightQuoted ? 0.7 : 1}
+                    style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#6366F1', backgroundColor: '#EEF2FF', borderRadius: 4, overflow: 'hidden' }}
+                  >
+                    <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
+                      {quotedEvent && (
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#6366F1', marginBottom: 1 }} numberOfLines={1}>{quotedEvent.actor_name}</Text>
+                      )}
+                      <Text style={{ fontSize: 11, color: '#6B7280' }} numberOfLines={2}>{replyPreview}</Text>
+                    </View>
+                    {quotedEvent?.type === 'attachment_added' && isImage((quotedEvent.payload as any)?.mime_type ?? '') && (
+                      <Image source={{ uri: (quotedEvent.payload as any)?.file_url }} style={{ width: 44, height: 44 }} resizeMode="cover" />
                     )}
-                    <Text style={{ fontSize: 11, color: '#6B7280' }} numberOfLines={2}>{replyPreview}</Text>
-                  </View>
-                  {quotedEvent?.type === 'attachment_added' && isImage((quotedEvent.payload as any)?.mime_type ?? '') && (
-                    <Image source={{ uri: (quotedEvent.payload as any)?.file_url }} style={{ width: 44, height: 44 }} resizeMode="cover" />
-                  )}
-                </TouchableOpacity>
-              )}
-              <Text style={T.commentText}>{cleanText}</Text>
-            </View>
+                  </TouchableOpacity>
+                )}
+                <Text style={T.commentText}>{cleanText}</Text>
+              </View>
+            </Animated.View>
             {canMenu && (
               <TouchableOpacity onPress={() => setMenuFor('comment')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="ellipsis-vertical" size={16} color="#94A3B8" />
@@ -401,8 +455,10 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
           <View style={{ marginBottom: 2 }}>
             <Text style={T.actorName}>{isOwn ? 'You' : event.actor_name}</Text>
           </View>
-          <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, width: '100%', justifyContent: 'flex-start' }}>
-            <AttachmentCard orderId={orderId} payload={p} isOwn={isOwn} />
+          <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
+            <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
+              <AttachmentCard orderId={orderId} payload={p} isOwn={isOwn} />
+            </Animated.View>
             {canMenu && (
               <TouchableOpacity onPress={() => setMenuFor('attachment')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="ellipsis-vertical" size={16} color="#94A3B8" />
@@ -465,31 +521,35 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
           <View style={{ marginBottom: 2 }}>
             <Text style={[T.actorName, { color: avatarColor }]}>{isOwn ? 'You' : senderName}</Text>
           </View>
-          <View style={[T.bubble, { borderColor: isStaff ? '#BFDBFE' : '#A7F3D0', backgroundColor: isStaff ? '#EFF6FF' : '#F0FDF4', borderTopRightRadius: isOwn ? 4 : 14, borderTopLeftRadius: isOwn ? 14 : 4 }]}>
-            {quotedPortalMsg && (() => {
-              const qIsStaff = quotedPortalMsg.sender_type === 'staff'
-              const preview = getPortalMsgPreview(quotedPortalMsg)
-              const thumb = getPortalMsgThumb(quotedPortalMsg, portalAttachments ?? [])
-              return (
-                <TouchableOpacity
-                  onPress={() => parsed.replyToId !== null && onHighlightPortalMsg?.(parsed.replyToId)}
-                  activeOpacity={onHighlightPortalMsg ? 0.7 : 1}
-                  style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: 8, borderLeftWidth: 3, borderLeftColor: qIsStaff ? '#3B82F6' : '#10B981', backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 4, overflow: 'hidden' }}
-                >
-                  <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: qIsStaff ? '#3B82F6' : '#10B981', marginBottom: 1 }} numberOfLines={1}>{quotedPortalMsg.portal_sender}</Text>
-                    <Text style={{ fontSize: 11, color: '#6B7280' }} numberOfLines={2}>{preview}</Text>
-                  </View>
-                  {thumb && (
-                    <Image source={{ uri: thumb }} style={{ width: 44, height: 44, flexShrink: 0 }} resizeMode="cover" />
-                  )}
-                </TouchableOpacity>
-              )
-            })()}
-            {parsed.text !== '' && <Text style={T.commentText}>{parsed.text}</Text>}
-            {event.type === 'staff_portal_reply' && parsed.tokens.map(tok =>
-              <PortalAttachmentCard key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={isOwn} />
-            )}
+          <View style={{ alignSelf: isOwn ? 'flex-end' : 'flex-start' }}>
+            <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
+              <View style={[T.bubble, { borderColor: isStaff ? '#BFDBFE' : '#A7F3D0', backgroundColor: isStaff ? '#EFF6FF' : '#F0FDF4', borderTopRightRadius: isOwn ? 4 : 14, borderTopLeftRadius: isOwn ? 14 : 4 }]}>
+                {quotedPortalMsg && (() => {
+                  const qIsStaff = quotedPortalMsg.sender_type === 'staff'
+                  const preview = getPortalMsgPreview(quotedPortalMsg)
+                  const thumb = getPortalMsgThumb(quotedPortalMsg, portalAttachments ?? [])
+                  return (
+                    <TouchableOpacity
+                      onPress={() => parsed.replyToId !== null && onHighlightPortalMsg?.(parsed.replyToId)}
+                      activeOpacity={onHighlightPortalMsg ? 0.7 : 1}
+                      style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: 8, borderLeftWidth: 3, borderLeftColor: qIsStaff ? '#3B82F6' : '#10B981', backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 4, overflow: 'hidden' }}
+                    >
+                      <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: qIsStaff ? '#3B82F6' : '#10B981', marginBottom: 1 }} numberOfLines={1}>{quotedPortalMsg.portal_sender}</Text>
+                        <Text style={{ fontSize: 11, color: '#6B7280' }} numberOfLines={2}>{preview}</Text>
+                      </View>
+                      {thumb && (
+                        <Image source={{ uri: thumb }} style={{ width: 44, height: 44, flexShrink: 0 }} resizeMode="cover" />
+                      )}
+                    </TouchableOpacity>
+                  )
+                })()}
+                {parsed.text !== '' && <Text style={T.commentText}>{parsed.text}</Text>}
+                {event.type === 'staff_portal_reply' && parsed.tokens.map(tok =>
+                  <PortalAttachmentCard key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={isOwn} />
+                )}
+              </View>
+            </Animated.View>
           </View>
           <Text style={[T.time, { marginTop: 4 }]}>{formatTimestamp(event.created_at)}</Text>
         </View>
@@ -935,18 +995,24 @@ function PortalMessageItem({ msg, messages, portalAttachments, orderId, highligh
   // Keep latest callbacks in refs so PanResponder closure stays fresh
   const onReplyRef = useRef(onReply)
   const msgRef = useRef(msg)
+  const isStaffRef = useRef(isStaff)
   useEffect(() => { onReplyRef.current = onReply }, [onReply])
   useEffect(() => { msgRef.current = msg }, [msg])
+  useEffect(() => { isStaffRef.current = isStaff }, [isStaff])
 
   const panResponder = useRef(PanResponder.create({
     onMoveShouldSetPanResponder: (_, gs) =>
-      Math.abs(gs.dx) > 10 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5,
+      onReplyRef.current && Math.abs(gs.dx) > 5 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.2,
     onPanResponderGrant: () => { replyTriggered.current = false },
+    onPanResponderTerminationRequest: () => false,
     onPanResponderMove: (_, gs) => {
-      const clamp = Math.max(-80, Math.min(80, gs.dx))
+      const clamp = isStaffRef.current ? Math.max(-80, Math.min(0, gs.dx)) : Math.max(0, Math.min(80, gs.dx))
       translateX.setValue(clamp)
-      if (Math.abs(clamp) > 60 && !replyTriggered.current) {
+      if (Math.abs(clamp) > 40 && !replyTriggered.current) {
         replyTriggered.current = true
+      }
+      if (Math.abs(clamp) < 20 && replyTriggered.current) {
+        replyTriggered.current = false
       }
     },
     onPanResponderRelease: () => {
@@ -995,49 +1061,67 @@ function PortalMessageItem({ msg, messages, portalAttachments, orderId, highligh
         )}
 
         {/* Swipeable area */}
-        <Animated.View style={{ alignSelf: isStaff ? 'flex-end' : 'flex-start', transform: [{ translateX }] }} {...panResponder.panHandlers}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {/* Visual Indicator for Reply */}
+          <Animated.View style={{
+            position: 'absolute',
+            [isStaff ? 'right' : 'left']: -40,
+            opacity: translateX.interpolate({
+              inputRange: isStaff ? [-40, -20] : [20, 40],
+              outputRange: isStaff ? [1, 0] : [0, 1],
+              extrapolate: 'clamp'
+            }),
+            transform: [{
+              scale: translateX.interpolate({
+                inputRange: isStaff ? [-40, 0] : [0, 40],
+                outputRange: [1, 0.5],
+                extrapolate: 'clamp'
+              })
+            }]
+          }}>
+            <Ionicons name="return-up-back-outline" size={20} color={isStaff ? '#10B981' : '#6B7280'} />
+          </Animated.View>
+
+          <Animated.View style={{ flex: 1, alignSelf: isStaff ? 'flex-end' : 'flex-start', transform: [{ translateX }] }} {...panResponder.panHandlers}>
             {/* Bubble content */}
-            <View style={{ flexShrink: 1 }}>
-              {(hasText || !hasTokens || quotedMsg) && (
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onLongPress={() => setActionOpen(true)}
-                  style={[
-                    PC.msgBubble,
-                    isCustomer ? PC.bubbleCustomer : PC.bubbleStaff,
-                    isStaff ? { borderTopRightRadius: 2 } : { borderTopLeftRadius: 2 }
-                  ]}
-                >
-                  {quotedMsg && (() => {
-                    const qIsCustomer = quotedMsg.sender_type === 'customer'
-                    const qPreview = getPortalMsgPreview(quotedMsg)
-                    const qThumb = getPortalMsgThumb(quotedMsg, portalAttachments)
-                    return (
-                      <TouchableOpacity
-                        onPress={() => onHighlight(quotedMsg.id)}
-                        activeOpacity={0.7}
-                        style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: 6, borderLeftWidth: 3, borderLeftColor: qIsCustomer ? '#10B981' : '#25D366', backgroundColor: isCustomer ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden' }}
-                      >
-                        <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
-                          <Text style={{ fontSize: 10, fontWeight: '700', color: qIsCustomer ? '#10B981' : '#25D366', marginBottom: 1 }} numberOfLines={1}>{quotedMsg.portal_sender}</Text>
-                          <Text style={{ fontSize: 11, color: isCustomer ? '#6B7280' : 'rgba(255,255,255,0.8)' }} numberOfLines={2}>{qPreview}</Text>
-                        </View>
-                        {qThumb && (
-                          <Image source={{ uri: qThumb }} style={{ width: 44, height: 44, flexShrink: 0 }} resizeMode="cover" />
-                        )}
-                      </TouchableOpacity>
-                    )
-                  })()}
-                  {hasText && <Text style={[PC.msgText, !isCustomer && { color: '#334155' }]}>{parsed.text}</Text>}
-                </TouchableOpacity>
-              )}
-              {hasTokens && parsed.tokens.map(tok => (
-                <TouchableOpacity key={tok.id} activeOpacity={0.85} onLongPress={() => setActionOpen(true)}>
-                  <PortalAttachmentCard orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={!isCustomer} />
-                </TouchableOpacity>
-              ))}
-            </View>
+            {(hasText || !hasTokens || quotedMsg) && (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onLongPress={() => setActionOpen(true)}
+                style={[
+                  PC.msgBubble,
+                  isCustomer ? PC.bubbleCustomer : PC.bubbleStaff,
+                  isStaff ? { borderTopRightRadius: 2 } : { borderTopLeftRadius: 2 }
+                ]}
+              >
+                {quotedMsg && (() => {
+                  const qIsCustomer = quotedMsg.sender_type === 'customer'
+                  const qPreview = getPortalMsgPreview(quotedMsg)
+                  const qThumb = getPortalMsgThumb(quotedMsg, portalAttachments)
+                  return (
+                    <TouchableOpacity
+                      onPress={() => onHighlight(quotedMsg.id)}
+                      activeOpacity={0.7}
+                      style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: 6, borderLeftWidth: 3, borderLeftColor: qIsCustomer ? '#10B981' : '#25D366', backgroundColor: isCustomer ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden' }}
+                    >
+                      <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: qIsCustomer ? '#10B981' : '#25D366', marginBottom: 1 }} numberOfLines={1}>{quotedMsg.portal_sender}</Text>
+                        <Text style={{ fontSize: 11, color: isCustomer ? '#6B7280' : 'rgba(255,255,255,0.8)' }} numberOfLines={2}>{qPreview}</Text>
+                      </View>
+                      {qThumb && (
+                        <Image source={{ uri: qThumb }} style={{ width: 44, height: 44, flexShrink: 0 }} resizeMode="cover" />
+                      )}
+                    </TouchableOpacity>
+                  )
+                })()}
+                {hasText && <Text style={[PC.msgText, !isCustomer && { color: '#334155' }]}>{parsed.text}</Text>}
+              </TouchableOpacity>
+            )}
+            {hasTokens && parsed.tokens.map(tok => (
+              <TouchableOpacity key={tok.id} activeOpacity={0.85} onLongPress={() => setActionOpen(true)}>
+                <PortalAttachmentCard orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={!isCustomer} />
+              </TouchableOpacity>
+            ))}
 
             {/* Staff Avatar on the right */}
             {isStaff && (
@@ -1045,8 +1129,8 @@ function PortalMessageItem({ msg, messages, portalAttachments, orderId, highligh
                 <Text style={[PC.msgAvatarText, { color: '#2563EB' }]}>{getInitials(msg.portal_sender || 'S')}</Text>
               </View>
             )}
-          </View>
-        </Animated.View>
+          </Animated.View>
+        </View>
 
         <Text style={[PC.msgTime, { textAlign: isStaff ? 'right' : 'left' }]}>{formatTimestamp(msg.created_at)}</Text>
       </View>
@@ -1910,52 +1994,65 @@ export default function OrderDetailScreen() {
                   for (const attId of tokens) portalAttCaptions.set(attId, caption)
                 }
               }
-              return groupByDate(allEvents).map(group => (
-                <View key={group.label}>
-                  <View style={S.dateDivider}>
+              const groups = groupByDate(allEvents)
+              const flatItems: React.ReactNode[] = []
+              
+              groups.forEach(group => {
+                // Add Divider
+                flatItems.push(
+                  <View key={`divider-${group.label}`} style={S.dateDivider}>
                     <View style={S.dateDividerLine} />
                     <Text style={S.dateDividerLabel}>{group.label}</Text>
                     <View style={S.dateDividerLine} />
                   </View>
-                  {group.events.map(ev => {
-                    const rawText = ev.type === 'comment_added' ? ((ev as any).payload?.text ?? '') : ''
-                    const { replyEventId } = rawText ? parseCommentText(rawText) : { replyEventId: null }
-                    const quotedEv = replyEventId ? allEvents.find(e => e.id === replyEventId) as (OrderEvent & { failed?: boolean }) | undefined : undefined
+                )
+                
+                // Add Events
+                group.events.forEach(ev => {
+                  const rawText = ev.type === 'comment_added' ? ((ev as any).payload?.text ?? '') : ''
+                  const { replyEventId } = rawText ? parseCommentText(rawText) : { replyEventId: null }
+                  const quotedEv = replyEventId ? allEvents.find(e => e.id === replyEventId) as (OrderEvent & { failed?: boolean }) | undefined : undefined
+                  
+                  const attCaption = ev.type === 'customer_attachment' && (ev.payload as any)?.att_id
+                    ? portalAttCaptions.get(Number((ev.payload as any).att_id))
+                    : undefined
 
-                    // For customer_attachment: check if there is a caption from a nearby customer_message
-                    const attCaption = ev.type === 'customer_attachment' && (ev.payload as any)?.att_id
-                      ? portalAttCaptions.get(Number((ev.payload as any).att_id))
-                      : undefined
-
-                    return (
-                      <View
-                        key={ev.id}
-                        onLayout={(e) => { eventYPos.current[ev.id] = e.nativeEvent.layout.y }}
-                      >
-                        <TimelineItem
-                          event={ev as any}
-                          orderId={id!}
-                          isOptimistic={ev.id.startsWith('temp-')}
-                          onRetry={() => handleRetry(ev as any)}
-                          onDelete={canDeleteComment(order) && (ev.type === 'comment_added' || ev.type === 'attachment_added') ? () => handleDeleteComment(ev.id) : undefined}
-                          onEdit={canDeleteComment(order) && ev.type === 'comment_added' ? (currentText: string) => {
-                            setEditingComment({ eventId: ev.id, text: currentText })
-                            setEditCommentText(currentText)
-                          } : undefined}
-                          onReply={(ev.type === 'comment_added' || ev.type === 'attachment_added') && !ev.id.startsWith('temp-') ? () => handleSelectReplyEvent(ev as any) : undefined}
-                          onHighlightQuoted={replyEventId ? () => highlightEvent(replyEventId) : undefined}
-                          onHighlightPortalMsg={highlightPortalMsg}
-                          quotedEvent={quotedEv ?? null}
-                          portalMessages={portalMessages}
-                          portalAttachments={portalAttachments}
-                          highlighted={highlightedEventId === ev.id}
-                          attCaption={attCaption}
-                        />
-                      </View>
-                    )
-                  })}
-                </View>
-              ))
+                  flatItems.push(
+                    <View
+                      key={ev.id}
+                      onLayout={(e) => { eventYPos.current[ev.id] = e.nativeEvent.layout.y }}
+                    >
+                      <TimelineItem
+                        event={ev as any}
+                        orderId={id!}
+                        isOptimistic={ev.id.startsWith('temp-')}
+                        onRetry={() => handleRetry(ev as any)}
+                        onDelete={canDeleteComment(order) && (ev.type === 'comment_added' || ev.type === 'attachment_added') ? () => handleDeleteComment(ev.id) : undefined}
+                        onEdit={canDeleteComment(order) && ev.type === 'comment_added' ? (currentText: string) => {
+                          setEditingComment({ eventId: ev.id, text: currentText })
+                          setEditCommentText(currentText)
+                        } : undefined}
+                        onReply={(!ev.id.startsWith('temp-') && (
+                          ev.type === 'comment_added' || 
+                          ev.type === 'attachment_added' || 
+                          ev.type === 'staff_portal_reply' || 
+                          ev.type === 'customer_message' || 
+                          ev.type === 'customer_attachment'
+                        )) ? () => handleSelectReplyEvent(ev as any) : undefined}
+                        onHighlightQuoted={replyEventId ? () => highlightEvent(replyEventId) : undefined}
+                        onHighlightPortalMsg={highlightPortalMsg}
+                        quotedEvent={quotedEv ?? null}
+                        portalMessages={portalMessages}
+                        portalAttachments={portalAttachments}
+                        highlighted={highlightedEventId === ev.id}
+                        attCaption={attCaption}
+                      />
+                    </View>
+                  )
+                })
+              })
+              
+              return flatItems
             })()}
           </ScrollView>
           {newCount > 0 && (
@@ -2253,7 +2350,7 @@ const T = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   avatarText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
-  bubble: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#E2E8F0', maxWidth: '75%' },
+  bubble: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#E2E8F0', maxWidth: '75%', minWidth: 60 },
   bubbleHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   actorName: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
   time: { fontSize: 11, color: '#94A3B8' },
