@@ -209,7 +209,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
         flexDirection: isOwn ? 'row-reverse' : 'row',
         gap: 10,
         opacity: isOptimistic && !isFailed ? 0.6 : 1,
-        alignItems: 'flex-start'
+        alignItems: 'center'
       }}>
         <div style={{
           flex: 1,
@@ -390,7 +390,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
         display: 'flex',
         flexDirection: isOwn ? 'row-reverse' : 'row',
         gap: 10,
-        alignItems: 'flex-start'
+        alignItems: 'center'
       }}>
         <div style={{
           flex: 1,
@@ -594,7 +594,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
         display: 'flex',
         flexDirection: isOwn ? 'row-reverse' : 'row',
         gap: 10,
-        alignItems: 'flex-start'
+        alignItems: 'center'
       }}>
         <div style={{
           flex: 1,
@@ -616,7 +616,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
               {isOwn ? 'Staff reply' : (isStaff ? 'Staff reply' : 'Customer')}
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexDirection: isOwn ? 'row-reverse' : 'row', width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexDirection: isOwn ? 'row-reverse' : 'row', width: '100%' }}>
             <div style={{
               width: 32, height: 32, borderRadius: '50%',
               background: isOwn ? '#DBEAFE' : (isStaff ? '#DBEAFE' : '#D1FAE5'),

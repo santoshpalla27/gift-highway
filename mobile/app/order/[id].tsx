@@ -127,10 +127,11 @@ function getInitials(name: string) {
 
 // ─── Attachment image with signed-url refresh on load error ──────────────────
 
-function AttachmentCard({ orderId, payload, onDelete }: {
+function AttachmentCard({ orderId, payload, onDelete, isOwn }: {
   orderId: string
   payload: Record<string, string>
   onDelete?: () => void
+  isOwn?: boolean
 }) {
   const [imgUri, setImgUri] = useState(payload.file_url)
   const [imgFailed, setImgFailed] = useState(false)
@@ -160,7 +161,11 @@ function AttachmentCard({ orderId, payload, onDelete }: {
   }
 
   return (
-    <View style={[T.bubble, { padding: 0, overflow: 'hidden' }]}>
+    <View style={[
+      T.bubble,
+      { padding: 0, overflow: 'hidden' },
+      isOwn ? { borderTopRightRadius: 4 } : { borderTopLeftRadius: 4 }
+    ]}>
       {imgFile ? (
         <>
           <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}>
@@ -205,11 +210,12 @@ function AttachmentCard({ orderId, payload, onDelete }: {
 // ─── Portal Attachment Card ───────────────────────────────────────────────────
 // Fetches its own view URL so it doesn't depend on parent portalAttachments state
 
-function PortalAttachmentCard({ orderId, attId, fileName, fileType }: {
+function PortalAttachmentCard({ orderId, attId, fileName, fileType, isOwn }: {
   orderId: string
   attId: number | null
   fileName: string
   fileType?: string
+  isOwn?: boolean
 }) {
   const ext = ('.' + (fileName.split('.').pop() ?? '')).toLowerCase()
   const isImg = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic'].includes(ext)
@@ -230,8 +236,8 @@ function PortalAttachmentCard({ orderId, attId, fileName, fileType }: {
   if (isImg) {
     return (
       <View style={{ marginTop: 6 }}>
-        <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}
-          style={{ width: 180, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#E5E7EB', minHeight: 80, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
+      <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}
+          style={{ width: 180, borderRadius: 8, borderTopRightRadius: isOwn ? 4 : 8, borderTopLeftRadius: isOwn ? 8 : 4, overflow: 'hidden', borderWidth: 1, borderColor: '#E5E7EB', minHeight: 80, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
           {viewUrl
             ? <Image source={{ uri: viewUrl }} style={{ width: 180, height: 140 }} resizeMode="cover" />
             : <ActivityIndicator size="small" color="#94A3B8" />
@@ -251,7 +257,7 @@ function PortalAttachmentCard({ orderId, attId, fileName, fileType }: {
 
   return (
     <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 8 }}>
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, borderTopRightRadius: isOwn ? 4 : 8, borderTopLeftRadius: isOwn ? 8 : 4, padding: 8 }}>
       <Ionicons name="document-outline" size={16} color="#6B7280" />
       <Text style={{ fontSize: 12, color: '#374151', flex: 1 }} numberOfLines={1}>{fileName}</Text>
       <Ionicons name="download-outline" size={14} color="#6366F1" />
@@ -277,8 +283,11 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
   highlighted?: boolean
   attCaption?: string
 }) {
+  const { user } = useAuthStore()
+  const currentUserId = user?.id
   const [menuFor, setMenuFor] = useState<'comment' | 'attachment' | null>(null)
   const isComment = event.type === 'comment_added'
+  const isOwn = event.actor_id === currentUserId
   const meta = EVENT_TYPE_META[event.type]
 
   const menuSheet = menuFor !== null && (
@@ -323,43 +332,49 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
     const isFailed = event.failed
     const canMenu = (onDelete || onEdit || onReply) && !isOptimistic
     return (
-      <View style={[T.commentRow, isOptimistic && !isFailed && { opacity: 0.6 }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
+      <View style={[T.commentRow, { flexDirection: isOwn ? 'row-reverse' : 'row' }, isOptimistic && !isFailed && { opacity: 0.6 }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
         {menuSheet}
         <View style={T.avatar}>
           <Text style={T.avatarText}>{getInitials(event.actor_name || '?')}</Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <View style={T.bubbleHeader}>
-            <Text style={T.actorName}>{event.actor_name}</Text>
-            <Text style={[T.time, isFailed && { color: '#EF4444' }]}>
-              {isFailed ? 'Failed to send' : formatTimestamp(event.created_at)}
-            </Text>
+        <View style={{ flex: 1, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
+          <View style={{ marginBottom: 2 }}>
+            <Text style={T.actorName}>{isOwn ? 'You' : event.actor_name}</Text>
+          </View>
+          <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, width: '100%', justifyContent: 'flex-start' }}>
+            <View style={[
+              T.bubble,
+              isFailed && { backgroundColor: '#FFF5F5', borderColor: '#FCA5A5' },
+              isOwn ? { borderTopRightRadius: 4 } : { borderTopLeftRadius: 4 }
+            ]}>
+              {replyPreview && (
+                <TouchableOpacity
+                  onPress={onHighlightQuoted}
+                  activeOpacity={onHighlightQuoted ? 0.7 : 1}
+                  style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#6366F1', backgroundColor: '#EEF2FF', borderRadius: 4, overflow: 'hidden' }}
+                >
+                  <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
+                    {quotedEvent && (
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#6366F1', marginBottom: 1 }} numberOfLines={1}>{quotedEvent.actor_name}</Text>
+                    )}
+                    <Text style={{ fontSize: 11, color: '#6B7280' }} numberOfLines={2}>{replyPreview}</Text>
+                  </View>
+                  {quotedEvent?.type === 'attachment_added' && isImage((quotedEvent.payload as any)?.mime_type ?? '') && (
+                    <Image source={{ uri: (quotedEvent.payload as any)?.file_url }} style={{ width: 44, height: 44 }} resizeMode="cover" />
+                  )}
+                </TouchableOpacity>
+              )}
+              <Text style={T.commentText}>{cleanText}</Text>
+            </View>
             {canMenu && (
               <TouchableOpacity onPress={() => setMenuFor('comment')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="ellipsis-vertical" size={16} color="#6B7280" />
+                <Ionicons name="ellipsis-vertical" size={16} color="#94A3B8" />
               </TouchableOpacity>
             )}
           </View>
-          <View style={[T.bubble, isFailed && { backgroundColor: '#FFF5F5', borderColor: '#FCA5A5' }]}>
-            {replyPreview && (
-              <TouchableOpacity
-                onPress={onHighlightQuoted}
-                activeOpacity={onHighlightQuoted ? 0.7 : 1}
-                style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#6366F1', backgroundColor: '#EEF2FF', borderRadius: 4, overflow: 'hidden' }}
-              >
-                <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
-                  {quotedEvent && (
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#6366F1', marginBottom: 1 }} numberOfLines={1}>{quotedEvent.actor_name}</Text>
-                  )}
-                  <Text style={{ fontSize: 11, color: '#6B7280' }} numberOfLines={2}>{replyPreview}</Text>
-                </View>
-                {quotedEvent?.type === 'attachment_added' && isImage((quotedEvent.payload as any)?.mime_type ?? '') && (
-                  <Image source={{ uri: (quotedEvent.payload as any)?.file_url }} style={{ width: 44, height: 44 }} resizeMode="cover" />
-                )}
-              </TouchableOpacity>
-            )}
-            <Text style={T.commentText}>{cleanText}</Text>
-          </View>
+          <Text style={[T.time, { marginTop: 4 }, isFailed && { color: '#EF4444' }]}>
+            {isFailed ? 'Failed to send' : formatTimestamp(event.created_at)}
+          </Text>
           {isFailed && (
             <View style={T.retryRow}>
               <Text style={T.retryMsg}>Message not delivered.</Text>
@@ -377,22 +392,24 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
     const p = event.payload as Record<string, string>
     const canMenu = (onReply || onDelete) && !isOptimistic
     return (
-      <View style={[T.commentRow, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
+      <View style={[T.commentRow, { flexDirection: isOwn ? 'row-reverse' : 'row' }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
         {menuSheet}
         <View style={T.avatar}>
           <Text style={T.avatarText}>{getInitials(event.actor_name || '?')}</Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <View style={T.bubbleHeader}>
-            <Text style={T.actorName}>{event.actor_name}</Text>
-            <Text style={T.time}>{formatTimestamp(event.created_at)}</Text>
+        <View style={{ flex: 1, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
+          <View style={{ marginBottom: 2 }}>
+            <Text style={T.actorName}>{isOwn ? 'You' : event.actor_name}</Text>
+          </View>
+          <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, width: '100%', justifyContent: 'flex-start' }}>
+            <AttachmentCard orderId={orderId} payload={p} isOwn={isOwn} />
             {canMenu && (
               <TouchableOpacity onPress={() => setMenuFor('attachment')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="ellipsis-vertical" size={16} color="#6B7280" />
+                <Ionicons name="ellipsis-vertical" size={16} color="#94A3B8" />
               </TouchableOpacity>
             )}
           </View>
-          <AttachmentCard orderId={orderId} payload={p} />
+          <Text style={[T.time, { marginTop: 4 }]}>{formatTimestamp(event.created_at)}</Text>
         </View>
       </View>
     )
@@ -410,21 +427,23 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
       const fileName = p.file_name ?? ''
       if (!fileName) return null
       return (
-        <View style={[T.commentRow, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
+        <View style={[T.commentRow, { flexDirection: isOwn ? 'row-reverse' : 'row' }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
           <View style={[T.avatar, { backgroundColor: avatarBg }]}>
             <Text style={[T.avatarText, { color: avatarColor }]}>{getInitials(senderName)}</Text>
           </View>
-          <View style={{ flex: 1 }}>
-            <View style={T.bubbleHeader}>
-              <Text style={T.actorName}>{senderName}</Text>
-              <Text style={T.time}>{formatTimestamp(event.created_at)}</Text>
+          <View style={{ flex: 1, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
+            <View style={{ marginBottom: 2 }}>
+              <Text style={[T.actorName, { color: avatarColor }]}>{isOwn ? 'You' : senderName}</Text>
             </View>
-            <PortalAttachmentCard orderId={orderId} attId={attIdRaw} fileName={fileName} fileType={p.file_type} />
+            <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, width: '100%', justifyContent: 'flex-start' }}>
+              <PortalAttachmentCard orderId={orderId} attId={attIdRaw} fileName={fileName} fileType={p.file_type} isOwn={isOwn} />
+            </View>
             {attCaption ? (
-              <View style={[T.bubble, { borderColor: '#A7F3D0', backgroundColor: '#F0FDF4', marginTop: 6 }]}>
+              <View style={[T.bubble, { borderColor: isStaff ? '#BFDBFE' : '#A7F3D0', backgroundColor: isStaff ? '#EFF6FF' : '#F0FDF4', marginTop: 4, borderTopRightRadius: isOwn ? 4 : 14, borderTopLeftRadius: isOwn ? 14 : 4 }]}>
                 <Text style={T.commentText}>{attCaption}</Text>
               </View>
             ) : null}
+            <Text style={[T.time, { marginTop: 4 }]}>{formatTimestamp(event.created_at)}</Text>
           </View>
         </View>
       )
@@ -438,16 +457,15 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
       : null
 
     return (
-      <View style={[T.commentRow, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
+      <View style={[T.commentRow, { flexDirection: isOwn ? 'row-reverse' : 'row' }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
         <View style={[T.avatar, { backgroundColor: avatarBg }]}>
           <Text style={[T.avatarText, { color: avatarColor }]}>{getInitials(senderName)}</Text>
         </View>
-        <View style={{ flex: 1 }}>
-          <View style={T.bubbleHeader}>
-            <Text style={T.actorName}>{senderName}</Text>
-            <Text style={T.time}>{formatTimestamp(event.created_at)}</Text>
+        <View style={{ flex: 1, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
+          <View style={{ marginBottom: 2 }}>
+            <Text style={[T.actorName, { color: avatarColor }]}>{isOwn ? 'You' : senderName}</Text>
           </View>
-          <View style={[T.bubble, { borderColor: isStaff ? '#BFDBFE' : '#A7F3D0', backgroundColor: isStaff ? '#EFF6FF' : '#F0FDF4' }]}>
+          <View style={[T.bubble, { borderColor: isStaff ? '#BFDBFE' : '#A7F3D0', backgroundColor: isStaff ? '#EFF6FF' : '#F0FDF4', borderTopRightRadius: isOwn ? 4 : 14, borderTopLeftRadius: isOwn ? 14 : 4 }]}>
             {quotedPortalMsg && (() => {
               const qIsStaff = quotedPortalMsg.sender_type === 'staff'
               const preview = getPortalMsgPreview(quotedPortalMsg)
@@ -470,9 +488,10 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
             })()}
             {parsed.text !== '' && <Text style={T.commentText}>{parsed.text}</Text>}
             {event.type === 'staff_portal_reply' && parsed.tokens.map(tok =>
-              <PortalAttachmentCard key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} />
+              <PortalAttachmentCard key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={isOwn} />
             )}
           </View>
+          <Text style={[T.time, { marginTop: 4 }]}>{formatTimestamp(event.created_at)}</Text>
         </View>
       </View>
     )
@@ -970,15 +989,19 @@ function PortalMessageItem({ msg, messages, portalAttachments, orderId, highligh
         </View>
       )}
       <View style={{ flex: 1, maxWidth: '80%', alignItems: isCustomer ? 'flex-start' : 'flex-end' }}>
-        <Text style={PC.msgSender}>{msg.portal_sender}</Text>
+        <Text style={[PC.msgSender, !isCustomer && { color: '#3B82F6' }]}>{!isCustomer ? 'You' : msg.portal_sender}</Text>
 
         {/* Swipeable area */}
-        <Animated.View style={{ alignSelf: 'stretch', transform: [{ translateX }] }} {...panResponder.panHandlers}>
+        <Animated.View style={{ alignSelf: isCustomer ? 'flex-start' : 'flex-end', transform: [{ translateX }] }} {...panResponder.panHandlers}>
           {(hasText || !hasTokens || quotedMsg) && (
             <TouchableOpacity
               activeOpacity={0.85}
               onLongPress={() => setActionOpen(true)}
-              style={[PC.msgBubble, isCustomer ? PC.bubbleCustomer : PC.bubbleStaff]}
+              style={[
+                PC.msgBubble,
+                isCustomer ? PC.bubbleCustomer : PC.bubbleStaff,
+                isCustomer ? { borderTopLeftRadius: 4 } : { borderTopRightRadius: 4, backgroundColor: '#2563EB' }
+              ]}
             >
               {quotedMsg && (() => {
                 const qIsCustomer = quotedMsg.sender_type === 'customer'
@@ -1005,7 +1028,7 @@ function PortalMessageItem({ msg, messages, portalAttachments, orderId, highligh
           )}
           {hasTokens && parsed.tokens.map(tok => (
             <TouchableOpacity key={tok.id} activeOpacity={0.85} onLongPress={() => setActionOpen(true)}>
-              <PortalAttachmentCard orderId={orderId} attId={tok.id} fileName={tok.name} />
+              <PortalAttachmentCard orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={!isCustomer} />
             </TouchableOpacity>
           ))}
         </Animated.View>
@@ -2214,13 +2237,13 @@ const S = StyleSheet.create({
 })
 
 const T = StyleSheet.create({
-  commentRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  commentRow: { gap: 10, marginBottom: 16, alignItems: 'center' },
   avatar: {
     width: 34, height: 34, borderRadius: 17, backgroundColor: '#0F172A',
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   avatarText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
-  bubble: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#E2E8F0' },
+  bubble: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#E2E8F0', maxWidth: '75%' },
   bubbleHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   actorName: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
   time: { fontSize: 11, color: '#94A3B8' },
@@ -2335,13 +2358,13 @@ const PC = StyleSheet.create({
   msgList: { padding: 16, paddingBottom: 8, gap: 4 },
   empty: { alignItems: 'center', paddingVertical: 60, gap: 12 },
   emptyText: { fontSize: 14, color: '#94A3B8' },
-  msgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 12 },
+  msgRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   msgLeft: { justifyContent: 'flex-start' },
   msgRight: { justifyContent: 'flex-end' },
   msgAvatar: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   msgAvatarText: { fontSize: 11, fontWeight: '700' },
   msgSender: { fontSize: 11, fontWeight: '600', color: '#6B7280', marginBottom: 3 },
-  msgBubble: { borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 },
+  msgBubble: { borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, maxWidth: '75%' },
   bubbleCustomer: { backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#A7F3D0' },
   bubbleStaff: { backgroundColor: '#1E40AF' },
   msgText: { fontSize: 14, color: '#334155', lineHeight: 20 },

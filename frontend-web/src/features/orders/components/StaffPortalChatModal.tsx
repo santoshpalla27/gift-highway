@@ -351,7 +351,7 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
                     </button>
                   )}
                   {!isStaff && (
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#25d366', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 700, flexShrink: 0, alignSelf: 'flex-end', marginBottom: 2 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#25d366', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
                       {getInitials(msg.portal_sender || 'C')}
                     </div>
                   )}
