@@ -138,17 +138,15 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
   useSocketEvent((event: any) => {
     if (event.type !== 'order.event_added' || event.entity_id !== orderId) return
     const payload = event.payload as any
-    if (payload?.type === 'customer_message') {
+    if (payload?.type === 'customer_message' || payload?.type === 'portal_message_deleted') {
       Promise.all([
         staffPortalApi.getMessages(orderId),
         staffPortalApi.listAttachments(orderId),
       ]).then(([msgs, atts]) => {
         const safe = msgs ?? []
-        if (safe.length && safe[safe.length - 1].id > lastMsgIdRef.current) {
-          lastMsgIdRef.current = safe[safe.length - 1].id
-          setMessages(safe)
-          setAttachments(atts ?? [])
-        }
+        setMessages(safe)
+        setAttachments(atts ?? [])
+        if (safe.length) lastMsgIdRef.current = safe[safe.length - 1].id
       }).catch(() => {})
     }
   })

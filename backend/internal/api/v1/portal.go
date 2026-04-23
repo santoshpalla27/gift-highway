@@ -198,9 +198,13 @@ func (h *PortalHandler) CustomerDeleteMessage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid message id"})
 		return
 	}
-	if err := h.svc.DeleteMessage(c.Request.Context(), msgID); err != nil {
+	msg, ev, err := h.svc.DeleteMessage(c.Request.Context(), msgID)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete message"})
 		return
+	}
+	if ev != nil {
+		h.hub.Broadcast(realtime.NewEvent(realtime.EventTimelineEvent, msg.OrderID, toEventResponse(ev)))
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
@@ -388,9 +392,13 @@ func (h *PortalHandler) StaffDeleteMessage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid message id"})
 		return
 	}
-	if err := h.svc.DeleteMessage(c.Request.Context(), msgID); err != nil {
+	msg, ev, err := h.svc.DeleteMessage(c.Request.Context(), msgID)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete message"})
 		return
+	}
+	if ev != nil {
+		h.hub.Broadcast(realtime.NewEvent(realtime.EventTimelineEvent, msg.OrderID, toEventResponse(ev)))
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }

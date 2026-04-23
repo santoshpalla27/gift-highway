@@ -142,8 +142,20 @@ func (s *PortalService) ListMessages(ctx context.Context, orderID string) ([]*mo
 	return s.repo.ListMessages(ctx, orderID)
 }
 
-func (s *PortalService) DeleteMessage(ctx context.Context, id int64) error {
-	return s.repo.DeleteMessage(ctx, id)
+func (s *PortalService) DeleteMessage(ctx context.Context, id int64) (*models.PortalMessage, *models.OrderEvent, error) {
+	msg, err := s.repo.GetMessage(ctx, id)
+	if err != nil {
+		return nil, nil, repositories.ErrNotFound
+	}
+	if err := s.repo.DeleteMessage(ctx, id); err != nil {
+		return nil, nil, err
+	}
+	ev, _ := s.eventRepo.Create(ctx, msg.OrderID, nil, models.EvtPortalMessageDeleted, map[string]interface{}{
+		"msg_id":        id,
+		"sender_type":   msg.SenderType,
+		"portal_sender": msg.PortalSender,
+	})
+	return msg, ev, nil
 }
 
 // ── Attachments ───────────────────────────────────────────────────────────────

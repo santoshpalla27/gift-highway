@@ -143,6 +143,18 @@ func (r *PortalRepository) DeleteAttachment(ctx context.Context, id int64) error
 	return err
 }
 
+func (r *PortalRepository) GetMessage(ctx context.Context, id int64) (*models.PortalMessage, error) {
+	var m models.PortalMessage
+	err := r.db.QueryRowxContext(ctx,
+		`SELECT id, order_id, message, portal_sender, sender_type, created_at FROM portal_messages WHERE id = $1`,
+		id,
+	).StructScan(&m)
+	if err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
 func (r *PortalRepository) DeleteMessage(ctx context.Context, id int64) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM portal_messages WHERE id = $1`, id)
 	return err

@@ -656,6 +656,20 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
     )
   }
 
+  // Deleted portal message tombstone
+  if (event.type === 'portal_message_deleted') {
+    const p = event.payload as Record<string, any>
+    const who = p.portal_sender ? ` · ${p.portal_sender}` : ''
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', opacity: 0.5 }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        <span style={{ fontSize: 12, color: '#9CA3AF', fontStyle: 'italic' }}>
+          Message deleted{who}
+        </span>
+      </div>
+    )
+  }
+
   // Customer portal message / attachment
   if (event.type === 'customer_message' || event.type === 'customer_attachment' || event.type === 'staff_portal_reply') {
     const p = event.payload as Record<string, string>
@@ -1001,7 +1015,47 @@ export function OrderDetailPage() {
 
   // ── Optimistic / failed comments ────────────────────────────────────────────
   const [optimisticEvents, setOptimisticEvents] = useState<LocalOrderEvent[]>([])
-  const allEvents = [...evList, ...optimisticEvents]
+  const allEvents = (() => {
+    const raw = [...evList, ...optimisticEvents]
+
+    // Collect msg_ids of deleted portal messages
+    const deletedMsgIds = new Set<number>()
+    for (const e of raw) {
+      if (e.type === 'portal_message_deleted') {
+        const p = e.payload as Record<string, any>
+        if (p?.msg_id) deletedMsgIds.add(Number(p.msg_id))
+      }
+    }
+
+    // From deleted customer_message events, collect the attachment IDs embedded in their text
+    // so that the paired customer_attachment event (which has no msg_id) can also be hidden
+    const deletedAttIds = new Set<number>()
+    for (const e of raw) {
+      if (e.type === 'customer_message' && deletedMsgIds.has(Number((e.payload as any)?.msg_id))) {
+        const rawText = String((e.payload as any)?.text ?? '')
+        for (const line of rawText.split('\n')) {
+          const m = line.match(/^\[attachment:(\d+):/)
+          if (m) deletedAttIds.add(parseInt(m[1]))
+        }
+      }
+    }
+
+    return raw
+      .filter(e => {
+        if (e.type === 'portal_message_deleted') return false
+        if (e.type === 'customer_attachment' && deletedAttIds.has(Number((e.payload as any)?.att_id))) return false
+        return true
+      })
+      .map(e => {
+        if (
+          (e.type === 'customer_message' || e.type === 'staff_portal_reply') &&
+          deletedMsgIds.has(Number((e.payload as any)?.msg_id))
+        ) {
+          return { ...e, type: 'portal_message_deleted' }
+        }
+        return e
+      })
+  })()
 
   // ── Scroll / new-events badge ───────────────────────────────────────────────
   const [newCount, setNewCount] = useState(0)
@@ -1114,7 +1168,7 @@ export function OrderDetailPage() {
   useSocketEvent(useCallback((event) => {
     if (event.type === 'order.event_added' && event.entity_id === id) {
       const incoming = (event as any).payload
-      if ((incoming?.type === 'customer_message' || incoming?.type === 'staff_portal_reply') && id) {
+      if ((incoming?.type === 'customer_message' || incoming?.type === 'staff_portal_reply' || incoming?.type === 'portal_message_deleted') && id) {
         refreshPortalData()
       }
       if (incoming?.id) {

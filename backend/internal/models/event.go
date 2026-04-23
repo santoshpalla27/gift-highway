@@ -15,9 +15,10 @@ const (
 	EvtOrderUpdated     = "order_updated"
 	EvtAttachmentAdded    = "attachment_added"
 	EvtAttachmentDeleted  = "attachment_deleted"
-	EvtCustomerMessage    = "customer_message"
-	EvtCustomerAttachment = "customer_attachment"
-	EvtStaffPortalReply   = "staff_portal_reply"
+	EvtCustomerMessage      = "customer_message"
+	EvtCustomerAttachment   = "customer_attachment"
+	EvtStaffPortalReply     = "staff_portal_reply"
+	EvtPortalMessageDeleted = "portal_message_deleted"
 )
 
 type OrderEvent struct {
