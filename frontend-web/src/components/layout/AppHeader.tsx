@@ -216,7 +216,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const navigate = useNavigate()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const initials = user ? `${user.first_name[0]}${user.last_name[0]}` : '??'
+  const initials = user ? `${user.first_name?.[0] ?? ''}${user.last_name?.[0] ?? ''}`.toUpperCase() || '??' : '??'
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
