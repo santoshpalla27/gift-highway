@@ -75,8 +75,8 @@ function PaperclipIcon({ className }: { className?: string }) {
 function XIcon({ className }: { className?: string }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
 }
-function ReplyIcon({ className }: { className?: string }) {
-  return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+function ReplyIcon({ className, flip }: { className?: string; flip?: boolean }) {
+  return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={flip ? { transform: 'scaleX(-1)' } : undefined}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
 }
 function InfoIcon({ className }: { className?: string }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-4m0-4h.01" /></svg>
@@ -530,7 +530,7 @@ export default function CustomerPortalPage() {
                   </div>
                 </div>
 
-                {/* Reply button for staff messages */}
+                {/* Reply button for staff messages (pointing right) */}
                 {isStaff && (
                   <button
                     onPointerDown={(e) => e.stopPropagation()}
@@ -538,7 +538,7 @@ export default function CustomerPortalPage() {
                     className="opacity-100 transition-opacity p-1.5 rounded-full flex-shrink-0 hover:bg-black/10"
                     title="Reply"
                   >
-                    <ReplyIcon className="w-4 h-4 text-[#667781]" />
+                    <ReplyIcon className="w-4 h-4 text-[#667781]" flip />
                   </button>
                 )}
               </div>

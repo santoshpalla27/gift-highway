@@ -28,6 +28,10 @@ interface ParsedMsg {
   attachmentTokens: { id: number; name: string }[]
 }
 
+function ReplyIcon({ flip }: { flip?: boolean }) {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={flip ? { transform: 'scaleX(-1)' } : undefined}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+}
+
 function parseMsg(raw: string): ParsedMsg {
   const result: ParsedMsg = { text: '', replyToId: null, attachmentTokens: [] }
   const textLines: string[] = []
@@ -344,10 +348,10 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
                 style={{ borderRadius: 8, padding: '2px 0', background: isHighlighted ? 'rgba(37,211,102,0.22)' : 'transparent', transition: 'background 0.5s' }}
               >
                 <div style={{ display: 'flex', justifyContent: isStaff ? 'flex-end' : 'flex-start', alignItems: 'center', gap: 4 }}>
-                  {/* Reply button for customer messages */}
-                  {!isStaff && (
+                  {/* Reply button for staff messages (on the left of bubble) */}
+                  {isStaff && (
                     <button onClick={() => handleSelectReply(msg)} title="Reply" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: '50%', color: '#667781', flexShrink: 0, display: 'flex', lineHeight: 1 }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                      <ReplyIcon />
                     </button>
                   )}
                   {!isStaff && (
@@ -396,10 +400,10 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
                       </p>
                     </div>
                   </div>
-                  {/* Reply button for staff messages */}
-                  {isStaff && (
+                  {/* Reply button for customer messages (on the right of bubble) */}
+                  {!isStaff && (
                     <button onClick={() => handleSelectReply(msg)} title="Reply" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: '50%', color: '#667781', flexShrink: 0, display: 'flex', lineHeight: 1 }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                      <ReplyIcon flip />
                     </button>
                   )}
                 </div>
