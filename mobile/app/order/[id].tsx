@@ -71,9 +71,60 @@ function getEventPreview(event: OrderEvent): string {
     const p = event.payload as any
     return `📎 ${p.file_name || 'Attachment'}`
   }
+  if (event.type === 'customer_attachment') {
+    const p = event.payload as any
+    return `📎 ${p.file_name || 'Attachment'}`
+  }
+  if (event.type === 'staff_portal_reply' || event.type === 'customer_message') {
+    const p = event.payload as any
+    const raw = p.text ?? ''
+    const lines = raw.split('\n').filter((l: string) => !l.match(/^\[attachment:\d+:.+\]$/) && !l.match(/^\[reply:\d+\]$/))
+    const clean = lines.join('\n').trim()
+    if (clean) return clean.slice(0, 60)
+    const attMatch = raw.match(/\[attachment:\d+:(.+?)\]/)
+    if (attMatch) return `📎 ${attMatch[1]}`
+    return 'Message'
+  }
   const text = (event.payload as any)?.text ?? ''
   const { cleanText } = parseCommentText(text)
   return (cleanText || text).slice(0, 60)
+}
+
+const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic']
+function isImgExt(name: string) { return IMG_EXTS.includes(('.' + (name.split('.').pop() ?? '')).toLowerCase()) }
+
+function getEventThumb(event: OrderEvent, portalAttachments?: PortalAttachment[]): string | null {
+  if (event.type === 'attachment_added') {
+    const p = event.payload as any
+    if (p.file_url && isImgExt(p.file_name ?? '')) return p.file_url
+    return null
+  }
+  if (event.type === 'customer_attachment') {
+    const p = event.payload as any
+    if (!isImgExt(p.file_name ?? '')) return null
+    const attId = p.att_id ? parseInt(p.att_id) : null
+    if (attId == null) return null
+    const att = portalAttachments?.find(a => a.id === attId)
+    return att?.view_url ?? null
+  }
+  if (event.type === 'staff_portal_reply' || event.type === 'customer_message') {
+    const raw = (event.payload as any).text ?? ''
+    const m = raw.match(/\[attachment:(\d+):(.+?)\]/)
+    if (!m) return null
+    const attId = parseInt(m[1])
+    const attName: string = m[2]
+    if (!isImgExt(attName)) return null
+    const att = portalAttachments?.find(a => a.id === attId)
+    return att?.view_url ?? null
+  }
+  return null
+}
+
+function getEventSenderName(event: OrderEvent): string {
+  if (event.type === 'customer_message' || event.type === 'customer_attachment') {
+    return (event.payload as any).customer_name ?? 'Customer'
+  }
+  return event.actor_name
 }
 
 function getPortalMsgPreview(msg: PortalMessage): string {
@@ -439,13 +490,15 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
                   >
                     <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
                       {quotedEvent && (
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#6366F1', marginBottom: 1 }} numberOfLines={1}>{quotedEvent.actor_name}</Text>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#6366F1', marginBottom: 1 }} numberOfLines={1}>{getEventSenderName(quotedEvent)}</Text>
                       )}
                       <Text style={{ fontSize: 11, color: '#6B7280' }} numberOfLines={2}>{replyPreview}</Text>
                     </View>
-                    {quotedEvent?.type === 'attachment_added' && isImage((quotedEvent.payload as any)?.mime_type ?? '') && (
-                      <Image source={{ uri: (quotedEvent.payload as any)?.file_url }} style={{ width: 44, height: 44 }} resizeMode="cover" />
-                    )}
+                    {quotedEvent && (() => {
+                      const thumb = getEventThumb(quotedEvent, portalAttachments)
+                      if (!thumb) return null
+                      return <Image source={{ uri: thumb }} style={{ width: 44, height: 44 }} resizeMode="cover" />
+                    })()}
                   </TouchableOpacity>
                 )}
                 <Text style={T.commentText}>{cleanText}</Text>
@@ -513,17 +566,34 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
       const attIdRaw = p.att_id != null ? Number(p.att_id) : null
       const fileName = p.file_name ?? ''
       if (!fileName) return null
+      const canMenuAtt = !!onReply && !isOptimistic
       return (
         <View style={[T.commentRow, { flexDirection: isOwn ? 'row-reverse' : 'row' }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
-          <View style={[T.avatar, isStaff ? { backgroundColor: '#DBEAFE' } : { backgroundColor: '#D1FAE5' }]}>
-            <Text style={[T.avatarText, { color: isStaff ? '#2563EB' : '#10B981' }]}>{getInitials(senderName)}</Text>
+          {menuSheet}
+          <View style={[T.avatar, { backgroundColor: '#D1FAE5' }]}>
+            <Text style={[T.avatarText, { color: '#10B981' }]}>{getInitials(senderName)}</Text>
           </View>
           <View style={{ flex: 1, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
             <View style={{ marginBottom: 2 }}>
               <Text style={[T.actorName, { color: avatarColor }]}>{isOwn ? 'You' : senderName}</Text>
             </View>
-            <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, width: '100%', justifyContent: 'flex-start' }}>
-              <PortalAttachmentCard orderId={orderId} attId={attIdRaw} fileName={fileName} fileType={p.file_type} isOwn={isOwn} isStaff={false} caption={attCaption} />
+            <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
+              <Animated.View style={{
+                position: 'absolute',
+                [isOwn ? 'right' : 'left']: -40,
+                opacity: translateX.interpolate({ inputRange: isOwn ? [-40, -20] : [20, 40], outputRange: isOwn ? [1, 0] : [0, 1], extrapolate: 'clamp' }),
+                transform: [{ scale: translateX.interpolate({ inputRange: isOwn ? [-40, 0] : [0, 40], outputRange: [1, 0.5], extrapolate: 'clamp' }) }]
+              }}>
+                <Ionicons name="return-up-back-outline" size={20} color="#6366F1" />
+              </Animated.View>
+              <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
+                <PortalAttachmentCard orderId={orderId} attId={attIdRaw} fileName={fileName} fileType={p.file_type} isOwn={isOwn} isStaff={false} caption={attCaption} />
+              </Animated.View>
+              {canMenuAtt && (
+                <TouchableOpacity onPress={() => setMenuFor('attachment')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="ellipsis-vertical" size={16} color="#94A3B8" />
+                </TouchableOpacity>
+              )}
             </View>
             <Text style={[T.time, { marginTop: 4 }]}>{formatTimestamp(event.created_at)}</Text>
           </View>
@@ -2153,9 +2223,14 @@ export default function OrderDetailScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF2FF', borderTopWidth: 1, borderTopColor: '#C7D2FE', paddingHorizontal: 12, paddingVertical: 8, gap: 10 }}>
             <Ionicons name="return-up-back-outline" size={16} color="#6366F1" />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 10, fontWeight: '700', color: '#6366F1', marginBottom: 1 }}>{replyToEvent.actor_name}</Text>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#6366F1', marginBottom: 1 }}>{getEventSenderName(replyToEvent)}</Text>
               <Text style={{ fontSize: 12, color: '#374151' }} numberOfLines={1}>{getEventPreview(replyToEvent)}</Text>
             </View>
+            {(() => {
+              const thumb = getEventThumb(replyToEvent, portalAttachments)
+              if (!thumb) return null
+              return <Image source={{ uri: thumb }} style={{ width: 36, height: 36, borderRadius: 4 }} resizeMode="cover" />
+            })()}
             <TouchableOpacity onPress={() => setReplyToEvent(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close" size={18} color="#6B7280" />
             </TouchableOpacity>
