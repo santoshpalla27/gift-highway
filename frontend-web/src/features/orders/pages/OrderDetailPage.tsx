@@ -163,6 +163,84 @@ function AttachmentImage({ orderId, fileKey, fileName, fileUrl }: {
   )
 }
 
+// ─── Portal attachment card that can fetch its own URL if needed ──────────────
+
+function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, portalAttachments }: {
+  orderId: string
+  attId: number | null
+  fileName: string
+  fileType?: string
+  isOwn?: boolean
+  portalAttachments?: PortalAttachment[]
+}) {
+  const [viewUrl, setViewUrl] = useState<string | null>(null)
+  const ext = ('.' + (fileName.split('.').pop() ?? '')).toLowerCase()
+  const isImg = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic'].includes(ext) ||
+                ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic'].includes((fileType ?? '').toLowerCase())
+
+  useEffect(() => {
+    // If we have it in the list already, use that
+    const existing = attId != null ? portalAttachments?.find(a => a.id === attId) : null
+    if (existing?.view_url) {
+      setViewUrl(existing.view_url)
+      return
+    }
+
+    // Otherwise fetch it
+    if (attId != null) {
+      staffPortalApi.getAttachmentDownloadURL(orderId, attId, fileName)
+        .then(setViewUrl)
+        .catch(() => {})
+    }
+  }, [orderId, attId, fileName, portalAttachments])
+
+  const handleDownload = () => {
+    if (viewUrl) window.location.href = viewUrl
+  }
+
+  if (isImg) {
+    return (
+      <div style={{ marginTop: 6 }}>
+        <div 
+          onClick={handleDownload}
+          style={{ 
+            width: 180, borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative', 
+            cursor: 'pointer', background: '#F3F4F6', minHeight: 100, display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}
+        >
+          {viewUrl ? (
+            <img src={viewUrl} alt={fileName} style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
+          ) : (
+            <div style={{ width: '100%', height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+               <div style={{ width: 16, height: 16, border: '2px solid #94A3B8', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            </div>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+          <span style={{ fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{fileName}</span>
+          <button onClick={handleDownload} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', lineHeight: 1, flexShrink: 0, padding: 0 }} title="Download">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 8, marginTop: 4,
+      background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8,
+      padding: '6px 10px', width: 'fit-content',
+    }}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      <span style={{ fontSize: 12, color: '#374151', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fileName}</span>
+      <button onClick={handleDownload} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', lineHeight: 1, flexShrink: 0, padding: 0 }} title="Download">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+      </button>
+    </div>
+  )
+}
+
 // ─── Timeline event renderer ─────────────────────────────────────────────────
 
 function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply, onHighlightQuoted, onHighlightPortalMsg, orderId, portalAttachments, portalMessages, portalAttCaptions, quotedEvent, currentUserId }: {
@@ -541,54 +619,6 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
       return null
     }
 
-    const handlePortalDownload = (attId: number | null, fileName: string, viewUrl?: string) => {
-      if (attId != null) {
-        staffPortalApi.getAttachmentDownloadURL(orderId, attId, fileName)
-          .then(url => { window.location.href = url })
-          .catch(() => { if (viewUrl) window.open(viewUrl, '_blank') })
-      } else if (viewUrl) {
-        window.open(viewUrl, '_blank')
-      }
-    }
-
-    const renderPortalAttachment = (attId: number | null, fileName: string, fileType?: string) => {
-      const att = attId != null ? portalAttachments?.find(a => a.id === attId) : null
-      const ftype = (att?.file_type ?? fileType ?? '').toLowerCase()
-      const isImg = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic'].includes(ftype)
-      const viewUrl = att?.view_url
-      if (isImg && viewUrl) {
-        return (
-          <div style={{ marginTop: 6 }}>
-            <div style={{ width: 180, borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative' }}>
-              <img src={viewUrl} alt={fileName} style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-              <span style={{ fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{fileName}</span>
-              <button onClick={() => handlePortalDownload(attId, fileName, viewUrl)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', lineHeight: 1, flexShrink: 0, padding: 0 }} title="Download">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-              </button>
-            </div>
-          </div>
-        )
-      }
-      return (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8, marginTop: 4,
-          background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8,
-          padding: '6px 10px', width: 'fit-content',
-        }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-          <span style={{ fontSize: 12, color: '#374151' }}>{fileName}</span>
-          {att && <span style={{ fontSize: 11, color: '#9CA3AF' }}>{att.file_size < 1024 * 1024 ? `${(att.file_size / 1024).toFixed(1)} KB` : `${(att.file_size / (1024 * 1024)).toFixed(1)} MB`}</span>}
-          {(attId != null || viewUrl) && (
-            <button onClick={() => handlePortalDownload(attId, fileName, viewUrl)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', lineHeight: 1, flexShrink: 0, padding: 0 }} title="Download">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-            </button>
-          )}
-        </div>
-      )
-    }
-
     return (
       <div style={{
         display: 'flex',
@@ -669,12 +699,29 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                   {parsed.text}
                 </div>
               )}
+              {event.type === 'staff_portal_reply' && parsed.tokens.map(tok => (
+                <PortalAttachmentItem 
+                  key={tok.id} 
+                  orderId={orderId} 
+                  attId={tok.id} 
+                  fileName={tok.name} 
+                  isOwn={isOwn} 
+                  portalAttachments={portalAttachments} 
+                />
+              ))}
               {event.type === 'customer_attachment' && p.file_name && (() => {
                 const attId = p.att_id ? parseInt(p.att_id) : null
                 const caption = attId != null ? portalAttCaptions?.get(attId) : undefined
                 return (
                   <div style={{ marginTop: parsed.text ? 8 : 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
-                    {renderPortalAttachment(attId, p.file_name, p.file_type)}
+                    <PortalAttachmentItem 
+                      orderId={orderId} 
+                      attId={attId} 
+                      fileName={p.file_name} 
+                      fileType={p.file_type} 
+                      isOwn={isOwn} 
+                      portalAttachments={portalAttachments} 
+                    />
                     {caption && (
                       <div style={{
                         fontSize: 13.5, color: '#111827',
