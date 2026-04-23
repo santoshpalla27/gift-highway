@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { formatDate, formatRelative, formatDayGroup, fmt12hrStr } from '../../../utils/date'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { orderService, OrderEvent } from '../../../services/orderService'
+import { orderService, OrderEvent, UserOption } from '../../../services/orderService'
 import { attachmentService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE, isImage, formatBytes } from '../../../services/attachmentService'
 import { useUpdateOrderStatus } from '../hooks/useOrders'
 import { OrderModal } from '../components/OrderModal'
@@ -84,6 +84,29 @@ function parseCommentText(raw: string): { replyEventId: string | null; replyPrev
   return { replyEventId: null, replyPreview: null, cleanText: raw }
 }
 
+function stripMentionTokens(text: string): string {
+  return text.replace(/@\[([^\]]+)\]/g, '@$1')
+}
+
+function renderTextWithMentions(text: string): React.ReactNode {
+  const parts = text.split(/(@\[[^\]]+\])/g)
+  if (parts.length === 1) return text
+  return parts.map((part, i) => {
+    const m = part.match(/^@\[([^\]]+)\]$/)
+    if (m) {
+      return (
+        <span key={i} style={{
+          display: 'inline', background: '#EEF2FF', color: '#6366F1',
+          borderRadius: 4, padding: '1px 5px', fontSize: 13, fontWeight: 600,
+        }}>
+          @{m[1]}
+        </span>
+      )
+    }
+    return <span key={i}>{part}</span>
+  })
+}
+
 function getEventPreview(event: LocalOrderEvent): string {
   if (event.type === 'attachment_added') {
     const p = event.payload as any
@@ -106,7 +129,7 @@ function getEventPreview(event: LocalOrderEvent): string {
   }
   const text = (event.payload as any)?.text ?? ''
   const { cleanText } = parseCommentText(text)
-  return (cleanText || text).slice(0, 60)
+  return stripMentionTokens(cleanText || text).slice(0, 60)
 }
 
 function getPortalMsgPreview(msg: PortalMessage): string {
@@ -442,7 +465,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                     })()}
                   </div>
                 )}
-                {cleanText}
+                {renderTextWithMentions(cleanText)}
               </div>
             )}
             {canMenu && !editing && (
@@ -1000,6 +1023,13 @@ export function OrderDetailPage() {
     enabled: !!id,
   })
 
+  // ── Staff users for @mention ────────────────────────────────────────────────
+  const { data: mentionUsers = [] } = useQuery<UserOption[]>({
+    queryKey: ['users-for-mention'],
+    queryFn: orderService.listUsersForAssignment,
+    staleTime: 5 * 60 * 1000,
+  })
+
   // ── Events: state-based pagination ─────────────────────────────────────────
   const [evList, setEvList] = useState<OrderEvent[]>([])
   const [, setTotalEvents] = useState(0)
@@ -1065,6 +1095,9 @@ export function OrderDetailPage() {
 
   const [showEdit, setShowEdit] = useState(false)
   const [commentText, setCommentText] = useState('')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [mentionIndex, setMentionIndex] = useState(0)
   const [replyToEvent, setReplyToEvent] = useState<LocalOrderEvent | null>(null)
   const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null)
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1286,6 +1319,38 @@ export function OrderDetailPage() {
     if (bestId && bestDiff < 60000) highlightEvent(bestId)
   }, [portalMessages, evList, optimisticEvents, highlightEvent])
 
+  const filteredMentionUsers = mentionQuery !== null
+    ? mentionUsers.filter(u => u.name.toLowerCase().includes(mentionQuery)).slice(0, 8)
+    : []
+
+  const insertMention = useCallback((user: UserOption) => {
+    const ta = textareaRef.current
+    if (!ta) return
+    const cursor = ta.selectionStart ?? commentText.length
+    const textBefore = commentText.slice(0, cursor)
+    const atIdx = textBefore.lastIndexOf('@')
+    const token = `@[${user.name}]`
+    const newText = commentText.slice(0, atIdx) + token + ' ' + commentText.slice(cursor)
+    setCommentText(newText)
+    setMentionQuery(null)
+    const newCursor = atIdx + token.length + 1
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(newCursor, newCursor) }, 0)
+  }, [commentText])
+
+  const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    setCommentText(val)
+    const cursor = e.target.selectionStart ?? val.length
+    const textBefore = val.slice(0, cursor)
+    const atMatch = textBefore.match(/@([a-zA-Z0-9 ]*)$/)
+    if (atMatch) {
+      setMentionQuery(atMatch[1].toLowerCase())
+      setMentionIndex(0)
+    } else {
+      setMentionQuery(null)
+    }
+  }
+
   const handleSend = (text?: string) => {
     const rawText = (text ?? commentText).trim()
     if (!rawText || commenting) return
@@ -1300,6 +1365,12 @@ export function OrderDetailPage() {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mentionQuery !== null && filteredMentionUsers.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(i => (i + 1) % filteredMentionUsers.length); return }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(i => (i - 1 + filteredMentionUsers.length) % filteredMentionUsers.length); return }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); insertMention(filteredMentionUsers[mentionIndex]); return }
+      if (e.key === 'Escape') { setMentionQuery(null); return }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -1729,10 +1800,43 @@ export function OrderDetailPage() {
           )}
 
           {/* Composer */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            {/* @mention dropdown */}
+            {mentionQuery !== null && filteredMentionUsers.length > 0 && (
+              <div style={{
+                position: 'absolute', bottom: '100%', left: 20, right: 20, marginBottom: 4,
+                background: '#FFFFFF', borderRadius: 10, border: '1px solid #E5E7EB',
+                boxShadow: '0 -4px 20px rgba(0,0,0,0.12)', zIndex: 200,
+                maxHeight: 220, overflowY: 'auto',
+              }}>
+                {filteredMentionUsers.map((u, i) => (
+                  <button
+                    key={u.id}
+                    onMouseDown={e => { e.preventDefault(); insertMention(u) }}
+                    onMouseEnter={() => setMentionIndex(i)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      width: '100%', padding: '8px 14px',
+                      background: i === mentionIndex ? '#F5F3FF' : 'transparent',
+                      border: 'none', cursor: 'pointer', textAlign: 'left',
+                    }}
+                  >
+                    <div style={{
+                      width: 28, height: 28, borderRadius: '50%', background: '#0F172A', color: '#fff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 10, fontWeight: 700, flexShrink: 0,
+                    }}>
+                      {getInitials(u.name)}
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{u.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           <div
             style={{
               borderTop: '1px solid #E4E6EF', background: isDragging ? '#EEF2FF' : '#FFFFFF', padding: '14px 20px',
-              display: 'flex', gap: 12, alignItems: 'flex-end', flexShrink: 0,
+              display: 'flex', gap: 12, alignItems: 'flex-end',
               transition: 'background 0.15s',
             }}
             onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
@@ -1773,11 +1877,12 @@ export function OrderDetailPage() {
               {isDragging
                 ? <div style={{ fontSize: 13, color: '#6366F1', fontWeight: 600, textAlign: 'center', padding: '4px 0' }}>Drop files here to upload</div>
                 : <textarea
+                    ref={textareaRef}
                     className="composer-input"
                     rows={2}
-                    placeholder="Write an update… (Enter to send, Shift+Enter for new line)"
+                    placeholder="Write an update… (@mention, Enter to send, Shift+Enter for new line)"
                     value={commentText}
-                    onChange={e => setCommentText(e.target.value)}
+                    onChange={handleCommentChange}
                     onKeyDown={handleKeyDown}
                     disabled={commenting}
                   />
@@ -1808,6 +1913,7 @@ export function OrderDetailPage() {
                 </>
               )}
             </button>
+          </div>
           </div>
         </div>
 
