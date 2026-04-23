@@ -724,14 +724,14 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
             }}>
               {getInitials(senderName)}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: isOwn ? 'flex-end' : 'flex-start', maxWidth: '65%' }}>
               {(parsed.text || quotedPortalMsg) && (
                 <div style={{
                   fontSize: 13.5, color: '#111827',
                   background: isStaff ? '#EFF6FF' : '#F0FDF4',
                   border: `1px solid ${isStaff ? '#BFDBFE' : '#A7F3D0'}`,
                   borderRadius: isOwn ? '12px 4px 12px 12px' : '4px 12px 12px 12px',
-                  padding: '8px 12px', display: 'inline-block', maxWidth: '60%',
+                  padding: '8px 12px',
                   lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                 }}>
                   {quotedPortalMsg && (() => {
