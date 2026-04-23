@@ -182,7 +182,7 @@ function AttachmentCard({ orderId, payload, onDelete, isOwn }: {
               />
             )}
           </TouchableOpacity>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10 }}>
             <Text style={{ fontSize: 11, color: '#9CA3AF', flex: 1 }} numberOfLines={1}>{payload.file_name}</Text>
             <TouchableOpacity onPress={handleDownload} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="download-outline" size={14} color="#6366F1" />
@@ -191,7 +191,7 @@ function AttachmentCard({ orderId, payload, onDelete, isOwn }: {
         </>
       ) : (
         <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16 }}>
             <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="document-outline" size={20} color="#6B7280" />
             </View>
@@ -257,7 +257,7 @@ function PortalAttachmentCard({ orderId, attId, fileName, fileType, isOwn, isSta
               </View>
           }
         </TouchableOpacity>
-        <View style={{ paddingHorizontal: 8, paddingVertical: 6 }}>
+        <View style={{ paddingHorizontal: 12, paddingVertical: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={{ fontSize: 11, color: '#6B7280', flex: 1 }} numberOfLines={1}>{fileName}</Text>
             {viewUrl && (
@@ -279,7 +279,7 @@ function PortalAttachmentCard({ orderId, attId, fileName, fileType, isOwn, isSta
         backgroundColor: hasBubble ? bubbleBg : '#F9FAFB',
         borderWidth: 1, borderColor: hasBubble ? bubbleBorder : '#E5E7EB',
         borderRadius: 14, borderTopRightRadius: trr, borderTopLeftRadius: tlr,
-        padding: 10,
+        padding: 14,
       }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Ionicons name="document-outline" size={16} color="#6B7280" />

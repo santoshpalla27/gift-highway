@@ -223,7 +223,7 @@ function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isSta
             </div>
           )}
         </div>
-        <div style={{ padding: '4px 8px' }}>
+        <div style={{ padding: '8px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{fileName}</span>
             <button onClick={handleDownload} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', lineHeight: 1, flexShrink: 0, padding: 0 }} title="Download">
@@ -245,7 +245,7 @@ function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isSta
         display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4,
         background: bubbleBg ?? '#F9FAFB', border: bubbleBorder,
         borderRadius: isStaff !== undefined ? bubbleRadius : 8,
-        padding: '8px 12px', width: 'fit-content', cursor: 'pointer',
+        padding: '12px 16px', width: 'fit-content', cursor: 'pointer',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -523,7 +523,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
               {fileIsImage ? (
                 <AttachmentImage orderId={orderId} fileKey={p.file_key} fileName={p.file_name} fileUrl={p.file_url} />
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px' }}>
                   <div style={{ width: 36, height: 36, borderRadius: 8, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                   </div>
@@ -537,7 +537,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                 </div>
               )}
               {fileIsImage && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #F3F4F6' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderTop: '1px solid #F3F4F6' }}>
                   <span style={{ fontSize: 11, color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.file_name}</span>
                   <button onClick={() => downloadFile(orderId, p.file_key, p.file_name)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, marginLeft: 8, padding: 0, lineHeight: 1 }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
