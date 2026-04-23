@@ -98,12 +98,15 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
   }
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 500,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
-      animation: 'fadeIn 0.2s ease',
-    }} onClick={onClose}>
+    <div 
+      onMouseDown={e => { if (e.target === e.currentTarget) (window as any)._modalClickDown = true }}
+      onMouseUp={e => { if (e.target === e.currentTarget && (window as any)._modalClickDown) onClose(); (window as any)._modalClickDown = false }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 500,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
+        animation: 'fadeIn 0.2s ease',
+      }}>
       <style>{`
         @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: translateY(0) } }
