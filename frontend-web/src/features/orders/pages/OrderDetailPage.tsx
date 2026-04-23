@@ -89,6 +89,21 @@ function getEventPreview(event: LocalOrderEvent): string {
     const p = event.payload as any
     return `📎 ${p.file_name || 'Attachment'}`
   }
+  if (event.type === 'customer_attachment') {
+    const p = event.payload as any
+    return `📎 ${p.file_name || 'Attachment'}`
+  }
+  if (event.type === 'staff_portal_reply' || event.type === 'customer_message') {
+    const p = event.payload as any
+    const raw = p.text ?? ''
+    const lines = raw.split('\n').filter((l: string) => !l.match(/^\[attachment:\d+:.+\]$/) && !l.match(/^\[reply:\d+\]$/))
+    const clean = lines.join('\n').trim()
+    if (clean) return clean.slice(0, 60)
+    // attachment-only message
+    const attMatch = raw.match(/\[attachment:\d+:(.+?)\]/)
+    if (attMatch) return `📎 ${attMatch[1]}`
+    return 'Message'
+  }
   const text = (event.payload as any)?.text ?? ''
   const { cleanText } = parseCommentText(text)
   return (cleanText || text).slice(0, 60)
@@ -115,6 +130,36 @@ function getPortalMsgThumb(msg: PortalMessage, atts: PortalAttachment[]): string
   const att = atts.find(a => a.id === parseInt(m[1]))
   const imgExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic']
   if (att && imgExts.includes(att.file_type.toLowerCase()) && att.view_url) return att.view_url
+  return null
+}
+
+const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic']
+function isImgExt(name: string) { return IMG_EXTS.includes(('.' + (name.split('.').pop() ?? '')).toLowerCase()) }
+
+function getEventThumb(event: LocalOrderEvent, portalAttachments?: PortalAttachment[]): string | null {
+  if (event.type === 'attachment_added') {
+    const p = event.payload as any
+    if (isImage(p.mime_type ?? '') && p.file_url) return p.file_url
+    return null
+  }
+  if (event.type === 'customer_attachment') {
+    const p = event.payload as any
+    if (!isImgExt(p.file_name ?? '')) return null
+    const attId = p.att_id ? parseInt(p.att_id) : null
+    if (attId == null) return null
+    const att = portalAttachments?.find(a => a.id === attId)
+    return att?.view_url ?? null
+  }
+  if (event.type === 'staff_portal_reply' || event.type === 'customer_message') {
+    const raw = (event.payload as any).text ?? ''
+    const m = raw.match(/\[attachment:(\d+):(.+?)\]/)
+    if (!m) return null
+    const attId = parseInt(m[1])
+    const attName: string = m[2]
+    if (!isImgExt(attName)) return null
+    const att = portalAttachments?.find(a => a.id === attId)
+    return att?.view_url ?? null
+  }
   return null
 }
 
@@ -377,19 +422,21 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                     <div style={{ flex: 1, minWidth: 0, padding: '4px 8px' }}>
                       {quotedEvent && (
                         <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: '#6366F1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {quotedEvent.actor_name}
+                          {(quotedEvent.type === 'customer_message' || quotedEvent.type === 'customer_attachment')
+                            ? ((quotedEvent.payload as any).customer_name ?? 'Customer')
+                            : quotedEvent.actor_name}
                         </p>
                       )}
                       <p style={{ margin: 0, fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {replyPreview}
                       </p>
                     </div>
-                    {quotedEvent?.type === 'attachment_added' && (() => {
-                      const qp = quotedEvent.payload as any
-                      if (!isImage(qp.mime_type ?? '')) return null
+                    {quotedEvent && (() => {
+                      const thumb = getEventThumb(quotedEvent, portalAttachments)
+                      if (!thumb) return null
                       return (
                         <div style={{ width: 44, height: 44, flexShrink: 0, overflow: 'hidden' }}>
-                          <img src={qp.file_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+                          <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
                         </div>
                       )
                     })()}
@@ -677,7 +724,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
             }}>
               {getInitials(senderName)}
             </div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
               {(parsed.text || quotedPortalMsg) && (
                 <div style={{
                   fontSize: 13.5, color: '#111827',
@@ -748,6 +795,35 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                 )
               })()}
             </div>
+            {onReply && (
+              <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
+                <button
+                  onClick={() => setMenuOpen(o => !o)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#9CA3AF', lineHeight: 1, borderRadius: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#374151')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#9CA3AF')}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="12" cy="19" r="2.5"/></svg>
+                </button>
+                {menuOpen && (
+                  <div style={{
+                    position: 'absolute', right: isOwn ? 'auto' : 0, left: isOwn ? 0 : 'auto', top: '100%', zIndex: 50, marginTop: 4,
+                    background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8,
+                    boxShadow: '0 4px 12px rgba(0,0,0,.1)', minWidth: 130, overflow: 'hidden',
+                  }}>
+                    <button
+                      onClick={() => { setMenuOpen(false); onReply() }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#374151', textAlign: 'left' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                      Reply
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div style={{
             marginRight: isOwn ? 42 : 0, marginLeft: isOwn ? 0 : 42,
@@ -1474,7 +1550,7 @@ export function OrderDetailPage() {
                               await orderService.editComment(id!, ev.id, newText)
                               setEvList(prev => prev.map(e => e.id === ev.id ? { ...e, payload: { ...(e.payload as object), text: newText } as any } : e))
                             } : undefined}
-                            onReply={(ev.type === 'comment_added' || ev.type === 'attachment_added') && !ev.id.startsWith('opt-') ? () => handleSelectReplyEvent(ev as LocalOrderEvent) : undefined}
+                            onReply={(ev.type === 'comment_added' || ev.type === 'attachment_added' || ev.type === 'customer_message' || ev.type === 'customer_attachment' || ev.type === 'staff_portal_reply') && !ev.id.startsWith('opt-') ? () => handleSelectReplyEvent(ev as LocalOrderEvent) : undefined}
                             onHighlightQuoted={replyEventId ? () => highlightEvent(replyEventId) : undefined}
                             onHighlightPortalMsg={highlightPortalMsg}
                             quotedEvent={quotedEv ?? null}
@@ -1572,18 +1648,20 @@ export function OrderDetailPage() {
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2" style={{ flexShrink: 0, alignSelf: 'center', margin: '0 0 0 8px' }}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
                 <div style={{ flex: 1, minWidth: 0, padding: '6px 8px' }}>
                   <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: '#6366F1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    Replying to {replyToEvent.actor_name}
+                    Replying to {(replyToEvent.type === 'customer_message' || replyToEvent.type === 'customer_attachment')
+                      ? ((replyToEvent.payload as any).customer_name ?? 'Customer')
+                      : replyToEvent.actor_name}
                   </p>
                   <p style={{ margin: 0, fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {getEventPreview(replyToEvent)}
                   </p>
                 </div>
-                {replyToEvent.type === 'attachment_added' && (() => {
-                  const rp = replyToEvent.payload as any
-                  if (!isImage(rp.mime_type ?? '')) return null
+                {(() => {
+                  const thumb = getEventThumb(replyToEvent, portalAttachments)
+                  if (!thumb) return null
                   return (
                     <div style={{ width: 44, height: 44, flexShrink: 0, overflow: 'hidden' }}>
-                      <img src={rp.file_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+                      <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
                     </div>
                   )
                 })()}
