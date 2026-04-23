@@ -122,6 +122,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
             event.type === 'order.status_changed'
           ) {
             qc.invalidateQueries({ queryKey: ['orders'] })
+            qc.invalidateQueries({ queryKey: ['dashboard'] })
           }
 
           if (event.type === 'order.event_added' && event.entity_id) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   View,
@@ -19,6 +19,7 @@ import {
   DashboardOrder,
 } from '../../services/dashboardService'
 import { formatDate } from '../../utils/date'
+import { useOrderSocket } from '../../hooks/useOrderSocket'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -181,7 +182,7 @@ function TeamTab({
       <View style={S.kpiGrid}>
         <KpiCard label="New" value={stats.new_orders} color="#6366F1" icon="add-circle-outline" />
         <KpiCard label="Working" value={stats.working_orders} color="#3B82F6" icon="hammer-outline" />
-        <KpiCard label="Done Today" value={stats.completed_today} color="#10B981" icon="checkmark-done-outline" />
+        <KpiCard label="Completed" value={stats.completed_today} color="#10B981" icon="checkmark-done-outline" />
         <KpiCard label="Overdue" value={stats.overdue} color="#EF4444" icon="alert-circle-outline" />
         <KpiCard label="Due Today" value={stats.due_today} color="#F59E0B" icon="time-outline" />
         <KpiCard label="Unread" value={stats.unread_customer} color="#8B5CF6" icon="chatbubble-outline" />
@@ -253,7 +254,7 @@ function MyTab({
         <KpiCard label="Assigned" value={stats.assigned_to_me} color="#6366F1" icon="person-outline" />
         <KpiCard label="Due Today" value={stats.due_today} color="#F59E0B" icon="time-outline" />
         <KpiCard label="Overdue" value={stats.overdue} color="#EF4444" icon="alert-circle-outline" />
-        <KpiCard label="Done This Week" value={stats.completed_this_week} color="#10B981" icon="checkmark-done-outline" />
+        <KpiCard label="Done" value={stats.completed_this_week} color="#10B981" icon="checkmark-done-outline" />
         <KpiCard label="Unread" value={stats.unread_customer} color="#8B5CF6" icon="chatbubble-outline" />
       </View>
 
@@ -307,13 +308,22 @@ function useDashboardData<T>(fetcher: () => Promise<T>) {
     }
   }, [fetcher])
 
+  const silentRefresh = useCallback(async () => {
+    try {
+      const result = await fetcher()
+      setData(result)
+    } catch {
+      // ignore errors on background refresh
+    }
+  }, [fetcher])
+
   useEffect(() => {
     load()
     const interval = setInterval(() => load(), 60_000)
     return () => clearInterval(interval)
   }, [load])
 
-  return { data, loading, error, refreshing, refresh: () => load(true) }
+  return { data, loading, error, refreshing, refresh: () => load(true), silentRefresh }
 }
 
 export default function DashboardScreen() {
@@ -322,6 +332,16 @@ export default function DashboardScreen() {
 
   const team = useDashboardData<TeamDashboard>(dashboardService.getTeam)
   const my = useDashboardData<MyDashboard>(dashboardService.getMe)
+
+  const teamSilentRef = useRef(team.silentRefresh)
+  teamSilentRef.current = team.silentRefresh
+  const mySilentRef = useRef(my.silentRefresh)
+  mySilentRef.current = my.silentRefresh
+
+  useOrderSocket(useCallback(() => {
+    teamSilentRef.current()
+    mySilentRef.current()
+  }, []))
 
   const active = activeTab === 'team' ? team : my
 

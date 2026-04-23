@@ -76,7 +76,7 @@ func (r *DashboardRepository) GetTeamStats(ctx context.Context, localDate string
 		SELECT
 			COUNT(*) FILTER (WHERE status = 'new') AS new_orders,
 			COUNT(*) FILTER (WHERE status = 'in_progress') AS working_orders,
-			COUNT(*) FILTER (WHERE status = 'completed' AND due_date = $1::date) AS completed_today,
+			COUNT(*) FILTER (WHERE status = 'completed') AS completed_today,
 			COUNT(*) FILTER (WHERE due_date < $1::date AND status != 'completed') AS overdue,
 			COUNT(*) FILTER (WHERE due_date = $1::date AND status != 'completed') AS due_today,
 			(
@@ -104,8 +104,7 @@ func (r *DashboardRepository) GetMyStats(ctx context.Context, userID, localDate 
 			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
 			 WHERE oa.user_id = $1 AND o.due_date < $2::date AND o.status != 'completed') AS overdue,
 			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
-			 WHERE oa.user_id = $1 AND o.status = 'completed'
-			 AND o.updated_at >= DATE_TRUNC('week', NOW() AT TIME ZONE 'UTC')) AS completed_this_week,
+			 WHERE oa.user_id = $1 AND o.status = 'completed') AS completed_this_week,
 			(
 				SELECT COUNT(DISTINCT pm.order_id)
 				FROM portal_messages pm
