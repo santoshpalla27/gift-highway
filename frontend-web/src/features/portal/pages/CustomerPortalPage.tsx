@@ -326,7 +326,7 @@ export default function CustomerPortalPage() {
         onClick={onClick}
       >
         <div className="flex-1 min-w-0 px-2.5 py-1.5">
-          <p className="text-[10px] font-semibold truncate" style={{ color: isStaff ? '#3B82F6' : '#25d366' }}>{quotedMsg.portal_sender}</p>
+          <p className="text-[10px] font-semibold truncate" style={{ color: isStaff ? '#3B82F6' : '#25d366' }}>{isStaff ? 'GiftHighway Designer' : quotedMsg.portal_sender}</p>
           <p className="text-xs truncate" style={{ color: '#667781' }}>{getMsgPreview(quotedMsg)}</p>
         </div>
         {thumb && (
@@ -460,7 +460,7 @@ export default function CustomerPortalPage() {
                 {/* Staff avatar */}
                 {isStaff && (
                   <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 self-end mb-1">
-                    {msg.portal_sender.charAt(0).toUpperCase()}
+                    G
                   </div>
                 )}
 
@@ -484,7 +484,7 @@ export default function CustomerPortalPage() {
                   }}
                 >
                   {isStaff && (
-                    <p className="text-[10px] text-gray-500 mb-0.5 ml-1">{msg.portal_sender}</p>
+                    <p className="text-[10px] text-gray-500 mb-0.5 ml-1">GiftHighway Designer</p>
                   )}
                   <div
                     className={`rounded-2xl px-3 py-2 shadow-sm ${isStaff ? 'rounded-tl-sm' : 'rounded-tr-sm'}`}
