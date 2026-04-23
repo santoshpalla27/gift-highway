@@ -70,6 +70,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 		apiPortal.POST("/:token/attachments/upload-url", portalHandler.GetAttachmentUploadURL)
 		apiPortal.POST("/:token/attachments", portalHandler.ConfirmAttachment)
 		apiPortal.DELETE("/:token/attachments/:attId", portalHandler.DeletePortalAttachmentPublic)
+		apiPortal.DELETE("/:token/messages/:msgId", portalHandler.CustomerDeleteMessage)
 	}
 
 	// WebSocket
@@ -154,6 +155,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				ordersGroup.POST("/:id/portal/attachments/upload-url", portalHandler.StaffGetUploadURL)
 				ordersGroup.POST("/:id/portal/attachments/confirm", portalHandler.StaffConfirmAttachment)
 				ordersGroup.DELETE("/:id/portal/attachments/:attId", portalHandler.DeletePortalAttachment)
+				ordersGroup.DELETE("/:id/portal/messages/:msgId", portalHandler.StaffDeleteMessage)
 				ordersGroup.GET("/:id/portal/attachments/:attId/download-url", portalHandler.StaffGetAttachmentDownloadURL)
 			}
 		}

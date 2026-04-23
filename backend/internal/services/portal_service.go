@@ -142,6 +142,10 @@ func (s *PortalService) ListMessages(ctx context.Context, orderID string) ([]*mo
 	return s.repo.ListMessages(ctx, orderID)
 }
 
+func (s *PortalService) DeleteMessage(ctx context.Context, id int64) error {
+	return s.repo.DeleteMessage(ctx, id)
+}
+
 // ── Attachments ───────────────────────────────────────────────────────────────
 
 type PortalUploadURLResponse struct {

@@ -608,8 +608,11 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
       ? (portalMessages ?? []).find(m => m.id === parsed.replyToId) ?? null
       : null
 
+    const canMenuPortal = !!onReply && !isOptimistic
+
     return (
       <View style={[T.commentRow, { flexDirection: isOwn ? 'row-reverse' : 'row' }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
+        {menuSheet}
         <View style={[T.avatar, isStaff ? { backgroundColor: '#DBEAFE' } : { backgroundColor: '#D1FAE5' }]}>
           <Text style={[T.avatarText, { color: isStaff ? '#2563EB' : '#10B981' }]}>{getInitials(senderName)}</Text>
         </View>
@@ -617,7 +620,15 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
           <View style={{ marginBottom: 2 }}>
             <Text style={[T.actorName, { color: avatarColor }]}>{isOwn ? 'You' : senderName}</Text>
           </View>
-          <View style={{ alignSelf: isOwn ? 'flex-end' : 'flex-start' }}>
+          <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
+            <Animated.View style={{
+              position: 'absolute',
+              [isOwn ? 'right' : 'left']: -40,
+              opacity: translateX.interpolate({ inputRange: isOwn ? [-40, -20] : [20, 40], outputRange: isOwn ? [1, 0] : [0, 1], extrapolate: 'clamp' }),
+              transform: [{ scale: translateX.interpolate({ inputRange: isOwn ? [-40, 0] : [0, 40], outputRange: [1, 0.5], extrapolate: 'clamp' }) }]
+            }}>
+              <Ionicons name="return-up-back-outline" size={20} color="#6366F1" />
+            </Animated.View>
             <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
               <View style={[T.bubble, { borderColor: isStaff ? '#BFDBFE' : '#A7F3D0', backgroundColor: isStaff ? '#EFF6FF' : '#F0FDF4', borderTopRightRadius: isOwn ? 4 : 14, borderTopLeftRadius: isOwn ? 14 : 4 }]}>
                 {quotedPortalMsg && (() => {
@@ -646,6 +657,11 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
                 )}
               </View>
             </Animated.View>
+            {canMenuPortal && (
+              <TouchableOpacity onPress={() => setMenuFor('comment')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="ellipsis-vertical" size={16} color="#94A3B8" />
+              </TouchableOpacity>
+            )}
           </View>
           <Text style={[T.time, { marginTop: 4 }]}>{formatTimestamp(event.created_at)}</Text>
         </View>
@@ -1152,11 +1168,11 @@ function PortalMessageItem({ msg, messages, portalAttachments, orderId, highligh
       </Modal>
 
       {isCustomer && (
-        <View style={[PC.msgAvatar, { backgroundColor: '#25d366', marginRight: 8 }]}>
+        <View style={[PC.msgAvatar, { backgroundColor: '#25d366' }]}>
           <Text style={[PC.msgAvatarText, { color: '#ffffff' }]}>{getInitials(msg.portal_sender || 'C')}</Text>
         </View>
       )}
-      <View style={{ flex: 1, maxWidth: '80%', alignItems: isStaff ? 'flex-end' : 'flex-start' }}>
+      <View style={{ maxWidth: '75%', alignItems: isStaff ? 'flex-end' : 'flex-start' }}>
         {isCustomer && (
           <Text style={[PC.msgSender, { color: '#25d366' }]}>{msg.portal_sender}</Text>
         )}
@@ -1183,58 +1199,70 @@ function PortalMessageItem({ msg, messages, portalAttachments, orderId, highligh
             <Ionicons name="return-up-back-outline" size={20} color={isStaff ? '#10B981' : '#6B7280'} />
           </Animated.View>
 
-          <Animated.View style={{ flex: 1, alignSelf: isStaff ? 'flex-end' : 'flex-start', transform: [{ translateX }] }} {...panResponder.panHandlers}>
-            {/* Bubble content */}
-            {(hasText || !hasTokens || quotedMsg) && (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onLongPress={() => setActionOpen(true)}
-                style={[
-                  PC.msgBubble,
-                  isCustomer ? PC.bubbleCustomer : PC.bubbleStaff,
-                  isStaff ? { borderTopRightRadius: 2 } : { borderTopLeftRadius: 2 }
-                ]}
-              >
-                {quotedMsg && (() => {
-                  const qIsCustomer = quotedMsg.sender_type === 'customer'
-                  const qPreview = getPortalMsgPreview(quotedMsg)
-                  const qThumb = getPortalMsgThumb(quotedMsg, portalAttachments)
-                  return (
-                    <TouchableOpacity
-                      onPress={() => onHighlight(quotedMsg.id)}
-                      activeOpacity={0.7}
-                      style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: 6, borderLeftWidth: 3, borderLeftColor: qIsCustomer ? '#10B981' : '#25D366', backgroundColor: isCustomer ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden' }}
-                    >
-                      <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: qIsCustomer ? '#10B981' : '#25D366', marginBottom: 1 }} numberOfLines={1}>{quotedMsg.portal_sender}</Text>
-                        <Text style={{ fontSize: 11, color: isCustomer ? '#6B7280' : 'rgba(255,255,255,0.8)' }} numberOfLines={2}>{qPreview}</Text>
-                      </View>
-                      {qThumb && (
-                        <Image source={{ uri: qThumb }} style={{ width: 44, height: 44, flexShrink: 0 }} resizeMode="cover" />
-                      )}
-                    </TouchableOpacity>
-                  )
-                })()}
-                {hasText && <Text style={[PC.msgText, !isCustomer && { color: '#334155' }]}>{parsed.text}</Text>}
-              </TouchableOpacity>
-            )}
-            {hasTokens && parsed.tokens.map(tok => (
-              <TouchableOpacity key={tok.id} activeOpacity={0.85} onLongPress={() => setActionOpen(true)}>
-                <PortalAttachmentCard orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={!isCustomer} />
-              </TouchableOpacity>
-            ))}
-
-            {/* Staff Avatar on the right */}
-            {isStaff && (
-              <View style={[PC.msgAvatar, { backgroundColor: '#DBEAFE', marginLeft: 8 }]}>
-                <Text style={[PC.msgAvatarText, { color: '#2563EB' }]}>{getInitials(msg.portal_sender || 'S')}</Text>
-              </View>
-            )}
+          <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
+            {/* Single bubble: quoted + text + attachments all together */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onLongPress={() => setActionOpen(true)}
+              style={[
+                PC.msgBubble,
+                isCustomer ? PC.bubbleCustomer : PC.bubbleStaff,
+                isStaff ? { borderTopRightRadius: 2 } : { borderTopLeftRadius: 2 }
+              ]}
+            >
+              {quotedMsg && (() => {
+                const qIsCustomer = quotedMsg.sender_type === 'customer'
+                const qPreview = getPortalMsgPreview(quotedMsg)
+                const qThumb = getPortalMsgThumb(quotedMsg, portalAttachments)
+                return (
+                  <TouchableOpacity
+                    onPress={() => onHighlight(quotedMsg.id)}
+                    activeOpacity={0.7}
+                    style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: 6, borderLeftWidth: 3, borderLeftColor: qIsCustomer ? '#10B981' : '#25D366', backgroundColor: isCustomer ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden' }}
+                  >
+                    <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: qIsCustomer ? '#10B981' : '#25D366', marginBottom: 1 }} numberOfLines={1}>{quotedMsg.portal_sender}</Text>
+                      <Text style={{ fontSize: 11, color: isCustomer ? '#6B7280' : 'rgba(255,255,255,0.8)' }} numberOfLines={2}>{qPreview}</Text>
+                    </View>
+                    {qThumb && (
+                      <Image source={{ uri: qThumb }} style={{ width: 44, height: 44, flexShrink: 0 }} resizeMode="cover" />
+                    )}
+                  </TouchableOpacity>
+                )
+              })()}
+              {hasText && <Text style={[PC.msgText, !isCustomer && { color: '#334155' }]}>{parsed.text}</Text>}
+              {hasTokens && parsed.tokens.map((tok, idx) => {
+                const att = portalAttachments.find(a => a.id === tok.id)
+                const isImg = isImgExt(att?.file_name ?? tok.name)
+                return (
+                  <View key={tok.id} style={{ marginTop: idx === 0 && (hasText || quotedMsg) ? 6 : idx > 0 ? 4 : 0 }}>
+                    {isImg && att?.view_url ? (
+                      <TouchableOpacity onPress={() => Linking.openURL(att.view_url)} activeOpacity={0.85}>
+                        <Image source={{ uri: att.view_url }} style={{ width: 160, height: 160, borderRadius: 8 }} resizeMode="cover" />
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={() => att?.view_url && Linking.openURL(att.view_url)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}
+                      >
+                        <Ionicons name="document-outline" size={14} color="#667781" />
+                        <Text style={{ fontSize: 12, color: '#111b21', flex: 1 }} numberOfLines={1}>{att?.file_name ?? tok.name}</Text>
+                        {att != null && <Text style={{ fontSize: 10, color: '#667781', flexShrink: 0 }}>{formatBytes(att.file_size)}</Text>}
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )
+              })}
+              <Text style={[PC.msgTime, { textAlign: 'right', marginTop: 4 }]}>{formatTimestamp(msg.created_at)}</Text>
+            </TouchableOpacity>
           </Animated.View>
         </View>
-
-        <Text style={[PC.msgTime, { textAlign: isStaff ? 'right' : 'left' }]}>{formatTimestamp(msg.created_at)}</Text>
       </View>
+      {isStaff && (
+        <View style={[PC.msgAvatar, { backgroundColor: '#DBEAFE' }]}>
+          <Text style={[PC.msgAvatarText, { color: '#2563EB' }]}>{getInitials(msg.portal_sender || 'S')}</Text>
+        </View>
+      )}
     </View>
   )
 }
@@ -1325,7 +1353,8 @@ function PortalChatModal({
       await attachmentService.uploadToR2(upload_url, uri, content_type, pct =>
         setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, progress: pct } : f))
       )
-      await staffPortalApi.confirmAttachment(orderId, { s3_key, file_name: name, file_type: content_type, file_size: size })
+      const fileExt = '.' + (name.split('.').pop() ?? '').toLowerCase()
+      await staffPortalApi.confirmAttachment(orderId, { s3_key, file_name: name, file_type: fileExt, file_size: size })
       setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, done: true, progress: 100 } : f))
       await reload()
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)
@@ -2449,7 +2478,7 @@ const S = StyleSheet.create({
 })
 
 const T = StyleSheet.create({
-  commentRow: { gap: 10, marginBottom: 16, alignItems: 'center' },
+  commentRow: { gap: 10, marginBottom: 16, alignItems: 'flex-start' },
   avatar: {
     width: 34, height: 34, borderRadius: 17, backgroundColor: '#0F172A',
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -2576,7 +2605,7 @@ const PC = StyleSheet.create({
   msgAvatar: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   msgAvatarText: { fontSize: 11, fontWeight: '700' },
   msgSender: { fontSize: 11, fontWeight: '600', color: '#6B7280', marginBottom: 3 },
-  msgBubble: { borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, maxWidth: '75%', minWidth: 60 },
+  msgBubble: { borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, minWidth: 60 },
   bubbleCustomer: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
   bubbleStaff: { backgroundColor: '#D9FDD3' },
   msgText: { fontSize: 14, color: '#334155', lineHeight: 20 },

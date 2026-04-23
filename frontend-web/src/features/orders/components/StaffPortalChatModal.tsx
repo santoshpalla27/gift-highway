@@ -80,6 +80,7 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
   const [lightbox, setLightbox] = useState<{ src: string; filename: string } | null>(null)
   const [replyTo, setReplyTo] = useState<PortalMessage | null>(null)
   const [highlightedMsgId, setHighlightedMsgId] = useState<number | null>(null)
+  const [dotMenu, setDotMenu] = useState<{ msgId: number; x: number; y: number } | null>(null)
 
   const sendingRef = useRef(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -107,6 +108,13 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
 
   useEffect(() => { scrollToBottom() }, [messages, scrollToBottom])
   useEffect(() => { if (!loading) textareaRef.current?.focus() }, [loading])
+
+  useEffect(() => {
+    if (!dotMenu) return
+    const close = () => setDotMenu(null)
+    window.addEventListener('mousedown', close)
+    return () => window.removeEventListener('mousedown', close)
+  }, [dotMenu])
 
   useEffect(() => {
     if (loading) return
@@ -348,10 +356,14 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
                 style={{ borderRadius: 8, padding: '2px 0', background: isHighlighted ? 'rgba(37,211,102,0.22)' : 'transparent', transition: 'background 0.5s' }}
               >
                 <div style={{ display: 'flex', justifyContent: isStaff ? 'flex-end' : 'flex-start', alignItems: 'center', gap: 4 }}>
-                  {/* Reply button for staff messages (on the left of bubble) */}
+                  {/* 3-dot menu for staff messages (on the left of bubble) */}
                   {isStaff && (
-                    <button onClick={() => handleSelectReply(msg)} title="Reply" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: '50%', color: '#667781', flexShrink: 0, display: 'flex', lineHeight: 1 }}>
-                      <ReplyIcon />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setDotMenu({ msgId: msg.id, x: r.left, y: r.bottom + 4 }) }}
+                      title="Options"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: '50%', color: '#667781', flexShrink: 0, display: 'flex', lineHeight: 1 }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
                     </button>
                   )}
                   {!isStaff && (
@@ -400,10 +412,14 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
                       </p>
                     </div>
                   </div>
-                  {/* Reply button for customer messages (on the right of bubble) */}
+                  {/* 3-dot menu for customer messages (on the right of bubble) */}
                   {!isStaff && (
-                    <button onClick={() => handleSelectReply(msg)} title="Reply" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: '50%', color: '#667781', flexShrink: 0, display: 'flex', lineHeight: 1 }}>
-                      <ReplyIcon flip />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setDotMenu({ msgId: msg.id, x: r.left, y: r.bottom + 4 }) }}
+                      title="Options"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: '50%', color: '#667781', flexShrink: 0, display: 'flex', lineHeight: 1 }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
                     </button>
                   )}
                 </div>
@@ -496,6 +512,40 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
           </button>
         </div>
       </div>
+
+      {/* 3-dot dropdown */}
+      {dotMenu && (
+        <div
+          style={{ position: 'fixed', top: dotMenu.y, left: dotMenu.x, zIndex: 800, background: '#fff', borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.2)', padding: '4px 0', minWidth: 150 }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => {
+              const msg = messages.find(m => m.id === dotMenu.msgId)
+              setDotMenu(null)
+              if (msg) handleSelectReply(msg)
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#111b21', textAlign: 'left' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+            Reply
+          </button>
+          <button
+            onClick={async () => {
+              const msgId = dotMenu.msgId
+              setDotMenu(null)
+              try {
+                await staffPortalApi.deleteMessage(orderId, msgId)
+                setMessages(prev => prev.filter(m => m.id !== msgId))
+              } catch (_) {}
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#EF4444', textAlign: 'left' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            Delete
+          </button>
+        </div>
+      )}
 
       {/* Lightbox */}
       {lightbox && (

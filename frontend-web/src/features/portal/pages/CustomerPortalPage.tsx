@@ -110,6 +110,9 @@ export default function CustomerPortalPage() {
 
   const [replyTo, setReplyTo] = useState<PortalMessage | null>(null)
   const [highlightedMsgId, setHighlightedMsgId] = useState<number | null>(null)
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedMsgIds, setSelectedMsgIds] = useState<Set<number>>(new Set())
+  const [deletingSelected, setDeletingSelected] = useState(false)
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const messageRefs = useRef<Record<number, HTMLDivElement | null>>({})
 
@@ -225,6 +228,7 @@ export default function CustomerPortalPage() {
   }
 
   const handleMsgPointerDown = (e: React.PointerEvent, msg: PortalMessage) => {
+    if (selectMode) return
     if ((e.target as HTMLElement).closest('button')) return
     wasSwipedRef.current = false
     swipeCapturedRef.current = false
@@ -375,22 +379,62 @@ export default function CustomerPortalPage() {
               <p className="text-xs text-gray-500">Order support chat</p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setInfoOpen(true)}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-              title="How to use"
-            >
-              <InfoIcon className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setDetailsOpen(o => !o)}
-              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 transition-colors px-2 py-1.5 rounded-lg hover:bg-gray-100"
-            >
-              {detailsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              Details
-            </button>
-          </div>
+          {selectMode ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">{selectedMsgIds.size} selected</span>
+              <button
+                onClick={async () => {
+                  if (!token || selectedMsgIds.size === 0) return
+                  setDeletingSelected(true)
+                  try {
+                    await Promise.all([...selectedMsgIds].map(id => publicPortalApi.deleteMessage(token, id)))
+                    setMessages(prev => prev.filter(m => !selectedMsgIds.has(m.id)))
+                    setSelectedMsgIds(new Set())
+                    setSelectMode(false)
+                  } catch (_) {}
+                  setDeletingSelected(false)
+                }}
+                disabled={selectedMsgIds.size === 0 || deletingSelected}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-white text-xs font-medium disabled:opacity-40 transition-colors"
+                style={{ background: '#EF4444' }}
+              >
+                {deletingSelected
+                  ? <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>}
+                Delete
+              </button>
+              <button
+                onClick={() => { setSelectMode(false); setSelectedMsgIds(new Set()) }}
+                className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors text-xs font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setSelectMode(true)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                title="Select messages to delete"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+              </button>
+              <button
+                onClick={() => setInfoOpen(true)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                title="How to use"
+              >
+                <InfoIcon className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setDetailsOpen(o => !o)}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 transition-colors px-2 py-1.5 rounded-lg hover:bg-gray-100"
+              >
+                {detailsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                Details
+              </button>
+            </div>
+          )}
         </div>
         {detailsOpen && (
           <div className="px-4 pb-4 pt-1 border-t border-gray-200 space-y-2 shadow-inner bg-gray-50">
@@ -455,7 +499,8 @@ export default function CustomerPortalPage() {
                 onPointerUp={() => handleMsgPointerUp(msg)}
                 onPointerCancel={() => { setSwipeState(null); msgSwipeRef.current = null }}
                 onDragStart={(e) => e.preventDefault()}
-                style={{ touchAction: 'pan-y' }}
+                onClick={selectMode && !isStaff ? () => setSelectedMsgIds(prev => { const n = new Set(prev); n.has(msg.id) ? n.delete(msg.id) : n.add(msg.id); return n }) : undefined}
+                style={{ touchAction: 'pan-y', cursor: selectMode && !isStaff ? 'pointer' : 'default' }}
               >
                 {/* Staff avatar */}
                 {isStaff && (
@@ -464,16 +509,27 @@ export default function CustomerPortalPage() {
                   </div>
                 )}
 
-                {/* Reply button (left side for customer, right for staff) */}
+                {/* Checkbox in select mode OR reply button */}
                 {!isStaff && (
-                  <button
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={() => handleSelectReply(msg)}
-                    className="opacity-100 transition-opacity p-1.5 rounded-full flex-shrink-0 hover:bg-black/10"
-                    title="Reply"
-                  >
-                    <ReplyIcon className="w-4 h-4 text-[#667781]" />
-                  </button>
+                  selectMode ? (
+                    <div
+                      className="flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors"
+                      style={{ borderColor: selectedMsgIds.has(msg.id) ? '#25d366' : '#aaa', background: selectedMsgIds.has(msg.id) ? '#25d366' : 'transparent' }}
+                    >
+                      {selectedMsgIds.has(msg.id) && (
+                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={() => handleSelectReply(msg)}
+                      className="opacity-100 transition-opacity p-1.5 rounded-full flex-shrink-0 hover:bg-black/10"
+                      title="Reply"
+                    >
+                      <ReplyIcon className="w-4 h-4 text-[#667781]" />
+                    </button>
+                  )
                 )}
 
                 <div
@@ -488,7 +544,7 @@ export default function CustomerPortalPage() {
                   )}
                   <div
                     className={`rounded-2xl px-3 py-2 shadow-sm ${isStaff ? 'rounded-tl-sm' : 'rounded-tr-sm'}`}
-                    style={{ background: isStaff ? '#ffffff' : '#d9fdd3' }}
+                    style={{ background: isStaff ? '#ffffff' : (selectedMsgIds.has(msg.id) ? '#a7f3d0' : '#d9fdd3'), transition: 'background 0.15s' }}
                   >
                     {quotedMsg && (
                       <div className="mb-2">

@@ -62,6 +62,9 @@ export const publicPortalApi = {
 
   confirmAttachment: (token: string, payload: { s3_key: string; file_name: string; file_type: string; file_size: number }) =>
     portalClient.post<PortalAttachment>(`/api/portal/${token}/attachments`, payload).then(r => r.data),
+
+  deleteMessage: (token: string, msgId: number) =>
+    portalClient.delete(`/api/portal/${token}/messages/${msgId}`).then(r => r.data),
 }
 
 // ── Staff portal management API (authenticated) ───────────────────────────────
@@ -87,6 +90,9 @@ export const staffPortalApi = {
 
   deleteAttachment: (orderId: string, attId: number) =>
     apiClient.delete(`/orders/${orderId}/portal/attachments/${attId}`).then(r => r.data),
+
+  deleteMessage: (orderId: string, msgId: number) =>
+    apiClient.delete(`/orders/${orderId}/portal/messages/${msgId}`).then(r => r.data),
 
   getAttachmentDownloadURL: (orderId: string, attId: number, fileName: string) =>
     apiClient.get<{ url: string }>(`/orders/${orderId}/portal/attachments/${attId}/download-url?name=${encodeURIComponent(fileName)}`).then(r => r.data.url),

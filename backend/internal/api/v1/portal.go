@@ -186,6 +186,25 @@ func (h *PortalHandler) DeletePortalAttachmentPublic(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
 
+func (h *PortalHandler) CustomerDeleteMessage(c *gin.Context) {
+	token := c.Param("token")
+	if _, err := h.svc.ValidateToken(c.Request.Context(), token); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or inactive portal link"})
+		return
+	}
+	msgIDStr := c.Param("msgId")
+	msgID, err := strconv.ParseInt(msgIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid message id"})
+		return
+	}
+	if err := h.svc.DeleteMessage(c.Request.Context(), msgID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete message"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
 func (h *PortalHandler) ConfirmAttachment(c *gin.Context) {
 	token := c.Param("token")
 	portal, err := h.svc.ValidateToken(c.Request.Context(), token)
@@ -357,6 +376,20 @@ func (h *PortalHandler) DeletePortalAttachment(c *gin.Context) {
 	}
 	if err := h.svc.DeleteAttachment(c.Request.Context(), attID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete attachment"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+func (h *PortalHandler) StaffDeleteMessage(c *gin.Context) {
+	msgIDStr := c.Param("msgId")
+	msgID, err := strconv.ParseInt(msgIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid message id"})
+		return
+	}
+	if err := h.svc.DeleteMessage(c.Request.Context(), msgID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete message"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})

@@ -142,3 +142,8 @@ func (r *PortalRepository) DeleteAttachment(ctx context.Context, id int64) error
 	_, err := r.db.ExecContext(ctx, `DELETE FROM portal_attachments WHERE id = $1`, id)
 	return err
 }
+
+func (r *PortalRepository) DeleteMessage(ctx context.Context, id int64) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM portal_messages WHERE id = $1`, id)
+	return err
+}
