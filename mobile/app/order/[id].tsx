@@ -883,7 +883,7 @@ function EditOrderSheet({ order, onClose, onSaved }: { order: Order; onClose: ()
 
   const handleSave = async () => {
     if (!isOnline) { setError("You're offline."); return }
-    if (!title.trim() || !customerName.trim()) { setError('Title and Customer Name are required.'); return }
+    if (!title.trim() || !customerName.trim()) { setError('Order ID and Customer Name are required.'); return }
     setLoading(true)
     setError('')
     try {
@@ -917,8 +917,8 @@ function EditOrderSheet({ order, onClose, onSaved }: { order: Order; onClose: ()
         <ScrollView style={{ padding: 20 }} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40) }} keyboardShouldPersistTaps="handled">
           {error ? <View style={E.errorBox}><Text style={E.errorText}>{error}</Text></View> : null}
 
-          <Text style={E.label}>Title *</Text>
-          <TextInput style={E.input} value={title} onChangeText={setTitle} autoCapitalize="words" />
+          <Text style={E.label}>Order ID *</Text>
+          <TextInput style={E.input} value={title} onChangeText={setTitle} autoCapitalize="characters" />
 
           <Text style={E.label}>Customer Name *</Text>
           <TextInput style={E.input} value={customerName} onChangeText={setCustomerName} autoCapitalize="words" />
@@ -1965,8 +1965,7 @@ export default function OrderDetailScreen() {
             <Ionicons name="arrow-back" size={24} color="#0F172A" />
           </TouchableOpacity>
           <View style={S.headerCenter}>
-            <Text style={S.headerOrderNum}>#{order.order_number}</Text>
-            <Text style={S.headerTitle} numberOfLines={1}>{order.title}</Text>
+            <Text style={S.headerTitle} numberOfLines={1}>#{order.title}</Text>
           </View>
           <TouchableOpacity onPress={() => setShowInfo(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="information-circle-outline" size={22} color="#0F172A" />

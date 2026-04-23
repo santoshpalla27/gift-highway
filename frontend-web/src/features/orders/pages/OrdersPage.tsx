@@ -518,9 +518,8 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
           <table className="orders-table">
             <thead>
               <tr>
-                <th style={{ width: 90 }}>Order ID</th>
+                <th>Order ID</th>
                 <th>Customer</th>
-                <th>Title</th>
                 <th>Status</th>
                 <th>Assigned</th>
                 <th>Delivery</th>
@@ -529,10 +528,10 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
             </thead>
             <tbody>
               {isLoading ? (
-                <TableSkeleton rows={7} cols={7} />
+                <TableSkeleton rows={7} cols={6} />
               ) : orders.length === 0 ? (
                 <tr style={{ background: '#FFFFFF', cursor: 'default' }}>
-                  <td colSpan={7}>
+                  <td colSpan={6}>
                     <EmptyState
                       title={hasFilters || search ? 'No matching orders' : myOrdersOnly ? 'No orders assigned to you' : 'No orders yet'}
                       description={hasFilters || search ? 'Try adjusting your filters.' : 'Create the first order to get started.'}
@@ -549,13 +548,8 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
 
                 return (
                   <tr key={order.id} onClick={() => navigate(`/orders/${order.id}`)}>
-                    <td>
-                      <span style={{ fontWeight: 700, color: '#6366F1', fontSize: 12.5, fontFamily: '"JetBrains Mono","Fira Code",monospace' }}>
-                        #{order.order_number}
-                      </span>
-                    </td>
+                    <td><span style={{ fontWeight: 700, fontSize: 13.5, color: '#111827' }}>#{order.title}</span></td>
                     <td><span style={{ fontWeight: 600, fontSize: 13.5, color: '#111827' }}>{order.customer_name}</span></td>
-                    <td><span style={{ fontSize: 13.5, color: '#374151' }}>{order.title}</span></td>
                     <td><StatusDropdown order={order} onChanged={msg => setToast(msg)} /></td>
                     <td>
                       {order.assigned_names?.length > 0 ? (

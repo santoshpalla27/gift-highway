@@ -92,8 +92,7 @@ function OrderRow({ order, onPress }: { order: DashboardOrder; onPress: () => vo
       <View style={[S.priorityDot, { backgroundColor: priorityColor }]} />
       <View style={S.orderInfo}>
         <View style={S.orderTitleRow}>
-          <Text style={S.orderNum}>#{order.order_number}</Text>
-          <Text style={S.orderTitle} numberOfLines={1}>{order.title}</Text>
+          <Text style={S.orderNum} numberOfLines={1}>#{order.title}</Text>
         </View>
         <Text style={S.orderCustomer} numberOfLines={1}>{order.customer_name}</Text>
         {order.assigned_names.length > 0 && (

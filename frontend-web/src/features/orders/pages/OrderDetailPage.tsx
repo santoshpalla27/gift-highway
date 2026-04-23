@@ -1393,7 +1393,6 @@ export function OrderDetailPage() {
           Back
         </button>
         <div style={{ width: 1, height: 20, background: '#E4E6EF' }} />
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#6366F1', fontFamily: 'monospace' }}>#{order.order_number}</span>
         <span style={{ fontSize: 15, fontWeight: 700, color: '#111827', flex: 1 }}>{order.title}</span>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
           {/* Customer portal button */}

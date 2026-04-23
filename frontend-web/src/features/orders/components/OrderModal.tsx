@@ -63,7 +63,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
 
   const handleSubmit = () => {
     if (!title.trim() || !customerName.trim()) {
-      setError('Title and Customer Name are required.')
+      setError('Order ID and Customer Name are required.')
       return
     }
     if (isPending) return
@@ -168,8 +168,8 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label className="modal-label">Title *</label>
-              <input className="modal-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Website Redesign" />
+              <label className="modal-label">Order ID *</label>
+              <input className="modal-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. ORD-2024-001" />
             </div>
             <div>
               <label className="modal-label">Customer Name *</label>

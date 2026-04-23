@@ -371,7 +371,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
 
   const handleSubmit = async () => {
     if (!isOnline) { setError("You're offline."); return }
-    if (!title.trim() || !customerName.trim()) { setError('Title and Customer Name are required.'); return }
+    if (!title.trim() || !customerName.trim()) { setError('Order ID and Customer Name are required.'); return }
     setLoading(true); setError('')
     try {
       const payload = { title: title.trim(), customer_name: customerName.trim(), contact_number: contactNumber.trim(), description: description.trim(), priority, assigned_to: assignedTo, due_date: dueDate || null, due_time: dueTime || null }
@@ -404,8 +404,8 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
         </View>
         <ScrollView style={F.body} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40) }} keyboardShouldPersistTaps="handled">
           {error ? <View style={F.errorBox}><Text style={F.errorText}>{error}</Text></View> : null}
-          <Text style={F.label}>Title *</Text>
-          <TextInput style={F.input} value={title} onChangeText={setTitle} placeholder="e.g. Wedding Banner" autoCapitalize="words" />
+          <Text style={F.label}>Order ID *</Text>
+          <TextInput style={F.input} value={title} onChangeText={setTitle} placeholder="e.g. ORD-2024-001" autoCapitalize="characters" />
           <Text style={F.label}>Customer Name *</Text>
           <TextInput style={F.input} value={customerName} onChangeText={setCustomerName} placeholder="e.g. Rahul Sharma" autoCapitalize="words" />
           <Text style={F.label}>Contact Number</Text>
@@ -567,7 +567,7 @@ function StatusPickerModal({ order, onClose, onRefresh }: { order: Order | null;
       <View style={SP.overlay}>
         <View style={[SP.sheet, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
           <Text style={SP.title}>Change Status</Text>
-          <Text style={SP.sub}>Updating #{order?.order_number} — {order?.title}</Text>
+          <Text style={SP.sub}>Updating #{order?.title}</Text>
           {STATUS_OPTIONS.map(s => (
             <TouchableOpacity key={s} style={[SP.row, order?.status === s && SP.rowActive]} onPress={() => handlePick(s)}>
               <View style={[SP.dot, { backgroundColor: STATUS_META[s].color }]} />
@@ -593,7 +593,7 @@ function OrderCard({ order, onOpen, onStatusPress }: { order: Order; onOpen: () 
   return (
     <TouchableOpacity style={C.card} onPress={onOpen} activeOpacity={0.6}>
       <View style={C.rowTop}>
-        <Text style={C.orderNum} numberOfLines={1}>#{order.order_number} <Text style={C.title}>{order.title}</Text></Text>
+        <Text style={C.orderNum} numberOfLines={1}>#{order.title}</Text>
         <TouchableOpacity onPress={onStatusPress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={[C.statusText, { color: sm.color }]}>{sm.label}</Text>
         </TouchableOpacity>
