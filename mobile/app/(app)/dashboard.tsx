@@ -318,7 +318,7 @@ function useDashboardData<T>(fetcher: () => Promise<T>) {
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets()
-  const [activeTab, setActiveTab] = useState<TabKey>('team')
+  const [activeTab, setActiveTab] = useState<TabKey>('my')
 
   const team = useDashboardData<TeamDashboard>(dashboardService.getTeam)
   const my = useDashboardData<MyDashboard>(dashboardService.getMe)
@@ -331,20 +331,6 @@ export default function DashboardScreen() {
       <View style={S.segmentWrap}>
         <View style={S.segment}>
           <TouchableOpacity
-            style={[S.segBtn, activeTab === 'team' && S.segBtnActive]}
-            onPress={() => setActiveTab('team')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="people-outline"
-              size={15}
-              color={activeTab === 'team' ? '#fff' : '#6B7280'}
-            />
-            <Text style={[S.segLabel, activeTab === 'team' && S.segLabelActive]}>
-              Team
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
             style={[S.segBtn, activeTab === 'my' && S.segBtnActive]}
             onPress={() => setActiveTab('my')}
             activeOpacity={0.8}
@@ -356,6 +342,20 @@ export default function DashboardScreen() {
             />
             <Text style={[S.segLabel, activeTab === 'my' && S.segLabelActive]}>
               My Dashboard
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[S.segBtn, activeTab === 'team' && S.segBtnActive]}
+            onPress={() => setActiveTab('team')}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="people-outline"
+              size={15}
+              color={activeTab === 'team' ? '#fff' : '#6B7280'}
+            />
+            <Text style={[S.segLabel, activeTab === 'team' && S.segLabelActive]}>
+              Team
             </Text>
           </TouchableOpacity>
         </View>

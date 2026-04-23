@@ -274,7 +274,7 @@ function MyDashboardTab() {
 
 export function DashboardPage() {
   const { user } = useAuthStore()
-  const [tab, setTab] = useState<'team' | 'my'>('team')
+  const [tab, setTab] = useState<'team' | 'my'>('my')
 
   return (
     <div className="screen active" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -298,7 +298,7 @@ export function DashboardPage() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)' }}>
-          {(['team', 'my'] as const).map(t => (
+          {(['my', 'team'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{
               padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
               border: 'none', background: 'transparent',
