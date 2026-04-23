@@ -165,12 +165,14 @@ function AttachmentImage({ orderId, fileKey, fileName, fileUrl }: {
 
 // ─── Portal attachment card that can fetch its own URL if needed ──────────────
 
-function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, portalAttachments }: {
+function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isStaff, caption, portalAttachments }: {
   orderId: string
   attId: number | null
   fileName: string
   fileType?: string
   isOwn?: boolean
+  isStaff?: boolean
+  caption?: string
   portalAttachments?: PortalAttachment[]
 }) {
   const [viewUrl, setViewUrl] = useState<string | null>(null)
@@ -198,15 +200,20 @@ function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, porta
     if (viewUrl) window.location.href = viewUrl
   }
 
+  const bubbleBg = isStaff === undefined ? undefined : isStaff ? '#EFF6FF' : '#F0FDF4'
+  const bubbleBorder = isStaff === undefined ? '1px solid #E5E7EB' : isStaff ? '1px solid #BFDBFE' : '1px solid #A7F3D0'
+  const bubbleRadius = isOwn ? '12px 4px 12px 12px' : '4px 12px 12px 12px'
+
   if (isImg) {
     return (
-      <div style={{ marginTop: 6 }}>
-        <div 
+      <div style={{
+        marginTop: 6, overflow: 'hidden', width: 200, maxWidth: '100%',
+        background: bubbleBg ?? '#FFFFFF', border: bubbleBorder,
+        borderRadius: isStaff !== undefined ? bubbleRadius : 8,
+      }}>
+        <div
           onClick={handleDownload}
-          style={{ 
-            width: 180, borderRadius: 8, overflow: 'hidden', border: '1px solid #E5E7EB', position: 'relative', 
-            cursor: 'pointer', background: '#F3F4F6', minHeight: 100, display: 'flex', alignItems: 'center', justifyContent: 'center'
-          }}
+          style={{ cursor: 'pointer', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           {viewUrl ? (
             <img src={viewUrl} alt={fileName} style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
@@ -216,27 +223,41 @@ function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, porta
             </div>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-          <span style={{ fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{fileName}</span>
-          <button onClick={handleDownload} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', lineHeight: 1, flexShrink: 0, padding: 0 }} title="Download">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          </button>
+        <div style={{ padding: '4px 8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{fileName}</span>
+            <button onClick={handleDownload} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', lineHeight: 1, flexShrink: 0, padding: 0 }} title="Download">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            </button>
+          </div>
+          {caption && (
+            <div style={{ fontSize: 13, color: '#374151', marginTop: 4, lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{caption}</div>
+          )}
         </div>
       </div>
     )
   }
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 8, marginTop: 4,
-      background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8,
-      padding: '6px 10px', width: 'fit-content',
-    }}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-      <span style={{ fontSize: 12, color: '#374151', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fileName}</span>
-      <button onClick={handleDownload} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', lineHeight: 1, flexShrink: 0, padding: 0 }} title="Download">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-      </button>
+    <div
+      onClick={handleDownload}
+      style={{
+        display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4,
+        background: bubbleBg ?? '#F9FAFB', border: bubbleBorder,
+        borderRadius: isStaff !== undefined ? bubbleRadius : 8,
+        padding: '8px 12px', width: 'fit-content', cursor: 'pointer',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span style={{ fontSize: 12, color: '#374151', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fileName}</span>
+        <button onClick={(e) => { e.stopPropagation(); handleDownload() }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', lineHeight: 1, flexShrink: 0, padding: 0 }} title="Download">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        </button>
+      </div>
+      {caption && (
+        <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{caption}</div>
+      )}
     </div>
   )
 }
@@ -700,42 +721,30 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                 </div>
               )}
               {event.type === 'staff_portal_reply' && parsed.tokens.map(tok => (
-                <PortalAttachmentItem 
-                  key={tok.id} 
-                  orderId={orderId} 
-                  attId={tok.id} 
-                  fileName={tok.name} 
-                  isOwn={isOwn} 
-                  portalAttachments={portalAttachments} 
+                <PortalAttachmentItem
+                  key={tok.id}
+                  orderId={orderId}
+                  attId={tok.id}
+                  fileName={tok.name}
+                  isOwn={isOwn}
+                  isStaff={true}
+                  portalAttachments={portalAttachments}
                 />
               ))}
               {event.type === 'customer_attachment' && p.file_name && (() => {
                 const attId = p.att_id ? parseInt(p.att_id) : null
                 const caption = attId != null ? portalAttCaptions?.get(attId) : undefined
                 return (
-                  <div style={{ marginTop: parsed.text ? 8 : 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
-                    <PortalAttachmentItem 
-                      orderId={orderId} 
-                      attId={attId} 
-                      fileName={p.file_name} 
-                      fileType={p.file_type} 
-                      isOwn={isOwn} 
-                      portalAttachments={portalAttachments} 
-                    />
-                    {caption && (
-                      <div style={{
-                        fontSize: 13.5, color: '#111827',
-                        background: isStaff ? '#EFF6FF' : '#F0FDF4',
-                        border: `1px solid ${isStaff ? '#BFDBFE' : '#A7F3D0'}`,
-                        borderRadius: isOwn ? '12px 4px 12px 12px' : '4px 12px 12px 12px',
-                        padding: '6px 10px',
-                        marginTop: 6, display: 'inline-block', maxWidth: '60%',
-                        lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                      }}>
-                        {caption}
-                      </div>
-                    )}
-                  </div>
+                  <PortalAttachmentItem
+                    orderId={orderId}
+                    attId={attId}
+                    fileName={p.file_name}
+                    fileType={p.file_type}
+                    isOwn={isOwn}
+                    isStaff={false}
+                    caption={caption}
+                    portalAttachments={portalAttachments}
+                  />
                 )
               })()}
             </div>

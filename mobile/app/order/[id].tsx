@@ -210,12 +210,14 @@ function AttachmentCard({ orderId, payload, onDelete, isOwn }: {
 // ─── Portal Attachment Card ───────────────────────────────────────────────────
 // Fetches its own view URL so it doesn't depend on parent portalAttachments state
 
-function PortalAttachmentCard({ orderId, attId, fileName, fileType, isOwn }: {
+function PortalAttachmentCard({ orderId, attId, fileName, fileType, isOwn, isStaff, caption }: {
   orderId: string
   attId: number | null
   fileName: string
   fileType?: string
   isOwn?: boolean
+  isStaff?: boolean
+  caption?: string
 }) {
   const ext = ('.' + (fileName.split('.').pop() ?? '')).toLowerCase()
   const isImg = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic'].includes(ext)
@@ -233,23 +235,38 @@ function PortalAttachmentCard({ orderId, attId, fileName, fileType, isOwn }: {
     Linking.openURL(viewUrl)
   }
 
+  const hasBubble = isStaff !== undefined
+  const bubbleBg = isStaff ? '#EFF6FF' : '#F0FDF4'
+  const bubbleBorder = isStaff ? '#BFDBFE' : '#A7F3D0'
+  const trr = isOwn ? 4 : 14
+  const tlr = isOwn ? 14 : 4
+
   if (isImg) {
     return (
-      <View style={{ marginTop: 6 }}>
-      <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}
-          style={{ width: 180, borderRadius: 8, borderTopRightRadius: isOwn ? 4 : 8, borderTopLeftRadius: isOwn ? 8 : 4, overflow: 'hidden', borderWidth: 1, borderColor: '#E5E7EB', minHeight: 80, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{
+        marginTop: 6, overflow: 'hidden', maxWidth: 200,
+        backgroundColor: hasBubble ? bubbleBg : '#FFFFFF',
+        borderWidth: 1, borderColor: hasBubble ? bubbleBorder : '#E5E7EB',
+        borderRadius: 14, borderTopRightRadius: trr, borderTopLeftRadius: tlr,
+      }}>
+        <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}>
           {viewUrl
-            ? <Image source={{ uri: viewUrl }} style={{ width: 180, height: 140 }} resizeMode="cover" />
-            : <ActivityIndicator size="small" color="#94A3B8" />
+            ? <Image source={{ uri: viewUrl }} style={{ width: 198, height: 140 }} resizeMode="cover" />
+            : <View style={{ width: 198, height: 80, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' }}>
+                <ActivityIndicator size="small" color="#94A3B8" />
+              </View>
           }
         </TouchableOpacity>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-          <Text style={{ fontSize: 11, color: '#6B7280', flex: 1 }} numberOfLines={1}>{fileName}</Text>
-          {viewUrl && (
-            <TouchableOpacity onPress={handleDownload} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-              <Ionicons name="download-outline" size={14} color="#6366F1" />
-            </TouchableOpacity>
-          )}
+        <View style={{ paddingHorizontal: 8, paddingVertical: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 11, color: '#6B7280', flex: 1 }} numberOfLines={1}>{fileName}</Text>
+            {viewUrl && (
+              <TouchableOpacity onPress={handleDownload} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                <Ionicons name="download-outline" size={14} color="#6366F1" />
+              </TouchableOpacity>
+            )}
+          </View>
+          {caption ? <Text style={{ fontSize: 13, color: '#374151', marginTop: 4, lineHeight: 18 }}>{caption}</Text> : null}
         </View>
       </View>
     )
@@ -257,10 +274,19 @@ function PortalAttachmentCard({ orderId, attId, fileName, fileType, isOwn }: {
 
   return (
     <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, borderTopRightRadius: isOwn ? 4 : 8, borderTopLeftRadius: isOwn ? 8 : 4, padding: 8 }}>
-      <Ionicons name="document-outline" size={16} color="#6B7280" />
-      <Text style={{ fontSize: 12, color: '#374151', flex: 1 }} numberOfLines={1}>{fileName}</Text>
-      <Ionicons name="download-outline" size={14} color="#6366F1" />
+      style={{
+        flexDirection: 'column', gap: 6, marginTop: 4,
+        backgroundColor: hasBubble ? bubbleBg : '#F9FAFB',
+        borderWidth: 1, borderColor: hasBubble ? bubbleBorder : '#E5E7EB',
+        borderRadius: 14, borderTopRightRadius: trr, borderTopLeftRadius: tlr,
+        padding: 10,
+      }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Ionicons name="document-outline" size={16} color="#6B7280" />
+        <Text style={{ fontSize: 12, color: '#374151', flex: 1 }} numberOfLines={1}>{fileName}</Text>
+        <Ionicons name="download-outline" size={14} color="#6366F1" />
+      </View>
+      {caption ? <Text style={{ fontSize: 13, color: '#374151', lineHeight: 18 }}>{caption}</Text> : null}
     </TouchableOpacity>
   )
 }
@@ -497,13 +523,8 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
               <Text style={[T.actorName, { color: avatarColor }]}>{isOwn ? 'You' : senderName}</Text>
             </View>
             <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, width: '100%', justifyContent: 'flex-start' }}>
-              <PortalAttachmentCard orderId={orderId} attId={attIdRaw} fileName={fileName} fileType={p.file_type} isOwn={isOwn} />
+              <PortalAttachmentCard orderId={orderId} attId={attIdRaw} fileName={fileName} fileType={p.file_type} isOwn={isOwn} isStaff={false} caption={attCaption} />
             </View>
-            {attCaption ? (
-              <View style={[T.bubble, { borderColor: isStaff ? '#BFDBFE' : '#A7F3D0', backgroundColor: isStaff ? '#EFF6FF' : '#F0FDF4', marginTop: 4, borderTopRightRadius: isOwn ? 4 : 14, borderTopLeftRadius: isOwn ? 14 : 4 }]}>
-                <Text style={T.commentText}>{attCaption}</Text>
-              </View>
-            ) : null}
             <Text style={[T.time, { marginTop: 4 }]}>{formatTimestamp(event.created_at)}</Text>
           </View>
         </View>
@@ -551,7 +572,7 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
                 })()}
                 {parsed.text !== '' && <Text style={T.commentText}>{parsed.text}</Text>}
                 {event.type === 'staff_portal_reply' && parsed.tokens.map(tok =>
-                  <PortalAttachmentCard key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={isOwn} />
+                  <PortalAttachmentCard key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={isOwn} isStaff={true} />
                 )}
               </View>
             </Animated.View>
