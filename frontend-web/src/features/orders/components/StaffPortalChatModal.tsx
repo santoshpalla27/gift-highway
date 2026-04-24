@@ -28,9 +28,6 @@ interface ParsedMsg {
   attachmentTokens: { id: number; name: string }[]
 }
 
-function ReplyIcon({ flip }: { flip?: boolean }) {
-  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={flip ? { transform: 'scaleX(-1)' } : undefined}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
-}
 
 function parseMsg(raw: string): ParsedMsg {
   const result: ParsedMsg = { text: '', replyToId: null, attachmentTokens: [] }

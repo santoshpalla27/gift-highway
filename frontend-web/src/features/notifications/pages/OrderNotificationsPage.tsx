@@ -278,8 +278,6 @@ export function OrderNotificationsPage() {
   const unreadCount = allEvents.filter(e => isUnread(e)).length
   const hasFilters = !!(search || eventTypeFilter || priorityFilter || unreadOnly)
 
-  // Get order info from first event
-  const orderTitle = allEvents[0] ? undefined : undefined // fetched via events
   // Pull order number/title from the summaries cache if available
   const summariesData = qc.getQueryData<{ orders: { order_id: string; order_number: number; order_title: string }[] }>(['notifications-orders'])
   const orderInfo = summariesData?.orders.find(o => o.order_id === orderId)

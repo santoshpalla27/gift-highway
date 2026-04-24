@@ -119,9 +119,9 @@ export function BellDropdown() {
   const [tab, setTab] = useState<Tab>('mine')
 
   // Always fetch both so badge and tabs are always up-to-date
-  const { groups: myGroupsRaw, totalCount: myCountRaw, isLoading: myLoading, markAllRead: markMyRead } =
+  const { groups: myGroupsRaw, isLoading: myLoading, markAllRead: markMyRead } =
     useNotifications({ mineOnly: true })
-  const { groups: otherGroupsRaw, totalCount: otherCountRaw, isLoading: otherLoading, markAllRead: markOtherRead } =
+  const { groups: otherGroupsRaw, isLoading: otherLoading, markAllRead: markOtherRead } =
     useNotifications({ othersOnly: true })
 
   // Filter by per-scope enabled types
