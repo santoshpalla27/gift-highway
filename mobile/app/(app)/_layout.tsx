@@ -48,19 +48,25 @@ export default function AppLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#25D366', // WhatsApp Green
-        tabBarInactiveTintColor: '#8E8E93',
+        tabBarActiveTintColor: '#6366F1', // Premium Indigo
+        tabBarInactiveTintColor: '#9CA3AF',
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: '#C6C6C8',
+          borderTopColor: '#E5E7EB',
           height: tabBarHeight,
-          paddingBottom: Math.max(insets.bottom, 14),
-          paddingTop: 10,
+          paddingBottom: Math.max(insets.bottom, 12),
+          paddingTop: 12,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.03,
+          shadowRadius: 8,
+          elevation: 5,
         },
         tabBarLabelStyle: {
           fontSize: 10,
-          fontWeight: '500',
+          fontWeight: '600',
+          marginTop: 4,
         },
         headerStyle: {
           backgroundColor: '#FFFFFF',

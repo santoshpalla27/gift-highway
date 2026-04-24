@@ -296,30 +296,28 @@ export default function DashboardScreen() {
 
   return (
     <View style={[S.container, { paddingTop: insets.top }]}>
-      {/* Header */}
+      {/* Header & Tabs */}
       <View style={S.header}>
-        <View>
+        <View style={S.headerTop}>
           <Text style={S.headerTitle}>Dashboard</Text>
           <Text style={S.headerSub}>
             Welcome back, {user?.first_name ?? 'there'} · {formatDate(new Date().toISOString())}
           </Text>
         </View>
-      </View>
 
-      {/* Tabs */}
-      <View style={S.tabBar}>
-        {(['my', 'team'] as TabKey[]).map(t => (
-          <TouchableOpacity
-            key={t}
-            style={[S.tabBtn, activeTab === t && S.tabBtnActive]}
-            onPress={() => setActiveTab(t)}
-            activeOpacity={0.8}
-          >
-            <Text style={[S.tabLabel, activeTab === t && S.tabLabelActive]}>
-              {t === 'team' ? 'Team Dashboard' : 'My Dashboard'}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        <View style={S.tabBar}>
+          {(['my', 'team'] as TabKey[]).map(t => (
+            <Pressable
+              key={t}
+              style={[S.tabBtn, activeTab === t && S.tabBtnActive]}
+              onPress={() => setActiveTab(t)}
+            >
+              <Text style={[S.tabLabel, activeTab === t && S.tabLabelActive]}>
+                {t === 'team' ? 'Team Dashboard' : 'My Dashboard'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
       {/* Content */}
@@ -353,32 +351,43 @@ const S = StyleSheet.create({
   // Header
   header: {
     backgroundColor: '#fff',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+    paddingBottom: 12,
+  },
+  headerTop: {
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
   },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: '#111827', letterSpacing: -0.4 },
-  headerSub:   { fontSize: 13, color: '#6B7280', marginTop: 3 },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#111827', letterSpacing: -0.5 },
+  headerSub:   { fontSize: 13, color: '#6B7280', marginTop: 4, fontWeight: '500' },
 
-  // Tabs (underline style)
+  // Tabs (Segmented Control Style)
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 4,
+    marginHorizontal: 16,
   },
   tabBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 11,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-    marginBottom: -StyleSheet.hairlineWidth,
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  tabBtnActive:  { borderBottomColor: '#6366F1' },
-  tabLabel:      { fontSize: 13, fontWeight: '600', color: '#6B7280' },
-  tabLabelActive: { color: '#6366F1' },
+  tabBtnActive: {
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  tabLabel: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
+  tabLabelActive: { color: '#111827' },
 
   // Scrollable content
   tabContent: { padding: 16, gap: 16 },
