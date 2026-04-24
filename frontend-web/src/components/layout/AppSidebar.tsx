@@ -13,14 +13,24 @@ export function AppSidebar({ isOpen, setIsOpen }: AppSidebarProps) {
     <aside className={`sidebar ${isOpen ? '' : 'collapsed'}`} id="sidebar">
       {/* Matched sidebar-logo structure to reference */}
       <div className="sidebar-logo">
-        <div className="logo-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-            <path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/>
-            <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
-            <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+        <div className="logo-icon" style={{ background: 'none', boxShadow: 'none', borderRadius: 0 }}>
+          <svg viewBox="0 0 100 100" width="30" height="30" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="50" fill="#F0914A" />
+            <g stroke="#1e1b4b" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M 16 28 H 25 L 34 62 H 70 L 78 38 H 28" />
+              <circle cx="40" cy="75" r="5" fill="none" />
+              <circle cx="64" cy="75" r="5" fill="none" />
+              <path d="M 38 32 H 68 V 39 H 38 Z" fill="#F0914A" />
+              <path d="M 42 39 V 56 H 64 V 39" fill="#F0914A" />
+              <path d="M 53 32 V 56" />
+              <path d="M 53 32 C 45 18 36 24 44 32" fill="#F0914A" />
+              <path d="M 53 32 C 61 18 70 24 62 32" fill="#F0914A" />
+            </g>
           </svg>
         </div>
-        <span className="logo-text">Gift<span>Highway</span></span>
+        <span className="logo-text" style={{ fontSize: 16, letterSpacing: '-0.5px' }}>
+          <span style={{ color: '#F0914A' }}>Gift</span>Highway
+        </span>
       </div>
 
       <nav className="sidebar-nav">

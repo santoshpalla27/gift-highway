@@ -281,16 +281,18 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
         {!isEdit && (
           <div style={{ padding: '0 32px 20px' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
-              <div
-                onClick={() => setCreatePortal(o => !o)}
-                style={{
-                  width: 18, height: 18, borderRadius: 4, flexShrink: 0,
-                  border: createPortal ? 'none' : '1.5px solid #CBD5E1',
-                  background: createPortal ? '#10B981' : 'transparent',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
-              >
+              <input
+                type="checkbox"
+                checked={createPortal}
+                onChange={e => setCreatePortal(e.target.checked)}
+                style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+              />
+              <div style={{
+                width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+                border: createPortal ? 'none' : '1.5px solid #CBD5E1',
+                background: createPortal ? '#10B981' : 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
                 {createPortal && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
               </div>
               <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>
