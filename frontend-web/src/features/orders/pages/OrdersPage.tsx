@@ -344,6 +344,11 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
   const from = total === 0 ? 0 : (page - 1) * limit + 1
   const to   = Math.min(page * limit, total)
 
+  // If the current page no longer exists (e.g. last row on page was deleted), jump back.
+  useEffect(() => {
+    if (!isLoading && total > 0 && page > totalPages) gotoPage(totalPages)
+  }, [isLoading, total, page, totalPages])
+
   const hasFilters = !!(statusFilter || priorityFilter || assigneeFilter || dueDateFrom || dueDateTo || overdueOnly || dueTodayOnly || unreadOnly)
 
   function clearAll() {
