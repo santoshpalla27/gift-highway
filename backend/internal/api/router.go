@@ -42,6 +42,8 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 	portalSvc := services.NewPortalService(portalRepo, orderRepo, eventRepo, cfg)
 	dashboardRepo := repositories.NewDashboardRepository(db)
 	dashboardSvc := services.NewDashboardService(dashboardRepo)
+	notificationRepo := repositories.NewNotificationRepository(db)
+	notificationSvc := services.NewNotificationService(notificationRepo)
 
 	hub := realtime.NewHub()
 	go hub.Run()
@@ -55,6 +57,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 	attachmentHandler := v1.NewAttachmentHandler(attachmentSvc, hub)
 	dashboardHandler := v1.NewDashboardHandler(dashboardSvc)
 	usersHandler := v1.NewUsersHandler(userRepo)
+	notificationHandler := v1.NewNotificationHandler(notificationSvc)
 	wsHandler := v1.NewWSHandler(hub, jwtManager)
 
 	// Health
@@ -124,6 +127,18 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 
 			// Users list for assignment dropdowns
 			protected.GET("/users", usersHandler.ListForAssignment)
+
+			// Notifications
+			notifGroup := protected.Group("/notifications")
+			{
+				notifGroup.GET("", notificationHandler.GetUnread)
+				notifGroup.GET("/history", notificationHandler.GetHistory)
+				notifGroup.GET("/orders", notificationHandler.GetOrderSummaries)
+				notifGroup.GET("/order/:orderId", notificationHandler.GetOrderNotifications)
+				notifGroup.GET("/order/:orderId/last-seen", notificationHandler.GetLastSeen)
+				notifGroup.POST("/read/:orderId", notificationHandler.MarkOrderRead)
+				notifGroup.POST("/read-all", notificationHandler.MarkAllRead)
+			}
 
 			// Orders routes
 			ordersGroup := protected.Group("/orders")

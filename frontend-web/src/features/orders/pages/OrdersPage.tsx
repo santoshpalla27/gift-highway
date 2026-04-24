@@ -8,6 +8,7 @@ import { useAuthStore } from '../../../store/authStore'
 import { EmptyState } from '../../../components/system/EmptyState'
 import { TableSkeleton } from '../../../components/system/Skeleton'
 import { orderService, type Order, type UserOption } from '../../../services/orderService'
+import { useNotifications } from '../../notifications/hooks/useNotifications'
 
 const STATUS_OPTIONS = ['new', 'in_progress', 'completed'] as const
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'urgent'] as const
@@ -200,6 +201,7 @@ const pillListItem = (active: boolean): React.CSSProperties => ({
 export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean }) {
   const { user } = useAuthStore()
   const navigate = useNavigate()
+  const { unreadByOrder } = useNotifications()
 
   // ── Filter state ─────────────────────────────────────────────────────────
   const [search, setSearch] = useState('')
@@ -524,6 +526,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                 <th>Assigned</th>
                 <th>Delivery</th>
                 <th>Activity</th>
+                <th>Alerts</th>
               </tr>
             </thead>
             <tbody>
@@ -531,7 +534,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                 <TableSkeleton rows={7} cols={6} />
               ) : orders.length === 0 ? (
                 <tr style={{ background: '#FFFFFF', cursor: 'default' }}>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     <EmptyState
                       title={hasFilters || search ? 'No matching orders' : myOrdersOnly ? 'No orders assigned to you' : 'No orders yet'}
                       description={hasFilters || search ? 'Try adjusting your filters.' : 'Create the first order to get started.'}
@@ -579,6 +582,18 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                     </td>
                     <td style={{ fontSize: 12.5, color: dateColor, fontWeight: dateColor === '#111827' ? 500 : 400 }}>
                       {updatedText}
+                    </td>
+                    <td onClick={e => e.stopPropagation()}>
+                      {(unreadByOrder.get(order.id) ?? 0) > 0 && (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          minWidth: 20, height: 20, borderRadius: 10,
+                          background: '#EF4444', color: '#fff',
+                          fontSize: 10, fontWeight: 700, padding: '0 5px',
+                        }}>
+                          {unreadByOrder.get(order.id)}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 )

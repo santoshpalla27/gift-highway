@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { notificationService } from '../../../services/notificationService'
+import { useNotifications } from '../../notifications/hooks/useNotifications'
 import { formatDate, formatRelative, formatDayGroup, fmt12hrStr } from '../../../utils/date'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -1023,6 +1025,26 @@ export function OrderDetailPage() {
     enabled: !!id,
   })
 
+  // ── Notifications: "New updates" divider ───────────────────────────────────
+  // ── Notifications: "New updates" divider ───────────────────────────────────
+  // newSinceAt = last_seen_at from DB (null on first visit).
+  // pageEnteredAt = fallback used only when newSinceAt is null, so the divider
+  // still appears for real-time messages that arrive on a first-time visit.
+  // Marking as read on unmount clears the threshold so the divider won't
+  // reappear for the same events on the next visit.
+  const { markOrderRead } = useNotifications()
+  const markOrderReadRef = useRef(markOrderRead)
+  markOrderReadRef.current = markOrderRead
+  const pageEnteredAt = useRef(new Date().toISOString())
+  const [newSinceAt, setNewSinceAt] = useState<string | null>(null)
+  useEffect(() => {
+    if (!id) return
+    setNewSinceAt(null)
+    pageEnteredAt.current = new Date().toISOString()
+    notificationService.getLastSeen(id).then(t => setNewSinceAt(t))
+    return () => { markOrderReadRef.current(id) }
+  }, [id])
+
   // ── Staff users for @mention ────────────────────────────────────────────────
   const { data: mentionUsers = [] } = useQuery<UserOption[]>({
     queryKey: ['users-for-mention'],
@@ -1645,45 +1667,67 @@ export function OrderDetailPage() {
                   for (const id of tokens) portalAttCaptions.set(id, caption)
                 }
               }
+              let newDividerInserted = false
               return groupByDate(allEvents).map(group => (
                 <div key={group.label}>
                   <DateDivider label={group.label} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     {group.events.map(ev => {
+                      // Insert "new updates" divider before the first event newer than last_seen_at
+                      let divider: React.ReactNode = null
+                      if (
+                        !newDividerInserted &&
+                        new Date(ev.created_at) > new Date(newSinceAt ?? pageEnteredAt.current) &&
+                        !ev.id.startsWith('opt-') &&
+                        ev.actor_id !== user?.id
+                      ) {
+                        newDividerInserted = true
+                        divider = (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0' }}>
+                            <div style={{ flex: 1, height: 1, background: '#6366F1', opacity: 0.3 }} />
+                            <span style={{ fontSize: 11, fontWeight: 600, color: '#6366F1', whiteSpace: 'nowrap', background: '#EEF2FF', padding: '2px 10px', borderRadius: 99 }}>
+                              New updates
+                            </span>
+                            <div style={{ flex: 1, height: 1, background: '#6366F1', opacity: 0.3 }} />
+                          </div>
+                        )
+                      }
                       const rawText = ev.type === 'comment_added' ? ((ev as any).payload?.text ?? '') : ''
                       const { replyEventId } = rawText ? parseCommentText(rawText) : { replyEventId: null }
                       const quotedEv = replyEventId ? allEvents.find(e => e.id === replyEventId) as LocalOrderEvent | undefined : undefined
                       const isHighlighted = highlightedEventId === ev.id
                       return (
-                        <div
-                          key={ev.id}
-                          ref={(el) => { eventRefs.current[ev.id] = el }}
-                          style={{
-                            animation: 'fadeSlideIn 0.2s ease',
-                            borderRadius: 8, padding: '2px 0',
-                            background: isHighlighted ? 'rgba(99,102,241,0.1)' : 'transparent',
-                            transition: 'background 0.5s',
-                          }}
-                        >
-                          <TimelineEvent
-                            event={ev as LocalOrderEvent}
-                            isOptimistic={ev.id.startsWith('opt-')}
-                            onRetry={() => handleRetry(ev as LocalOrderEvent)}
-                            onDelete={perms.canDeleteComment && (ev.type === 'comment_added' || ev.type === 'attachment_added') ? () => handleDeleteComment(ev.id) : undefined}
-                            onEdit={perms.canDeleteComment && ev.type === 'comment_added' ? async (newText: string) => {
-                              await orderService.editComment(id!, ev.id, newText)
-                              setEvList(prev => prev.map(e => e.id === ev.id ? { ...e, payload: { ...(e.payload as object), text: newText } as any } : e))
-                            } : undefined}
-                            onReply={(ev.type === 'comment_added' || ev.type === 'attachment_added' || ev.type === 'customer_message' || ev.type === 'customer_attachment' || ev.type === 'staff_portal_reply') && !ev.id.startsWith('opt-') ? () => handleSelectReplyEvent(ev as LocalOrderEvent) : undefined}
-                            onHighlightQuoted={replyEventId ? () => highlightEvent(replyEventId) : undefined}
-                            onHighlightPortalMsg={highlightPortalMsg}
-                            quotedEvent={quotedEv ?? null}
-                            orderId={id!}
-                            portalAttachments={portalAttachments}
-                            portalMessages={portalMessages}
-                            portalAttCaptions={portalAttCaptions}
-                            currentUserId={user?.id}
-                          />
+                        <div key={ev.id}>
+                          {divider}
+                          <div
+                            ref={(el) => { eventRefs.current[ev.id] = el }}
+                            style={{
+                              animation: 'fadeSlideIn 0.2s ease',
+                              borderRadius: 8, padding: '2px 0',
+                              background: isHighlighted ? 'rgba(99,102,241,0.1)' : 'transparent',
+                              transition: 'background 0.5s',
+                            }}
+                          >
+                            <TimelineEvent
+                              event={ev as LocalOrderEvent}
+                              isOptimistic={ev.id.startsWith('opt-')}
+                              onRetry={() => handleRetry(ev as LocalOrderEvent)}
+                              onDelete={perms.canDeleteComment && (ev.type === 'comment_added' || ev.type === 'attachment_added') ? () => handleDeleteComment(ev.id) : undefined}
+                              onEdit={perms.canDeleteComment && ev.type === 'comment_added' ? async (newText: string) => {
+                                await orderService.editComment(id!, ev.id, newText)
+                                setEvList(prev => prev.map(e => e.id === ev.id ? { ...e, payload: { ...(e.payload as object), text: newText } as any } : e))
+                              } : undefined}
+                              onReply={(ev.type === 'comment_added' || ev.type === 'attachment_added' || ev.type === 'customer_message' || ev.type === 'customer_attachment' || ev.type === 'staff_portal_reply') && !ev.id.startsWith('opt-') ? () => handleSelectReplyEvent(ev as LocalOrderEvent) : undefined}
+                              onHighlightQuoted={replyEventId ? () => highlightEvent(replyEventId) : undefined}
+                              onHighlightPortalMsg={highlightPortalMsg}
+                              quotedEvent={quotedEv ?? null}
+                              orderId={id!}
+                              portalAttachments={portalAttachments}
+                              portalMessages={portalMessages}
+                              portalAttCaptions={portalAttCaptions}
+                              currentUserId={user?.id}
+                            />
+                          </div>
                         </div>
                       )
                     })}
