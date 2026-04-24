@@ -3,7 +3,7 @@ import {
   TextInput, ActivityIndicator, Modal, Platform, Alert, RefreshControl,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker from '@react-native-community/datetimepicker'
@@ -89,6 +89,8 @@ function FilterSheet({
   const [usersLoaded, setUsersLoaded] = useState(false)
   const [showFromPicker, setShowFromPicker] = useState(false)
   const [showToPicker, setShowToPicker] = useState(false)
+  const fromPickerRef = useRef<any>(null)
+  const toPickerRef = useRef<any>(null)
 
   useEffect(() => {
     if (visible) {
@@ -197,10 +199,19 @@ function FilterSheet({
               <View style={{ flex: 1 }}>
                 <Text style={FS.dateLabel}>From</Text>
                 {Platform.OS === 'web' ? (
-                  <View style={FS.dateInput}>
-                    <input type="date" value={draft.dueDateFrom || ''} onChange={(e: any) => set({ dueDateFrom: e.target.value })}
-                      style={{ fontSize: 14, border: 'none', outline: 'none', background: 'transparent', color: draft.dueDateFrom ? '#0F172A' : '#94A3B8', cursor: 'pointer', width: '100%' }} />
-                  </View>
+                  <TouchableOpacity
+                    style={[FS.dateInput, { flexDirection: 'row', alignItems: 'center' }]}
+                    onPress={() => fromPickerRef.current?.showPicker?.()}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ flex: 1, fontSize: 14, color: draft.dueDateFrom ? '#0F172A' : '#94A3B8' }} numberOfLines={1}>
+                      {draft.dueDateFrom ? formatDate(draft.dueDateFrom) : 'DD/MM/YYYY'}
+                    </Text>
+                    <Ionicons name="calendar-outline" size={15} color="#94A3B8" />
+                    <input ref={fromPickerRef} type="date" value={draft.dueDateFrom || ''}
+                      onChange={(e: any) => set({ dueDateFrom: e.target.value })}
+                      style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }} />
+                  </TouchableOpacity>
                 ) : (
                   <TouchableOpacity style={FS.dateInput} onPress={() => setShowFromPicker(true)}>
                     <Text style={{ color: draft.dueDateFrom ? '#0F172A' : '#94A3B8', fontSize: 14 }}>
@@ -212,10 +223,19 @@ function FilterSheet({
               <View style={{ flex: 1 }}>
                 <Text style={FS.dateLabel}>To</Text>
                 {Platform.OS === 'web' ? (
-                  <View style={FS.dateInput}>
-                    <input type="date" value={draft.dueDateTo || ''} onChange={(e: any) => set({ dueDateTo: e.target.value })}
-                      style={{ fontSize: 14, border: 'none', outline: 'none', background: 'transparent', color: draft.dueDateTo ? '#0F172A' : '#94A3B8', cursor: 'pointer', width: '100%' }} />
-                  </View>
+                  <TouchableOpacity
+                    style={[FS.dateInput, { flexDirection: 'row', alignItems: 'center' }]}
+                    onPress={() => toPickerRef.current?.showPicker?.()}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ flex: 1, fontSize: 14, color: draft.dueDateTo ? '#0F172A' : '#94A3B8' }} numberOfLines={1}>
+                      {draft.dueDateTo ? formatDate(draft.dueDateTo) : 'DD/MM/YYYY'}
+                    </Text>
+                    <Ionicons name="calendar-outline" size={15} color="#94A3B8" />
+                    <input ref={toPickerRef} type="date" value={draft.dueDateTo || ''}
+                      onChange={(e: any) => set({ dueDateTo: e.target.value })}
+                      style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }} />
+                  </TouchableOpacity>
                 ) : (
                   <TouchableOpacity style={FS.dateInput} onPress={() => setShowToPicker(true)}>
                     <Text style={{ color: draft.dueDateTo ? '#0F172A' : '#94A3B8', fontSize: 14 }}>
@@ -284,7 +304,7 @@ function FilterSheet({
                 onPress={() => set({ overdueOnly: !draft.overdueOnly, dueTodayOnly: false })}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={[FS.toggleLabel, draft.overdueOnly && { color: '#EF4444' }]}>Overdue only</Text>
+                  <Text style={[FS.toggleLabel, draft.overdueOnly && { color: '#EF4444' }]}>Overdue</Text>
                   <Text style={FS.toggleSub}>Orders past their due date</Text>
                 </View>
                 <View style={[FS.toggle, draft.overdueOnly && FS.toggleOn]}>
@@ -296,7 +316,7 @@ function FilterSheet({
                 onPress={() => set({ dueTodayOnly: !draft.dueTodayOnly, overdueOnly: false })}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={[FS.toggleLabel, draft.dueTodayOnly && { color: '#D97706' }]}>Due today</Text>
+                  <Text style={[FS.toggleLabel, draft.dueTodayOnly && { color: '#D97706' }]}>Today</Text>
                   <Text style={FS.toggleSub}>Orders due on today's date</Text>
                 </View>
                 <View style={[FS.toggle, draft.dueTodayOnly && { backgroundColor: '#F59E0B' }]}>
@@ -308,7 +328,7 @@ function FilterSheet({
                 onPress={() => set({ unreadOnly: !draft.unreadOnly })}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={[FS.toggleLabel, draft.unreadOnly && { color: '#6366F1' }]}>Unread alerts</Text>
+                  <Text style={[FS.toggleLabel, draft.unreadOnly && { color: '#6366F1' }]}>Unread</Text>
                   <Text style={FS.toggleSub}>Orders with unread notifications</Text>
                 </View>
                 <View style={[FS.toggle, draft.unreadOnly && { backgroundColor: '#6366F1' }]}>
@@ -365,6 +385,8 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
   const [users, setUsers] = useState<UserOption[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const datePickerRef = useRef<any>(null)
+  const timePickerRef = useRef<any>(null)
 
   useEffect(() => {
     if (visible) orderService.listUsersForAssignment().then(setUsers).catch(() => {})
@@ -437,14 +459,32 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
             {Platform.OS === 'web' ? (
               <>
-                <View style={[F.input, { flex: 1, flexDirection: 'row', alignItems: 'center' }]}>
-                  <input type="date" value={dueDate || ''} onChange={(e: any) => setDueDate(e.target.value)}
-                    style={{ flex: 1, fontSize: 15, border: 'none', outline: 'none', background: 'transparent', color: dueDate ? '#0F172A' : '#94A3B8', cursor: 'pointer' }} />
-                </View>
-                <View style={[F.input, { width: 110, flexDirection: 'row', alignItems: 'center' }]}>
-                  <input type="time" value={dueTime || ''} onChange={(e: any) => setDueTime(e.target.value)}
-                    style={{ flex: 1, fontSize: 15, border: 'none', outline: 'none', background: 'transparent', color: dueTime ? '#0F172A' : '#94A3B8', cursor: 'pointer' }} />
-                </View>
+                <TouchableOpacity
+                  style={[F.input, { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                  onPress={() => datePickerRef.current?.showPicker?.()}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ flex: 1, fontSize: 15, color: dueDate ? '#0F172A' : '#94A3B8' }} numberOfLines={1}>
+                    {dueDate ? formatDate(dueDate) : 'DD/MM/YYYY'}
+                  </Text>
+                  <Ionicons name="calendar-outline" size={18} color="#94A3B8" />
+                  <input ref={datePickerRef} type="date" value={dueDate || ''}
+                    onChange={(e: any) => setDueDate(e.target.value)}
+                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[F.input, { width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                  onPress={() => timePickerRef.current?.showPicker?.()}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ flex: 1, fontSize: 15, color: dueTime ? '#0F172A' : '#94A3B8' }} numberOfLines={1}>
+                    {dueTime ? fmt12hrStr(dueTime) : 'Time'}
+                  </Text>
+                  <Ionicons name="time-outline" size={18} color="#94A3B8" />
+                  <input ref={timePickerRef} type="time" value={dueTime || ''}
+                    onChange={(e: any) => setDueTime(e.target.value)}
+                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }} />
+                </TouchableOpacity>
               </>
             ) : (
               <>
@@ -668,7 +708,7 @@ function ActiveFilterPills({ filters, onClear }: { filters: FilterState; onClear
     pills.push({ label, key: 'dueDateFrom' })
   }
   if (filters.overdueOnly) pills.push({ label: 'Overdue', key: 'overdueOnly' })
-  if (filters.dueTodayOnly) pills.push({ label: 'Due Today', key: 'dueTodayOnly' })
+  if (filters.dueTodayOnly) pills.push({ label: 'Today', key: 'dueTodayOnly' })
   if (filters.unreadOnly) pills.push({ label: 'Unread', key: 'unreadOnly' })
 
   if (pills.length === 0) return null
@@ -719,7 +759,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
         due_to: filters.overdueOnly ? yesterday : filters.dueTodayOnly ? today : (filters.dueDateTo || undefined),
       })
       setOrders(data.orders)
-      setTotal(filters.overdueOnly || filters.dueTodayOnly ? data.orders.length : data.total)
+      setTotal(data.total)
     } catch {
       // silently fail
     } finally {
@@ -805,7 +845,14 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
         <View>
           <Text style={S.screenTitle}>{myOrdersOnly ? 'My Orders' : 'All Orders'}</Text>
           <Text style={S.countText}>
-            {loading ? 'Loading…' : `${orders.length} order${orders.length !== 1 ? 's' : ''}${hasAnyFilter ? ' · filtered' : ''}`}
+            {loading
+              ? 'Loading…'
+              : filters.unreadOnly
+                ? `${orders.length} unread`
+                : total === 0
+                  ? (myOrdersOnly ? '0 orders assigned to you' : '0 orders')
+                  : `${orders.length}${total > orders.length ? ` of ${total}` : ''} ${myOrdersOnly ? 'assigned ' : ''}order${orders.length !== 1 ? 's' : ''}${hasAnyFilter ? ' · filtered' : ''}`
+            }
           </Text>
         </View>
         {hasAnyFilter && (
