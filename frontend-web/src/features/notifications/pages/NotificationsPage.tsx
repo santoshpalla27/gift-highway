@@ -4,48 +4,41 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationService } from '../../../services/notificationService'
 import { formatRelative } from '../../../utils/date'
 import { useAuthStore } from '../../../store/authStore'
-import { useNotifications } from '../hooks/useNotifications'
 
 export function NotificationsPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { isAuthenticated } = useAuthStore()
   const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
 
-  // getHistory was working before — reuse it for the order list
   const { data, isLoading } = useQuery({
-    queryKey: ['notifications-history', page],
-    queryFn: () => notificationService.getHistory(page),
+    queryKey: ['notifications-summaries'],
+    queryFn: () => notificationService.getOrderSummaries(),
     enabled: isAuthenticated,
     staleTime: 30_000,
+    refetchInterval: 60_000,
   })
-
-  // unreadByOrder comes from the existing bell-data hook (confirmed working)
-  const { unreadByOrder } = useNotifications()
 
   const { mutate: markAllRead, isPending: markingAll } = useMutation({
     mutationFn: notificationService.markAllRead,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['notifications'] })
-      qc.invalidateQueries({ queryKey: ['notifications-history'] })
+      qc.invalidateQueries({ queryKey: ['notifications-summaries'] })
     },
   })
 
-  const groups = data?.groups ?? []
-  const total = data?.total ?? 0
-  const perPage = 50
+  const orders = data?.orders ?? []
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return groups
+    if (!search.trim()) return orders
     const q = search.toLowerCase()
-    return groups.filter(g =>
-      g.order_title.toLowerCase().includes(q) ||
-      String(g.order_number).includes(q)
+    return orders.filter(o =>
+      o.order_title.toLowerCase().includes(q) ||
+      String(o.order_number).includes(q)
     )
-  }, [groups, search])
+  }, [orders, search])
 
-  const totalUnread = Array.from(unreadByOrder.values()).reduce((s, n) => s + n, 0)
+  const totalUnread = orders.reduce((s, o) => s + o.unread_count, 0)
 
   return (
     <div style={{
@@ -172,14 +165,12 @@ export function NotificationsPage() {
                     </div>
                   </td>
                 </tr>
-              ) : filtered.map(g => {
-                const unread = unreadByOrder.get(g.order_id) ?? 0
-                return (
+              ) : filtered.map(o => (
                   <tr
-                    key={g.order_id}
+                    key={o.order_id}
                     className="notif-row"
                     style={{ borderBottom: '1px solid #E4E6EF', background: '#FFFFFF' }}
-                    onClick={() => navigate(`/notifications/${g.order_id}`)}
+                    onClick={() => navigate(`/notifications/${o.order_id}`)}
                   >
                     <td style={{ padding: '13px 16px' }}>
                       <span style={{
@@ -187,29 +178,29 @@ export function NotificationsPage() {
                         background: '#EEF2FF', border: '1px solid #C7D2FE',
                         borderRadius: 6, padding: '3px 8px', fontFamily: 'monospace',
                       }}>
-                        #{g.order_number}
+                        #{o.order_number}
                       </span>
                     </td>
 
                     <td style={{ padding: '13px 16px', maxWidth: 340 }}>
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
-                        {g.order_title}
+                        {o.order_title}
                       </span>
                     </td>
 
                     <td style={{ padding: '13px 16px' }}>
-                      <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>{g.unread_count}</span>
+                      <span style={{ fontSize: 13, color: '#6B7280', fontWeight: 500 }}>{o.total_count}</span>
                     </td>
 
                     <td style={{ padding: '13px 16px' }}>
-                      {unread > 0 ? (
+                      {o.unread_count > 0 ? (
                         <span style={{
                           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                           minWidth: 22, height: 22, borderRadius: 11,
                           background: '#6366F1', color: '#fff',
                           fontSize: 11, fontWeight: 700, padding: '0 6px',
                         }}>
-                          {unread}
+                          {o.unread_count}
                         </span>
                       ) : (
                         <span style={{ fontSize: 13, color: '#D1D5DB' }}>—</span>
@@ -217,7 +208,7 @@ export function NotificationsPage() {
                     </td>
 
                     <td style={{ padding: '13px 16px' }}>
-                      <span style={{ fontSize: 12.5, color: '#6B7280' }}>{formatRelative(g.last_event_at)}</span>
+                      <span style={{ fontSize: 12.5, color: '#6B7280' }}>{formatRelative(o.last_event_at)}</span>
                     </td>
 
                     <td style={{ padding: '13px 16px', textAlign: 'right' }}>
@@ -226,37 +217,11 @@ export function NotificationsPage() {
                       </svg>
                     </td>
                   </tr>
-                )
-              })}
+              ))}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination */}
-        {total > perPage && !search && (
-          <div style={{ padding: '12px 16px', borderTop: '1px solid #E4E6EF', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#FAFAFA' }}>
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 14px', border: '1.5px solid #E4E6EF', borderRadius: 8, background: '#FFFFFF', cursor: page === 1 ? 'default' : 'pointer', fontSize: 13, color: page === 1 ? '#9CA3AF' : '#374151', fontWeight: 500 }}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
-              Prev
-            </button>
-            <span style={{ padding: '6px 14px', borderRadius: 8, background: '#EEF2FF', fontSize: 13, color: '#4F46E5', fontWeight: 600, border: '1.5px solid #C7D2FE' }}>
-              {page}
-            </span>
-            <span style={{ fontSize: 13, color: '#9CA3AF' }}>of {Math.ceil(total / perPage)}</span>
-            <button
-              onClick={() => setPage(p => p + 1)}
-              disabled={page * perPage >= total}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 14px', border: '1.5px solid #E4E6EF', borderRadius: 8, background: '#FFFFFF', cursor: page * perPage >= total ? 'default' : 'pointer', fontSize: 13, color: page * perPage >= total ? '#9CA3AF' : '#374151', fontWeight: 500 }}
-            >
-              Next
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
-        )}
       </div>
     </div>
   )
