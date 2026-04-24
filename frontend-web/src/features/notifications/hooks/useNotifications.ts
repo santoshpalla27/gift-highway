@@ -27,14 +27,14 @@ function persist() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...recentlyRead.entries()])) } catch { /* ignore */ }
 }
 
-export function useNotifications() {
+export function useNotifications({ mineOnly = false, othersOnly = false }: { mineOnly?: boolean; othersOnly?: boolean } = {}) {
   const { isAuthenticated } = useAuthStore()
   const qc = useQueryClient()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['notifications'],
-    queryFn: notificationService.getUnread,
+    queryKey: ['notifications', { mine: mineOnly, others: othersOnly }],
+    queryFn: () => notificationService.getUnread(mineOnly, othersOnly),
     enabled: isAuthenticated,
     staleTime: 30_000,
     refetchInterval: 60_000,

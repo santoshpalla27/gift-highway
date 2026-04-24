@@ -25,11 +25,12 @@ func (h *NotificationHandler) userID(c *gin.Context) string {
 }
 
 // GET /api/v1/notifications — bell dropdown data (unread groups, top 10)
-// ?mine=true restricts to orders the user is assigned to or created.
+// ?mine=true → only my orders. ?others=true → only orders not mine.
 func (h *NotificationHandler) GetUnread(c *gin.Context) {
 	uid := h.userID(c)
 	mineOnly := c.Query("mine") == "true"
-	groups, total, err := h.svc.GetUnreadGroups(c.Request.Context(), uid, mineOnly)
+	othersOnly := c.Query("others") == "true"
+	groups, total, err := h.svc.GetUnreadGroups(c.Request.Context(), uid, mineOnly, othersOnly)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch notifications"})
 		return

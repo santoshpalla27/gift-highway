@@ -96,10 +96,15 @@ function GroupRow({ group, onOpen }: { group: DisplayGroup; onOpen: () => void }
 
 // ── Bell Dropdown ─────────────────────────────────────────────────────────────
 
+type Tab = 'mine' | 'others'
+
 export function BellDropdown() {
   const navigate = useNavigate()
-  const [mineOnly, setMineOnly] = useState(true)
-  const { groups, totalCount, isLoading, markAllRead } = useNotifications({ mineOnly })
+  const [tab, setTab] = useState<Tab>('mine')
+  const { groups, totalCount, isLoading, markAllRead } = useNotifications({
+    mineOnly: tab === 'mine',
+    othersOnly: tab === 'others',
+  })
   // Badge always reflects "My Orders" count regardless of active tab
   const { totalCount: myCount } = useNotifications({ mineOnly: true })
   const [open, setOpen] = useState(false)
@@ -173,19 +178,19 @@ export function BellDropdown() {
 
             {/* Tabs */}
             <div style={{ display: 'flex', gap: 2 }}>
-              {([true, false] as const).map(mine => (
+              {(['mine', 'others'] as Tab[]).map(t => (
                 <button
-                  key={String(mine)}
-                  onClick={() => setMineOnly(mine)}
+                  key={t}
+                  onClick={() => setTab(t)}
                   style={{
                     flex: 1, padding: '6px 0', fontSize: 12, fontWeight: 600,
                     background: 'none', border: 'none', cursor: 'pointer',
-                    color: mineOnly === mine ? '#4F46E5' : '#9CA3AF',
-                    borderBottom: mineOnly === mine ? '2px solid #6366F1' : '2px solid transparent',
+                    color: tab === t ? '#4F46E5' : '#9CA3AF',
+                    borderBottom: tab === t ? '2px solid #6366F1' : '2px solid transparent',
                     transition: 'color 150ms, border-color 150ms',
                   }}
                 >
-                  {mine ? 'My Orders' : 'All'}
+                  {t === 'mine' ? 'My Orders' : 'Other Orders'}
                 </button>
               ))}
             </div>
@@ -202,7 +207,7 @@ export function BellDropdown() {
                   <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
                 </svg>
                 <p style={{ fontSize: 13, color: '#9CA3AF', margin: 0 }}>
-                  {mineOnly ? "You're all caught up" : 'No notifications'}
+                  {tab === 'mine' ? "You're all caught up" : 'No activity on other orders'}
                 </p>
               </div>
             ) : (

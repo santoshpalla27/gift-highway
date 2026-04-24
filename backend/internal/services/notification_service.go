@@ -71,9 +71,9 @@ func NewNotificationService(repo *repositories.NotificationRepository) *Notifica
 }
 
 // GetUnreadGroups returns unread notification groups for the bell dropdown.
-// mineOnly restricts to orders the user is assigned to or created.
-func (s *NotificationService) GetUnreadGroups(ctx context.Context, userID string, mineOnly bool) ([]*NotificationGroup, int, error) {
-	events, err := s.repo.GetUnreadEvents(ctx, userID, mineOnly)
+// mineOnly: only my orders. othersOnly: only orders not mine.
+func (s *NotificationService) GetUnreadGroups(ctx context.Context, userID string, mineOnly, othersOnly bool) ([]*NotificationGroup, int, error) {
+	events, err := s.repo.GetUnreadEvents(ctx, userID, mineOnly, othersOnly)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -51,12 +51,21 @@ const mineOnlyClause = `
     OR o.created_by::text = $1
   )`
 
+const othersOnlyClause = `
+  AND NOT (
+    EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = e.order_id AND oa.user_id::text = $1)
+    OR o.created_by::text = $1
+  )`
+
 // GetUnreadEvents returns all unread notifiable events for a user.
-// mineOnly restricts to orders the user is assigned to or created.
-func (r *NotificationRepository) GetUnreadEvents(ctx context.Context, userID string, mineOnly bool) ([]*NotificationEvent, error) {
-	mine := ""
+// mineOnly: only orders the user is assigned to or created.
+// othersOnly: only orders the user is NOT assigned to and did NOT create.
+func (r *NotificationRepository) GetUnreadEvents(ctx context.Context, userID string, mineOnly, othersOnly bool) ([]*NotificationEvent, error) {
+	filter := ""
 	if mineOnly {
-		mine = mineOnlyClause
+		filter = mineOnlyClause
+	} else if othersOnly {
+		filter = othersOnlyClause
 	}
 	query := fmt.Sprintf(`
 		SELECT e.id, e.order_id, e.type, e.actor_id, e.payload, e.created_at,
@@ -72,7 +81,7 @@ func (r *NotificationRepository) GetUnreadEvents(ctx context.Context, userID str
 		%s
 		ORDER BY e.created_at DESC
 		LIMIT 500
-	`, mine)
+	`, filter)
 	var events []*NotificationEvent
 	err := r.db.SelectContext(ctx, &events, query, userID, pq.Array(notifiableTypes))
 	return events, err

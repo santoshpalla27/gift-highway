@@ -28,8 +28,9 @@ export interface OrderNotificationSummary {
 }
 
 export const notificationService = {
-  getUnread: async (): Promise<{ groups: NotificationGroup[]; total_count: number }> => {
-    const res = await apiClient.get('/notifications')
+  getUnread: async (mine = false, others = false): Promise<{ groups: NotificationGroup[]; total_count: number }> => {
+    const params = mine ? { mine: 'true' } : others ? { others: 'true' } : {}
+    const res = await apiClient.get('/notifications', { params })
     return res.data
   },
 
