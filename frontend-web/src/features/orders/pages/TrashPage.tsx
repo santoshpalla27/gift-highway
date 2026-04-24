@@ -121,8 +121,8 @@ export function TrashPage() {
     setActionLoading(order.id)
     try {
       await orderService.restoreOrder(order.id)
-      queryClient.invalidateQueries({ queryKey: ['trash'] })
-      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      await queryClient.invalidateQueries({ queryKey: ['trash'] })
+      await queryClient.invalidateQueries({ queryKey: ['orders'] })
       showToast(`Order #${order.order_number} restored.`)
     } catch {
       showToast('Failed to restore order.')
@@ -135,7 +135,7 @@ export function TrashPage() {
     setActionLoading(order.id)
     try {
       await orderService.permanentDelete(order.id)
-      queryClient.invalidateQueries({ queryKey: ['trash'] })
+      await queryClient.invalidateQueries({ queryKey: ['trash'] })
       showToast(`Order #${order.order_number} permanently deleted.`)
     } catch {
       showToast('Failed to delete order.')
