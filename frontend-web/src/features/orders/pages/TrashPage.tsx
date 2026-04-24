@@ -48,7 +48,7 @@ function ConfirmDeleteModal({ order, onClose, onConfirm }: {
         </div>
 
         <div style={{ background: '#FEF2F2', borderRadius: 8, padding: '10px 12px', marginBottom: 18, fontSize: 13, color: '#B91C1C' }}>
-          Order <strong>#{order.order_number}</strong> — {order.title} and all its data (events, attachments, portal messages) will be permanently deleted.
+          Order <strong>#{order.title}</strong> and all its data (events, attachments, portal messages) will be permanently deleted.
         </div>
 
         <div style={{ marginBottom: 18 }}>
@@ -124,7 +124,7 @@ export function TrashPage() {
       await orderService.restoreOrder(order.id)
       await queryClient.invalidateQueries({ queryKey: ['trash'] })
       await queryClient.invalidateQueries({ queryKey: ['orders'] })
-      showToast(`Order #${order.order_number} restored.`)
+      showToast(`Order #${order.title} restored.`)
     } catch {
       showToast('Failed to restore order.')
     } finally {
@@ -141,7 +141,7 @@ export function TrashPage() {
         queryClient.invalidateQueries({ queryKey: ['trash'] }),
         queryClient.invalidateQueries({ queryKey: ['notifications'] }),
       ])
-      showToast(`Order #${order.order_number} permanently deleted.`)
+      showToast(`Order #${order.title} permanently deleted.`)
     } catch {
       showToast('Failed to delete order.')
     } finally {
@@ -209,7 +209,7 @@ export function TrashPage() {
                       <td>
                         <button
                           onClick={() => navigate(`/orders/${order.id}`)}
-                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 13.5, color: '#111827', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', textAlign: 'left' }}
+                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 13.5, color: '#2563EB', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', textAlign: 'left' }}
                         >
                           #{order.title}
                         </button>

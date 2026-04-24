@@ -325,7 +325,7 @@ export function OrderNotificationsPage() {
                   background: '#EEF2FF', border: '1px solid #C7D2FE',
                   borderRadius: 6, padding: '3px 8px', fontFamily: 'monospace',
                 }}>
-                  #{orderInfo.order_number}
+                  Order #{orderInfo.order_title}
                 </span>
               )}
               <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', margin: 0, letterSpacing: '-0.4px' }}>

@@ -162,7 +162,7 @@ function GlobalSearch() {
                     borderRadius: 'var(--radius-sm)', padding: '2px 6px',
                     flexShrink: 0, letterSpacing: '0.3px', fontFamily: 'monospace',
                   }}>
-                    #{order.order_number}
+                    #{order.title}
                   </span>
 
                   {/* Title + customer */}

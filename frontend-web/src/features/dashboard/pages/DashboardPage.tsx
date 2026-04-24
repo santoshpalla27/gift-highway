@@ -80,7 +80,7 @@ function OrderRow({ order, onClick }: { order: DashboardOrder; onClick: () => vo
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
     >
       <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent)', fontFamily: 'monospace', flexShrink: 0 }}>
-        #{order.order_number}
+        #{order.title}
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

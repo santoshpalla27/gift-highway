@@ -66,7 +66,7 @@ function GroupRow({ group, onOpen }: { group: DisplayGroup; onOpen: () => void }
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
         {!group.isRead && priorityDot(topPriority)}
         <span style={{ fontSize: 12, fontWeight: group.isRead ? 500 : 700, color: group.isRead ? '#6B7280' : '#111827', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          Order #{group.order_number} · {group.order_title}
+          Order #{group.order_title}
         </span>
         {!group.isRead && (
           <span style={{

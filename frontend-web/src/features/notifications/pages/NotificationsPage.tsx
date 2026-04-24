@@ -178,7 +178,7 @@ export function NotificationsPage() {
                         background: '#EEF2FF', border: '1px solid #C7D2FE',
                         borderRadius: 6, padding: '3px 8px', fontFamily: 'monospace',
                       }}>
-                        #{o.order_number}
+                        Order #{o.order_title}
                       </span>
                     </td>
 

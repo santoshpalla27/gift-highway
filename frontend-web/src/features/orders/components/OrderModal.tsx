@@ -141,7 +141,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
               {isEdit ? 'Edit Order' : 'Create Order'}
             </div>
             <div style={{ fontSize: '14px', color: '#64748B', marginTop: '4px' }}>
-              {isEdit ? `Updating order #${order!.order_number}` : 'Fill in the operational details'}
+              {isEdit ? `Updating order #${order!.title}` : 'Fill in the operational details'}
             </div>
           </div>
           <button

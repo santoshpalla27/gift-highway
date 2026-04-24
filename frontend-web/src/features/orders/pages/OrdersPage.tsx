@@ -679,7 +679,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
 
                 return (
                   <tr key={order.id} onClick={() => navigate(`/orders/${order.id}`)}>
-                    <td><span style={{ fontWeight: 700, fontSize: 13.5, color: '#111827' }}>#{order.title}</span></td>
+                    <td><span style={{ fontWeight: 700, fontSize: 13.5, color: '#2563EB' }}>#{order.title}</span></td>
                     <td><span style={{ fontWeight: 600, fontSize: 13.5, color: '#111827' }}>{order.customer_name}</span></td>
                     <td><StatusDropdown order={order} onChanged={msg => setToast(msg)} /></td>
                     <td>
