@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../hooks/useNotifications'
+import { useNotifPreference } from '../hooks/useNotifPreference'
 import type { DisplayGroup } from '../hooks/useNotifications'
 import type { NotificationEvent } from '../../../services/notificationService'
 import { formatRelative } from '../../../utils/date'
+
+type Tab = 'mine' | 'others'
 
 // ── Event preview text ────────────────────────────────────────────────────────
 
@@ -58,7 +61,6 @@ function GroupRow({ group, onOpen }: { group: DisplayGroup; onOpen: () => void }
       onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
       onMouseLeave={e => (e.currentTarget.style.background = 'none')}
     >
-      {/* Row header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
         {!group.isRead && priorityDot(topPriority)}
         <span style={{ fontSize: 12, fontWeight: group.isRead ? 500 : 700, color: group.isRead ? '#6B7280' : '#111827', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -74,7 +76,6 @@ function GroupRow({ group, onOpen }: { group: DisplayGroup; onOpen: () => void }
         )}
       </div>
 
-      {/* Event lines */}
       {group.events.slice(0, group.unread_count <= 2 ? group.unread_count : 1).map(e => (
         <div key={e.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, paddingLeft: group.isRead ? 0 : 15 }}>
           <span style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
@@ -96,17 +97,25 @@ function GroupRow({ group, onOpen }: { group: DisplayGroup; onOpen: () => void }
 
 // ── Bell Dropdown ─────────────────────────────────────────────────────────────
 
-type Tab = 'mine' | 'others'
-
 export function BellDropdown() {
   const navigate = useNavigate()
+  const { scope } = useNotifPreference()
   const [tab, setTab] = useState<Tab>('mine')
-  const { groups, totalCount, isLoading, markAllRead } = useNotifications({
-    mineOnly: tab === 'mine',
-    othersOnly: tab === 'others',
-  })
-  // Badge always reflects "My Orders" count regardless of active tab
-  const { totalCount: myCount } = useNotifications({ mineOnly: true })
+
+  // Always fetch both so badge and tabs are always up-to-date
+  const { groups: myGroups, totalCount: myCount, isLoading: myLoading, markAllRead: markMyRead } =
+    useNotifications({ mineOnly: true })
+  const { groups: otherGroups, totalCount: otherCount, isLoading: otherLoading, markAllRead: markOtherRead } =
+    useNotifications({ othersOnly: true })
+
+  // Preference controls the badge: "all_orders" includes both counts
+  const badgeCount = scope === 'all_orders' ? myCount + otherCount : myCount
+
+  const groups = tab === 'mine' ? myGroups : otherGroups
+  const isLoading = tab === 'mine' ? myLoading : otherLoading
+  const totalCount = tab === 'mine' ? myCount : otherCount
+  const markAllRead = tab === 'mine' ? markMyRead : markOtherRead
+
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -137,7 +146,7 @@ export function BellDropdown() {
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
         </svg>
-        {myCount > 0 && (
+        {badgeCount > 0 && (
           <span style={{
             position: 'absolute', top: 6, right: 6,
             minWidth: 16, height: 16, borderRadius: 8,
@@ -146,7 +155,7 @@ export function BellDropdown() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '0 3px', lineHeight: 1, pointerEvents: 'none',
           }}>
-            {myCount > 99 ? '99+' : myCount}
+            {badgeCount > 99 ? '99+' : badgeCount}
           </span>
         )}
       </button>
@@ -175,7 +184,6 @@ export function BellDropdown() {
                 </button>
               )}
             </div>
-
             {/* Tabs */}
             <div style={{ display: 'flex', gap: 2 }}>
               {(['mine', 'others'] as Tab[]).map(t => (
@@ -197,7 +205,7 @@ export function BellDropdown() {
           </div>
 
           {/* Groups */}
-          <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+          <div style={{ maxHeight: 420, overflowY: 'auto' }}>
             {isLoading ? (
               <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: 13, color: '#9CA3AF' }}>Loading…</div>
             ) : groups.length === 0 ? (

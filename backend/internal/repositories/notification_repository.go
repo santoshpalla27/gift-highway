@@ -45,26 +45,21 @@ func NewNotificationRepository(db *sqlx.DB) *NotificationRepository {
 	return &NotificationRepository{db: db}
 }
 
+// mineOnly = only orders the user is assigned to.
 const mineOnlyClause = `
-  AND (
-    EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = e.order_id AND oa.user_id::text = $1)
-    OR o.created_by::text = $1
-  )`
+  AND EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = e.order_id AND oa.user_id::text = $1)`
 
+// othersOnly = only orders the user is NOT assigned to.
 const othersOnlyClause = `
-  AND NOT (
-    EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = e.order_id AND oa.user_id::text = $1)
-    OR o.created_by::text = $1
-  )`
+  AND NOT EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = e.order_id AND oa.user_id::text = $1)`
 
 // GetUnreadEvents returns all unread notifiable events for a user.
-// mineOnly: only orders the user is assigned to or created.
-// othersOnly: only orders the user is NOT assigned to and did NOT create.
 func (r *NotificationRepository) GetUnreadEvents(ctx context.Context, userID string, mineOnly, othersOnly bool) ([]*NotificationEvent, error) {
 	filter := ""
-	if mineOnly {
+	switch {
+	case mineOnly:
 		filter = mineOnlyClause
-	} else if othersOnly {
+	case othersOnly:
 		filter = othersOnlyClause
 	}
 	query := fmt.Sprintf(`
