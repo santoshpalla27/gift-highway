@@ -22,9 +22,9 @@ const STATUS_OPTIONS = ['new', 'in_progress', 'completed'] as const
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'urgent'] as const
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  new:         { label: 'New',     color: '#6B7280', bg: '#F3F4F6' },
-  in_progress: { label: 'Working', color: '#3B82F6', bg: '#EFF6FF' },
-  completed:   { label: 'Done',    color: '#10B981', bg: '#ECFDF5' },
+  new:         { label: 'Yet to Start', color: '#6B7280', bg: '#F3F4F6' },
+  in_progress: { label: 'Working',      color: '#3B82F6', bg: '#EFF6FF' },
+  completed:   { label: 'Done',         color: '#10B981', bg: '#ECFDF5' },
 }
 
 const PRIORITY_META: Record<string, { label: string; color: string; bg: string }> = {
@@ -62,15 +62,16 @@ interface FilterState {
   dueDateTo: string
   overdueOnly: boolean
   dueTodayOnly: boolean
+  unreadOnly: boolean
 }
 
 const emptyFilters: FilterState = {
   status: '', priority: '', assigneeId: '', assigneeName: '',
-  dueDateFrom: '', dueDateTo: '', overdueOnly: false, dueTodayOnly: false,
+  dueDateFrom: '', dueDateTo: '', overdueOnly: false, dueTodayOnly: false, unreadOnly: false,
 }
 
 function activeCount(f: FilterState) {
-  return [f.status, f.priority, f.assigneeId, f.dueDateFrom || f.dueDateTo, f.overdueOnly, f.dueTodayOnly].filter(Boolean).length
+  return [f.status, f.priority, f.assigneeId, f.dueDateFrom || f.dueDateTo, f.overdueOnly, f.dueTodayOnly, f.unreadOnly].filter(Boolean).length
 }
 
 function FilterSheet({
@@ -300,6 +301,18 @@ function FilterSheet({
                 </View>
                 <View style={[FS.toggle, draft.dueTodayOnly && { backgroundColor: '#F59E0B' }]}>
                   <View style={[FS.toggleThumb, draft.dueTodayOnly && FS.toggleThumbOn]} />
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[FS.toggleRow, draft.unreadOnly && FS.toggleRowUnread]}
+                onPress={() => set({ unreadOnly: !draft.unreadOnly })}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[FS.toggleLabel, draft.unreadOnly && { color: '#6366F1' }]}>Unread alerts</Text>
+                  <Text style={FS.toggleSub}>Orders with unread notifications</Text>
+                </View>
+                <View style={[FS.toggle, draft.unreadOnly && { backgroundColor: '#6366F1' }]}>
+                  <View style={[FS.toggleThumb, draft.unreadOnly && FS.toggleThumbOn]} />
                 </View>
               </TouchableOpacity>
             </View>
@@ -586,30 +599,56 @@ function StatusPickerModal({ order, onClose, onRefresh }: { order: Order | null;
 
 // ─── Order Card ───────────────────────────────────────────────────────────────
 
-function OrderCard({ order, onOpen, onStatusPress }: { order: Order; onOpen: () => void; onStatusPress: () => void }) {
+function OrderCard({ order, onOpen, onStatusPress, unreadCount = 0 }: {
+  order: Order; onOpen: () => void; onStatusPress: () => void; unreadCount?: number
+}) {
   const due = formatDueDate(order.due_date)
   const sm = STATUS_META[order.status] ?? STATUS_META.new
   const pm = PRIORITY_META[order.priority] ?? PRIORITY_META.medium
+  const assigneeText = order.assigned_names?.length > 0
+    ? order.assigned_names[0].split(' ')[0] + (order.assigned_names.length > 1 ? ` +${order.assigned_names.length - 1}` : '')
+    : 'Unassigned'
+
   return (
     <TouchableOpacity style={C.card} onPress={onOpen} activeOpacity={0.6}>
+      {/* Top row: Order ID (left) | Status badge (right) */}
       <View style={C.rowTop}>
         <Text style={C.orderNum} numberOfLines={1}>#{order.title}</Text>
-        <TouchableOpacity onPress={onStatusPress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={[C.statusText, { color: sm.color }]}>{sm.label}</Text>
+        <TouchableOpacity onPress={onStatusPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <View style={[C.statusBadge, { backgroundColor: sm.bg }]}>
+            <View style={[C.statusDot, { backgroundColor: sm.color }]} />
+            <Text style={[C.statusText, { color: sm.color }]}>{sm.label}</Text>
+          </View>
         </TouchableOpacity>
       </View>
-      <View style={C.rowBottom}>
-        <View style={C.bottomLeft}>
-          <Text style={C.metaText} numberOfLines={1}>
-            {order.assigned_names?.length > 0 ? order.assigned_names[0].split(' ')[0] + (order.assigned_names.length > 1 ? ` +${order.assigned_names.length - 1}` : '') : 'Unassigned'}
-          </Text>
+
+      {/* Middle row: Customer name (left) | Priority (center) | Notif badge (right, if any) */}
+      <View style={C.rowMid}>
+        <View style={C.midLeft}>
+          <Text style={C.customerName} numberOfLines={1}>{order.customer_name}</Text>
         </View>
-        <View style={C.bottomCenter}>
+        <View style={C.midCenter}>
+          <View style={[C.priorityDot, { backgroundColor: pm.color }]} />
           <Text style={[C.priorityText, { color: pm.color }]}>{pm.label}</Text>
         </View>
-        <View style={C.bottomRight}>
-          {due && <Text style={[C.metaText, due.overdue && { color: '#EF4444', fontWeight: '600' }]}>{due.text}</Text>}
+        {unreadCount > 0 && (
+          <View style={C.unreadBadge}>
+            <Text style={C.unreadText}>{unreadCount}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Bottom row: Assignee (left) | Delivery date (right) */}
+      <View style={C.rowBottom}>
+        <View style={C.midLeft}>
+          <Ionicons name="person-outline" size={11} color="#9CA3AF" />
+          <Text style={C.assignText} numberOfLines={1}>{assigneeText}</Text>
         </View>
+        {due ? (
+          <Text style={[C.dueText, due.overdue && C.dueOverdue]} numberOfLines={1}>{due.text}</Text>
+        ) : (
+          <Text style={C.dueEmpty}>No delivery date</Text>
+        )}
       </View>
     </TouchableOpacity>
   )
@@ -630,6 +669,7 @@ function ActiveFilterPills({ filters, onClear }: { filters: FilterState; onClear
   }
   if (filters.overdueOnly) pills.push({ label: 'Overdue', key: 'overdueOnly' })
   if (filters.dueTodayOnly) pills.push({ label: 'Due Today', key: 'dueTodayOnly' })
+  if (filters.unreadOnly) pills.push({ label: 'Unread', key: 'unreadOnly' })
 
   if (pills.length === 0) return null
   return (
@@ -762,7 +802,12 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
       </View>
 
       <View style={S.countBar}>
-        <Text style={S.countText}>{orders.length} order{orders.length !== 1 ? 's' : ''}{hasAnyFilter ? ' · filtered' : ''}</Text>
+        <View>
+          <Text style={S.screenTitle}>{myOrdersOnly ? 'My Orders' : 'All Orders'}</Text>
+          <Text style={S.countText}>
+            {loading ? 'Loading…' : `${orders.length} order${orders.length !== 1 ? 's' : ''}${hasAnyFilter ? ' · filtered' : ''}`}
+          </Text>
+        </View>
         {hasAnyFilter && (
           <TouchableOpacity onPress={() => { setFilters(emptyFilters); setSearch('') }}>
             <Text style={S.clearAllText}>Clear all</Text>
@@ -791,7 +836,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F172A" />}
         >
           {orders.map(o => (
-            <OrderCard key={o.id} order={o} onOpen={() => router.push(`/order/${o.id}`)} onStatusPress={() => setStatusOrder(o)} />
+            <OrderCard key={o.id} order={o} onOpen={() => router.push(`/order/${o.id}`)} onStatusPress={() => setStatusOrder(o)} unreadCount={0} />
           ))}
         </ScrollView>
       )}
@@ -864,10 +909,11 @@ const S = StyleSheet.create({
   emptyBtnText: { color: '#0F172A', fontSize: 14, fontWeight: '700' },
   fab: {
     position: 'absolute', right: 20, bottom: 24,
-    width: 60, height: 60, borderRadius: 30, backgroundColor: '#0F172A',
+    width: 56, height: 56, borderRadius: 28, backgroundColor: '#6366F1',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6, zIndex: 100,
+    shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 6, zIndex: 100,
   },
+  screenTitle: { fontSize: 17, fontWeight: '800', color: '#111827', letterSpacing: -0.3 },
 })
 
 const AP = StyleSheet.create({
@@ -925,6 +971,7 @@ const FS = StyleSheet.create({
   },
   toggleRowActive: { borderColor: '#FCA5A5', backgroundColor: '#FFF5F5' },
   toggleRowToday: { borderColor: '#FCD34D', backgroundColor: '#FFFBEB' },
+  toggleRowUnread: { borderColor: '#C7D2FE', backgroundColor: '#EEF2FF' },
   toggleLabel: { fontSize: 14, fontWeight: '600', color: '#334155' },
   toggleSub: { fontSize: 12, color: '#94A3B8', marginTop: 1 },
   toggle: { width: 44, height: 24, borderRadius: 12, backgroundColor: '#E2E8F0', justifyContent: 'center', paddingHorizontal: 2 },
@@ -938,17 +985,37 @@ const FS = StyleSheet.create({
 })
 
 const C = StyleSheet.create({
-  card: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 8 },
-  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  orderNum: { fontSize: 15, fontWeight: '700', color: '#0F172A', flex: 1, marginRight: 8 },
-  title: { fontWeight: '400', color: '#475569', fontSize: 15 },
-  statusText: { fontSize: 13, fontWeight: '600' },
-  rowBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  bottomLeft: { flex: 1, alignItems: 'flex-start' },
-  bottomCenter: { flex: 1, alignItems: 'center' },
-  bottomRight: { flex: 1, alignItems: 'flex-end' },
-  metaText: { fontSize: 13, color: '#64748B' },
-  priorityText: { fontSize: 13, fontWeight: '500' },
+  card: {
+    backgroundColor: '#FFFFFF', borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E2E8F0', borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 12, marginBottom: 8,
+    gap: 8,
+  },
+  // Top row: order ID left, status right
+  rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  orderNum: { fontSize: 13.5, fontWeight: '700', color: '#2563EB' },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  statusDot: { width: 5, height: 5, borderRadius: 3 },
+  statusText: { fontSize: 11.5, fontWeight: '600' },
+  // Middle row: assignee left, priority center, notif badge right
+  rowMid: { flexDirection: 'row', alignItems: 'center' },
+  midLeft: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 },
+  assignText: { fontSize: 12, color: '#6B7280' },
+  midCenter: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'center' },
+  priorityDot: { width: 7, height: 7, borderRadius: 4 },
+  priorityText: { fontSize: 12, fontWeight: '500' },
+  unreadBadge: {
+    minWidth: 20, height: 20, borderRadius: 10,
+    backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  unreadText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
+  // Bottom row: customer name left, delivery date right
+  rowBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F3F4F6', paddingTop: 8 },
+  customerName: { fontSize: 12.5, fontWeight: '600', color: '#374151', flex: 1, marginRight: 8 },
+  dueText: { fontSize: 12, color: '#6B7280', fontWeight: '500', flexShrink: 0 },
+  dueOverdue: { color: '#EF4444', fontWeight: '600' },
+  dueEmpty: { fontSize: 12, color: '#D1D5DB', flexShrink: 0 },
 })
 
 const F = StyleSheet.create({
