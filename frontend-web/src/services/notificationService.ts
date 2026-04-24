@@ -9,6 +9,18 @@ export interface NotificationEvent {
   priority: 'high' | 'medium' | 'low'
 }
 
+export interface FlatActivityEvent {
+  id: string
+  order_id: string
+  order_number: number
+  order_title: string
+  type: string
+  actor_name: string
+  payload: Record<string, any>
+  created_at: string
+  priority: 'high' | 'medium' | 'low'
+}
+
 export interface NotificationGroup {
   order_id: string
   order_number: number
@@ -60,5 +72,12 @@ export const notificationService = {
 
   markAllRead: async (): Promise<void> => {
     await apiClient.post('/notifications/read-all')
+  },
+
+  getActivity: async (page = 1, orderId?: string): Promise<{ events: FlatActivityEvent[]; total: number; page: number }> => {
+    const params: Record<string, string> = { page: String(page) }
+    if (orderId) params.order_id = orderId
+    const res = await apiClient.get('/notifications/activity', { params })
+    return res.data
   },
 }

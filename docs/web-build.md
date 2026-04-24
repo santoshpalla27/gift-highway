@@ -23,3 +23,5 @@ docker push santoshpalla27/company-app:frontend
 docker push santoshpalla27/company-app:backend
 docker push santoshpalla27/company-app:monitor
 ```
+
+docker compose pull && docker compose up -d --force-recreate

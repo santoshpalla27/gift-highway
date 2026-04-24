@@ -195,6 +195,58 @@ func (r *NotificationRepository) GetOrderSummaries(ctx context.Context, userID s
 	return summaries, err
 }
 
+// GetFlatEvents returns a page of all notifiable events for the activity feed.
+// Pass a non-empty orderID to restrict to one order. Returns (events, total, error).
+func (r *NotificationRepository) GetFlatEvents(ctx context.Context, userID, orderID string, limit, offset int) ([]*NotificationEvent, int, error) {
+	orderFilter := ""
+	countFilter := ""
+	args := []interface{}{pq.Array(notifiableTypes), userID}
+	countArgs := []interface{}{pq.Array(notifiableTypes), userID}
+
+	if orderID != "" {
+		orderFilter = fmt.Sprintf(" AND e.order_id = $%d", len(args)+1)
+		countFilter = fmt.Sprintf(" AND e.order_id = $%d", len(countArgs)+1)
+		args = append(args, orderID)
+		countArgs = append(countArgs, orderID)
+	}
+
+	query := fmt.Sprintf(`
+		SELECT e.id, e.order_id, e.type, e.actor_id, e.payload, e.created_at,
+		       o.title AS order_title, o.order_number,
+		       TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))) AS actor_name
+		FROM order_events e
+		JOIN orders o ON e.order_id = o.id
+		LEFT JOIN users u ON e.actor_id = u.id
+		WHERE e.type = ANY($1)
+		  AND (e.actor_id IS NULL OR e.actor_id::text != $2)
+		  AND (e.type != 'user_mentioned' OR e.payload->>'mentioned_user_id' = $2)
+		  %s
+		ORDER BY e.created_at DESC
+		LIMIT $%d OFFSET $%d
+	`, orderFilter, len(args)+1, len(args)+2)
+	args = append(args, limit, offset)
+
+	var events []*NotificationEvent
+	if err := r.db.SelectContext(ctx, &events, query, args...); err != nil {
+		return nil, 0, err
+	}
+
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*) FROM order_events e
+		JOIN orders o ON e.order_id = o.id
+		WHERE e.type = ANY($1)
+		  AND (e.actor_id IS NULL OR e.actor_id::text != $2)
+		  AND (e.type != 'user_mentioned' OR e.payload->>'mentioned_user_id' = $2)
+		  %s
+	`, countFilter)
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	return events, total, nil
+}
+
 // GetOrderNotificationEvents returns all notifiable events for a single order, excluding the viewer's own actions.
 func (r *NotificationRepository) GetOrderNotificationEvents(ctx context.Context, userID, orderID string) ([]*NotificationEvent, error) {
 	query := `

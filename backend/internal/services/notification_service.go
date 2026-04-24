@@ -131,6 +131,48 @@ func (s *NotificationService) GetOrderSummaries(ctx context.Context, userID stri
 	return result, nil
 }
 
+// FlatActivityItem is a single event enriched with its order info for the flat activity feed.
+type FlatActivityItem struct {
+	ID          string          `json:"id"`
+	OrderID     string          `json:"order_id"`
+	OrderNumber int             `json:"order_number"`
+	OrderTitle  string          `json:"order_title"`
+	Type        string          `json:"type"`
+	ActorName   string          `json:"actor_name"`
+	Payload     json.RawMessage `json:"payload"`
+	CreatedAt   string          `json:"created_at"`
+	Priority    string          `json:"priority"`
+}
+
+// GetFlatActivity returns a flat paged list of notifiable events for the activity page.
+// Pass a non-empty orderID to filter to one order.
+func (s *NotificationService) GetFlatActivity(ctx context.Context, userID, orderID string, page int) ([]*FlatActivityItem, int, error) {
+	const limit = 50
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+	events, total, err := s.repo.GetFlatEvents(ctx, userID, orderID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	items := make([]*FlatActivityItem, len(events))
+	for i, e := range events {
+		items[i] = &FlatActivityItem{
+			ID:          e.ID,
+			OrderID:     e.OrderID,
+			OrderNumber: e.OrderNumber,
+			OrderTitle:  e.OrderTitle,
+			Type:        e.Type,
+			ActorName:   e.ActorName,
+			Payload:     e.Payload,
+			CreatedAt:   e.CreatedAt.UTC().Format(time.RFC3339),
+			Priority:    priorityFor(e.Type),
+		}
+	}
+	return items, total, nil
+}
+
 // GetOrderNotificationEvents returns all notifiable events for a single order.
 func (s *NotificationService) GetOrderNotificationEvents(ctx context.Context, userID, orderID string) ([]NotificationEventItem, error) {
 	events, err := s.repo.GetOrderNotificationEvents(ctx, userID, orderID)

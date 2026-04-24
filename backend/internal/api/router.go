@@ -132,6 +132,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 			notifGroup := protected.Group("/notifications")
 			{
 				notifGroup.GET("", notificationHandler.GetUnread)
+				notifGroup.GET("/activity", notificationHandler.GetActivity)
 				notifGroup.GET("/history", notificationHandler.GetHistory)
 				notifGroup.GET("/orders", notificationHandler.GetOrderSummaries)
 				notifGroup.GET("/order/:orderId", notificationHandler.GetOrderNotifications)

@@ -111,6 +111,21 @@ func (h *NotificationHandler) GetOrderSummaries(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"orders": summaries})
 }
 
+// GET /api/v1/notifications/activity — flat event list for the activity feed
+// ?page=N (default 1, page size 50)  ?order_id=UUID (optional, filter to one order)
+func (h *NotificationHandler) GetActivity(c *gin.Context) {
+	uid := h.userID(c)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	orderID := c.Query("order_id")
+
+	events, total, err := h.svc.GetFlatActivity(c.Request.Context(), uid, orderID, page)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch activity"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"events": events, "total": total, "page": page})
+}
+
 // GET /api/v1/notifications/order/:orderId — all events for one order
 func (h *NotificationHandler) GetOrderNotifications(c *gin.Context) {
 	uid := h.userID(c)
