@@ -1026,23 +1026,34 @@ export function OrderDetailPage() {
   })
 
   // ── Notifications: "New updates" divider ───────────────────────────────────
-  // ── Notifications: "New updates" divider ───────────────────────────────────
   // newSinceAt = last_seen_at from DB (null on first visit).
   // pageEnteredAt = fallback used only when newSinceAt is null, so the divider
   // still appears for real-time messages that arrive on a first-time visit.
-  // Marking as read on unmount clears the threshold so the divider won't
-  // reappear for the same events on the next visit.
+  //
+  // React StrictMode (dev) double-invokes effects: mount → cleanup → remount.
+  // Without a guard, the cleanup fires markOrderRead during the simulated
+  // unmount, writing last_seen_at=NOW before getLastSeen can read the old value.
+  // The setTimeout(0) trick: StrictMode's simulated cleanup fires synchronously
+  // (before any timer), so clearTimeout cancels the "really mounted" flag.
+  // A real unmount only fires after the timer has already resolved.
   const { markOrderRead } = useNotifications()
   const markOrderReadRef = useRef(markOrderRead)
   markOrderReadRef.current = markOrderRead
+  const reallyMountedRef = useRef(false)
   const pageEnteredAt = useRef(new Date().toISOString())
   const [newSinceAt, setNewSinceAt] = useState<string | null>(null)
   useEffect(() => {
     if (!id) return
+    reallyMountedRef.current = false
     setNewSinceAt(null)
     pageEnteredAt.current = new Date().toISOString()
     notificationService.getLastSeen(id).then(t => setNewSinceAt(t))
-    return () => { markOrderReadRef.current(id) }
+    const t = setTimeout(() => { reallyMountedRef.current = true }, 0)
+    return () => {
+      clearTimeout(t)
+      if (reallyMountedRef.current) markOrderReadRef.current(id)
+      reallyMountedRef.current = false
+    }
   }, [id])
 
   // ── Staff users for @mention ────────────────────────────────────────────────
