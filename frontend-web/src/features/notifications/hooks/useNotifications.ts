@@ -8,7 +8,7 @@ import type { NotificationGroup } from '../../../services/notificationService'
 
 export type DisplayGroup = NotificationGroup & { isRead: boolean }
 
-const RETAIN_MS = 10 * 60 * 1_000
+const RETAIN_MS = 24 * 60 * 60 * 1_000
 const STORAGE_KEY = 'gh-notif-rr'
 
 // Module-level store — shared across every useNotifications instance and survives
