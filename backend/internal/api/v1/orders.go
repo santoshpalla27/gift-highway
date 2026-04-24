@@ -88,6 +88,8 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 		DueTo:      c.Query("due_to"),
 		Page:       page,
 		Limit:      limit,
+		SortBy:     c.DefaultQuery("sort_by", "created_at"),
+		SortDir:    c.DefaultQuery("sort_dir", "desc"),
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch orders"})

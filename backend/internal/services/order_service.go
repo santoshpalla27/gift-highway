@@ -52,6 +52,8 @@ type ListOrdersParams struct {
 	DueTo      string
 	Page       int
 	Limit      int
+	SortBy     string
+	SortDir    string
 }
 
 func (s *OrderService) ListOrders(ctx context.Context, p ListOrdersParams) ([]*models.OrderWithNames, int, error) {
@@ -64,6 +66,8 @@ func (s *OrderService) ListOrders(ctx context.Context, p ListOrdersParams) ([]*m
 		DueTo:      p.DueTo,
 		Page:       p.Page,
 		Limit:      p.Limit,
+		SortBy:     p.SortBy,
+		SortDir:    p.SortDir,
 	})
 }
 

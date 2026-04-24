@@ -55,3 +55,5 @@ logs/
 
 /order-kanban-app/
 /frontend-sample/
+
+seed.sql

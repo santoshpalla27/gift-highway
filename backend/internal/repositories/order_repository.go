@@ -20,6 +20,8 @@ type OrderFilter struct {
 	DueTo      string
 	Page       int
 	Limit      int
+	SortBy     string // created_at | updated_at | due_date | order_number
+	SortDir    string // asc | desc
 }
 
 type OrderRepository struct {
@@ -122,7 +124,25 @@ func (r *OrderRepository) List(ctx context.Context, f OrderFilter) ([]*models.Or
 	}
 	offset := (page - 1) * limit
 
-	query := orderSelectBase + where + fmt.Sprintf(" ORDER BY o.created_at DESC LIMIT $%d OFFSET $%d", len(args)+1, len(args)+2)
+	sortCols := map[string]string{
+		"created_at":   "o.created_at",
+		"updated_at":   "o.updated_at",
+		"due_date":     "o.due_date",
+		"order_number": "o.order_number",
+	}
+	sortCol := "o.created_at"
+	if col, ok := sortCols[f.SortBy]; ok {
+		sortCol = col
+	}
+	sortDir := "DESC"
+	if strings.EqualFold(f.SortDir, "asc") {
+		sortDir = "ASC"
+	}
+	nullsLast := ""
+	if f.SortBy == "due_date" {
+		nullsLast = " NULLS LAST"
+	}
+	query := orderSelectBase + where + fmt.Sprintf(" ORDER BY %s %s%s LIMIT $%d OFFSET $%d", sortCol, sortDir, nullsLast, len(args)+1, len(args)+2)
 	args = append(args, limit, offset)
 
 	var orders []*models.OrderWithNames

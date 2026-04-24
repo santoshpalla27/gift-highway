@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { formatDate, formatRelative } from '../../../utils/date'
 import { DateInput } from '../../../components/system/DateInput'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useOrders, useUpdateOrderStatus } from '../hooks/useOrders'
 import { OrderModal } from '../components/OrderModal'
 import { useAuthStore } from '../../../store/authStore'
@@ -12,6 +12,7 @@ import { useNotifications } from '../../notifications/hooks/useNotifications'
 
 const STATUS_OPTIONS = ['new', 'in_progress', 'completed'] as const
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'urgent'] as const
+const PAGE_LIMIT = 50
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
   new:         { label: 'Yet to Start', color: '#6B7280', bg: '#F3F4F6' },
@@ -24,6 +25,20 @@ const PRIORITY_META: Record<string, { label: string; color: string; bg: string }
   medium: { label: 'Medium', color: '#F59E0B', bg: '#FFFBEB' },
   high:   { label: 'High',   color: '#8B5CF6', bg: '#F3E8FF' },
   urgent: { label: 'Urgent', color: '#EF4444', bg: '#FEF2F2' },
+}
+
+// ─── Page number helper ───────────────────────────────────────────────────────
+
+function getPageNums(current: number, total: number): (number | '…')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  const nums: (number | '…')[] = [1]
+  if (current > 3) nums.push('…')
+  const start = Math.max(2, current - 1)
+  const end = Math.min(total - 1, current + 1)
+  for (let i = start; i <= end; i++) nums.push(i)
+  if (current < total - 2) nums.push('…')
+  nums.push(total)
+  return nums
 }
 
 // ─── Filter Pill ──────────────────────────────────────────────────────────────
@@ -114,7 +129,7 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-// ─── Status Dropdown (inline table) ──────────────────────────────────────────
+// ─── Status Dropdown ─────────────────────────────────────────────────────────
 
 function StatusDropdown({ order, onChanged }: { order: Order; onChanged?: (msg: string) => void }) {
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
@@ -186,8 +201,6 @@ function getInitials(name: string) {
   return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
 }
 
-// ─── Pill dropdown contents ───────────────────────────────────────────────────
-
 const pillListItem = (active: boolean): React.CSSProperties => ({
   padding: '9px 14px', fontSize: 13, cursor: 'pointer',
   background: active ? '#EEF2FF' : 'transparent',
@@ -196,27 +209,95 @@ const pillListItem = (active: boolean): React.CSSProperties => ({
   display: 'flex', alignItems: 'center', gap: 8,
 })
 
+// ─── Sort header cell ─────────────────────────────────────────────────────────
+
+function SortTh({
+  label, field, sortBy, sortDir, onSort, style,
+}: {
+  label: string; field: string; sortBy: string; sortDir: string
+  onSort: (f: string) => void; style?: React.CSSProperties
+}) {
+  const active = sortBy === field
+  return (
+    <th
+      onClick={() => onSort(field)}
+      style={{
+        padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700,
+        textTransform: 'uppercase', letterSpacing: '.5px',
+        color: active ? '#4F46E5' : '#9CA3AF',
+        background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap',
+        userSelect: 'none', cursor: 'pointer',
+        ...style,
+      }}
+    >
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        {label}
+        <span style={{ opacity: active ? 1 : 0.3, fontSize: 10 }}>
+          {active && sortDir === 'asc' ? '↑' : '↓'}
+        </span>
+      </span>
+    </th>
+  )
+}
+
 // ─── Orders Page ─────────────────────────────────────────────────────────────
 
 export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean }) {
   const { user } = useAuthStore()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { unreadByOrder } = useNotifications()
 
-  // ── Filter state ─────────────────────────────────────────────────────────
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [priorityFilter, setPriorityFilter] = useState('')
-  const [assigneeFilter, setAssigneeFilter] = useState('')
-  const [assigneeName, setAssigneeName] = useState('')
-  const [dueDateFrom, setDueDateFrom] = useState('')
-  const [dueDateTo, setDueDateTo] = useState('')
-  const [dueDraftFrom, setDueDraftFrom] = useState('')
-  const [dueDraftTo, setDueDraftTo] = useState('')
+  // ── Read state from URL ──────────────────────────────────────────────────
+  const page      = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
+  const limit     = PAGE_LIMIT
+  const search       = searchParams.get('q') ?? ''
+  const statusFilter = searchParams.get('status') ?? ''
+  const priorityFilter = searchParams.get('priority') ?? ''
+  const assigneeFilter = searchParams.get('assignee') ?? ''
+  const assigneeName   = searchParams.get('assignee_name') ?? ''
+  const dueDateFrom    = searchParams.get('due_from') ?? ''
+  const dueDateTo      = searchParams.get('due_to') ?? ''
+  const overdueOnly    = searchParams.get('overdue') === '1'
+  const dueTodayOnly   = searchParams.get('today') === '1'
+  const unreadOnly     = searchParams.get('unread') === '1'
+  const sortBy         = searchParams.get('sort_by') ?? 'created_at'
+  const sortDir        = searchParams.get('sort_dir') ?? 'desc'
 
-  const [overdueOnly, setOverdueOnly] = useState(false)
-  const [dueTodayOnly, setDueTodayOnly] = useState(false)
-  const [unreadOnly, setUnreadOnly] = useState(false)
+  // Due date draft state — synced when URL values change (e.g. after back-nav)
+  const [dueDraftFrom, setDueDraftFrom] = useState(dueDateFrom)
+  const [dueDraftTo, setDueDraftTo] = useState(dueDateTo)
+  useEffect(() => setDueDraftFrom(dueDateFrom), [dueDateFrom])
+  useEffect(() => setDueDraftTo(dueDateTo), [dueDateTo])
+
+  // ── URL update helpers ───────────────────────────────────────────────────
+  function update(changes: Record<string, string | undefined>) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      for (const [k, v] of Object.entries(changes)) {
+        if (v != null && v !== '') next.set(k, v)
+        else next.delete(k)
+      }
+      next.delete('page') // reset to page 1 on any filter/sort change
+      return next
+    }, { replace: true })
+  }
+
+  function gotoPage(p: number) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (p <= 1) next.delete('page')
+      else next.set('page', String(p))
+      return next
+    })
+  }
+
+
+
+  function handleSort(field: string) {
+    const newDir = sortBy === field && sortDir === 'desc' ? 'asc' : 'desc'
+    update({ sort_by: field, sort_dir: newDir })
+  }
 
   // ── Users for assignee dropdown ──────────────────────────────────────────
   const [users, setUsers] = useState<UserOption[]>([])
@@ -246,22 +327,35 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
     status: statusFilter || undefined,
     priority: priorityFilter || undefined,
     assigned_to: myOrdersOnly && user ? user.id : (assigneeFilter || undefined),
-    // overdue: due_date <= yesterday (strictly before today)
-    // today: due_date = today (both bounds same day)
     due_from: overdueOnly ? undefined : dueTodayOnly ? today : (dueDateFrom || undefined),
     due_to: overdueOnly ? yesterday : dueTodayOnly ? today : (dueDateTo || undefined),
+    page,
+    limit,
+    sort_by: sortBy,
+    sort_dir: sortDir,
   }
 
   const { data, isLoading } = useOrders(params)
   const allOrders = data?.orders ?? []
   const orders = unreadOnly ? allOrders.filter(o => (unreadByOrder.get(o.id) ?? 0) > 0) : allOrders
   const total = data?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / limit))
+
+  const from = total === 0 ? 0 : (page - 1) * limit + 1
+  const to   = Math.min(page * limit, total)
 
   const hasFilters = !!(statusFilter || priorityFilter || assigneeFilter || dueDateFrom || dueDateTo || overdueOnly || dueTodayOnly || unreadOnly)
-  const clearAll = () => {
-    setStatusFilter(''); setPriorityFilter(''); setAssigneeFilter(''); setAssigneeName('')
-    setDueDateFrom(''); setDueDateTo(''); setDueDraftFrom(''); setDueDraftTo('')
-    setOverdueOnly(false); setDueTodayOnly(false); setUnreadOnly(false)
+
+  function clearAll() {
+    setSearchParams(prev => {
+      const next = new URLSearchParams()
+      // preserve sort
+      if (prev.get('sort_by'))  next.set('sort_by',  prev.get('sort_by')!)
+      if (prev.get('sort_dir')) next.set('sort_dir', prev.get('sort_dir')!)
+      return next
+    }, { replace: true })
+    setDueDraftFrom('')
+    setDueDraftTo('')
   }
 
   const dueDateLabel = dueDateFrom && dueDateTo
@@ -269,6 +363,12 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
     : dueDateFrom ? `From ${formatDate(dueDateFrom)}`
     : dueDateTo ? `Until ${formatDate(dueDateTo)}`
     : undefined
+
+  // ── Subheader text ────────────────────────────────────────────────────────
+  const subheader = isLoading ? 'Loading…'
+    : unreadOnly ? `${orders.length} unread on this page`
+    : total === 0 ? (myOrdersOnly ? '0 orders assigned to you' : '0 orders')
+    : `Showing ${from}–${to} of ${total} ${myOrdersOnly ? 'assigned ' : ''}orders`
 
   return (
     <div className="screen active" style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', padding: '24px', background: '#F5F6FA', boxSizing: 'border-box', overflow: 'hidden' }}>
@@ -297,9 +397,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 2px 0', letterSpacing: '-0.5px' }}>
             {myOrdersOnly ? 'My Orders' : 'All Orders'}
           </h1>
-          <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>
-            {myOrdersOnly ? `${total} orders assigned to you` : `${total} total orders`}
-          </p>
+          <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>{subheader}</p>
         </div>
         <button
           onClick={() => { setModalKey(k => k + 1); setShowModal(true) }}
@@ -338,11 +436,11 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
           </svg>
           <input
             type="text" placeholder="Search orders…" value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => update({ q: e.target.value || undefined })}
             style={{ border: 'none', background: 'transparent', padding: '0 8px', fontSize: 13, outline: 'none', width: '100%', color: '#111827' }}
           />
           {search && (
-            <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 0, display: 'flex' }}>
+            <button onClick={() => update({ q: undefined })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 0, display: 'flex' }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
@@ -354,12 +452,12 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
         <div style={{ width: 1, height: 24, background: '#E4E6EF', flexShrink: 0 }} />
 
         {/* Status */}
-        <FilterPill label="Status" value={statusFilter ? STATUS_META[statusFilter]?.label : undefined} onClear={() => setStatusFilter('')}>
+        <FilterPill label="Status" value={statusFilter ? STATUS_META[statusFilter]?.label : undefined} onClear={() => update({ status: undefined })}>
           {close => (
             <div style={{ padding: 4 }}>
               {STATUS_OPTIONS.map(s => (
                 <div key={s} style={pillListItem(statusFilter === s)} onMouseEnter={e => { if (statusFilter !== s) e.currentTarget.style.background = '#F5F6FA' }} onMouseLeave={e => { if (statusFilter !== s) e.currentTarget.style.background = 'transparent' }}
-                  onClick={() => { setStatusFilter(s === statusFilter ? '' : s); close() }}>
+                  onClick={() => { update({ status: s === statusFilter ? undefined : s }); close() }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_META[s].color, flexShrink: 0 }} />
                   {STATUS_META[s].label}
                 </div>
@@ -369,12 +467,12 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
         </FilterPill>
 
         {/* Priority */}
-        <FilterPill label="Priority" value={priorityFilter ? PRIORITY_META[priorityFilter]?.label : undefined} onClear={() => setPriorityFilter('')}>
+        <FilterPill label="Priority" value={priorityFilter ? PRIORITY_META[priorityFilter]?.label : undefined} onClear={() => update({ priority: undefined })}>
           {close => (
             <div style={{ padding: 4 }}>
               {PRIORITY_OPTIONS.map(p => (
                 <div key={p} style={pillListItem(priorityFilter === p)} onMouseEnter={e => { if (priorityFilter !== p) e.currentTarget.style.background = '#F5F6FA' }} onMouseLeave={e => { if (priorityFilter !== p) e.currentTarget.style.background = 'transparent' }}
-                  onClick={() => { setPriorityFilter(p === priorityFilter ? '' : p); close() }}>
+                  onClick={() => { update({ priority: p === priorityFilter ? undefined : p }); close() }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: PRIORITY_META[p].color, flexShrink: 0 }} />
                   {PRIORITY_META[p].label}
                 </div>
@@ -385,7 +483,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
 
         {/* Assignee */}
         {!myOrdersOnly && (
-          <FilterPill label="Assignee" value={assigneeName || undefined} onClear={() => { setAssigneeFilter(''); setAssigneeName('') }}>
+          <FilterPill label="Assignee" value={assigneeName || undefined} onClear={() => update({ assignee: undefined, assignee_name: undefined })}>
             {close => {
               loadUsers()
               return (
@@ -397,8 +495,8 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                       onMouseEnter={e => { if (assigneeFilter !== u.id) e.currentTarget.style.background = '#F5F6FA' }}
                       onMouseLeave={e => { if (assigneeFilter !== u.id) e.currentTarget.style.background = 'transparent' }}
                       onClick={() => {
-                        if (assigneeFilter === u.id) { setAssigneeFilter(''); setAssigneeName('') }
-                        else { setAssigneeFilter(u.id); setAssigneeName(u.name) }
+                        if (assigneeFilter === u.id) update({ assignee: undefined, assignee_name: undefined })
+                        else update({ assignee: u.id, assignee_name: u.name })
                         close()
                       }}>
                       <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#EEF2FF', color: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, flexShrink: 0 }}>
@@ -414,7 +512,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
         )}
 
         {/* Due Date range */}
-        <FilterPill label="Due Date" value={dueDateLabel} onClear={() => { setDueDateFrom(''); setDueDateTo(''); setDueDraftFrom(''); setDueDraftTo('') }}>
+        <FilterPill label="Due Date" value={dueDateLabel} onClear={() => update({ due_from: undefined, due_to: undefined })}>
           {close => (
             <div style={{ padding: 16, width: 280 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.5px', marginBottom: 12 }}>DELIVERY DATE RANGE</div>
@@ -434,7 +532,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
                 <button
-                  onClick={() => { setDueDateFrom(dueDraftFrom); setDueDateTo(dueDraftTo); close() }}
+                  onClick={() => { update({ due_from: dueDraftFrom || undefined, due_to: dueDraftTo || undefined }); close() }}
                   disabled={!dueDraftFrom && !dueDraftTo}
                   style={{
                     flex: 1, padding: '7px 0', borderRadius: 8, border: 'none',
@@ -446,7 +544,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                   Apply
                 </button>
                 <button
-                  onClick={() => { setDueDraftFrom(''); setDueDraftTo(''); setDueDateFrom(''); setDueDateTo(''); close() }}
+                  onClick={() => { setDueDraftFrom(''); setDueDraftTo(''); update({ due_from: undefined, due_to: undefined }); close() }}
                   style={{ padding: '7px 14px', borderRadius: 8, border: '1.5px solid #E4E6EF', background: '#FFFFFF', fontSize: 13, fontWeight: 500, color: '#6B7280', cursor: 'pointer' }}
                 >
                   Clear
@@ -458,7 +556,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
 
         {/* Overdue only toggle */}
         <button
-          onClick={() => { setOverdueOnly(o => !o); setDueTodayOnly(false) }}
+          onClick={() => update({ overdue: overdueOnly ? undefined : '1', today: undefined })}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 5,
             padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
@@ -479,7 +577,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
 
         {/* Due today toggle */}
         <button
-          onClick={() => { setDueTodayOnly(o => !o); setOverdueOnly(false) }}
+          onClick={() => update({ today: dueTodayOnly ? undefined : '1', overdue: undefined })}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 5,
             padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
@@ -500,7 +598,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
 
         {/* Unread alerts toggle */}
         <button
-          onClick={() => setUnreadOnly(o => !o)}
+          onClick={() => update({ unread: unreadOnly ? undefined : '1' })}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 5,
             padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
@@ -545,13 +643,13 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
           <table className="orders-table">
             <thead>
               <tr>
-                <th>Order ID</th>
-                <th>Customer</th>
-                <th>Status</th>
-                <th>Assigned</th>
-                <th>Delivery</th>
-                <th>Activity</th>
-                <th>Alerts</th>
+                <SortTh label="Order ID"  field="order_number" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Customer</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Status</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Assigned</th>
+                <SortTh label="Delivery"  field="due_date"     sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                <SortTh label="Activity"  field="updated_at"   sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Alerts</th>
               </tr>
             </thead>
             <tbody>
@@ -626,6 +724,67 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
             </tbody>
           </table>
         </div>
+
+        {/* Pagination footer */}
+        {!isLoading && total > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+            padding: '10px 16px', borderTop: '1px solid #E4E6EF', background: '#FAFAFA',
+            flexShrink: 0, gap: 12,
+          }}>
+            {/* Page controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <button
+                onClick={() => gotoPage(page - 1)}
+                disabled={page <= 1}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  padding: '4px 10px', borderRadius: 7, fontSize: 12, fontWeight: 500,
+                  border: '1px solid #E4E6EF', background: '#FFFFFF', cursor: page <= 1 ? 'default' : 'pointer',
+                  color: page <= 1 ? '#C7CAD9' : '#374151', transition: 'all 100ms ease',
+                }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                Prev
+              </button>
+
+              {getPageNums(page, totalPages).map((n, i) =>
+                n === '…' ? (
+                  <span key={`ellipsis-${i}`} style={{ padding: '4px 6px', fontSize: 12, color: '#9CA3AF' }}>…</span>
+                ) : (
+                  <button
+                    key={n}
+                    onClick={() => gotoPage(n)}
+                    style={{
+                      width: 30, height: 28, borderRadius: 7, fontSize: 12, fontWeight: n === page ? 700 : 400,
+                      border: `1px solid ${n === page ? '#6366F1' : '#E4E6EF'}`,
+                      background: n === page ? '#6366F1' : '#FFFFFF',
+                      color: n === page ? '#FFFFFF' : '#374151',
+                      cursor: n === page ? 'default' : 'pointer',
+                      transition: 'all 100ms ease',
+                    }}
+                  >
+                    {n}
+                  </button>
+                )
+              )}
+
+              <button
+                onClick={() => gotoPage(page + 1)}
+                disabled={page >= totalPages}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  padding: '4px 10px', borderRadius: 7, fontSize: 12, fontWeight: 500,
+                  border: '1px solid #E4E6EF', background: '#FFFFFF', cursor: page >= totalPages ? 'default' : 'pointer',
+                  color: page >= totalPages ? '#C7CAD9' : '#374151', transition: 'all 100ms ease',
+                }}
+              >
+                Next
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {showModal && <OrderModal key={modalKey} onClose={() => setShowModal(false)} onSuccess={msg => setToast(msg)} />}

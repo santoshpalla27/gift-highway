@@ -28,6 +28,8 @@ export interface ListOrdersParams {
   assigned_to?: string
   due_from?: string
   due_to?: string
+  sort_by?: string
+  sort_dir?: string
 }
 
 export interface UserOption {
