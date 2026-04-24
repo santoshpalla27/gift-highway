@@ -683,6 +683,17 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
     )
   }
 
+  if (event.type === 'portal_message_deleted') {
+    return (
+      <View style={[T.systemRow, { opacity: 0.5 }]}>
+        <View style={T.systemIconWrap}>
+          <Ionicons name="trash-outline" size={13} color="#9CA3AF" />
+        </View>
+        <Text style={[T.systemLabel, { fontStyle: 'italic' }]}>Message deleted</Text>
+      </View>
+    )
+  }
+
   const label = meta?.label(event.payload as Record<string, string> ?? {}) ?? event.type
   return (
     <View style={T.systemRow}>
@@ -740,7 +751,12 @@ function StatusSheet({ order, onClose, onChanged }: { order: Order; onClose: () 
 
 // ─── Info Sheet ───────────────────────────────────────────────────────────────
 
-function InfoSheet({ order, portal, onClose }: { order: Order; portal: PortalStatus | null | undefined; onClose: () => void }) {
+function InfoSheet({ order, portal, onClose, onPortalChange }: {
+  order: Order
+  portal: PortalStatus | null | undefined
+  onClose: () => void
+  onPortalChange: (p: PortalStatus | null) => void
+}) {
   const insets = useSafeAreaInsets()
   const sm = STATUS_META[order.status] ?? STATUS_META.new
   const pm = PRIORITY_META[order.priority] ?? PRIORITY_META.low
@@ -748,6 +764,7 @@ function InfoSheet({ order, portal, onClose }: { order: Order; portal: PortalSta
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const dueOverdue = due ? due < today && order.status !== 'completed' : false
   const [copied, setCopied] = useState(false)
+  const [portalLoading, setPortalLoading] = useState(false)
 
   function getInitials(name: string) {
     return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
@@ -850,20 +867,76 @@ function InfoSheet({ order, portal, onClose }: { order: Order; portal: PortalSta
             {portal === undefined ? (
               <Text style={IN.sub}>Loading…</Text>
             ) : portal === null ? (
-              <Text style={IN.sub}>No portal created</Text>
+              <TouchableOpacity
+                style={IN.portalBtn}
+                disabled={portalLoading}
+                onPress={async () => {
+                  setPortalLoading(true)
+                  try {
+                    const p = await staffPortalApi.createPortal(order.id, order.customer_name)
+                    onPortalChange(p)
+                  } catch { Alert.alert('Error', 'Could not create portal') }
+                  finally { setPortalLoading(false) }
+                }}
+              >
+                {portalLoading
+                  ? <ActivityIndicator size="small" color="#10B981" />
+                  : <Text style={IN.portalBtnText}>+ Create portal link</Text>
+                }
+              </TouchableOpacity>
             ) : (
               <View style={{ gap: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <View style={[IN.dot, { backgroundColor: portal.enabled ? '#10B981' : '#9CA3AF' }]} />
-                  <Text style={IN.value}>{portal.enabled ? 'Active' : 'Revoked'}</Text>
+                  <Text style={[IN.value, { fontSize: 13 }]}>{portal.enabled ? 'Active' : 'Revoked'}</Text>
                 </View>
-                {portal.customer_name ? <Text style={IN.sub}>For: {portal.customer_name}</Text> : null}
                 {portal.enabled && (
                   <TouchableOpacity style={IN.copyBtn} onPress={handleCopyLink}>
                     <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={14} color={copied ? '#10B981' : '#64748B'} />
                     <Text style={[IN.copyBtnText, copied && { color: '#10B981' }]}>{copied ? 'Copied!' : 'Copy portal link'}</Text>
                   </TouchableOpacity>
                 )}
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TouchableOpacity
+                    style={[IN.portalActionBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
+                    disabled={portalLoading}
+                    onPress={() => Alert.alert('Regenerate link?', 'The old link will stop working immediately.', [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Regenerate', onPress: async () => {
+                        setPortalLoading(true)
+                        try {
+                          const p = await staffPortalApi.regenerateToken(order.id)
+                          onPortalChange(p)
+                        } catch { Alert.alert('Error', 'Could not regenerate') }
+                        finally { setPortalLoading(false) }
+                      }},
+                    ])}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#3B82F6' }}>Regenerate</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[IN.portalActionBtn, {
+                      backgroundColor: portal.enabled ? '#FEF2F2' : '#F3F4F6',
+                      borderColor: portal.enabled ? '#FECACA' : '#E5E7EB',
+                    }]}
+                    disabled={!portal.enabled || portalLoading}
+                    onPress={() => Alert.alert('Revoke portal?', 'The customer link will stop working.', [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Revoke', style: 'destructive', onPress: async () => {
+                        setPortalLoading(true)
+                        try {
+                          await staffPortalApi.revokePortal(order.id)
+                          onPortalChange({ ...portal, enabled: false })
+                        } catch { Alert.alert('Error', 'Could not revoke') }
+                        finally { setPortalLoading(false) }
+                      }},
+                    ])}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: portal.enabled ? '#EF4444' : '#9CA3AF' }}>
+                      {portal.enabled ? 'Revoke' : 'Revoked'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           </View>
@@ -892,6 +965,8 @@ function EditOrderSheet({ order, onClose, onSaved }: { order: Order; onClose: ()
   const [users, setUsers] = useState<UserOption[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const editDatePickerRef = useRef<any>(null)
+  const editTimePickerRef = useRef<any>(null)
 
   useEffect(() => {
     orderService.listUsersForAssignment().then(setUsers).catch(() => {})
@@ -964,14 +1039,32 @@ function EditOrderSheet({ order, onClose, onSaved }: { order: Order; onClose: ()
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
             {Platform.OS === 'web' ? (
               <>
-                <View style={[E.input, { flex: 1, flexDirection: 'row', alignItems: 'center' }]}>
-                  <input type="date" value={dueDate || ''} onChange={(e: any) => setDueDate(e.target.value)}
-                    style={{ flex: 1, fontSize: 15, border: 'none', outline: 'none', background: 'transparent', color: dueDate ? '#0F172A' : '#94A3B8', cursor: 'pointer' }} />
-                </View>
-                <View style={[E.input, { width: 110, flexDirection: 'row', alignItems: 'center' }]}>
-                  <input type="time" value={dueTime || ''} onChange={(e: any) => setDueTime(e.target.value)}
-                    style={{ flex: 1, fontSize: 15, border: 'none', outline: 'none', background: 'transparent', color: dueTime ? '#0F172A' : '#94A3B8', cursor: 'pointer' }} />
-                </View>
+                <TouchableOpacity
+                  style={[E.input, { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                  onPress={() => editDatePickerRef.current?.showPicker?.()}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ flex: 1, fontSize: 15, color: dueDate ? '#0F172A' : '#94A3B8' }} numberOfLines={1}>
+                    {dueDate ? formatDate(dueDate) : 'DD/MM/YYYY'}
+                  </Text>
+                  <Ionicons name="calendar-outline" size={18} color="#94A3B8" />
+                  <input ref={editDatePickerRef} type="date" value={dueDate || ''}
+                    onChange={(e: any) => setDueDate(e.target.value)}
+                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[E.input, { width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                  onPress={() => editTimePickerRef.current?.showPicker?.()}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ flex: 1, fontSize: 15, color: dueTime ? '#0F172A' : '#94A3B8' }} numberOfLines={1}>
+                    {dueTime ? fmt12hrStr(dueTime) : 'Time'}
+                  </Text>
+                  <Ionicons name="time-outline" size={18} color="#94A3B8" />
+                  <input ref={editTimePickerRef} type="time" value={dueTime || ''}
+                    onChange={(e: any) => setDueTime(e.target.value)}
+                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }} />
+                </TouchableOpacity>
               </>
             ) : (
               <>
@@ -1433,21 +1526,19 @@ function PortalChatModal({
       <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#FFFFFF' }} behavior="padding" keyboardVerticalOffset={0}>
         <View style={PC.screen}>
           {/* Header */}
-          <View style={[PC.header, { backgroundColor: '#075e54' }]}>
+          <View style={PC.header}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={24} color="#FFFFFF" />
+              <Ionicons name="close" size={24} color="#0F172A" />
             </TouchableOpacity>
             <View style={{ flex: 1, marginHorizontal: 12 }}>
-              <Text style={[PC.headerTitle, { color: '#FFFFFF' }]}>{portal.customer_name || 'Customer'}</Text>
-              <Text style={[PC.headerSub, { color: 'rgba(255,255,255,0.7)' }]} numberOfLines={1}>
-                Customer portal chat
-              </Text>
+              <Text style={PC.headerTitle}>{portal.customer_name || 'Customer'}</Text>
+              <Text style={PC.headerSub} numberOfLines={1}>Customer portal chat</Text>
             </View>
             <TouchableOpacity onPress={handleShareLink} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginRight: 12 }}>
-              <Ionicons name="share-outline" size={22} color="#FFFFFF" />
+              <Ionicons name="share-outline" size={22} color="#475569" />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setShowOptions(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="ellipsis-vertical" size={22} color="#FFFFFF" />
+              <Ionicons name="ellipsis-vertical" size={22} color="#475569" />
             </TouchableOpacity>
           </View>
 
@@ -1633,7 +1724,41 @@ export default function OrderDetailScreen() {
 
   // ── Optimistic ───────────────────────────────────────────────────────────────
   const [optimisticEvents, setOptimisticEvents] = useState<(OrderEvent & { failed?: boolean; originalText?: string })[]>([])
-  const allEvents = [...evList, ...optimisticEvents]
+  const allEvents = (() => {
+    const raw = [...evList, ...optimisticEvents]
+    const deletedMsgIds = new Set<number>()
+    for (const e of raw) {
+      if (e.type === 'portal_message_deleted') {
+        const p = e.payload as Record<string, any>
+        if (p?.msg_id) deletedMsgIds.add(Number(p.msg_id))
+      }
+    }
+    const deletedAttIds = new Set<number>()
+    for (const e of raw) {
+      if (e.type === 'customer_message' && deletedMsgIds.has(Number((e.payload as any)?.msg_id))) {
+        for (const line of String((e.payload as any)?.text ?? '').split('\n')) {
+          const m = line.match(/^\[attachment:(\d+):/)
+          if (m) deletedAttIds.add(parseInt(m[1]))
+        }
+      }
+    }
+    return raw
+      .filter(e => {
+        if (e.type === 'portal_message_deleted') return false
+        if (e.type === 'user_mentioned') return false
+        if (e.type === 'customer_attachment' && deletedAttIds.has(Number((e.payload as any)?.att_id))) return false
+        return true
+      })
+      .map(e => {
+        if (
+          (e.type === 'customer_message' || e.type === 'staff_portal_reply') &&
+          deletedMsgIds.has(Number((e.payload as any)?.msg_id))
+        ) {
+          return { ...e, type: 'portal_message_deleted' as const }
+        }
+        return e
+      })
+  })()
 
   // ── Scroll + new-events badge ────────────────────────────────────────────────
   const [newCount, setNewCount] = useState(0)
@@ -2304,6 +2429,7 @@ export default function OrderDetailScreen() {
           order={order}
           portal={portal}
           onClose={() => setShowInfo(false)}
+          onPortalChange={setPortal}
         />
       )}
       {showEdit && order && (
@@ -2629,4 +2755,14 @@ const IN = StyleSheet.create({
     marginTop: 2,
   },
   copyBtnText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+  portalBtn: {
+    width: '100%', paddingVertical: 9, borderRadius: 8,
+    backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#A7F3D0',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  portalBtnText: { fontSize: 13, fontWeight: '600', color: '#10B981' },
+  portalActionBtn: {
+    flex: 1, paddingVertical: 7, borderRadius: 8,
+    borderWidth: 1, alignItems: 'center', justifyContent: 'center',
+  },
 })

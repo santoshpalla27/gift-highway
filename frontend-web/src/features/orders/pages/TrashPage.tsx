@@ -140,6 +140,7 @@ export function TrashPage() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['trash'] }),
         queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+        queryClient.invalidateQueries({ queryKey: ['notifications-activity'] }),
       ])
       showToast(`Order #${order.title} permanently deleted.`)
     } catch {
