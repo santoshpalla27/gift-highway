@@ -414,10 +414,10 @@ export default function CustomerPortalPage() {
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setSelectMode(true)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                title="Select messages to delete"
+                className="p-1.5 rounded-lg text-red-500 bg-red-50 transition-colors"
+                title="Delete messages"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
               </button>
               <button
                 onClick={() => setInfoOpen(true)}
@@ -448,6 +448,10 @@ export default function CustomerPortalPage() {
                 <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-700">
                   Active
                 </span>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wider">Order ID</p>
+                <p className="text-sm text-blue-600 font-semibold font-mono">#{portal.order_title ?? portal.order_id}</p>
               </div>
             </div>
           </div>
@@ -730,6 +734,7 @@ export default function CustomerPortalPage() {
                 { icon: '📎', title: 'Attach files', desc: 'Tap the paperclip icon to attach images, PDFs, or documents. You can also drag & drop files.' },
                 { icon: '↩️', title: 'Reply to a message', desc: 'Swipe a message left or right, or tap the reply arrow, to quote it in your response.' },
                 { icon: '🖼️', title: 'View images', desc: 'Tap any image thumbnail to open a full-screen viewer with download options.' },
+                { icon: '🗑️', title: 'Delete messages', desc: 'Tap the red delete button in the top-right corner to select and delete your messages.' },
               ].map(({ icon, title, desc }) => (
                 <div key={title} className="flex items-start gap-3">
                   <span className="text-lg leading-none mt-0.5 flex-shrink-0">{icon}</span>

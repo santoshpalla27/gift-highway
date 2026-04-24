@@ -8,6 +8,7 @@ const portalClient = axios.create({
 
 export interface PortalInfo {
   order_id: string
+  order_title?: string
   customer_name: string
   enabled: boolean
 }

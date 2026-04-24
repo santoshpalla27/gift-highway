@@ -38,8 +38,10 @@ func (h *PortalHandler) GetPortal(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load portal"})
 		return
 	}
+	orderTitle := h.svc.GetOrderTitle(c.Request.Context(), portal.OrderID)
 	c.JSON(http.StatusOK, gin.H{
 		"order_id":      portal.OrderID,
+		"order_title":   orderTitle,
 		"customer_name": portal.CustomerName,
 		"enabled":       portal.Enabled,
 	})

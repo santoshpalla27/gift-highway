@@ -95,6 +95,14 @@ func (s *PortalService) RegenerateToken(ctx context.Context, orderID string) (*m
 	return s.repo.RegenerateToken(ctx, orderID)
 }
 
+func (s *PortalService) GetOrderTitle(ctx context.Context, orderID string) string {
+	order, err := s.orderRepo.GetByID(ctx, orderID)
+	if err != nil || order == nil {
+		return ""
+	}
+	return order.Title
+}
+
 // ValidateToken looks up the portal by token and verifies it is enabled.
 func (s *PortalService) ValidateToken(ctx context.Context, token string) (*models.CustomerPortal, error) {
 	p, err := s.repo.GetByToken(ctx, token)
