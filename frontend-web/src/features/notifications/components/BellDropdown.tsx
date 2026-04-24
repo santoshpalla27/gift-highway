@@ -98,7 +98,10 @@ function GroupRow({ group, onOpen }: { group: DisplayGroup; onOpen: () => void }
 
 export function BellDropdown() {
   const navigate = useNavigate()
-  const { groups, totalCount, isLoading, markAllRead } = useNotifications()
+  const [mineOnly, setMineOnly] = useState(true)
+  const { groups, totalCount, isLoading, markAllRead } = useNotifications({ mineOnly })
+  // Badge always reflects "My Orders" count regardless of active tab
+  const { totalCount: myCount } = useNotifications({ mineOnly: true })
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -129,7 +132,7 @@ export function BellDropdown() {
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
         </svg>
-        {totalCount > 0 && (
+        {myCount > 0 && (
           <span style={{
             position: 'absolute', top: 6, right: 6,
             minWidth: 16, height: 16, borderRadius: 8,
@@ -138,7 +141,7 @@ export function BellDropdown() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '0 3px', lineHeight: 1, pointerEvents: 'none',
           }}>
-            {totalCount > 99 ? '99+' : totalCount}
+            {myCount > 99 ? '99+' : myCount}
           </span>
         )}
       </button>
@@ -153,22 +156,43 @@ export function BellDropdown() {
           zIndex: 300, overflow: 'hidden',
         }}>
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #F3F4F6' }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>
-              Notifications {totalCount > 0 && <span style={{ color: '#6366F1' }}>({totalCount})</span>}
-            </span>
-            {totalCount > 0 && (
-              <button
-                onClick={() => { markAllRead(); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#6366F1', fontWeight: 600, padding: 0 }}
-              >
-                Mark all read
-              </button>
-            )}
+          <div style={{ padding: '12px 16px 0', borderBottom: '1px solid #F3F4F6' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>
+                Notifications {totalCount > 0 && <span style={{ color: '#6366F1' }}>({totalCount})</span>}
+              </span>
+              {totalCount > 0 && (
+                <button
+                  onClick={() => { markAllRead() }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#6366F1', fontWeight: 600, padding: 0 }}
+                >
+                  Mark all read
+                </button>
+              )}
+            </div>
+
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: 2 }}>
+              {([true, false] as const).map(mine => (
+                <button
+                  key={String(mine)}
+                  onClick={() => setMineOnly(mine)}
+                  style={{
+                    flex: 1, padding: '6px 0', fontSize: 12, fontWeight: 600,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: mineOnly === mine ? '#4F46E5' : '#9CA3AF',
+                    borderBottom: mineOnly === mine ? '2px solid #6366F1' : '2px solid transparent',
+                    transition: 'color 150ms, border-color 150ms',
+                  }}
+                >
+                  {mine ? 'My Orders' : 'All'}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Groups */}
-          <div style={{ maxHeight: 420, overflowY: 'auto' }}>
+          <div style={{ maxHeight: 400, overflowY: 'auto' }}>
             {isLoading ? (
               <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: 13, color: '#9CA3AF' }}>Loading…</div>
             ) : groups.length === 0 ? (
@@ -177,7 +201,9 @@ export function BellDropdown() {
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                   <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
                 </svg>
-                <p style={{ fontSize: 13, color: '#9CA3AF', margin: 0 }}>You're all caught up</p>
+                <p style={{ fontSize: 13, color: '#9CA3AF', margin: 0 }}>
+                  {mineOnly ? "You're all caught up" : 'No notifications'}
+                </p>
               </div>
             ) : (
               groups.map(g => (

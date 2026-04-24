@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -44,9 +45,20 @@ func NewNotificationRepository(db *sqlx.DB) *NotificationRepository {
 	return &NotificationRepository{db: db}
 }
 
+const mineOnlyClause = `
+  AND (
+    EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = e.order_id AND oa.user_id::text = $1)
+    OR o.created_by::text = $1
+  )`
+
 // GetUnreadEvents returns all unread notifiable events for a user.
-func (r *NotificationRepository) GetUnreadEvents(ctx context.Context, userID string) ([]*NotificationEvent, error) {
-	query := `
+// mineOnly restricts to orders the user is assigned to or created.
+func (r *NotificationRepository) GetUnreadEvents(ctx context.Context, userID string, mineOnly bool) ([]*NotificationEvent, error) {
+	mine := ""
+	if mineOnly {
+		mine = mineOnlyClause
+	}
+	query := fmt.Sprintf(`
 		SELECT e.id, e.order_id, e.type, e.actor_id, e.payload, e.created_at,
 		       o.title AS order_title, o.order_number,
 		       TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))) AS actor_name
@@ -57,9 +69,10 @@ func (r *NotificationRepository) GetUnreadEvents(ctx context.Context, userID str
 		WHERE e.type = ANY($2)
 		  AND (e.actor_id IS NULL OR e.actor_id::text != $1)
 		  AND e.created_at > COALESCE(nr.last_seen_at, '1970-01-01 00:00:00 UTC'::timestamptz)
+		%s
 		ORDER BY e.created_at DESC
 		LIMIT 500
-	`
+	`, mine)
 	var events []*NotificationEvent
 	err := r.db.SelectContext(ctx, &events, query, userID, pq.Array(notifiableTypes))
 	return events, err
