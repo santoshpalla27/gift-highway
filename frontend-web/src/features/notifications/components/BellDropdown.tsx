@@ -97,16 +97,38 @@ function GroupRow({ group, onOpen }: { group: DisplayGroup; onOpen: () => void }
 
 // ── Bell Dropdown ─────────────────────────────────────────────────────────────
 
+function filterGroupsByTypes(groups: DisplayGroup[], enabledTypes: string[]): DisplayGroup[] {
+  const typeSet = new Set(enabledTypes)
+  return groups
+    .map(g => ({
+      ...g,
+      events: g.events.filter(e => typeSet.has(e.type)),
+    }))
+    .filter(g => g.events.length > 0 || g.isRead)
+    .map(g => ({
+      ...g,
+      unread_count: g.isRead ? g.unread_count : g.events.filter(e => typeSet.has(e.type)).length,
+    }))
+}
+
 export function BellDropdown() {
   const navigate = useNavigate()
-  const { scope } = useNotifPreference()
+  const { scope, getEnabledTypes } = useNotifPreference()
   const [tab, setTab] = useState<Tab>('mine')
 
   // Always fetch both so badge and tabs are always up-to-date
-  const { groups: myGroups, totalCount: myCount, isLoading: myLoading, markAllRead: markMyRead } =
+  const { groups: myGroupsRaw, totalCount: myCountRaw, isLoading: myLoading, markAllRead: markMyRead } =
     useNotifications({ mineOnly: true })
-  const { groups: otherGroups, totalCount: otherCount, isLoading: otherLoading, markAllRead: markOtherRead } =
+  const { groups: otherGroupsRaw, totalCount: otherCountRaw, isLoading: otherLoading, markAllRead: markOtherRead } =
     useNotifications({ othersOnly: true })
+
+  // Filter by per-scope enabled types
+  const myGroups = filterGroupsByTypes(myGroupsRaw, getEnabledTypes('my_orders'))
+  const otherGroups = filterGroupsByTypes(otherGroupsRaw, getEnabledTypes('all_orders'))
+
+  // Badge counts based on filtered groups
+  const myCount = myGroups.filter(g => !g.isRead).reduce((s, g) => s + g.unread_count, 0)
+  const otherCount = otherGroups.filter(g => !g.isRead).reduce((s, g) => s + g.unread_count, 0)
 
   // Preference controls the badge: "all_orders" includes both counts
   const badgeCount = scope === 'all_orders' ? myCount + otherCount : myCount

@@ -3,14 +3,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { profileService } from '../../../services/profileService'
 import { useAuthStore } from '../../../store/authStore'
 import { AvatarUploader } from '../components/AvatarUploader'
-import { useNotifPreference } from '../../notifications/hooks/useNotifPreference'
+import { NotificationPreferencesCard } from '../../notifications/components/NotificationPreferencesCard'
 
 export function ProfileSettingsPage() {
   const { user, setAuth, accessToken, refreshToken } = useAuthStore()
   const qc = useQueryClient()
   const [freshSignedUrl, setFreshSignedUrl] = useState<string | null>(null)
-
-  const { scope, setScope } = useNotifPreference()
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile', 'me'],
@@ -197,38 +195,10 @@ export function ProfileSettingsPage() {
         {/* PREFERENCES */}
         <div className="premium-card">
           <div className="card-header">
-            <span className="card-label">Preferences</span>
+            <span className="card-label">Notification Preferences</span>
           </div>
           <div className="card-body">
-            {/* My Orders setting */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 4 }}>My Orders Notifications</div>
-                <div style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.5 }}>
-                  {scope === 'my_orders'
-                    ? 'Bell and badge only show notifications for orders assigned to you. All-order activity is still tracked silently.'
-                    : 'Bell and badge show notifications for all orders across the workspace.'}
-                </div>
-              </div>
-              {/* Toggle */}
-              <div style={{ display: 'flex', background: '#F3F4F6', borderRadius: 10, padding: 3, gap: 2, flexShrink: 0 }}>
-                {(['my_orders', 'all_orders'] as const).map(v => (
-                  <button
-                    key={v}
-                    onClick={() => setScope(v)}
-                    style={{
-                      padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                      fontSize: 12, fontWeight: 600, transition: 'all 150ms ease',
-                      background: scope === v ? '#fff' : 'transparent',
-                      color: scope === v ? '#4F46E5' : '#6B7280',
-                      boxShadow: scope === v ? '0 1px 3px rgba(0,0,0,.10)' : 'none',
-                    }}
-                  >
-                    {v === 'my_orders' ? 'My Orders' : 'All Orders'}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <NotificationPreferencesCard />
           </div>
         </div>
       </div>
