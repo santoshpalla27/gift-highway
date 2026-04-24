@@ -7,7 +7,14 @@ import (
 
 	"github.com/company/app/backend/internal/models"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 )
+
+// UserMention is a minimal struct used when resolving @mention names to user IDs.
+type UserMention struct {
+	ID       string `db:"id"`
+	FullName string `db:"full_name"`
+}
 
 var ErrNotFound = errors.New("not found")
 
@@ -133,6 +140,22 @@ func (r *UserRepository) EnableUser(ctx context.Context, id string) error {
 func (r *UserRepository) HardDeleteUser(ctx context.Context, id string) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM users WHERE id=$1`, id)
 	return err
+}
+
+// FindByFullNames looks up active users by their display name (first + last).
+// Used to resolve @[Name] mention tokens to user IDs.
+func (r *UserRepository) FindByFullNames(ctx context.Context, names []string) ([]UserMention, error) {
+	if len(names) == 0 {
+		return nil, nil
+	}
+	var users []UserMention
+	err := r.db.SelectContext(ctx, &users, `
+		SELECT id, TRIM(CONCAT(first_name, ' ', COALESCE(last_name, ''))) AS full_name
+		FROM users
+		WHERE TRIM(CONCAT(first_name, ' ', COALESCE(last_name, ''))) = ANY($1)
+		  AND is_active = true
+	`, pq.Array(names))
+	return users, err
 }
 
 func (r *UserRepository) CountAdmins(ctx context.Context) (int, error) {

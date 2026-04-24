@@ -19,6 +19,7 @@ const (
 	EvtCustomerAttachment   = "customer_attachment"
 	EvtStaffPortalReply     = "staff_portal_reply"
 	EvtPortalMessageDeleted = "portal_message_deleted"
+	EvtUserMentioned        = "user_mentioned"
 )
 
 type OrderEvent struct {

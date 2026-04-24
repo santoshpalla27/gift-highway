@@ -79,6 +79,27 @@ export function NotificationPreferencesCard() {
         Notify me about ({scope === 'my_orders' ? 'My Orders' : 'All Orders'})
       </div>
 
+      {/* Mentions — always on, no toggle */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 10 }}>
+          Mentions
+        </div>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 12px', borderRadius: 8,
+          background: '#F5F3FF', border: '1px solid #DDD6FE',
+        }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <span style={{ fontSize: 13, fontWeight: 500, color: '#4F46E5', flex: 1, userSelect: 'none' }}>
+            Mentions (@you)
+          </span>
+          <span style={{ fontSize: 11, color: '#7C3AED', fontWeight: 600 }}>Always on</span>
+        </div>
+      </div>
+
       {/* Groups */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         {GROUPS.map(group => (

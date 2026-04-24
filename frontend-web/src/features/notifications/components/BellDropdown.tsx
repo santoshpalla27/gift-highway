@@ -29,6 +29,8 @@ function eventPreview(e: NotificationEvent): string {
       return `${e.actor_name} changed due date`
     case 'staff_portal_reply':
       return `${e.actor_name}: ${String(p.text ?? '').slice(0, 60)}`
+    case 'user_mentioned':
+      return `${e.actor_name} mentioned you: ${String(p.text ?? '').replace(/@\[([^\]]+)\]/g, '@$1').slice(0, 50)}`
     default:
       return `${e.actor_name} updated the order`
   }

@@ -37,7 +37,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 	attachmentRepo := repositories.NewAttachmentRepository(db)
 	portalRepo := repositories.NewPortalRepository(db)
 	orderSvc := services.NewOrderService(orderRepo)
-	eventSvc := services.NewEventService(eventRepo)
+	eventSvc := services.NewEventService(eventRepo, userRepo)
 	attachmentSvc := services.NewAttachmentService(attachmentRepo, eventRepo, cfg)
 	portalSvc := services.NewPortalService(portalRepo, orderRepo, eventRepo, cfg)
 	dashboardRepo := repositories.NewDashboardRepository(db)

@@ -43,6 +43,7 @@ var highPriority = map[string]bool{
 	"customer_message":    true,
 	"customer_attachment": true,
 	"assignees_changed":   true,
+	"user_mentioned":      true,
 }
 
 var lowPriority = map[string]bool{

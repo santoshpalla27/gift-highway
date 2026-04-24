@@ -12,6 +12,7 @@ const STORAGE_KEY = 'gh-notif-prefs'
 const SYNC_EVENT = 'gh-notif-scope-change'
 
 export const DEFAULT_TYPE_PREFS: TypePrefs = {
+  user_mentioned:      true,
   customer_message:    true,
   customer_attachment: true,
   assignees_changed:   true,

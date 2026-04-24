@@ -1106,6 +1106,7 @@ export function OrderDetailPage() {
     return raw
       .filter(e => {
         if (e.type === 'portal_message_deleted') return false
+        if (e.type === 'user_mentioned') return false
         if (e.type === 'customer_attachment' && deletedAttIds.has(Number((e.payload as any)?.att_id))) return false
         return true
       })

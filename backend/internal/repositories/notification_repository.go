@@ -35,6 +35,7 @@ var notifiableTypes = []string{
 	"customer_attachment",
 	"staff_portal_reply",
 	"order_updated",
+	"user_mentioned",
 }
 
 type NotificationRepository struct {
@@ -45,12 +46,16 @@ func NewNotificationRepository(db *sqlx.DB) *NotificationRepository {
 	return &NotificationRepository{db: db}
 }
 
-// mineOnly = only orders the user is assigned to.
+// mineOnly = assigned orders + any order where this event is a direct mention of the user.
 const mineOnlyClause = `
-  AND EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = e.order_id AND oa.user_id::text = $1)`
+  AND (
+    EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = e.order_id AND oa.user_id::text = $1)
+    OR (e.type = 'user_mentioned' AND e.payload->>'mentioned_user_id' = $1)
+  )`
 
-// othersOnly = only orders the user is NOT assigned to.
+// othersOnly = orders the user is NOT assigned to, excluding mention-targeted events (those belong to mineOnly).
 const othersOnlyClause = `
+  AND e.type != 'user_mentioned'
   AND NOT EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = e.order_id AND oa.user_id::text = $1)`
 
 // GetUnreadEvents returns all unread notifiable events for a user.
@@ -72,6 +77,7 @@ func (r *NotificationRepository) GetUnreadEvents(ctx context.Context, userID str
 		LEFT JOIN notification_reads nr ON nr.user_id::text = $1 AND nr.order_id = e.order_id
 		WHERE e.type = ANY($2)
 		  AND (e.actor_id IS NULL OR e.actor_id::text != $1)
+		  AND (e.type != 'user_mentioned' OR e.payload->>'mentioned_user_id' = $1)
 		  AND e.created_at > COALESCE(nr.last_seen_at, '1970-01-01 00:00:00 UTC'::timestamptz)
 		%s
 		ORDER BY e.created_at DESC
@@ -93,6 +99,7 @@ func (r *NotificationRepository) GetHistoryEvents(ctx context.Context, userID st
 		LEFT JOIN users u ON e.actor_id = u.id
 		WHERE e.type = ANY($1)
 		  AND (e.actor_id IS NULL OR e.actor_id::text != $2)
+		  AND (e.type != 'user_mentioned' OR e.payload->>'mentioned_user_id' = $2)
 		ORDER BY e.created_at DESC
 		LIMIT $3 OFFSET $4
 	`
@@ -104,7 +111,9 @@ func (r *NotificationRepository) GetHistoryEvents(ctx context.Context, userID st
 	var total int
 	err = r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM order_events
-		 WHERE type = ANY($1) AND (actor_id IS NULL OR actor_id::text != $2)`,
+		 WHERE type = ANY($1)
+		   AND (actor_id IS NULL OR actor_id::text != $2)
+		   AND (type != 'user_mentioned' OR payload->>'mentioned_user_id' = $2)`,
 		pq.Array(notifiableTypes), userID,
 	).Scan(&total)
 	return events, total, err
@@ -173,6 +182,7 @@ func (r *NotificationRepository) GetOrderSummaries(ctx context.Context, userID s
 		LEFT JOIN notification_reads nr ON nr.user_id::text = $1 AND nr.order_id = o.id
 		WHERE e.type = ANY($2)
 		  AND (e.actor_id IS NULL OR e.actor_id::text != $1)
+		  AND (e.type != 'user_mentioned' OR e.payload->>'mentioned_user_id' = $1)
 		GROUP BY o.id, o.order_number, o.title
 		HAVING COUNT(e.id) > 0
 		ORDER BY MAX(e.created_at) DESC
@@ -194,6 +204,7 @@ func (r *NotificationRepository) GetOrderNotificationEvents(ctx context.Context,
 		WHERE e.order_id = $1
 		  AND e.type = ANY($2)
 		  AND (e.actor_id IS NULL OR e.actor_id::text != $3)
+		  AND (e.type != 'user_mentioned' OR e.payload->>'mentioned_user_id' = $3)
 		ORDER BY e.created_at DESC
 	`
 	var events []*NotificationEvent
