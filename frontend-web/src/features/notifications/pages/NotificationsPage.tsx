@@ -34,8 +34,6 @@ const EVENT_ICON_COLOR: Record<string, string> = {
   order_updated:       '#9CA3AF',
 }
 
-const PAGE_SIZE = 50
-
 // ── Event icon ────────────────────────────────────────────────────────────────
 
 function EventIcon({ type }: { type: string }) {
