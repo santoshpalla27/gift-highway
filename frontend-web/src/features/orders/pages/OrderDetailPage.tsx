@@ -2138,6 +2138,37 @@ export function OrderDetailPage() {
               </div>
             )}
           </PanelSection>
+
+          {/* Archive */}
+          {perms.canArchive && !order.is_archived && (
+            <PanelSection label="Archive Order">
+              <button
+                onClick={async () => {
+                  if (!window.confirm('Archive this order? It will be removed from active lists. Admins can restore it from Trash.')) return
+                  try {
+                    await orderService.archiveOrder(order.id)
+                    navigate(-1)
+                  } catch {
+                    alert('Failed to archive order.')
+                  }
+                }}
+                style={{
+                  width: '100%', fontSize: 12, fontWeight: 600, padding: '7px 0', borderRadius: 6,
+                  background: '#FEF2F2', color: '#EF4444', border: '1px solid #FECACA', cursor: 'pointer',
+                }}
+              >
+                Archive Order
+              </button>
+            </PanelSection>
+          )}
+
+          {order.is_archived && (
+            <PanelSection label="Archive Order">
+              <div style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '4px 0' }}>
+                Archived{order.archived_by_name ? ` by ${order.archived_by_name}` : ''}
+              </div>
+            </PanelSection>
+          )}
         </div>
       </div>
 

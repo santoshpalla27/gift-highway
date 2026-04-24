@@ -11,6 +11,7 @@ import { UsersPage } from '../features/admin/pages/UsersPage'
 import { ProfileSettingsPage } from '../features/profile/pages/ProfileSettingsPage'
 import { OrdersPage } from '../features/orders/pages/OrdersPage'
 import { OrderDetailPage } from '../features/orders/pages/OrderDetailPage'
+import { TrashPage } from '../features/orders/pages/TrashPage'
 import CustomerPortalPage from '../features/portal/pages/CustomerPortalPage'
 
 export default function App() {
@@ -34,6 +35,7 @@ export default function App() {
           <Route path="/settings/profile" element={<ProfileSettingsPage />} />
           <Route path="/settings" element={<ProfileSettingsPage />} />
           <Route path="/admin/users" element={<UsersPage />} />
+          <Route path="/trash" element={<TrashPage />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFoundPage />} />

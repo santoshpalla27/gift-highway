@@ -76,6 +76,7 @@ func (r *NotificationRepository) GetUnreadEvents(ctx context.Context, userID str
 		LEFT JOIN users u ON e.actor_id = u.id
 		LEFT JOIN notification_reads nr ON nr.user_id::text = $1 AND nr.order_id = e.order_id
 		WHERE e.type = ANY($2)
+		  AND o.is_archived = false
 		  AND (e.actor_id IS NULL OR e.actor_id::text != $1)
 		  AND (e.type != 'user_mentioned' OR e.payload->>'mentioned_user_id' = $1)
 		  AND e.created_at > COALESCE(nr.last_seen_at, '1970-01-01 00:00:00 UTC'::timestamptz)
@@ -98,6 +99,7 @@ func (r *NotificationRepository) GetHistoryEvents(ctx context.Context, userID st
 		JOIN orders o ON e.order_id = o.id
 		LEFT JOIN users u ON e.actor_id = u.id
 		WHERE e.type = ANY($1)
+		  AND o.is_archived = false
 		  AND (e.actor_id IS NULL OR e.actor_id::text != $2)
 		  AND (e.type != 'user_mentioned' OR e.payload->>'mentioned_user_id' = $2)
 		ORDER BY e.created_at DESC
@@ -181,6 +183,7 @@ func (r *NotificationRepository) GetOrderSummaries(ctx context.Context, userID s
 		JOIN order_events e ON e.order_id = o.id
 		LEFT JOIN notification_reads nr ON nr.user_id::text = $1 AND nr.order_id = o.id
 		WHERE e.type = ANY($2)
+		  AND o.is_archived = false
 		  AND (e.actor_id IS NULL OR e.actor_id::text != $1)
 		  AND (e.type != 'user_mentioned' OR e.payload->>'mentioned_user_id' = $1)
 		GROUP BY o.id, o.order_number, o.title

@@ -15,8 +15,22 @@ export interface Order {
   created_by_name: string
   due_date: string | null
   due_time: string | null
+  is_archived: boolean
+  archived_at: string | null
+  archived_by_name: string | null
   created_at: string
   updated_at: string
+}
+
+export interface TrashOrder {
+  id: string
+  order_number: number
+  title: string
+  customer_name: string
+  status: string
+  archived_at: string | null
+  archived_by_name: string | null
+  completed_date: string | null
 }
 
 export interface ListOrdersParams {
@@ -110,5 +124,22 @@ export const orderService = {
 
   deleteComment: async (orderId: string, eventId: string): Promise<void> => {
     await apiClient.delete(`/orders/${orderId}/events/${eventId}`)
+  },
+
+  archiveOrder: async (id: string): Promise<void> => {
+    await apiClient.post(`/orders/${id}/archive`)
+  },
+
+  restoreOrder: async (id: string): Promise<void> => {
+    await apiClient.post(`/orders/${id}/restore`)
+  },
+
+  permanentDelete: async (id: string): Promise<void> => {
+    await apiClient.delete(`/orders/${id}/permanent`)
+  },
+
+  listTrash: async (): Promise<TrashOrder[]> => {
+    const res = await apiClient.get<{ orders: TrashOrder[] }>('/orders/trash')
+    return res.data.orders ?? []
   },
 }

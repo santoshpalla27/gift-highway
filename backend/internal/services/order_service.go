@@ -2,8 +2,14 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/company/app/backend/internal/config"
 	"github.com/company/app/backend/internal/models"
 	"github.com/company/app/backend/internal/repositories"
 	"github.com/google/uuid"
@@ -11,10 +17,11 @@ import (
 
 type OrderService struct {
 	orderRepo *repositories.OrderRepository
+	cfg       *config.Config
 }
 
-func NewOrderService(orderRepo *repositories.OrderRepository) *OrderService {
-	return &OrderService{orderRepo: orderRepo}
+func NewOrderService(orderRepo *repositories.OrderRepository, cfg *config.Config) *OrderService {
+	return &OrderService{orderRepo: orderRepo, cfg: cfg}
 }
 
 type CreateOrderRequest struct {
@@ -106,4 +113,50 @@ func (s *OrderService) UpdateOrder(ctx context.Context, id string, req UpdateOrd
 
 func (s *OrderService) UpdateStatus(ctx context.Context, id string, req UpdateOrderStatusRequest) error {
 	return s.orderRepo.UpdateStatus(ctx, id, req.Status)
+}
+
+func (s *OrderService) ArchiveOrder(ctx context.Context, id, archivedBy string) error {
+	return s.orderRepo.Archive(ctx, id, archivedBy)
+}
+
+func (s *OrderService) RestoreOrder(ctx context.Context, id string) error {
+	return s.orderRepo.Restore(ctx, id)
+}
+
+func (s *OrderService) ListTrash(ctx context.Context) ([]*repositories.TrashOrder, error) {
+	return s.orderRepo.ListTrash(ctx)
+}
+
+func (s *OrderService) PermanentDeleteOrder(ctx context.Context, id string) error {
+	r2Keys, err := s.orderRepo.PermanentDelete(ctx, id)
+	if err != nil {
+		return err
+	}
+	if len(r2Keys) > 0 && s.cfg != nil && s.cfg.R2AccountID != "" {
+		_ = s.deleteR2Objects(ctx, r2Keys)
+	}
+	return nil
+}
+
+func (s *OrderService) deleteR2Objects(ctx context.Context, keys []string) error {
+	endpoint := fmt.Sprintf("https://%s.r2.cloudflarestorage.com", s.cfg.R2AccountID)
+	r2cfg, err := awsconfig.LoadDefaultConfig(ctx,
+		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			s.cfg.R2AccessKey, s.cfg.R2SecretKey, "",
+		)),
+		awsconfig.WithRegion("auto"),
+	)
+	if err != nil {
+		return err
+	}
+	client := s3.NewFromConfig(r2cfg, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(endpoint)
+	})
+	for _, key := range keys {
+		_, _ = client.DeleteObject(ctx, &s3.DeleteObjectInput{
+			Bucket: aws.String(s.cfg.R2Bucket),
+			Key:    aws.String(key),
+		})
+	}
+	return nil
 }

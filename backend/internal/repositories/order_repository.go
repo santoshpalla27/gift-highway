@@ -35,7 +35,8 @@ func NewOrderRepository(db *sqlx.DB) *OrderRepository {
 const orderSelectBase = `
 	SELECT
 		o.id, o.order_number, o.title, o.description, o.customer_name, o.contact_number,
-		o.status, o.priority, o.created_by, o.due_date, o.due_time, o.created_at, o.updated_at,
+		o.status, o.priority, o.created_by, o.due_date, o.due_time,
+		o.is_archived, o.archived_at, o.archived_by, o.created_at, o.updated_at,
 		ARRAY(
 			SELECT oa.user_id::text
 			FROM order_assignees oa
@@ -50,9 +51,14 @@ const orderSelectBase = `
 			WHERE oa.order_id = o.id
 			ORDER BY u.first_name
 		) as assigned_names,
-		CONCAT(cu.first_name, ' ', COALESCE(cu.last_name, '')) as created_by_name
+		CONCAT(cu.first_name, ' ', COALESCE(cu.last_name, '')) as created_by_name,
+		CASE WHEN o.archived_by IS NOT NULL
+			THEN TRIM(CONCAT(au.first_name, ' ', COALESCE(au.last_name, '')))
+			ELSE NULL
+		END as archived_by_name
 	FROM orders o
 	LEFT JOIN users cu ON o.created_by = cu.id
+	LEFT JOIN users au ON o.archived_by = au.id
 `
 
 func (r *OrderRepository) buildWhere(f OrderFilter) (string, []interface{}) {
@@ -109,8 +115,15 @@ func (r *OrderRepository) buildWhere(f OrderFilter) (string, []interface{}) {
 func (r *OrderRepository) List(ctx context.Context, f OrderFilter) ([]*models.OrderWithNames, int, error) {
 	where, args := r.buildWhere(f)
 
+	// Active list always excludes archived orders
+	archiveFilter := "AND o.is_archived = false"
+	if where == "" {
+		where = "WHERE o.is_archived = false"
+		archiveFilter = ""
+	}
+
 	var total int
-	if err := r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM orders o "+where, args...); err != nil {
+	if err := r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM orders o "+where+" "+archiveFilter, args...); err != nil {
 		return nil, 0, err
 	}
 
@@ -142,7 +155,7 @@ func (r *OrderRepository) List(ctx context.Context, f OrderFilter) ([]*models.Or
 	if f.SortBy == "due_date" {
 		nullsLast = " NULLS LAST"
 	}
-	query := orderSelectBase + where + fmt.Sprintf(" ORDER BY %s %s%s LIMIT $%d OFFSET $%d", sortCol, sortDir, nullsLast, len(args)+1, len(args)+2)
+	query := orderSelectBase + where + " " + archiveFilter + fmt.Sprintf(" ORDER BY %s %s%s LIMIT $%d OFFSET $%d", sortCol, sortDir, nullsLast, len(args)+1, len(args)+2)
 	args = append(args, limit, offset)
 
 	var orders []*models.OrderWithNames
@@ -235,4 +248,86 @@ func (r *OrderRepository) UpdateStatus(ctx context.Context, id, status string) e
 		UPDATE orders SET status=$1, updated_at=NOW() WHERE id=$2
 	`, status, id)
 	return err
+}
+
+// Archive marks an order as archived.
+func (r *OrderRepository) Archive(ctx context.Context, id, archivedBy string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE orders SET is_archived=true, archived_at=NOW(), archived_by=$1, updated_at=NOW()
+		WHERE id=$2 AND is_archived=false
+	`, archivedBy, id)
+	return err
+}
+
+// Restore un-archives an order.
+func (r *OrderRepository) Restore(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE orders SET is_archived=false, archived_at=NULL, archived_by=NULL, updated_at=NOW()
+		WHERE id=$1
+	`, id)
+	return err
+}
+
+// TrashOrder is a lightweight struct for the trash list.
+type TrashOrder struct {
+	ID             string  `db:"id"              json:"id"`
+	OrderNumber    int     `db:"order_number"    json:"order_number"`
+	Title          string  `db:"title"           json:"title"`
+	CustomerName   string  `db:"customer_name"   json:"customer_name"`
+	Status         string  `db:"status"          json:"status"`
+	ArchivedAt     *string `db:"archived_at"     json:"archived_at"`
+	ArchivedByName *string `db:"archived_by_name" json:"archived_by_name"`
+	CompletedDate  *string `db:"completed_date"  json:"completed_date"`
+}
+
+// ListTrash returns all archived orders.
+func (r *OrderRepository) ListTrash(ctx context.Context) ([]*TrashOrder, error) {
+	var orders []*TrashOrder
+	err := r.db.SelectContext(ctx, &orders, `
+		SELECT
+			o.id, o.order_number, o.title, o.customer_name, o.status,
+			TO_CHAR(o.archived_at, 'YYYY-MM-DD HH24:MI') AS archived_at,
+			CASE WHEN o.archived_by IS NOT NULL
+				THEN TRIM(CONCAT(au.first_name, ' ', COALESCE(au.last_name, '')))
+				ELSE NULL
+			END AS archived_by_name,
+			NULL::text AS completed_date
+		FROM orders o
+		LEFT JOIN users au ON o.archived_by = au.id
+		WHERE o.is_archived = true
+		ORDER BY o.archived_at DESC
+	`)
+	return orders, err
+}
+
+// PermanentDelete deletes an order and all related data from the database.
+// All child tables have ON DELETE CASCADE so deleting the order handles everything.
+// R2 file keys are returned so the caller can delete them from storage.
+func (r *OrderRepository) PermanentDelete(ctx context.Context, id string) ([]string, error) {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	// Collect R2 keys before deletion
+	var r2Keys []string
+	var attKeys []string
+	if err := tx.SelectContext(ctx, &attKeys, `SELECT file_key FROM order_attachments WHERE order_id=$1`, id); err == nil {
+		r2Keys = append(r2Keys, attKeys...)
+	}
+	var portalKeys []string
+	if err := tx.SelectContext(ctx, &portalKeys, `SELECT s3_key FROM portal_attachments WHERE order_id=$1`, id); err == nil {
+		r2Keys = append(r2Keys, portalKeys...)
+	}
+
+	// CASCADE handles all child rows — just delete the order
+	if _, err := tx.ExecContext(ctx, `DELETE FROM orders WHERE id=$1`, id); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return r2Keys, nil
 }

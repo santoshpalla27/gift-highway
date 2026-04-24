@@ -6,13 +6,15 @@ export interface OrderPermissions {
   canEditOrder: boolean
   canReassign: boolean
   canDeleteComment: boolean
+  canArchive: boolean
+  isAdmin: boolean
 }
 
 export function useOrderPermissions(order: Order | null): OrderPermissions {
   const user = useAuthStore(s => s.user)
 
   if (!user || !order) {
-    return { canChangeStatus: false, canEditOrder: false, canReassign: false, canDeleteComment: false }
+    return { canChangeStatus: false, canEditOrder: false, canReassign: false, canDeleteComment: false, canArchive: false, isAdmin: false }
   }
 
   const isAdmin = user.role === 'admin'
@@ -23,5 +25,7 @@ export function useOrderPermissions(order: Order | null): OrderPermissions {
     canEditOrder: isAdmin || isAssigned,
     canReassign: isAdmin,
     canDeleteComment: isAdmin || isAssigned,
+    canArchive: isAdmin || isAssigned,
+    isAdmin,
   }
 }

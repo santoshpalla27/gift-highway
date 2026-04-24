@@ -23,22 +23,25 @@ func NewOrderHandler(orderService *services.OrderService, eventService *services
 }
 
 type orderResponse struct {
-	ID            string   `json:"id"`
-	OrderNumber   int      `json:"order_number"`
-	Title         string   `json:"title"`
-	Description   string   `json:"description"`
-	CustomerName  string   `json:"customer_name"`
-	ContactNumber string   `json:"contact_number"`
-	Status        string   `json:"status"`
-	Priority      string   `json:"priority"`
-	AssignedTo    []string `json:"assigned_to"`
-	AssignedNames []string `json:"assigned_names"`
-	CreatedBy     string   `json:"created_by"`
-	CreatedByName string   `json:"created_by_name"`
-	DueDate       *string  `json:"due_date"`
-	DueTime       *string  `json:"due_time"`
-	CreatedAt     string   `json:"created_at"`
-	UpdatedAt     string   `json:"updated_at"`
+	ID             string  `json:"id"`
+	OrderNumber    int     `json:"order_number"`
+	Title          string  `json:"title"`
+	Description    string  `json:"description"`
+	CustomerName   string  `json:"customer_name"`
+	ContactNumber  string  `json:"contact_number"`
+	Status         string  `json:"status"`
+	Priority       string  `json:"priority"`
+	AssignedTo     []string `json:"assigned_to"`
+	AssignedNames  []string `json:"assigned_names"`
+	CreatedBy      string  `json:"created_by"`
+	CreatedByName  string  `json:"created_by_name"`
+	DueDate        *string `json:"due_date"`
+	DueTime        *string `json:"due_time"`
+	IsArchived     bool    `json:"is_archived"`
+	ArchivedAt     *string `json:"archived_at"`
+	ArchivedByName *string `json:"archived_by_name"`
+	CreatedAt      string  `json:"created_at"`
+	UpdatedAt      string  `json:"updated_at"`
 }
 
 func toOrderResponse(o *models.OrderWithNames) orderResponse {
@@ -46,6 +49,11 @@ func toOrderResponse(o *models.OrderWithNames) orderResponse {
 	if o.DueDate != nil {
 		s := o.DueDate.Format("2006-01-02")
 		dueDate = &s
+	}
+	var archivedAt *string
+	if o.ArchivedAt != nil {
+		s := o.ArchivedAt.Format(time.RFC3339)
+		archivedAt = &s
 	}
 	assignedTo := []string(o.AssignedTo)
 	if assignedTo == nil {
@@ -56,22 +64,25 @@ func toOrderResponse(o *models.OrderWithNames) orderResponse {
 		assignedNames = []string{}
 	}
 	return orderResponse{
-		ID:            o.ID,
-		OrderNumber:   o.OrderNumber,
-		Title:         o.Title,
-		Description:   o.Description,
-		CustomerName:  o.CustomerName,
-		ContactNumber: o.ContactNumber,
-		Status:        o.Status,
-		Priority:      o.Priority,
-		AssignedTo:    assignedTo,
-		AssignedNames: assignedNames,
-		CreatedBy:     o.CreatedBy,
-		CreatedByName: o.CreatedByName,
-		DueDate:       dueDate,
-		DueTime:       o.DueTime,
-		CreatedAt:     o.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:     o.UpdatedAt.Format(time.RFC3339),
+		ID:             o.ID,
+		OrderNumber:    o.OrderNumber,
+		Title:          o.Title,
+		Description:    o.Description,
+		CustomerName:   o.CustomerName,
+		ContactNumber:  o.ContactNumber,
+		Status:         o.Status,
+		Priority:       o.Priority,
+		AssignedTo:     assignedTo,
+		AssignedNames:  assignedNames,
+		CreatedBy:      o.CreatedBy,
+		CreatedByName:  o.CreatedByName,
+		DueDate:        dueDate,
+		DueTime:        o.DueTime,
+		IsArchived:     o.IsArchived,
+		ArchivedAt:     archivedAt,
+		ArchivedByName: o.ArchivedByName,
+		CreatedAt:      o.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:      o.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
@@ -294,4 +305,77 @@ func (h *OrderHandler) UpdateStatus(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "status updated"})
+}
+
+func (h *OrderHandler) ArchiveOrder(c *gin.Context) {
+	id := c.Param("id")
+	userID, _ := c.Get("user_id")
+	uid := userID.(string)
+
+	old, err := h.orderService.GetOrder(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "order not found"})
+		return
+	}
+	if !isAssignedOrAdmin(c, old) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only assigned users or admins can archive this order"})
+		return
+	}
+
+	if err := h.orderService.ArchiveOrder(c.Request.Context(), id, uid); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to archive order"})
+		return
+	}
+
+	h.hub.Broadcast(realtime.NewEvent(realtime.EventOrderUpdated, id, gin.H{"id": id, "is_archived": true}))
+	c.JSON(http.StatusOK, gin.H{"message": "archived"})
+}
+
+func (h *OrderHandler) RestoreOrder(c *gin.Context) {
+	id := c.Param("id")
+	role, _ := c.Get("user_role")
+	if role != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only admins can restore orders"})
+		return
+	}
+
+	if err := h.orderService.RestoreOrder(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to restore order"})
+		return
+	}
+
+	h.hub.Broadcast(realtime.NewEvent(realtime.EventOrderUpdated, id, gin.H{"id": id, "is_archived": false}))
+	c.JSON(http.StatusOK, gin.H{"message": "restored"})
+}
+
+func (h *OrderHandler) ListTrash(c *gin.Context) {
+	role, _ := c.Get("user_role")
+	if role != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "admin only"})
+		return
+	}
+
+	orders, err := h.orderService.ListTrash(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch trash"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"orders": orders})
+}
+
+func (h *OrderHandler) PermanentDelete(c *gin.Context) {
+	id := c.Param("id")
+	role, _ := c.Get("user_role")
+	if role != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only admins can permanently delete orders"})
+		return
+	}
+
+	if err := h.orderService.PermanentDeleteOrder(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete order"})
+		return
+	}
+
+	h.hub.Broadcast(realtime.NewEvent(realtime.EventOrderUpdated, id, gin.H{"id": id, "deleted": true}))
+	c.JSON(http.StatusOK, gin.H{"message": "permanently deleted"})
 }
