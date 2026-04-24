@@ -648,7 +648,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
           <table className="orders-table">
             <thead>
               <tr>
-                <SortTh label="Order ID"  field="order_number" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Order ID</th>
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Customer</th>
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Status</th>
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Assigned</th>
