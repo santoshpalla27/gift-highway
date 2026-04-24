@@ -216,6 +216,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
 
   const [overdueOnly, setOverdueOnly] = useState(false)
   const [dueTodayOnly, setDueTodayOnly] = useState(false)
+  const [unreadOnly, setUnreadOnly] = useState(false)
 
   // ── Users for assignee dropdown ──────────────────────────────────────────
   const [users, setUsers] = useState<UserOption[]>([])
@@ -252,14 +253,15 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
   }
 
   const { data, isLoading } = useOrders(params)
-  const orders = data?.orders ?? []
+  const allOrders = data?.orders ?? []
+  const orders = unreadOnly ? allOrders.filter(o => (unreadByOrder.get(o.id) ?? 0) > 0) : allOrders
   const total = data?.total ?? 0
 
-  const hasFilters = !!(statusFilter || priorityFilter || assigneeFilter || dueDateFrom || dueDateTo || overdueOnly || dueTodayOnly)
+  const hasFilters = !!(statusFilter || priorityFilter || assigneeFilter || dueDateFrom || dueDateTo || overdueOnly || dueTodayOnly || unreadOnly)
   const clearAll = () => {
     setStatusFilter(''); setPriorityFilter(''); setAssigneeFilter(''); setAssigneeName('')
     setDueDateFrom(''); setDueDateTo(''); setDueDraftFrom(''); setDueDraftTo('')
-    setOverdueOnly(false); setDueTodayOnly(false)
+    setOverdueOnly(false); setDueTodayOnly(false); setUnreadOnly(false)
   }
 
   const dueDateLabel = dueDateFrom && dueDateTo
@@ -494,6 +496,29 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
             <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
           Today
+        </button>
+
+        {/* Unread alerts toggle */}
+        <button
+          onClick={() => setUnreadOnly(o => !o)}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
+            border: `1.5px solid ${unreadOnly ? '#6366F1' : '#E4E6EF'}`,
+            background: unreadOnly ? '#EEF2FF' : '#FFFFFF',
+            color: unreadOnly ? '#4F46E5' : '#374151',
+            cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+            transition: 'all 120ms ease',
+          }}
+          onMouseEnter={e => { if (!unreadOnly) e.currentTarget.style.borderColor = '#C7CAD9' }}
+          onMouseLeave={e => { if (!unreadOnly) e.currentTarget.style.borderColor = '#E4E6EF' }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            {unreadOnly && <circle cx="18" cy="5" r="3" fill="#6366F1" stroke="none"/>}
+          </svg>
+          Unread
         </button>
 
         {/* Clear all */}
