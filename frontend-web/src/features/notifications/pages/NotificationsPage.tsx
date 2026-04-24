@@ -515,7 +515,7 @@ export function NotificationsPage() {
                     <div style={{ height: 13, width: '65%', borderRadius: 6, background: '#F3F4F6', animation: 'pulse 1.5s ease-in-out infinite', marginBottom: 6 }} />
                     <div style={{ height: 11, width: '25%', borderRadius: 6, background: '#F3F4F6', animation: 'pulse 1.5s ease-in-out infinite' }} />
                   </div>
-                  <div style={{ height: 22, width: 110, borderRadius: 6, background: '#F3F4F6', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                  <div style={{ height: 14, width: 120, borderRadius: 6, background: '#F3F4F6', animation: 'pulse 1.5s ease-in-out infinite' }} />
                   <div style={{ height: 13, width: 100, borderRadius: 6, background: '#F3F4F6', animation: 'pulse 1.5s ease-in-out infinite' }} />
                 </div>
               ))}
@@ -570,16 +570,9 @@ export function NotificationsPage() {
                     </p>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, color: '#6366F1',
-                      background: '#EEF2FF', border: '1px solid #C7D2FE',
-                      borderRadius: 4, padding: '2px 6px', fontFamily: 'monospace', flexShrink: 0,
-                    }}>
-                      #{e.order_number}
-                    </span>
-                    <span style={{ fontSize: 12.5, color: '#374151', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {e.order_title}
+                  <div style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontWeight: 700, fontSize: 13.5, color: '#2563EB' }}>
+                      #{e.order_title}
                     </span>
                   </div>
 
