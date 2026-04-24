@@ -7,6 +7,7 @@ import (
 	"github.com/company/app/backend/internal/auth"
 	"github.com/company/app/backend/internal/models"
 	"github.com/company/app/backend/internal/repositories"
+	"github.com/company/app/backend/internal/utils"
 	"github.com/google/uuid"
 )
 
@@ -47,6 +48,7 @@ func (s *AdminService) ListUsers(ctx context.Context) ([]*models.User, error) {
 }
 
 func (s *AdminService) CreateUser(ctx context.Context, req CreateUserRequest) (*models.User, error) {
+	req.Name = utils.Strip(req.Name)
 	exists, err := s.userRepo.EmailExists(ctx, req.Email, "")
 	if err != nil {
 		return nil, err
@@ -79,6 +81,7 @@ func (s *AdminService) CreateUser(ctx context.Context, req CreateUserRequest) (*
 }
 
 func (s *AdminService) UpdateUser(ctx context.Context, id string, req UpdateUserRequest) error {
+	req.Name = utils.Strip(req.Name)
 	exists, err := s.userRepo.EmailExists(ctx, req.Email, id)
 	if err != nil {
 		return err

@@ -9,6 +9,7 @@ import (
 	"github.com/company/app/backend/internal/models"
 	"github.com/company/app/backend/internal/realtime"
 	"github.com/company/app/backend/internal/services"
+	"github.com/company/app/backend/internal/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -146,6 +147,7 @@ func (h *EventHandler) EditComment(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "text is required"})
 		return
 	}
+	req.Text = utils.Strip(req.Text)
 
 	ev, err := h.eventService.GetEvent(ctx, eventID)
 	if err != nil {
@@ -204,6 +206,7 @@ func (h *EventHandler) AddComment(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "text is required"})
 		return
 	}
+	req.Text = utils.Strip(req.Text)
 
 	event, err := h.eventService.AddComment(c.Request.Context(), orderID, uid, req.Text)
 	if err != nil {

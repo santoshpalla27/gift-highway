@@ -8,6 +8,7 @@ import (
 
 	"github.com/company/app/backend/internal/realtime"
 	"github.com/company/app/backend/internal/services"
+	"github.com/company/app/backend/internal/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -90,6 +91,7 @@ func (h *PortalHandler) SendMessage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "message is required"})
 		return
 	}
+	req.Message = utils.Strip(req.Message)
 	msg, ev, err := h.svc.SendCustomerMessage(c.Request.Context(), portal, req.Message)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send message"})
@@ -249,6 +251,7 @@ func (h *PortalHandler) CreatePortal(c *gin.Context) {
 		CustomerName string `json:"customer_name"`
 	}
 	_ = c.ShouldBindJSON(&req)
+	req.CustomerName = utils.Strip(req.CustomerName)
 
 	portal, err := h.svc.CreatePortal(c.Request.Context(), orderID, req.CustomerName)
 	if err != nil {
@@ -320,6 +323,7 @@ func (h *PortalHandler) StaffReply(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "message is required"})
 		return
 	}
+	req.Message = utils.Strip(req.Message)
 
 	portal, err := h.svc.GetByOrderID(c.Request.Context(), orderID)
 	if err != nil {

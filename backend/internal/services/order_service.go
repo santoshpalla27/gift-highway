@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/company/app/backend/internal/utils"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -83,6 +84,11 @@ func (s *OrderService) GetOrder(ctx context.Context, id string) (*models.OrderWi
 }
 
 func (s *OrderService) CreateOrder(ctx context.Context, createdBy string, req CreateOrderRequest) (*models.OrderWithNames, error) {
+	req.Title = utils.Strip(req.Title)
+	req.Description = utils.Strip(req.Description)
+	req.CustomerName = utils.Strip(req.CustomerName)
+	req.ContactNumber = utils.Strip(req.ContactNumber)
+
 	var dueDate *time.Time
 	if req.DueDate != nil && *req.DueDate != "" {
 		t, err := time.Parse("2006-01-02", *req.DueDate)
@@ -108,6 +114,10 @@ func (s *OrderService) CreateOrder(ctx context.Context, createdBy string, req Cr
 }
 
 func (s *OrderService) UpdateOrder(ctx context.Context, id string, req UpdateOrderRequest) error {
+	req.Title = utils.Strip(req.Title)
+	req.Description = utils.Strip(req.Description)
+	req.CustomerName = utils.Strip(req.CustomerName)
+	req.ContactNumber = utils.Strip(req.ContactNumber)
 	return s.orderRepo.Update(ctx, id, req.Title, req.Description, req.CustomerName, req.ContactNumber, req.Priority, req.AssignedTo, req.DueDate, req.DueTime)
 }
 
