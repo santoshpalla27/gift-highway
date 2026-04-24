@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { orderService, type TrashOrder } from '../../../services/orderService'
+import { purgeNotificationOrder } from '../../notifications/hooks/useNotifications'
 import { useNavigate } from 'react-router-dom'
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
@@ -135,7 +136,11 @@ export function TrashPage() {
     setActionLoading(order.id)
     try {
       await orderService.permanentDelete(order.id)
-      await queryClient.invalidateQueries({ queryKey: ['trash'] })
+      purgeNotificationOrder(order.id)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['trash'] }),
+        queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+      ])
       showToast(`Order #${order.order_number} permanently deleted.`)
     } catch {
       showToast('Failed to delete order.')

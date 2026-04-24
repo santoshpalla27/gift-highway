@@ -27,6 +27,11 @@ function persist() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...recentlyRead.entries()])) } catch { /* ignore */ }
 }
 
+export function purgeNotificationOrder(orderId: string) {
+  recentlyRead.delete(orderId)
+  persist()
+}
+
 export function useNotifications({ mineOnly = false, othersOnly = false }: { mineOnly?: boolean; othersOnly?: boolean } = {}) {
   const { isAuthenticated } = useAuthStore()
   const qc = useQueryClient()
