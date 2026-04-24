@@ -1128,6 +1128,8 @@ export function OrderDetailPage() {
   const feedEndRef = useRef<HTMLDivElement>(null)
 
   const [showEdit, setShowEdit] = useState(false)
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
+  const [archiving, setArchiving] = useState(false)
   const [commentText, setCommentText] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
@@ -2143,15 +2145,7 @@ export function OrderDetailPage() {
           {perms.canArchive && !order.is_archived && (
             <PanelSection label="Archive Order">
               <button
-                onClick={async () => {
-                  if (!window.confirm('Archive this order? It will be removed from active lists. Admins can restore it from Trash.')) return
-                  try {
-                    await orderService.archiveOrder(order.id)
-                    navigate(-1)
-                  } catch {
-                    alert('Failed to archive order.')
-                  }
-                }}
+                onClick={() => setShowArchiveConfirm(true)}
                 style={{
                   width: '100%', fontSize: 12, fontWeight: 600, padding: '7px 0', borderRadius: 6,
                   background: '#FEF2F2', color: '#EF4444', border: '1px solid #FECACA', cursor: 'pointer',
@@ -2231,6 +2225,62 @@ export function OrderDetailPage() {
                 }}
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showArchiveConfirm && order && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(15,23,42,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+          onClick={() => setShowArchiveConfirm(false)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#FFFFFF', borderRadius: 14, padding: '28px 28px 22px',
+              width: 360, boxShadow: '0 8px 32px rgba(0,0,0,.14)',
+              display: 'flex', flexDirection: 'column', gap: 8,
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>Archive this order?</div>
+            <div style={{ fontSize: 13.5, color: '#6B7280', lineHeight: 1.6 }}>
+              <strong>#{order.title}</strong> will be removed from active lists and the dashboard. Admins can restore it from Trash.
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 12, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowArchiveConfirm(false)}
+                style={{
+                  padding: '8px 18px', borderRadius: 8, border: '1.5px solid #E4E6EF',
+                  background: '#FFFFFF', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#374151',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={archiving}
+                onClick={async () => {
+                  setArchiving(true)
+                  try {
+                    await orderService.archiveOrder(order.id)
+                    navigate(-1)
+                  } catch {
+                    setArchiving(false)
+                    setShowArchiveConfirm(false)
+                  }
+                }}
+                style={{
+                  padding: '8px 18px', borderRadius: 8, border: 'none',
+                  background: '#EF4444', fontSize: 13, fontWeight: 600,
+                  cursor: archiving ? 'default' : 'pointer', color: '#FFFFFF',
+                  opacity: archiving ? 0.7 : 1,
+                }}
+              >
+                {archiving ? 'Archiving…' : 'Archive'}
               </button>
             </div>
           </div>

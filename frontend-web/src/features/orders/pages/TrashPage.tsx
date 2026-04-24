@@ -188,7 +188,6 @@ export function TrashPage() {
               <thead>
                 <tr>
                   <th>Order ID</th>
-                  <th>Title</th>
                   <th>Customer</th>
                   <th>Status</th>
                   <th>Archived By</th>
@@ -205,13 +204,10 @@ export function TrashPage() {
                       <td>
                         <button
                           onClick={() => navigate(`/orders/${order.id}`)}
-                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 13.5, color: '#6366F1' }}
+                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 13.5, color: '#111827', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', textAlign: 'left' }}
                         >
-                          #{order.order_number}
+                          #{order.title}
                         </button>
-                      </td>
-                      <td style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {order.title}
                       </td>
                       <td style={{ color: '#374151' }}>{order.customer_name}</td>
                       <td>
