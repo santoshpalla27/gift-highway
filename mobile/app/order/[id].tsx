@@ -446,15 +446,16 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
     const isFailed = event.failed
     const canMenu = (onDelete || onEdit || onReply) && !isOptimistic
     return (
-      <View style={[T.commentRow, { flexDirection: isOwn ? 'row-reverse' : 'row' }, isOptimistic && !isFailed && { opacity: 0.6 }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
+      <View style={[{ marginBottom: 16 }, isOptimistic && !isFailed && { opacity: 0.6 }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
         {menuSheet}
+        <View style={{ paddingLeft: isOwn ? 0 : 44, paddingRight: isOwn ? 44 : 0, marginBottom: 2, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
+          <Text style={T.actorName}>{isOwn ? 'You' : event.actor_name}</Text>
+        </View>
+        <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 10 }}>
         <View style={T.avatar}>
           <Text style={T.avatarText}>{getInitials(event.actor_name || '?')}</Text>
         </View>
         <View style={{ flex: 1, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
-          <View style={{ marginBottom: 2 }}>
-            <Text style={T.actorName}>{isOwn ? 'You' : event.actor_name}</Text>
-          </View>
           <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
             {/* Visual Indicator for Reply */}
             <Animated.View style={{
@@ -522,6 +523,7 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
             </View>
           )}
         </View>
+        </View>
       </View>
     )
   }
@@ -530,26 +532,28 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
     const p = event.payload as Record<string, string>
     const canMenu = (onReply || onDelete) && !isOptimistic
     return (
-      <View style={[T.commentRow, { flexDirection: isOwn ? 'row-reverse' : 'row' }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
+      <View style={[{ marginBottom: 16 }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
         {menuSheet}
-        <View style={T.avatar}>
-          <Text style={T.avatarText}>{getInitials(event.actor_name || '?')}</Text>
+        <View style={{ paddingLeft: isOwn ? 0 : 44, paddingRight: isOwn ? 44 : 0, marginBottom: 2, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
+          <Text style={T.actorName}>{isOwn ? 'You' : event.actor_name}</Text>
         </View>
-        <View style={{ flex: 1, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
-          <View style={{ marginBottom: 2 }}>
-            <Text style={T.actorName}>{isOwn ? 'You' : event.actor_name}</Text>
+        <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 10 }}>
+          <View style={T.avatar}>
+            <Text style={T.avatarText}>{getInitials(event.actor_name || '?')}</Text>
           </View>
-          <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
-            <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
-              <AttachmentCard orderId={orderId} payload={p} isOwn={isOwn} />
-            </Animated.View>
-            {canMenu && (
-              <TouchableOpacity onPress={() => setMenuFor('attachment')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="ellipsis-vertical" size={16} color="#94A3B8" />
-              </TouchableOpacity>
-            )}
+          <View style={{ flex: 1, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
+            <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
+              <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
+                <AttachmentCard orderId={orderId} payload={p} isOwn={isOwn} />
+              </Animated.View>
+              {canMenu && (
+                <TouchableOpacity onPress={() => setMenuFor('attachment')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="ellipsis-vertical" size={16} color="#94A3B8" />
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={[T.time, { marginTop: 4 }]}>{formatTimestamp(event.created_at)}</Text>
           </View>
-          <Text style={[T.time, { marginTop: 4 }]}>{formatTimestamp(event.created_at)}</Text>
         </View>
       </View>
     )
@@ -568,34 +572,36 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
       if (!fileName) return null
       const canMenuAtt = !!onReply && !isOptimistic
       return (
-        <View style={[T.commentRow, { flexDirection: isOwn ? 'row-reverse' : 'row' }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
+        <View style={[{ marginBottom: 16 }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
           {menuSheet}
-          <View style={[T.avatar, { backgroundColor: '#D1FAE5' }]}>
-            <Text style={[T.avatarText, { color: '#10B981' }]}>{getInitials(senderName)}</Text>
+          <View style={{ paddingLeft: isOwn ? 0 : 44, paddingRight: isOwn ? 44 : 0, marginBottom: 2, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
+            <Text style={[T.actorName, { color: avatarColor }]}>{isOwn ? 'You' : senderName}</Text>
           </View>
-          <View style={{ flex: 1, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
-            <View style={{ marginBottom: 2 }}>
-              <Text style={[T.actorName, { color: avatarColor }]}>{isOwn ? 'You' : senderName}</Text>
+          <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 10 }}>
+            <View style={[T.avatar, { backgroundColor: '#D1FAE5' }]}>
+              <Text style={[T.avatarText, { color: '#10B981' }]}>{getInitials(senderName)}</Text>
             </View>
-            <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
-              <Animated.View style={{
-                position: 'absolute',
-                [isOwn ? 'right' : 'left']: -40,
-                opacity: translateX.interpolate({ inputRange: isOwn ? [-40, -20] : [20, 40], outputRange: isOwn ? [1, 0] : [0, 1], extrapolate: 'clamp' }),
-                transform: [{ scale: translateX.interpolate({ inputRange: isOwn ? [-40, 0] : [0, 40], outputRange: [1, 0.5], extrapolate: 'clamp' }) }]
-              }}>
-                <Ionicons name="return-up-back-outline" size={20} color="#6366F1" />
-              </Animated.View>
-              <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
-                <PortalAttachmentCard orderId={orderId} attId={attIdRaw} fileName={fileName} fileType={p.file_type} isOwn={isOwn} isStaff={false} caption={attCaption} />
-              </Animated.View>
-              {canMenuAtt && (
-                <TouchableOpacity onPress={() => setMenuFor('attachment')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Ionicons name="ellipsis-vertical" size={16} color="#94A3B8" />
-                </TouchableOpacity>
-              )}
+            <View style={{ flex: 1, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
+              <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
+                <Animated.View style={{
+                  position: 'absolute',
+                  [isOwn ? 'right' : 'left']: -40,
+                  opacity: translateX.interpolate({ inputRange: isOwn ? [-40, -20] : [20, 40], outputRange: isOwn ? [1, 0] : [0, 1], extrapolate: 'clamp' }),
+                  transform: [{ scale: translateX.interpolate({ inputRange: isOwn ? [-40, 0] : [0, 40], outputRange: [1, 0.5], extrapolate: 'clamp' }) }]
+                }}>
+                  <Ionicons name="return-up-back-outline" size={20} color="#6366F1" />
+                </Animated.View>
+                <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
+                  <PortalAttachmentCard orderId={orderId} attId={attIdRaw} fileName={fileName} fileType={p.file_type} isOwn={isOwn} isStaff={false} caption={attCaption} />
+                </Animated.View>
+                {canMenuAtt && (
+                  <TouchableOpacity onPress={() => setMenuFor('attachment')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="ellipsis-vertical" size={16} color="#94A3B8" />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <Text style={[T.time, { marginTop: 4 }]}>{formatTimestamp(event.created_at)}</Text>
             </View>
-            <Text style={[T.time, { marginTop: 4 }]}>{formatTimestamp(event.created_at)}</Text>
           </View>
         </View>
       )
@@ -611,59 +617,61 @@ function TimelineItem({ event, isOptimistic, onRetry, onDelete, onEdit, onReply,
     const canMenuPortal = !!onReply && !isOptimistic
 
     return (
-      <View style={[T.commentRow, { flexDirection: isOwn ? 'row-reverse' : 'row' }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
+      <View style={[{ marginBottom: 16 }, highlighted && { backgroundColor: 'rgba(99,102,241,0.08)', borderRadius: 8 }]}>
         {menuSheet}
-        <View style={[T.avatar, isStaff ? { backgroundColor: '#DBEAFE' } : { backgroundColor: '#D1FAE5' }]}>
-          <Text style={[T.avatarText, { color: isStaff ? '#2563EB' : '#10B981' }]}>{getInitials(senderName)}</Text>
+        <View style={{ paddingLeft: isOwn ? 0 : 44, paddingRight: isOwn ? 44 : 0, marginBottom: 2, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
+          <Text style={[T.actorName, { color: avatarColor }]}>{isOwn ? 'You' : senderName}</Text>
         </View>
-        <View style={{ flex: 1, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
-          <View style={{ marginBottom: 2 }}>
-            <Text style={[T.actorName, { color: avatarColor }]}>{isOwn ? 'You' : senderName}</Text>
+        <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 10 }}>
+          <View style={[T.avatar, isStaff ? { backgroundColor: '#DBEAFE' } : { backgroundColor: '#D1FAE5' }]}>
+            <Text style={[T.avatarText, { color: isStaff ? '#2563EB' : '#10B981' }]}>{getInitials(senderName)}</Text>
           </View>
-          <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
-            <Animated.View style={{
-              position: 'absolute',
-              [isOwn ? 'right' : 'left']: -40,
-              opacity: translateX.interpolate({ inputRange: isOwn ? [-40, -20] : [20, 40], outputRange: isOwn ? [1, 0] : [0, 1], extrapolate: 'clamp' }),
-              transform: [{ scale: translateX.interpolate({ inputRange: isOwn ? [-40, 0] : [0, 40], outputRange: [1, 0.5], extrapolate: 'clamp' }) }]
-            }}>
-              <Ionicons name="return-up-back-outline" size={20} color="#6366F1" />
-            </Animated.View>
-            <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
-              <View style={[T.bubble, { borderColor: isStaff ? '#BFDBFE' : '#A7F3D0', backgroundColor: isStaff ? '#EFF6FF' : '#F0FDF4', borderTopRightRadius: isOwn ? 4 : 14, borderTopLeftRadius: isOwn ? 14 : 4 }]}>
-                {quotedPortalMsg && (() => {
-                  const qIsStaff = quotedPortalMsg.sender_type === 'staff'
-                  const preview = getPortalMsgPreview(quotedPortalMsg)
-                  const thumb = getPortalMsgThumb(quotedPortalMsg, portalAttachments ?? [])
-                  return (
-                    <TouchableOpacity
-                      onPress={() => parsed.replyToId !== null && onHighlightPortalMsg?.(parsed.replyToId)}
-                      activeOpacity={onHighlightPortalMsg ? 0.7 : 1}
-                      style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: 8, borderLeftWidth: 3, borderLeftColor: qIsStaff ? '#3B82F6' : '#10B981', backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 4, overflow: 'hidden' }}
-                    >
-                      <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: qIsStaff ? '#3B82F6' : '#10B981', marginBottom: 1 }} numberOfLines={1}>{quotedPortalMsg.portal_sender}</Text>
-                        <Text style={{ fontSize: 11, color: '#6B7280' }} numberOfLines={2}>{preview}</Text>
-                      </View>
-                      {thumb && (
-                        <Image source={{ uri: thumb }} style={{ width: 44, height: 44, flexShrink: 0 }} resizeMode="cover" />
-                      )}
-                    </TouchableOpacity>
-                  )
-                })()}
-                {parsed.text !== '' && <Text style={T.commentText}>{parsed.text}</Text>}
-                {event.type === 'staff_portal_reply' && parsed.tokens.map(tok =>
-                  <PortalAttachmentCard key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={isOwn} isStaff={true} />
-                )}
-              </View>
-            </Animated.View>
-            {canMenuPortal && (
-              <TouchableOpacity onPress={() => setMenuFor('comment')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="ellipsis-vertical" size={16} color="#94A3B8" />
-              </TouchableOpacity>
-            )}
+          <View style={{ flex: 1, alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
+            <View style={{ flexDirection: isOwn ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, justifyContent: 'flex-start' }}>
+              <Animated.View style={{
+                position: 'absolute',
+                [isOwn ? 'right' : 'left']: -40,
+                opacity: translateX.interpolate({ inputRange: isOwn ? [-40, -20] : [20, 40], outputRange: isOwn ? [1, 0] : [0, 1], extrapolate: 'clamp' }),
+                transform: [{ scale: translateX.interpolate({ inputRange: isOwn ? [-40, 0] : [0, 40], outputRange: [1, 0.5], extrapolate: 'clamp' }) }]
+              }}>
+                <Ionicons name="return-up-back-outline" size={20} color="#6366F1" />
+              </Animated.View>
+              <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
+                <View style={[T.bubble, { borderColor: isStaff ? '#BFDBFE' : '#A7F3D0', backgroundColor: isStaff ? '#EFF6FF' : '#F0FDF4', borderTopRightRadius: isOwn ? 4 : 14, borderTopLeftRadius: isOwn ? 14 : 4 }]}>
+                  {quotedPortalMsg && (() => {
+                    const qIsStaff = quotedPortalMsg.sender_type === 'staff'
+                    const preview = getPortalMsgPreview(quotedPortalMsg)
+                    const thumb = getPortalMsgThumb(quotedPortalMsg, portalAttachments ?? [])
+                    return (
+                      <TouchableOpacity
+                        onPress={() => parsed.replyToId !== null && onHighlightPortalMsg?.(parsed.replyToId)}
+                        activeOpacity={onHighlightPortalMsg ? 0.7 : 1}
+                        style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: 8, borderLeftWidth: 3, borderLeftColor: qIsStaff ? '#3B82F6' : '#10B981', backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 4, overflow: 'hidden' }}
+                      >
+                        <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: qIsStaff ? '#3B82F6' : '#10B981', marginBottom: 1 }} numberOfLines={1}>{quotedPortalMsg.portal_sender}</Text>
+                          <Text style={{ fontSize: 11, color: '#6B7280' }} numberOfLines={2}>{preview}</Text>
+                        </View>
+                        {thumb && (
+                          <Image source={{ uri: thumb }} style={{ width: 44, height: 44, flexShrink: 0 }} resizeMode="cover" />
+                        )}
+                      </TouchableOpacity>
+                    )
+                  })()}
+                  {parsed.text !== '' && <Text style={T.commentText}>{parsed.text}</Text>}
+                  {event.type === 'staff_portal_reply' && parsed.tokens.map(tok =>
+                    <PortalAttachmentCard key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={isOwn} isStaff={true} />
+                  )}
+                </View>
+              </Animated.View>
+              {canMenuPortal && (
+                <TouchableOpacity onPress={() => setMenuFor('comment')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="ellipsis-vertical" size={16} color="#94A3B8" />
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={[T.time, { marginTop: 4 }]}>{formatTimestamp(event.created_at)}</Text>
           </View>
-          <Text style={[T.time, { marginTop: 4 }]}>{formatTimestamp(event.created_at)}</Text>
         </View>
       </View>
     )

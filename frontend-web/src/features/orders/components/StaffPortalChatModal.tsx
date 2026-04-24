@@ -513,6 +513,7 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
         <div
           style={{ position: 'fixed', top: dotMenu.y, left: dotMenu.x, zIndex: 800, background: '#fff', borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.2)', padding: '4px 0', minWidth: 150 }}
           onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
           <button
             onClick={() => {
