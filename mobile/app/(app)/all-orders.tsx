@@ -251,48 +251,46 @@ function FilterSheet({
           {/* From date picker (native only) */}
           {Platform.OS !== 'web' && (
             <Modal visible={showFromPicker} transparent animationType="fade" onRequestClose={() => setShowFromPicker(false)}>
-              <View style={F.pickerOverlay}>
-                <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowFromPicker(false)} />
-                <View style={F.pickerSheet}>
-                  <View style={F.pickerHeader}>
-                    <Text style={F.pickerTitle}>From Date</Text>
-                    <TouchableOpacity onPress={() => setShowFromPicker(false)}>
-                      <Text style={F.pickerDone}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
+              <TouchableOpacity style={F.pickerOverlay} activeOpacity={1} onPress={() => setShowFromPicker(false)}>
+                <TouchableOpacity activeOpacity={1} style={F.pickerSheet}>
                   <DateTimePicker
                     value={draft.dueDateFrom ? new Date(draft.dueDateFrom + 'T00:00:00') : new Date()}
                     mode="date"
                     display="spinner"
-                    onChange={(_, d) => { if (d) { const iso = d.toISOString().split('T')[0]; set({ dueDateFrom: iso }) } }}
+                    onChange={(_, d) => {
+                      if (d) {
+                        const iso = d.toISOString().split('T')[0]; set({ dueDateFrom: iso })
+                        if (fromPickerRef.current) clearTimeout(fromPickerRef.current)
+                        fromPickerRef.current = setTimeout(() => setShowFromPicker(false), 1000)
+                      }
+                    }}
                     style={{ width: '100%', height: 216 }}
                   />
-                </View>
-              </View>
+                </TouchableOpacity>
+              </TouchableOpacity>
             </Modal>
           )}
 
           {/* To date picker (native only) */}
           {Platform.OS !== 'web' && (
             <Modal visible={showToPicker} transparent animationType="fade" onRequestClose={() => setShowToPicker(false)}>
-              <View style={F.pickerOverlay}>
-                <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowToPicker(false)} />
-                <View style={F.pickerSheet}>
-                  <View style={F.pickerHeader}>
-                    <Text style={F.pickerTitle}>To Date</Text>
-                    <TouchableOpacity onPress={() => setShowToPicker(false)}>
-                      <Text style={F.pickerDone}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
+              <TouchableOpacity style={F.pickerOverlay} activeOpacity={1} onPress={() => setShowToPicker(false)}>
+                <TouchableOpacity activeOpacity={1} style={F.pickerSheet}>
                   <DateTimePicker
                     value={draft.dueDateTo ? new Date(draft.dueDateTo + 'T00:00:00') : new Date()}
                     mode="date"
                     display="spinner"
-                    onChange={(_, d) => { if (d) { const iso = d.toISOString().split('T')[0]; set({ dueDateTo: iso }) } }}
+                    onChange={(_, d) => {
+                      if (d) {
+                        const iso = d.toISOString().split('T')[0]; set({ dueDateTo: iso })
+                        if (toPickerRef.current) clearTimeout(toPickerRef.current)
+                        toPickerRef.current = setTimeout(() => setShowToPicker(false), 1000)
+                      }
+                    }}
                     style={{ width: '100%', height: 216 }}
                   />
-                </View>
-              </View>
+                </TouchableOpacity>
+              </TouchableOpacity>
             </Modal>
           )}
 
@@ -508,15 +506,8 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
                   <Ionicons name="time-outline" size={18} color="#94A3B8" />
                 </TouchableOpacity>
                 <Modal visible={showDatePicker} transparent animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
-                  <View style={F.pickerOverlay}>
-                    <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowDatePicker(false)} />
-                    <View style={F.pickerSheet}>
-                      <View style={F.pickerHeader}>
-                        <Text style={F.pickerTitle}>Select Date</Text>
-                        <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                          <Text style={F.pickerDone}>Done</Text>
-                        </TouchableOpacity>
-                      </View>
+                  <TouchableOpacity style={F.pickerOverlay} activeOpacity={1} onPress={() => setShowDatePicker(false)}>
+                    <TouchableOpacity activeOpacity={1} style={F.pickerSheet}>
                       <DateTimePicker
                         value={dueDate ? new Date(dueDate + 'T00:00:00') : new Date()}
                         mode="date"
@@ -527,23 +518,18 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
                             const m = String(date.getMonth() + 1).padStart(2, '0')
                             const d = String(date.getDate()).padStart(2, '0')
                             setDueDate(`${y}-${m}-${d}`)
+                            if (datePickerRef.current) clearTimeout(datePickerRef.current)
+                            datePickerRef.current = setTimeout(() => setShowDatePicker(false), 1000)
                           }
                         }}
                         style={{ width: '100%', height: 216 }}
                       />
-                    </View>
-                  </View>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
                 </Modal>
                 <Modal visible={showTimePicker} transparent animationType="fade" onRequestClose={() => setShowTimePicker(false)}>
-                  <View style={F.pickerOverlay}>
-                    <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowTimePicker(false)} />
-                    <View style={F.pickerSheet}>
-                      <View style={F.pickerHeader}>
-                        <Text style={F.pickerTitle}>Select Time</Text>
-                        <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                          <Text style={F.pickerDone}>Done</Text>
-                        </TouchableOpacity>
-                      </View>
+                  <TouchableOpacity style={F.pickerOverlay} activeOpacity={1} onPress={() => setShowTimePicker(false)}>
+                    <TouchableOpacity activeOpacity={1} style={F.pickerSheet}>
                       <DateTimePicker
                         value={(() => {
                           const base = dueDate ? new Date(dueDate + 'T00:00:00') : new Date()
@@ -555,12 +541,14 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
                         onChange={(_, date) => {
                           if (date) {
                             setDueTime(`${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`)
+                            if (timePickerRef.current) clearTimeout(timePickerRef.current)
+                            timePickerRef.current = setTimeout(() => setShowTimePicker(false), 1000)
                           }
                         }}
                         style={{ width: '100%', height: 216 }}
                       />
-                    </View>
-                  </View>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
                 </Modal>
               </>
             )}
@@ -1100,9 +1088,6 @@ const F = StyleSheet.create({
   submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
   pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   pickerSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 32, overflow: 'hidden' },
-  pickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  pickerTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  pickerDone: { fontSize: 16, fontWeight: '800', color: '#6366F1' },
   portalRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 28, marginBottom: 16, backgroundColor: '#FFFFFF', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#F3F4F6' },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: '#D1D5DB', alignItems: 'center', justifyContent: 'center' },
   checkboxOn: { backgroundColor: '#10B981', borderColor: '#10B981' },

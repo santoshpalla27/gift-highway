@@ -5,7 +5,7 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { orderService, type Order, type UserOption } from '../../../services/orderService'
 import { staffPortalApi, getPortalURL, type PortalStatus } from '../../../services/portalService'
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus'
@@ -265,6 +265,7 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
   const [users, setUsers] = useState<UserOption[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const pickerTimerRef = useRef<any>(null)
 
   useEffect(() => {
     orderService.listUsersForAssignment().then(setUsers).catch(() => {})
@@ -355,14 +356,8 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
 
           {showDatePicker && (
             <Modal visible transparent animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
-              <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
-                <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: Math.max(insets.bottom + 16, 32) }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#0F172A' }}>Select Date</Text>
-                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#6366F1' }}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
+              <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setShowDatePicker(false)}>
+                <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: Math.max(insets.bottom + 16, 32) }}>
                   <DateTimePicker
                     value={dueDate ? new Date(dueDate + 'T00:00:00') : new Date()}
                     mode="date" display="spinner"
@@ -372,25 +367,21 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
                         const m = String(date.getMonth() + 1).padStart(2, '0')
                         const d = String(date.getDate()).padStart(2, '0')
                         setDueDate(`${y}-${m}-${d}`)
+                        if (pickerTimerRef.current) clearTimeout(pickerTimerRef.current)
+                        pickerTimerRef.current = setTimeout(() => setShowDatePicker(false), 1000)
                       }
                     }}
                     style={{ width: '100%', height: 216 }}
                   />
-                </View>
-              </View>
+                </TouchableOpacity>
+              </TouchableOpacity>
             </Modal>
           )}
 
           {showTimePicker && (
             <Modal visible transparent animationType="fade" onRequestClose={() => setShowTimePicker(false)}>
-              <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
-                <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: Math.max(insets.bottom + 16, 32) }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#0F172A' }}>Select Time</Text>
-                    <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#6366F1' }}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
+              <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setShowTimePicker(false)}>
+                <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: Math.max(insets.bottom + 16, 32) }}>
                   <DateTimePicker
                     value={(() => {
                       const base = dueDate ? new Date(dueDate + 'T00:00:00') : new Date()
@@ -399,12 +390,16 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
                     })()}
                     mode="time" display="spinner"
                     onChange={(_, date) => {
-                      if (date) setDueTime(`${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`)
+                      if (date) {
+                        setDueTime(`${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`)
+                        if (pickerTimerRef.current) clearTimeout(pickerTimerRef.current)
+                        pickerTimerRef.current = setTimeout(() => setShowTimePicker(false), 1000)
+                      }
                     }}
                     style={{ width: '100%', height: 216 }}
                   />
-                </View>
-              </View>
+                </TouchableOpacity>
+              </TouchableOpacity>
             </Modal>
           )}
 
