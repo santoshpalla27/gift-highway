@@ -45,15 +45,22 @@ export const attachmentService = {
 
   uploadToR2: (uploadUrl: string, uri: string, mimeType: string, onProgress: (pct: number) => void): Promise<void> => {
     return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest()
-      xhr.open('PUT', uploadUrl)
-      xhr.setRequestHeader('Content-Type', mimeType)
-      xhr.upload.onprogress = e => {
-        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
-      }
-      xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`)))
-      xhr.onerror = () => reject(new Error('Upload failed'))
-      xhr.send({ uri, type: mimeType, name: '' } as unknown as BodyInit)
+      // Fetch the local file URI as a Blob first, then PUT it directly to R2.
+      // Passing a plain { uri, type, name } object to xhr.send() is unreliable in RN.
+      fetch(uri)
+        .then(r => r.blob())
+        .then(blob => {
+          const xhr = new XMLHttpRequest()
+          xhr.open('PUT', uploadUrl)
+          xhr.setRequestHeader('Content-Type', mimeType)
+          xhr.upload.onprogress = e => {
+            if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
+          }
+          xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`)))
+          xhr.onerror = () => reject(new Error('Upload failed'))
+          xhr.send(blob)
+        })
+        .catch(reject)
     })
   },
 

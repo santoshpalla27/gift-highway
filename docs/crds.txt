@@ -9,13 +9,14 @@ npx expo start --web
 
 
 # Before — list all orders with archive state
-docker exec test-db psql -U kanban -d appdb -c "SELECT order_number, title, is_archived FROM orders ORDER BY order_number;"
+docker exec app-postgres psql -U kanban -d appdb -c "SELECT order_number, title, is_archived FROM orders ORDER BY order_number;"
 
 # After archive — confirm it moved to archived
-docker exec test-db psql -U kanban -d appdb -c "SELECT order_number, title, is_archived, archived_at FROM orders WHERE is_archived = true;"
+docker exec app-postgres psql -U kanban -d appdb -c "SELECT order_number, title, is_archived, archived_at FROM orders WHERE is_archived = true;"
 
 # After restore — confirm it's back to active
-docker exec test-db psql -U kanban -d appdb -c "SELECT order_number, title, is_archived FROM orders WHERE is_archived = false;"
+docker exec app-postgres psql -U kanban -d appdb -c "SELECT order_number, title, is_archived FROM orders WHERE is_archived = false;"
 
 # After permanent delete — confirm it's gone
-docker exec test-db psql -U kanban -d appdb -c "SELECT COUNT(*) FROM orders WHERE title = 'YOUR_ORDER_TITLE';"
+docker exec app-postgres psql -U kanban -d appdb -c "SELECT COUNT(*) FROM orders WHERE title = 'test';"
+    
