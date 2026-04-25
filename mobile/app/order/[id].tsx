@@ -18,6 +18,18 @@ import { EditOrderSheet } from './_sheets/OrderInfoSheet'
 import { PortalChatSheet } from './_sheets/PortalChatSheet'
 import { formatDate } from '../../utils/date'
 
+function NewUpdatesDivider() {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 6 }}>
+      <View style={{ flex: 1, height: 1, backgroundColor: '#6366F1', opacity: 0.3 }} />
+      <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 99 }}>
+        <Text style={{ fontSize: 11, fontWeight: '600', color: '#6366F1' }}>New updates</Text>
+      </View>
+      <View style={{ flex: 1, height: 1, backgroundColor: '#6366F1', opacity: 0.3 }} />
+    </View>
+  )
+}
+
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
@@ -203,7 +215,10 @@ export default function OrderDetailScreen() {
                 <Ionicons name="chatbubbles-outline" size={28} color="#CBD5E1" />
                 <Text style={S.emptyTimelineText}>No activity yet. Add a comment below.</Text>
               </View>
-            ) : groups.map(group => (
+            ) : (() => {
+              const threshold = new Date(D.newSinceAt ?? D.pageEnteredAt.current)
+              let newDividerInserted = false
+              return groups.map(group => (
               <View key={group.label}>
                 <DateDivider label={group.label} />
                 {group.events.map(ev => {
@@ -214,8 +229,20 @@ export default function OrderDetailScreen() {
                     ? portalAttCaptions.get(Number((ev.payload as any).att_id))
                     : undefined
 
+                  let showDivider = false
+                  if (
+                    !newDividerInserted &&
+                    !ev.id.startsWith('temp-') &&
+                    String(ev.actor_id) !== String(D.user?.id) &&
+                    new Date(ev.created_at) > threshold
+                  ) {
+                    newDividerInserted = true
+                    showDivider = true
+                  }
+
                   return (
                     <View key={ev.id} onLayout={(e) => { D.eventYPos.current[ev.id] = e.nativeEvent.layout.y }}>
+                      {showDivider && <NewUpdatesDivider />}
                       <TimelineItem
                         event={ev as any}
                         orderId={id!}
@@ -242,7 +269,8 @@ export default function OrderDetailScreen() {
                   )
                 })}
               </View>
-            ))}
+            ))
+            })()}
           </ScrollView>
 
           {D.newCount > 0 && (

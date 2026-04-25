@@ -9,7 +9,7 @@ import { useAuthStore } from '../../../store/authStore'
 import { AttachmentCard } from './AttachmentCard'
 import { PortalAttachmentCard } from './PortalAttachmentCard'
 import { SystemEventRow } from './SystemEventRow'
-import { parseCommentText, parsePortalMsg, getEventSenderName, getEventThumb, getInitials, getPortalMsgPreview } from '../_hooks/useOrderDetail'
+import { parseCommentText, parsePortalMsg, getEventSenderName, getEventThumb, getInitials, getPortalMsgPreview, getPortalMsgThumb } from '../_hooks/useOrderDetail'
 import { AVATAR_SIZE, BUBBLE_MAX_W, GAP, C } from '../_styles/theme'
 import { formatRelative } from '../../../utils/date'
 
@@ -316,17 +316,6 @@ export function TimelineItem({
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const IMG_EXTS_LOCAL = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic']
-function getPortalMsgThumb(msg: PortalMessage, atts: PortalAttachment[]): string | null {
-  const m = msg.message.match(/\[attachment:(\d+):/)
-  if (!m) return null
-  const att = atts.find(a => a.id === parseInt(m[1]))
-  if (!att) return null
-  const ext = att.file_type.toLowerCase()
-  if (!IMG_EXTS_LOCAL.some(e => ext.endsWith(e))) return null
-  return att.view_url ?? null
-}
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 

@@ -3,6 +3,7 @@ import { ScrollView, Alert, Keyboard } from 'react-native'
 import { orderService, type Order, type OrderEvent, type UserOption } from '../../../services/orderService'
 import { attachmentService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from '../../../services/attachmentService'
 import { staffPortalApi, type PortalStatus, type PortalMessage, type PortalAttachment } from '../../../services/portalService'
+import { notificationService } from '../../../services/notificationService'
 import { useAuthStore } from '../../../store/authStore'
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus'
 import { useOrderSocket } from '../../../hooks/useOrderSocket'
@@ -103,6 +104,16 @@ export function getEventThumb(event: OrderEvent, portalAttachments?: PortalAttac
     return att?.view_url ?? null
   }
   return null
+}
+
+const PORTAL_IMG_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic']
+export function getPortalMsgThumb(msg: PortalMessage, atts: PortalAttachment[]): string | null {
+  const m = msg.message.match(/\[attachment:(\d+):/)
+  if (!m) return null
+  const att = atts.find(a => a.id === parseInt(m[1]))
+  if (!att) return null
+  if (!PORTAL_IMG_EXTS.some(e => att.file_type.toLowerCase().endsWith(e))) return null
+  return att.view_url ?? null
 }
 
 export function getPortalMsgPreview(msg: PortalMessage): string {
@@ -228,6 +239,10 @@ export function useOrderDetail(orderId: string | undefined) {
     return () => sub.remove()
   }, [])
 
+  // ── New-updates divider ───────────────────────────────────────────────────
+  const [newSinceAt, setNewSinceAt] = useState<string | null>(null)
+  const pageEnteredAt = useRef(new Date().toISOString())
+
   // ── Portal ────────────────────────────────────────────────────────────────
   const [portal, setPortal] = useState<PortalStatus | null | undefined>(undefined)
   const [portalAttachments, setPortalAttachments] = useState<PortalAttachment[]>([])
@@ -345,11 +360,17 @@ export function useOrderDetail(orderId: string | undefined) {
   // ── Initial load ──────────────────────────────────────────────────────────
 
   useEffect(() => {
+    pageEnteredAt.current = new Date().toISOString()
+    setNewSinceAt(null)
     fetchOrder()
     loadInitialEvents()
     if (orderId) {
       staffPortalApi.getPortal(orderId).then(setPortal).catch(() => setPortal(null))
       refreshPortalData()
+      notificationService.getLastSeen(orderId).then(setNewSinceAt).catch(() => {})
+    }
+    return () => {
+      if (orderId) notificationService.markOrderRead(orderId).catch(() => {})
     }
   }, [fetchOrder, loadInitialEvents, orderId])
 
@@ -580,6 +601,8 @@ export function useOrderDetail(orderId: string | undefined) {
     allEvents, loadingEvents, hasOlder, loadingOlder, loadOlderEvents, totalEvents, refreshing, onRefresh,
     // scroll
     scrollRef, atBottomRef, newCount, setNewCount, eventYPos,
+    // new-updates divider
+    newSinceAt, pageEnteredAt,
     // portal
     portal, setPortal, portalAttachments, setPortalAttachments, portalMessages, showPortalChat,
     setShowPortalChat, portalCreating, portalChatRefreshRef, openPortalChat, createPortal, refreshPortalData,
@@ -595,7 +618,7 @@ export function useOrderDetail(orderId: string | undefined) {
     // uploads
     uploadingFiles, setUploadingFiles, retryUpload, handlePickImage, handlePickDocument,
     // permissions
-    canEdit,
+    canEdit, user,
     // utils
     getEventPreview, getEventSenderName, getEventThumb,
   }

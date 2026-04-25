@@ -10,6 +10,7 @@ import type { PortalStatus, PortalAttachment } from '../../../services/portalSer
 import { staffPortalApi, getPortalURL } from '../../../services/portalService'
 import { formatBytes } from '../../../services/attachmentService'
 import { usePortalChat } from '../_hooks/usePortalChat'
+import { getPortalMsgThumb } from '../_hooks/useOrderDetail'
 import { ComposerBar } from '../_components/ComposerBar'
 import { ReplyBar } from '../_components/ReplyBar'
 
@@ -37,6 +38,7 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
   const [showOptions, setShowOptions] = React.useState(false)
   const [showAttachSheet, setShowAttachSheet] = React.useState(false)
   const [menuMsg, setMenuMsg] = React.useState<(typeof chat.messages)[0] | null>(null)
+  const [deleteConfirmMsg, setDeleteConfirmMsg] = React.useState<(typeof chat.messages)[0] | null>(null)
 
   const chat = usePortalChat(orderId, portalAttachments, onAttachmentsChange, refreshRef)
 
@@ -141,6 +143,7 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
                       {quotedMsg && (() => {
                         const qIsCustomer = quotedMsg.sender_type === 'customer'
                         const qPreview = chat.getPortalMsgPreview(quotedMsg)
+                        const qThumb = getPortalMsgThumb(quotedMsg, portalAttachments)
                         return (
                           <TouchableOpacity
                             onPress={() => chat.highlightMsg(quotedMsg.id)}
@@ -151,6 +154,7 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
                               <Text style={{ fontSize: 10, fontWeight: '700', color: qIsCustomer ? '#10B981' : '#25D366', marginBottom: 1 }} numberOfLines={1}>{quotedMsg.portal_sender}</Text>
                               <Text style={{ fontSize: 11, color: isCustomer ? '#6B7280' : 'rgba(255,255,255,0.8)' }} numberOfLines={2}>{qPreview}</Text>
                             </View>
+                            {qThumb && <Image source={{ uri: qThumb }} style={{ width: 44, height: 44 }} resizeMode="cover" />}
                           </TouchableOpacity>
                         )
                       })()}
@@ -221,6 +225,7 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
             <ReplyBar
               senderName={chat.replyTo.portal_sender}
               previewText={chat.getPortalMsgPreview(chat.replyTo)}
+              thumb={getPortalMsgThumb(chat.replyTo, portalAttachments)}
               accentColor="#10B981"
               onCancel={() => chat.setReplyTo(null)}
             />
@@ -276,25 +281,38 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
               <Ionicons name="return-up-back-outline" size={18} color="#374151" />
               <Text style={TM.rowText}>Reply</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={TM.row} onPress={() => {
-              const msg = menuMsg!
-              setMenuMsg(null)
-              Alert.alert('Delete message?', 'This cannot be undone.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Delete', style: 'destructive', onPress: async () => {
-                  try {
-                    await staffPortalApi.deleteMessage(orderId, msg.id)
-                    chat.removeMessage(msg.id)
-                  } catch { Alert.alert('Error', 'Could not delete message') }
-                }},
-              ])
-            }}>
+            <TouchableOpacity style={TM.row} onPress={() => { setDeleteConfirmMsg(menuMsg); setMenuMsg(null) }}>
               <Ionicons name="trash-outline" size={18} color="#EF4444" />
               <Text style={[TM.rowText, { color: '#EF4444' }]}>Delete</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[TM.row, TM.cancelRow]} onPress={() => setMenuMsg(null)}>
               <Text style={TM.cancelText}>Cancel</Text>
             </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Delete confirm */}
+      <Modal visible={!!deleteConfirmMsg} transparent animationType="fade" onRequestClose={() => setDeleteConfirmMsg(null)}>
+        <TouchableOpacity style={DC.overlay} activeOpacity={1} onPress={() => setDeleteConfirmMsg(null)}>
+          <TouchableOpacity activeOpacity={1} style={DC.sheet}>
+            <Text style={DC.title}>Delete message?</Text>
+            <Text style={DC.body}>This cannot be undone.</Text>
+            <View style={DC.actions}>
+              <TouchableOpacity style={DC.cancelBtn} onPress={() => setDeleteConfirmMsg(null)}>
+                <Text style={DC.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={DC.deleteBtn} onPress={async () => {
+                const msg = deleteConfirmMsg!
+                setDeleteConfirmMsg(null)
+                try {
+                  await staffPortalApi.deleteMessage(orderId, msg.id)
+                  chat.removeMessage(msg.id)
+                } catch { /* silently ignore — message stays in list */ }
+              }}>
+                <Text style={DC.deleteText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
@@ -354,4 +372,16 @@ const TM = StyleSheet.create({
   rowText: { fontSize: 15, color: '#111827', fontWeight: '500' },
   cancelRow: { borderTopWidth: 1, borderTopColor: '#F1F5F9', marginTop: 4 },
   cancelText: { fontSize: 15, color: '#6B7280', fontWeight: '500', flex: 1, textAlign: 'center' },
+})
+
+const DC = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'center', padding: 24 },
+  sheet: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 20 },
+  title: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 6 },
+  body: { fontSize: 14, color: '#6B7280', marginBottom: 20 },
+  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
+  cancelBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' },
+  cancelText: { fontSize: 14, color: '#374151', fontWeight: '500' },
+  deleteBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, backgroundColor: '#EF4444' },
+  deleteText: { fontSize: 14, color: '#FFFFFF', fontWeight: '600' },
 })

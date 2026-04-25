@@ -5,6 +5,9 @@ import { staffPortalApi } from '../../../services/portalService'
 
 const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic']
 
+// Module-level cache: survives remounts caused by parent re-renders
+const _urlCache = new Map<string, string>()
+
 export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff, caption }: {
   orderId: string
   attId: number | null
@@ -16,12 +19,20 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
 }) {
   const ext = ('.' + (fileName.split('.').pop() ?? '')).toLowerCase()
   const isImg = IMG_EXTS.includes(ext)
-  const [viewUrl, setViewUrl] = useState<string | null>(null)
+  const cacheKey = attId != null ? `${orderId}:${attId}` : null
+
+  // Initialise from cache so a remount never shows the spinner again
+  const [viewUrl, setViewUrl] = useState<string | null>(() =>
+    cacheKey ? _urlCache.get(cacheKey) ?? null : null
+  )
 
   useEffect(() => {
-    if (attId == null) return
+    if (attId == null || viewUrl != null) return
     staffPortalApi.getAttachmentDownloadURL(orderId, attId, fileName)
-      .then(setViewUrl)
+      .then(url => {
+        if (cacheKey) _urlCache.set(cacheKey, url)
+        setViewUrl(url)
+      })
       .catch(() => {})
   }, [orderId, attId, fileName])
 

@@ -1,8 +1,10 @@
-import { Tabs } from 'expo-router'
+import { Tabs, useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { Platform, StyleSheet, View, Text, TouchableOpacity } from 'react-native'
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Circle, Path, G } from 'react-native-svg'
+import { useNotifications } from '../../hooks/useNotifications'
+import { useNotifPreference } from '../../hooks/useNotifPreference'
 
 function GiftHighwayHeaderLogo() {
   return (
@@ -33,10 +35,26 @@ function GiftHighwayHeaderLogo() {
 }
 
 function NotificationIcon() {
+  const router = useRouter()
+  const { scope } = useNotifPreference()
+  const { totalCount: myCount } = useNotifications({ mineOnly: true })
+  const { totalCount: otherCount } = useNotifications({ othersOnly: true })
+  const badgeCount = scope === 'all_orders' ? myCount + otherCount : myCount
+
   return (
-    <TouchableOpacity style={headerStyles.iconBtn} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={headerStyles.iconBtn}
+      activeOpacity={0.7}
+      onPress={() => router.push('/notifications' as any)}
+    >
       <Ionicons name="notifications-outline" size={24} color="#111827" />
-      <View style={headerStyles.badge} />
+      {badgeCount > 0 && (
+        <View style={headerStyles.badge}>
+          <Text style={headerStyles.badgeText}>
+            {badgeCount > 99 ? '99+' : String(badgeCount)}
+          </Text>
+        </View>
+      )}
     </TouchableOpacity>
   )
 }
@@ -117,6 +135,14 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
+        name="notifications"
+        options={{ href: null, title: 'Notifications' }}
+      />
+      <Tabs.Screen
+        name="notification-preferences"
+        options={{ href: null, title: 'Notification Preferences' }}
+      />
+      <Tabs.Screen
         name="settings-admin"
         options={{
           href: null,
@@ -167,13 +193,22 @@ const headerStyles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: 0,
-    right: 14,
-    width: 8,
-    height: 8,
+    top: 2,
+    right: 12,
+    minWidth: 16,
+    height: 16,
     backgroundColor: '#EF4444',
-    borderRadius: 4,
+    borderRadius: 8,
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#fff',
+    lineHeight: 11,
   },
 })
