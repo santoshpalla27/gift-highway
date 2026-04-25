@@ -3,26 +3,30 @@ import { useEffect, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { View, ActivityIndicator } from 'react-native'
 import { SocketProvider } from '../providers/SocketProvider'
+import { ShareIntentProvider, useShareIntent } from 'expo-share-intent'
 
-export default function RootLayout() {
+function AppNavigator() {
   const { loadAuth, isAuthenticated } = useAuthStore()
+  const { hasShareIntent } = useShareIntent()
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    loadAuth().finally(() => {
-      setReady(true)
-    })
+    loadAuth().finally(() => setReady(true))
   }, [loadAuth])
 
   useEffect(() => {
-    if (ready) {
-      if (isAuthenticated) {
-        router.replace('/(app)')
-      } else {
-        router.replace('/(auth)/login')
-      }
+    if (!ready) return
+    if (hasShareIntent) {
+      // Files shared into the app — go straight to share picker.
+      router.replace('/share' as any)
+      return
     }
-  }, [ready, isAuthenticated])
+    if (isAuthenticated) {
+      router.replace('/(app)')
+    } else {
+      router.replace('/(auth)/login')
+    }
+  }, [ready, isAuthenticated, hasShareIntent])
 
   if (!ready) {
     return (
@@ -33,12 +37,24 @@ export default function RootLayout() {
   }
 
   return (
-    <SocketProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(app)" />
-        <Stack.Screen name="order/[id]" options={{ animation: 'slide_from_right' }} />
-      </Stack>
-    </SocketProvider>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(app)" />
+      <Stack.Screen name="order/[id]" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen
+        name="share"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+    </Stack>
+  )
+}
+
+export default function RootLayout() {
+  return (
+    <ShareIntentProvider>
+      <SocketProvider>
+        <AppNavigator />
+      </SocketProvider>
+    </ShareIntentProvider>
   )
 }

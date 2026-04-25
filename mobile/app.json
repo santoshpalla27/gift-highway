@@ -19,11 +19,24 @@
     },
     "plugins": [
       "expo-secure-store",
-[
+      [
         "expo-notifications",
         {
           "color": "#6366F1",
           "defaultChannel": "default"
+        }
+      ],
+      [
+        "expo-share-intent",
+        {
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsFileWithMaxCount": 10,
+            "NSExtensionActivationSupportsImageWithMaxCount": 10
+          },
+          "androidIntentFilters": ["*/*"],
+          "androidMainActivityAttributes": {
+            "android:launchMode": "singleTask"
+          }
         }
       ]
     ],
