@@ -55,6 +55,9 @@ export const staffPortalApi = {
   confirmAttachment: (orderId: string, payload: { s3_key: string; file_name: string; file_type: string; file_size: number }) =>
     apiClient.post<PortalAttachment>(`/orders/${orderId}/portal/attachments/confirm`, payload).then(r => r.data),
 
+  deleteMessage: (orderId: string, msgId: number) =>
+    apiClient.delete(`/orders/${orderId}/portal/messages/${msgId}`).then(r => r.data),
+
   getAttachmentDownloadURL: (orderId: string, attId: number, fileName: string) =>
     apiClient.get<{ url: string }>(
       `/orders/${orderId}/portal/attachments/${attId}/download-url?name=${encodeURIComponent(fileName)}`,
