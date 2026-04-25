@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, StatusBar,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNotifications } from '../../hooks/useNotifications'
@@ -50,7 +50,7 @@ function priorityColor(priority: string) {
 
 // ── Group row ─────────────────────────────────────────────────────────────────
 
-function GroupRow({ group, onOpen }: { group: DisplayGroup; onOpen: () => void }) {
+function GroupRow({ group, onOpen, onMarkRead }: { group: DisplayGroup; onOpen: () => void; onMarkRead?: () => void }) {
   const topPriority = group.events[0]?.priority ?? 'medium'
   const showCount = !group.isRead && group.unread_count > 2
 
@@ -74,6 +74,15 @@ function GroupRow({ group, onOpen }: { group: DisplayGroup; onOpen: () => void }
           <View style={S.badge}>
             <Text style={S.badgeText}>{group.unread_count}</Text>
           </View>
+        )}
+        {onMarkRead && (
+          <TouchableOpacity
+            onPress={onMarkRead}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={S.markReadBtn}
+          >
+            <Ionicons name="checkmark-circle-outline" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
         )}
       </View>
 
@@ -116,10 +125,16 @@ export default function NotificationsScreen() {
 
   const { scope, getEnabledTypes } = useNotifPreference()
 
-  const { groups: myGroupsRaw, isLoading: myLoading, markAllRead: markMyAllRead } =
+  const { groups: myGroupsRaw, isLoading: myLoading, markAllRead: markMyAllRead, markOrderRead: markMyOrderRead, refreshNow: refreshMine } =
     useNotifications({ mineOnly: true })
-  const { groups: otherGroupsRaw, isLoading: otherLoading, markAllRead: markOtherAllRead } =
+  const { groups: otherGroupsRaw, isLoading: otherLoading, markAllRead: markOtherAllRead, markOrderRead: markOtherOrderRead, refreshNow: refreshOthers } =
     useNotifications({ othersOnly: true })
+
+  // Re-fetch immediately every time this screen comes into focus
+  useFocusEffect(useCallback(() => {
+    refreshMine()
+    refreshOthers()
+  }, [refreshMine, refreshOthers]))
 
   const myGroups = filterGroupsByTypes(myGroupsRaw, getEnabledTypes('my_orders'))
   const otherGroups = filterGroupsByTypes(otherGroupsRaw, getEnabledTypes('all_orders'))
@@ -131,6 +146,8 @@ export default function NotificationsScreen() {
   const isLoading = tab === 'mine' ? myLoading : otherLoading
   const totalCount = tab === 'mine' ? myCount : otherCount
   const markAllRead = tab === 'mine' ? markMyAllRead : markOtherAllRead
+
+  const markOrderRead = tab === 'mine' ? markMyOrderRead : markOtherOrderRead
 
   function openOrder(group: DisplayGroup) {
     router.push(`/order/${group.order_id}` as any)
@@ -200,7 +217,12 @@ export default function NotificationsScreen() {
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}>
           {groups.map(g => (
-            <GroupRow key={g.order_id} group={g} onOpen={() => openOrder(g)} />
+            <GroupRow
+              key={g.order_id}
+              group={g}
+              onOpen={() => openOrder(g)}
+              onMarkRead={!g.isRead ? () => markOrderRead(g.order_id) : undefined}
+            />
           ))}
         </ScrollView>
       )}
@@ -258,6 +280,7 @@ const S = StyleSheet.create({
     paddingHorizontal: 6, paddingVertical: 1, flexShrink: 0,
   },
   badgeText: { fontSize: 10, fontWeight: '700', color: '#fff' },
+  markReadBtn: { padding: 2, flexShrink: 0 },
   previewRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingLeft: 15 },
   preview: { flex: 1, fontSize: 12, color: '#9CA3AF', lineHeight: 16 },
   time: { fontSize: 10, color: '#C4C9D4', flexShrink: 0 },

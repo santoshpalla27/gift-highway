@@ -4,6 +4,7 @@ import { orderService, type Order, type OrderEvent, type UserOption } from '../.
 import { attachmentService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from '../../../services/attachmentService'
 import { staffPortalApi, type PortalStatus, type PortalMessage, type PortalAttachment } from '../../../services/portalService'
 import { notificationService } from '../../../services/notificationService'
+import { markNotificationOrderRead } from '../../../hooks/useNotifications'
 import { useAuthStore } from '../../../store/authStore'
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus'
 import { useOrderSocket } from '../../../hooks/useOrderSocket'
@@ -360,19 +361,29 @@ export function useOrderDetail(orderId: string | undefined) {
   // ── Initial load ──────────────────────────────────────────────────────────
 
   useEffect(() => {
-    pageEnteredAt.current = new Date().toISOString()
-    setNewSinceAt(null)
     fetchOrder()
     loadInitialEvents()
     if (orderId) {
       staffPortalApi.getPortal(orderId).then(setPortal).catch(() => setPortal(null))
       refreshPortalData()
-      notificationService.getLastSeen(orderId).then(setNewSinceAt).catch(() => {})
-    }
-    return () => {
-      if (orderId) notificationService.markOrderRead(orderId).catch(() => {})
     }
   }, [fetchOrder, loadInitialEvents, orderId])
+
+  // ── Notification tracking (isolated so markOrderRead isn't triggered by data-fetch deps) ──
+  // Mirrors web's StrictMode guard: setTimeout(0) fires AFTER the simulated cleanup,
+  // so a real unmount is distinguishable from a StrictMode double-invoke.
+  useEffect(() => {
+    if (!orderId) return
+    const reallyMountedRef = { current: false }
+    pageEnteredAt.current = new Date().toISOString()
+    setNewSinceAt(null)
+    notificationService.getLastSeen(orderId).then(setNewSinceAt).catch(() => {})
+    const t = setTimeout(() => { reallyMountedRef.current = true }, 0)
+    return () => {
+      clearTimeout(t)
+      if (reallyMountedRef.current) markNotificationOrderRead(orderId)
+    }
+  }, [orderId])
 
   // ── Socket ────────────────────────────────────────────────────────────────
 

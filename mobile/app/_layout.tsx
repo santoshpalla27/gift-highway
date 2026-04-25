@@ -2,6 +2,7 @@ import { Stack, router } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { View, ActivityIndicator } from 'react-native'
+import { SocketProvider } from '../providers/SocketProvider'
 
 export default function RootLayout() {
   const { loadAuth, isAuthenticated } = useAuthStore()
@@ -32,10 +33,12 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(app)" />
-      <Stack.Screen name="order/[id]" options={{ animation: 'slide_from_right' }} />
-    </Stack>
+    <SocketProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(app)" />
+        <Stack.Screen name="order/[id]" options={{ animation: 'slide_from_right' }} />
+      </Stack>
+    </SocketProvider>
   )
 }

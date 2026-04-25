@@ -15,6 +15,7 @@ import { useOrderSocket } from '../../hooks/useOrderSocket'
 import { useNetworkStatus } from '../../hooks/useNetworkStatus'
 import { OfflineBanner } from '../../components/OfflineBanner'
 import { CardSkeleton } from '../../components/CardSkeleton'
+import { useNotifications } from '../../hooks/useNotifications'
 
 // ─── Metadata ────────────────────────────────────────────────────────────────
 
@@ -650,7 +651,7 @@ function OrderCard({ order, onOpen, onStatusPress, unreadCount = 0 }: {
     : 'Unassigned'
 
   return (
-    <TouchableOpacity style={C.card} onPress={onOpen} activeOpacity={0.6}>
+    <TouchableOpacity style={[C.card, unreadCount > 0 && C.cardUnread]} onPress={onOpen} activeOpacity={0.6}>
       {/* Top row: Order ID (left) | Status badge (right) */}
       <View style={C.rowTop}>
         <Text style={C.orderNum} numberOfLines={1}>#{order.title}</Text>
@@ -662,7 +663,17 @@ function OrderCard({ order, onOpen, onStatusPress, unreadCount = 0 }: {
         </TouchableOpacity>
       </View>
 
-      {/* Middle row: Customer name (left) | Priority (center) | Notif badge (right, if any) */}
+      {/* Centered notification alert */}
+      {unreadCount > 0 && (
+        <View style={C.alertRow}>
+          <View style={C.alertBadge}>
+            <Ionicons name="notifications" size={11} color="#fff" />
+            <Text style={C.alertText}>{unreadCount} unread</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Middle row: Customer name (left) | Priority (center) */}
       <View style={C.rowMid}>
         <View style={C.midLeft}>
           <Text style={C.customerName} numberOfLines={1}>{order.customer_name}</Text>
@@ -671,11 +682,6 @@ function OrderCard({ order, onOpen, onStatusPress, unreadCount = 0 }: {
           <View style={[C.priorityDot, { backgroundColor: pm.color }]} />
           <Text style={[C.priorityText, { color: pm.color }]}>{pm.label}</Text>
         </View>
-        {unreadCount > 0 && (
-          <View style={C.unreadBadge}>
-            <Text style={C.unreadText}>{unreadCount}</Text>
-          </View>
-        )}
       </View>
 
       {/* Bottom row: Assignee (left) | Delivery date (right) */}
@@ -730,6 +736,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
   const insets = useSafeAreaInsets()
   const { user } = useAuthStore()
   const { isOnline } = useNetworkStatus()
+  const { unreadByOrder } = useNotifications(myOrdersOnly ? { mineOnly: true } : {})
   const [orders, setOrders] = useState<Order[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -883,7 +890,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F172A" />}
         >
           {orders.map(o => (
-            <OrderCard key={o.id} order={o} onOpen={() => router.push(`/order/${o.id}`)} onStatusPress={() => setStatusOrder(o)} unreadCount={0} />
+            <OrderCard key={o.id} order={o} onOpen={() => router.push(`/order/${o.id}`)} onStatusPress={() => setStatusOrder(o)} unreadCount={unreadByOrder.get(o.id) ?? 0} />
           ))}
         </ScrollView>
       )}
@@ -1049,19 +1056,22 @@ const C = StyleSheet.create({
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 12, fontWeight: '700' },
-  // Middle row: assignee left, priority center, notif badge right
+  cardUnread: { borderColor: '#FECACA' },
+  // Centered notification alert row
+  alertRow: { alignItems: 'center' },
+  alertBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#EF4444', borderRadius: 12,
+    paddingHorizontal: 10, paddingVertical: 4,
+  },
+  alertText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
+  // Middle row: customer left, priority center
   rowMid: { flexDirection: 'row', alignItems: 'center' },
   midLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
   assignText: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
   midCenter: { flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1, justifyContent: 'center' },
   priorityDot: { width: 7, height: 7, borderRadius: 4 },
   priorityText: { fontSize: 12.5, fontWeight: '600' },
-  unreadBadge: {
-    minWidth: 22, height: 22, borderRadius: 11,
-    backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 6,
-  },
-  unreadText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
   // Bottom row: customer name left, delivery date right
   rowBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#F9FAFB', paddingTop: 10 },
   customerName: { fontSize: 14, fontWeight: '700', color: '#111827', flex: 1, marginRight: 8 },
