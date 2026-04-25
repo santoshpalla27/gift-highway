@@ -34,6 +34,16 @@ export interface UserOption {
   name: string
 }
 
+export interface TrashOrder {
+  id: string
+  order_number: number
+  title: string
+  customer_name: string
+  status: string
+  archived_at: string | null
+  archived_by_name: string | null
+}
+
 export interface ListOrdersParams {
   search?: string
   status?: string
@@ -103,5 +113,22 @@ export const orderService = {
 
   editComment: async (orderId: string, eventId: string, text: string): Promise<void> => {
     await apiClient.patch(`/orders/${orderId}/events/${eventId}`, { text })
+  },
+
+  archiveOrder: async (id: string): Promise<void> => {
+    await apiClient.post(`/orders/${id}/archive`)
+  },
+
+  restoreOrder: async (id: string): Promise<void> => {
+    await apiClient.post(`/orders/${id}/restore`)
+  },
+
+  permanentDelete: async (id: string): Promise<void> => {
+    await apiClient.delete(`/orders/${id}/permanent`)
+  },
+
+  listTrash: async (): Promise<TrashOrder[]> => {
+    const res = await apiClient.get<{ orders: TrashOrder[] }>('/orders/trash')
+    return res.data.orders ?? []
   },
 }

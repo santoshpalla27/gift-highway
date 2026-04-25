@@ -150,6 +150,14 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
+        name="activity"
+        options={{ href: null, title: 'Activity' }}
+      />
+      <Tabs.Screen
+        name="trash"
+        options={{ href: null, title: 'Trash' }}
+      />
+      <Tabs.Screen
         name="index"
         options={{
           href: null,

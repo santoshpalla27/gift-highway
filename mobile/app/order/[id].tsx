@@ -353,7 +353,13 @@ export default function OrderDetailScreen() {
         <StatusSheet order={order} onClose={() => D.setShowStatus(false)} onChanged={() => { D.fetchOrder(); /* fetchLatest called by socket */ }} />
       )}
       {D.showInfo && (
-        <InfoSheet order={order} portal={D.portal} onClose={() => D.setShowInfo(false)} onPortalChange={D.setPortal} />
+        <InfoSheet
+          order={order}
+          portal={D.portal}
+          onClose={() => D.setShowInfo(false)}
+          onPortalChange={D.setPortal}
+          onArchived={() => router.back()}
+        />
       )}
       {D.showEdit && (
         <EditOrderSheet order={order} onClose={() => D.setShowEdit(false)} onSaved={D.fetchOrder} />

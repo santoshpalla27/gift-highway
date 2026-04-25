@@ -30,11 +30,12 @@ const PRIORITY_META: Record<string, { label: string; color: string; bg: string }
 
 // ─── Info Sheet (read-only view + portal management) ─────────────────────────
 
-export function InfoSheet({ order, portal, onClose, onPortalChange }: {
+export function InfoSheet({ order, portal, onClose, onPortalChange, onArchived }: {
   order: Order
   portal: PortalStatus | null | undefined
   onClose: () => void
   onPortalChange: (p: PortalStatus | null) => void
+  onArchived?: () => void
 }) {
   const insets = useSafeAreaInsets()
   const sm = STATUS_META[order.status] ?? STATUS_META.new
@@ -44,6 +45,7 @@ export function InfoSheet({ order, portal, onClose, onPortalChange }: {
   const dueOverdue = due ? due < today && order.status !== 'completed' : false
   const [copied, setCopied] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
+  const [archiveLoading, setArchiveLoading] = useState(false)
 
   const handleCopyLink = async () => {
     if (!portal?.token) return
@@ -201,6 +203,37 @@ export function InfoSheet({ order, portal, onClose, onPortalChange }: {
                 </View>
               </View>
             )}
+          </View>
+
+          <View style={IN.archiveSection}>
+            <TouchableOpacity
+              style={IN.archiveBtn}
+              disabled={archiveLoading}
+              onPress={() => Alert.alert(
+                'Archive order?',
+                'The order will be moved to Trash. You can restore it later.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Archive', style: 'destructive', onPress: async () => {
+                    setArchiveLoading(true)
+                    try {
+                      await orderService.archiveOrder(order.id)
+                      onClose()
+                      onArchived?.()
+                    } catch { Alert.alert('Error', 'Could not archive order') }
+                    finally { setArchiveLoading(false) }
+                  }},
+                ],
+              )}
+            >
+              {archiveLoading
+                ? <ActivityIndicator size="small" color="#EF4444" />
+                : <>
+                    <Ionicons name="archive-outline" size={15} color="#EF4444" />
+                    <Text style={IN.archiveBtnText}>Archive Order</Text>
+                  </>
+              }
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </View>
@@ -440,4 +473,7 @@ const IN = StyleSheet.create({
   portalBtn: { width: '100%', paddingVertical: 9, borderRadius: 8, backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#A7F3D0', alignItems: 'center', justifyContent: 'center' },
   portalBtnText: { fontSize: 13, fontWeight: '600', color: '#10B981' },
   portalActionBtn: { flex: 1, paddingVertical: 7, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  archiveSection: { paddingTop: 20, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F1F5F9', marginTop: 6 },
+  archiveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
+  archiveBtnText: { fontSize: 13, fontWeight: '600', color: '#EF4444' },
 })
