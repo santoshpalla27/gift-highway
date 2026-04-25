@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { apiClient } from '../services/apiClient'
 
 export type NotifScope = 'my_orders' | 'all_orders'
 export type TypePrefs = Record<string, boolean>
@@ -52,11 +53,21 @@ export function useNotifPreference() {
         try { setPrefs(mergePrefs(JSON.parse(raw) as Partial<NotifPrefs>)) } catch { /* ignore */ }
       }
     })
+    // Load server-saved prefs on mount and merge so push service stays in sync.
+    apiClient.get<{ prefs: Partial<NotifPrefs> | null }>('/push/prefs').then(res => {
+      if (res.data.prefs) {
+        const merged = mergePrefs(res.data.prefs)
+        setPrefs(merged)
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged)).catch(() => {})
+      }
+    }).catch(() => {})
   }, [])
 
   const save = useCallback(async (next: NotifPrefs) => {
     setPrefs(next)
     try { await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+    // Sync to server (best-effort) so push service respects the same prefs.
+    apiClient.patch('/push/prefs', next).catch(() => {})
   }, [])
 
   const setScope = useCallback((scope: NotifScope) => {

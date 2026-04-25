@@ -46,12 +46,14 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 	notificationSvc := services.NewNotificationService(notificationRepo)
 
 	hub := realtime.NewHub()
+	hub.SetDB(db.DB)
 	go hub.Run()
 
 	portalHandler := v1.NewPortalHandler(portalSvc, hub)
 	authHandler := v1.NewAuthHandler(authSvc)
 	adminHandler := v1.NewAdminHandler(adminSvc)
 	profileHandler := v1.NewProfileHandler(profileSvc)
+	pushHandler := v1.NewPushHandler(db)
 	orderHandler := v1.NewOrderHandler(orderSvc, eventSvc, hub)
 	eventHandler := v1.NewEventHandler(eventSvc, orderSvc, attachmentSvc, hub)
 	attachmentHandler := v1.NewAttachmentHandler(attachmentSvc, hub)
@@ -95,6 +97,12 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 		{
 			protected.POST("/auth/logout", authHandler.Logout)
 			protected.GET("/auth/me", authHandler.Me)
+
+			// Push notification token + preference routes
+			protected.POST("/push/register", pushHandler.RegisterToken)
+			protected.DELETE("/push/unregister", pushHandler.UnregisterToken)
+			protected.GET("/push/prefs", pushHandler.GetPrefs)
+			protected.PATCH("/push/prefs", pushHandler.SavePrefs)
 
 			// Admin routes (require admin role)
 			adminGroup := protected.Group("/admin")

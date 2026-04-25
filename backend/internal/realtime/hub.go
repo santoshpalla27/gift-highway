@@ -1,6 +1,7 @@
 package realtime
 
 import (
+	"database/sql"
 	"encoding/json"
 	"sync"
 )
@@ -11,6 +12,12 @@ type Hub struct {
 	broadcast  chan []byte
 	register   chan *Client
 	unregister chan *Client
+	db         *sql.DB
+}
+
+// SetDB wires a database connection so Broadcast also emits pg_notify for the push service.
+func (h *Hub) SetDB(db *sql.DB) {
+	h.db = db
 }
 
 func NewHub() *Hub {
@@ -38,6 +45,12 @@ func (h *Hub) Broadcast(event Event) {
 	select {
 	case h.broadcast <- data:
 	default:
+	}
+	if h.db != nil {
+		payload := string(data)
+		go func() {
+			h.db.Exec("SELECT pg_notify('gh_realtime', $1)", payload)
+		}()
 	}
 }
 

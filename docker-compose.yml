@@ -183,6 +183,30 @@ services:
         max-size: "5m"
         max-file: "3"
 
+  push-service:
+    image: santoshpalla27/company-app:push-service
+    container_name: app-push-service
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-appdb}?sslmode=disable
+      - PORT=4002
+      - EXPO_ACCESS_TOKEN=${EXPO_ACCESS_TOKEN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-net
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.10"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   monitor:
     image: santoshpalla27/company-app:monitor
     container_name: app-monitor
