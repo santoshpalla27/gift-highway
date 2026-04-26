@@ -1,13 +1,57 @@
 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" fill="none">
-  <circle cx="50" cy="50" r="50" fill="#F0914A"/>
-  <g stroke="#1e1b4b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 16 28 H 25 L 34 62 H 70 L 78 38 H 28"/>
-    <circle cx="40" cy="75" r="5" fill="none"/>
-    <circle cx="64" cy="75" r="5" fill="none"/>
-    <path d="M 38 32 H 68 V 39 H 38 Z" fill="#F0914A"/>
-    <path d="M 42 39 V 56 H 64 V 39" fill="#F0914A"/>
-    <path d="M 53 32 V 56"/>
-    <path d="M 53 32 C 45 18 36 24 44 32" fill="#F0914A"/>
-    <path d="M 53 32 C 61 18 70 24 62 32" fill="#F0914A"/>
+  <defs>
+    <!-- Richer radial gradient for the background -->
+    <radialGradient id="bgGrad" cx="30%" cy="30%" r="70%" fx="30%" fy="30%">
+      <stop offset="0%" stop-color="#FCD5B5"/>
+      <stop offset="50%" stop-color="#F0914A"/>
+      <stop offset="100%" stop-color="#C26A25"/>
+    </radialGradient>
+    
+    <!-- Subtle linear gradient for the dark blue stroke -->
+    <linearGradient id="strokeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2a2559"/>
+      <stop offset="100%" stop-color="#0f0d2b"/>
+    </linearGradient>
+
+    <!-- Gradient for the gift box to give it a 3D precise detail -->
+    <linearGradient id="boxGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F7A965"/>
+      <stop offset="100%" stop-color="#D6752C"/>
+    </linearGradient>
+
+    <!-- Drop shadow filter for that premium lifted look -->
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="2" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+    <filter id="innerGlow">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feComposite in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="shadowDiff" />
+      <feFlood flood-color="white" flood-opacity="0.3" />
+      <feComposite in2="shadowDiff" operator="in" />
+      <feComposite in2="SourceGraphic" operator="over" />
+    </filter>
+  </defs>
+
+  <circle cx="50" cy="50" r="50" fill="url(#bgGrad)" filter="url(#shadow)"/>
+  
+  <g filter="url(#shadow)">
+    <!-- Cart Body -->
+    <path d="M 16 28 H 25 L 34 62 H 70 L 78 38 H 28" stroke="url(#strokeGrad)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Wheels -->
+    <circle cx="40" cy="75" r="5.5" fill="#1e1b4b" stroke="url(#strokeGrad)" stroke-width="3"/>
+    <circle cx="64" cy="75" r="5.5" fill="#1e1b4b" stroke="url(#strokeGrad)" stroke-width="3"/>
+    
+    <!-- Gift Box Bottom -->
+    <path d="M 42 39 V 56 H 64 V 39" fill="url(#boxGrad)" filter="url(#innerGlow)"/>
+    <!-- Gift Box Lid -->
+    <path d="M 38 32 H 68 V 39 H 38 Z" fill="#F49E55" filter="url(#innerGlow)"/>
+    
+    <!-- Vertical Ribbon -->
+    <path d="M 53 32 V 56" stroke="url(#strokeGrad)" stroke-width="4" stroke-linecap="round"/>
+    
+    <!-- Ribbon Bows -->
+    <path d="M 53 32 C 45 18 36 24 44 32" fill="url(#boxGrad)" stroke="url(#strokeGrad)" stroke-width="2"/>
+    <path d="M 53 32 C 61 18 70 24 62 32" fill="url(#boxGrad)" stroke="url(#strokeGrad)" stroke-width="2"/>
   </g>
 </svg>
