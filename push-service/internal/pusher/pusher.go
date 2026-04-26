@@ -379,18 +379,19 @@ func (p *Pusher) sendBatch(userID, orderID string, events []bufferedEvent) {
 		return
 	}
 
-	var orderNum int
 	var orderTitle string
-	p.db.QueryRow(`SELECT order_number, title FROM orders WHERE id::text = $1`, orderID).
-		Scan(&orderNum, &orderTitle)
+	p.db.QueryRow(`SELECT title FROM orders WHERE id::text = $1`, orderID).Scan(&orderTitle)
+	if orderTitle == "" {
+		orderTitle = orderID
+	}
 
 	// 1 event  → full detail (immediate send)
-	// 2+ events → count summary (timer flush replacing the first notification)
+	// 2+ events → count summary replacing the first notification
 	var title, body string
 	if len(events) == 1 {
-		title, body = buildContent(events[0].evType, events[0].actorName, events[0].payload, orderNum)
+		title, body = buildContent(events[0].evType, events[0].actorName, events[0].payload, orderTitle)
 	} else {
-		title = fmt.Sprintf("Order #%d", orderNum)
+		title = fmt.Sprintf("Order #%s", orderTitle)
 		body = fmt.Sprintf("%d new messages", len(events))
 	}
 
@@ -518,7 +519,7 @@ func buildShortLine(eventType, actorName string, payload json.RawMessage) string
 	}
 }
 
-func buildContent(eventType, actorName string, payload json.RawMessage, orderNum int) (title, body string) {
+func buildContent(eventType, actorName string, payload json.RawMessage, orderTitle string) (title, body string) {
 	trunc := func(s string, n int) string {
 		r := []rune(s)
 		if len(r) > n {
@@ -526,7 +527,7 @@ func buildContent(eventType, actorName string, payload json.RawMessage, orderNum
 		}
 		return s
 	}
-	ref := fmt.Sprintf("Order #%d", orderNum)
+	ref := fmt.Sprintf("Order #%s", orderTitle)
 
 	switch eventType {
 	case "order_created":
