@@ -307,9 +307,9 @@ func (p *Pusher) bufferEvent(userID, orderID string, ev bufferedEvent) {
 	}
 
 	if !batch.notified {
-		// Very first notification for this order (or after a 30-min reset):
+		// Very first notification for this order (or after a reset):
 		// send detailed content immediately, then arm the debounce timer so
-		// follow-up events can update the same notification.
+		// flushBatch can start the 30-min cleanup countdown.
 		batch.notified = true
 		batch.timer = time.AfterFunc(debounceDelay, func() {
 			p.flushBatch(userID, orderID)
@@ -318,8 +318,11 @@ func (p *Pusher) bufferEvent(userID, orderID string, ev bufferedEvent) {
 		log.Printf("push: immediate send event=%s user=%s order=%s", ev.evType, userID, orderID)
 		p.sendBatch(userID, orderID, []bufferedEvent{ev})
 	} else {
-		// A notification is already in the tray — buffer this event and reset
-		// the timer so we keep updating the count rather than starting fresh.
+		// Notification already in tray — send an updated count immediately
+		// (collapseId/tag replaces the existing one) and reset the debounce
+		// timer so flushBatch arms the 30-min cleanup countdown.
+		events := make([]bufferedEvent, len(batch.allEvents))
+		copy(events, batch.allEvents)
 		if batch.timer != nil {
 			batch.timer.Reset(debounceDelay)
 		} else {
@@ -328,15 +331,14 @@ func (p *Pusher) bufferEvent(userID, orderID string, ev bufferedEvent) {
 			})
 		}
 		batch.mu.Unlock()
-		log.Printf("push: buffered event=%s user=%s order=%s total=%d (timer reset)", ev.evType, userID, orderID, len(batch.allEvents))
+		log.Printf("push: instant update event=%s user=%s order=%s total=%d", ev.evType, userID, orderID, len(events))
+		p.sendBatch(userID, orderID, events)
 	}
 }
 
 func (p *Pusher) flushBatch(userID, orderID string) {
 	key := userID + ":" + orderID
 
-	// Do NOT delete the batch — keep it alive so future events know a
-	// notification is already in the tray and continue counting up.
 	p.bufMu.Lock()
 	batch, ok := p.buf[key]
 	p.bufMu.Unlock()
@@ -344,26 +346,19 @@ func (p *Pusher) flushBatch(userID, orderID string) {
 		return
 	}
 
+	// Events have gone quiet for debounceDelay — arm the 30-min cleanup timer
+	// so the batch resets if the user stays away. No new send needed because
+	// each event already triggered an immediate collapseId replacement.
 	batch.mu.Lock()
-	events := make([]bufferedEvent, len(batch.allEvents))
-	copy(events, batch.allEvents)
 	batch.timer = nil
-
-	// Arm a cleanup timer: if nothing arrives for 30 min we assume the user
-	// read the notification and the next event should start fresh.
+	if batch.cleanupTimer != nil {
+		batch.cleanupTimer.Stop()
+	}
 	batch.cleanupTimer = time.AfterFunc(30*time.Minute, func() {
 		p.cleanupBatch(userID, orderID)
 	})
 	batch.mu.Unlock()
-
-	// The first event was already sent immediately — only send an update if
-	// follow-up events arrived.
-	if len(events) < 2 {
-		return
-	}
-
-	log.Printf("push: flushing batch of %d event(s) for user=%s order=%s", len(events), userID, orderID)
-	p.sendBatch(userID, orderID, events)
+	log.Printf("push: quiet period ended user=%s order=%s — cleanup timer armed", userID, orderID)
 }
 
 // cleanupBatch removes a batch after 30 min of inactivity so the next event
