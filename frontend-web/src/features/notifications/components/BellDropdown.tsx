@@ -6,6 +6,34 @@ import type { DisplayGroup } from '../hooks/useNotifications'
 import type { NotificationEvent } from '../../../services/notificationService'
 import { formatRelative } from '../../../utils/date'
 
+function playNotificationSound() {
+  try {
+    const ctx = new AudioContext()
+    const master = ctx.createGain()
+    master.gain.value = 0.2
+    master.connect(ctx.destination)
+    const now = ctx.currentTime
+
+    function tone(freq: number, start: number, duration: number) {
+      const osc = ctx.createOscillator()
+      const env = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      env.gain.setValueAtTime(0, start)
+      env.gain.linearRampToValueAtTime(1, start + 0.01)
+      env.gain.exponentialRampToValueAtTime(0.001, start + duration)
+      osc.connect(env)
+      env.connect(master)
+      osc.start(start)
+      osc.stop(start + duration)
+    }
+
+    tone(880, now, 0.25)
+    tone(1100, now + 0.13, 0.3)
+    setTimeout(() => ctx.close(), 700)
+  } catch { /* audio not available */ }
+}
+
 type Tab = 'mine' | 'others'
 
 // ── Event preview text ────────────────────────────────────────────────────────
@@ -136,6 +164,16 @@ export function BellDropdown() {
   const isLoading = tab === 'mine' ? myLoading : otherLoading
   const totalCount = tab === 'mine' ? myCount : otherCount
   const markAllRead = tab === 'mine' ? markMyRead : markOtherRead
+
+  const prevBadgeRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (prevBadgeRef.current === null) {
+      prevBadgeRef.current = badgeCount
+      return
+    }
+    if (badgeCount > prevBadgeRef.current) playNotificationSound()
+    prevBadgeRef.current = badgeCount
+  }, [badgeCount])
 
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
