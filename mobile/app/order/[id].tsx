@@ -5,6 +5,8 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
+import { useEffect } from 'react'
+import * as Notifications from 'expo-notifications'
 import { Ionicons } from '@expo/vector-icons'
 
 import { useOrderDetail, groupByDate, getEventPreview, getEventSenderName, getEventThumb, parseCommentText } from './_hooks/useOrderDetail'
@@ -51,6 +53,16 @@ export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const insets = useSafeAreaInsets()
   const keyboardOffset = insets.top + 56
+
+  // Dismiss any push notifications for this order when the screen is opened (P3).
+  useEffect(() => {
+    if (!id || Platform.OS === 'web') return
+    Notifications.getPresentedNotificationsAsync().then(presented => {
+      presented
+        .filter(n => String(n.request.content.data?.order_id) === String(id))
+        .forEach(n => Notifications.dismissNotificationAsync(n.request.identifier))
+    })
+  }, [id])
 
   const D = useOrderDetail(id)
 

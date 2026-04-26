@@ -12,7 +12,7 @@ import (
 	"github.com/lib/pq"
 )
 
-const debounceDelay = 10 * time.Second
+const debounceDelay = 5 * time.Second
 
 // pushWorthy are the types that trigger a push notification.
 var pushWorthy = map[string]bool{
@@ -57,11 +57,13 @@ type bufferedEvent struct {
 	payload   json.RawMessage
 }
 
-// orderBatch accumulates events for one (user, order) pair with a debounce timer.
+// orderBatch accumulates events for one (user, order) pair.
+// The first event is sent immediately; subsequent events reset the debounce
+// timer so a single aggregated "N new messages" notification replaces the first.
 type orderBatch struct {
-	mu     sync.Mutex
-	events []bufferedEvent
-	timer  *time.Timer
+	mu        sync.Mutex
+	allEvents []bufferedEvent // every event including the one sent immediately
+	timer     *time.Timer
 }
 
 type Pusher struct {
@@ -275,17 +277,27 @@ func (p *Pusher) bufferEvent(userID, orderID string, ev bufferedEvent) {
 	p.bufMu.Unlock()
 
 	batch.mu.Lock()
-	batch.events = append(batch.events, ev)
-	if batch.timer != nil {
-		batch.timer.Reset(debounceDelay)
-	} else {
+	batch.allEvents = append(batch.allEvents, ev)
+	isFirst := len(batch.allEvents) == 1
+
+	if isFirst {
+		// Send the first event immediately so the user gets instant feedback,
+		// then start the debounce timer. If more events arrive, the timer is
+		// reset and flushBatch will send an updated "N new messages" notification
+		// that replaces the first one via collapseId / tag.
 		batch.timer = time.AfterFunc(debounceDelay, func() {
 			p.flushBatch(userID, orderID)
 		})
+		batch.mu.Unlock()
+		log.Printf("push: immediate send event=%s user=%s order=%s", ev.evType, userID, orderID)
+		p.sendBatch(userID, orderID, []bufferedEvent{ev})
+	} else {
+		if batch.timer != nil {
+			batch.timer.Reset(debounceDelay)
+		}
+		batch.mu.Unlock()
+		log.Printf("push: buffered event=%s user=%s order=%s total=%d (timer reset)", ev.evType, userID, orderID, len(batch.allEvents))
 	}
-	batch.mu.Unlock()
-
-	log.Printf("push: buffered event=%s user=%s order=%s (timer reset)", ev.evType, userID, orderID)
 }
 
 func (p *Pusher) flushBatch(userID, orderID string) {
@@ -301,11 +313,13 @@ func (p *Pusher) flushBatch(userID, orderID string) {
 	p.bufMu.Unlock()
 
 	batch.mu.Lock()
-	events := make([]bufferedEvent, len(batch.events))
-	copy(events, batch.events)
+	events := make([]bufferedEvent, len(batch.allEvents))
+	copy(events, batch.allEvents)
 	batch.mu.Unlock()
 
-	if len(events) == 0 {
+	// The first event was already sent immediately — only flush if there are
+	// follow-up events to aggregate into an updated notification.
+	if len(events) < 2 {
 		return
 	}
 
@@ -326,25 +340,19 @@ func (p *Pusher) sendBatch(userID, orderID string, events []bufferedEvent) {
 	p.db.QueryRow(`SELECT order_number, title FROM orders WHERE id::text = $1`, orderID).
 		Scan(&orderNum, &orderTitle)
 
-	// Build notification content based on event count.
-	// 1 event  → full detail
-	// 2 events → one line per event
-	// 3+       → count summary
+	// 1 event  → full detail (immediate send)
+	// 2+ events → count summary (timer flush replacing the first notification)
 	var title, body string
-	switch len(events) {
-	case 1:
+	if len(events) == 1 {
 		title, body = buildContent(events[0].evType, events[0].actorName, events[0].payload, orderNum)
-	case 2:
-		title = fmt.Sprintf("Order #%d · 2 updates", orderNum)
-		body = buildShortLine(events[0].evType, events[0].actorName, events[0].payload) +
-			"\n" + buildShortLine(events[1].evType, events[1].actorName, events[1].payload)
-	default:
-		title = fmt.Sprintf("Order #%d · %d new updates", orderNum, len(events))
-		body = orderTitle
+	} else {
+		title = fmt.Sprintf("Order #%d", orderNum)
+		body = fmt.Sprintf("%d new messages", len(events))
 	}
 
-	// collapseId = order:{id} so the OS replaces the existing notification
-	// for this order instead of stacking a new one.
+	// collapseId (iOS apns-collapse-id) + tag (Android notification tag) share the
+	// same value so the OS replaces the previous notification for this order
+	// instead of stacking a new one.
 	collapseID := fmt.Sprintf("order:%s", orderID)
 
 	var msgs []expo.Message
@@ -358,11 +366,11 @@ func (p *Pusher) sendBatch(userID, orderID string, events []bufferedEvent) {
 				Priority:   "high",
 				ChannelID:  "default",
 				CollapseID: collapseID,
+				Tag:        collapseID,
 				Data: map[string]interface{}{
 					"order_id":   orderID,
 					"event_type": events[len(events)-1].evType,
-					// Deep-link target used by the mobile app on notification tap.
-					"screen": "order",
+					"screen":     "order",
 				},
 			})
 		}

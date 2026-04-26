@@ -1,5 +1,5 @@
 import { Stack, router } from 'expo-router'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { View, ActivityIndicator } from 'react-native'
 import { SocketProvider } from '../providers/SocketProvider'
@@ -7,41 +7,40 @@ import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent'
 
 function AppNavigator() {
   const { loadAuth, isAuthenticated } = useAuthStore()
-  // Read from the provider — does NOT trigger a second native getShareIntent call.
   const { hasShareIntent, isReady: shareReady } = useShareIntentContext()
   const [authReady, setAuthReady] = useState(false)
-  // Guard so we only do the initial route once.
-  const routed = useRef(false)
+  // useState (not useRef) so effects that depend on it re-run after it flips true.
+  const [routed, setRouted] = useState(false)
 
   useEffect(() => {
     loadAuth().finally(() => setAuthReady(true))
   }, [loadAuth])
 
-  // Share intent takes priority — but the Stack must be rendered first (authReady + shareReady).
+  // Step 1 — navigate to the base screen once auth + share-intent initial check are done.
+  // Does NOT check hasShareIntent: the share routing in Step 2 handles that separately.
   useEffect(() => {
-    if (!hasShareIntent || !authReady || !shareReady) return
-    routed.current = true
-    router.replace('/share' as any)
-  }, [hasShareIntent, authReady, shareReady])
-
-  // Initial auth routing — waits for share intent check to settle first.
-  useEffect(() => {
-    if (!authReady || !shareReady || hasShareIntent || routed.current) return
-    routed.current = true
+    if (!authReady || !shareReady || routed) return
+    setRouted(true)
     if (isAuthenticated) {
       router.replace('/(app)')
     } else {
       router.replace('/(auth)/login')
     }
-  }, [authReady, shareReady, isAuthenticated, hasShareIntent])
+  }, [authReady, shareReady, isAuthenticated, routed])
 
-  // Forced logout — fires when tokens expire while the app is already running.
-  // routed.current blocks the initial effect above from re-running, so we need
-  // this separate watch to redirect back to login.
+  // Step 2 — push the share modal on top of the base screen whenever an intent arrives.
+  // Using push (not replace) so the modal has a base screen to present over.
+  // Fires both on cold start (after Step 1 sets routed=true) and background resume.
   useEffect(() => {
-    if (!routed.current || !authReady || isAuthenticated) return
+    if (!hasShareIntent || !routed || !authReady) return
+    router.push('/share' as any)
+  }, [hasShareIntent, routed, authReady])
+
+  // Step 3 — forced logout when the token expires while the app is running.
+  useEffect(() => {
+    if (!routed || !authReady || isAuthenticated) return
     router.replace('/(auth)/login')
-  }, [isAuthenticated, authReady])
+  }, [isAuthenticated, authReady, routed])
 
   if (!authReady || !shareReady) {
     return (
