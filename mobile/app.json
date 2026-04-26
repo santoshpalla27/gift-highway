@@ -48,33 +48,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "0c56871c-426a-4053-896e-173a2b316648",
-        "build": {
-          "experimental": {
-            "ios": {
-              "appExtensions": [
-                {
-                  "targetName": "ShareExtension",
-                  "bundleIdentifier": "com.gifthighway.share-extension",
-                  "entitlements": {
-                    "com.apple.security.application-groups": [
-                      "group.com.gifthighway"
-                    ]
-                  }
-                },
-                {
-                  "targetName": "ShareExtension",
-                  "bundleIdentifier": "com.gifthighway.share-extension",
-                  "entitlements": {
-                    "com.apple.security.application-groups": [
-                      "group.com.gifthighway"
-                    ]
-                  }
-                }
-              ]
-            }
-          }
-        }
+        "projectId": "0c56871c-426a-4053-896e-173a2b316648"
       }
     },
     "owner": "gift-highway"
