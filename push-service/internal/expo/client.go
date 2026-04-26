@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -72,10 +73,17 @@ func (c *Client) Send(msgs []Message) (invalidTokens []string, err error) {
 	}
 
 	for i, ticket := range result.Data {
-		if ticket.Status == "error" && ticket.Details != nil && ticket.Details.Error == "DeviceNotRegistered" {
-			if i < len(msgs) {
+		if ticket.Status == "error" {
+			errCode := ""
+			if ticket.Details != nil {
+				errCode = ticket.Details.Error
+			}
+			log.Printf("expo ticket error: %s — %s", errCode, ticket.Message)
+			if errCode == "DeviceNotRegistered" && i < len(msgs) {
 				invalidTokens = append(invalidTokens, msgs[i].To)
 			}
+		} else {
+			log.Printf("expo ticket ok for msg %d", i)
 		}
 	}
 	return invalidTokens, nil
