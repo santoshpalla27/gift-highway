@@ -5,19 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/company/app/push-service/internal/expo"
 	"github.com/lib/pq"
 )
 
-// notifiableTypes mirrors the backend's notifiable event types.
-var notifiableTypes = pq.Array([]string{
-	"comment_added", "attachment_added", "status_changed",
-	"due_date_changed", "priority_changed", "assignees_changed",
-	"customer_message", "customer_attachment", "staff_portal_reply",
-	"order_updated", "user_mentioned", "order_created",
-})
+const debounceDelay = 10 * time.Second
 
 // pushWorthy are the types that trigger a push notification.
 var pushWorthy = map[string]bool{
@@ -30,6 +25,13 @@ var pushWorthy = map[string]bool{
 	"customer_message":    true,
 	"customer_attachment": true,
 	"staff_portal_reply":  true,
+}
+
+// highPriority events skip the debounce buffer and send immediately.
+var highPriority = map[string]bool{
+	"customer_message":    true,
+	"customer_attachment": true,
+	"user_mentioned":      true,
 }
 
 // defaultEnabled mirrors DEFAULT_TYPE_PREFS from the mobile app.
@@ -48,12 +50,29 @@ var defaultEnabled = map[string]bool{
 	"order_created":       true,
 }
 
+// bufferedEvent holds one pending event for a user+order batch.
+type bufferedEvent struct {
+	evType    string
+	actorName string
+	payload   json.RawMessage
+}
+
+// orderBatch accumulates events for one (user, order) pair with a debounce timer.
+type orderBatch struct {
+	mu     sync.Mutex
+	events []bufferedEvent
+	timer  *time.Timer
+}
+
 type Pusher struct {
 	databaseURL string
 	expo        *expo.Client
 	db          *sql.DB
 	listener    *pq.Listener
 	done        chan struct{}
+
+	bufMu sync.Mutex
+	buf   map[string]*orderBatch // key: "userID:orderID"
 }
 
 func New(databaseURL string, expoClient *expo.Client) *Pusher {
@@ -61,6 +80,7 @@ func New(databaseURL string, expoClient *expo.Client) *Pusher {
 		databaseURL: databaseURL,
 		expo:        expoClient,
 		done:        make(chan struct{}),
+		buf:         make(map[string]*orderBatch),
 	}
 }
 
@@ -100,6 +120,19 @@ func (p *Pusher) Start() error {
 
 func (p *Pusher) Stop() {
 	close(p.done)
+
+	// Cancel all pending debounce timers to avoid goroutine leaks.
+	p.bufMu.Lock()
+	for _, batch := range p.buf {
+		batch.mu.Lock()
+		if batch.timer != nil {
+			batch.timer.Stop()
+		}
+		batch.mu.Unlock()
+	}
+	p.buf = make(map[string]*orderBatch)
+	p.bufMu.Unlock()
+
 	if p.listener != nil {
 		p.listener.Close()
 	}
@@ -139,7 +172,7 @@ func (p *Pusher) ensureTable() error {
 	return err
 }
 
-// ── Event types from the backend ─────────────────────────────────────────────
+// ── Event types ───────────────────────────────────────────────────────────────
 
 type rtEvent struct {
 	Type     string          `json:"type"`
@@ -155,7 +188,7 @@ type eventPayload struct {
 	Payload   json.RawMessage `json:"payload"`
 }
 
-// ── Main handler ─────────────────────────────────────────────────────────────
+// ── Main handler ──────────────────────────────────────────────────────────────
 
 func (p *Pusher) handle(msg *pq.Notification) {
 	if msg.Channel != "gh_realtime" {
@@ -164,27 +197,23 @@ func (p *Pusher) handle(msg *pq.Notification) {
 
 	var event rtEvent
 	if err := json.Unmarshal([]byte(msg.Extra), &event); err != nil {
-		log.Printf("push: json unmarshal event: %v | raw: %.200s", err, msg.Extra)
+		log.Printf("push: unmarshal event: %v | raw: %.200s", err, msg.Extra)
 		return
 	}
 
-	log.Printf("push: received event type=%s", event.Type)
-
-	// Only handle timeline events — they cover all notification-worthy activity.
 	if event.Type != "order.event_added" {
 		return
 	}
 
 	var ep eventPayload
 	if err := json.Unmarshal(event.Payload, &ep); err != nil {
-		log.Printf("push: json unmarshal payload: %v", err)
+		log.Printf("push: unmarshal payload: %v", err)
 		return
 	}
 
 	log.Printf("push: event_type=%s order_id=%s", ep.Type, ep.OrderID)
 
 	if !pushWorthy[ep.Type] {
-		log.Printf("push: skipping non-worthy event type=%s", ep.Type)
 		return
 	}
 
@@ -193,18 +222,26 @@ func (p *Pusher) handle(msg *pq.Notification) {
 		actorID = *ep.ActorID
 	}
 
-	// Mentions: send only to the mentioned user, always (bypass pref filter).
+	ev := bufferedEvent{
+		evType:    ep.Type,
+		actorName: ep.ActorName,
+		payload:   ep.Payload,
+	}
+
+	// Mentions: personal — send immediately only to the mentioned user.
 	if ep.Type == "user_mentioned" {
 		var mp struct {
 			MentionedUserID string `json:"mentioned_user_id"`
 		}
-		if err := json.Unmarshal(ep.Payload, &mp); err == nil && mp.MentionedUserID != "" && mp.MentionedUserID != actorID {
-			p.sendToUser(mp.MentionedUserID, ep.OrderID, ep.Type, ep.ActorName, ep.Payload)
+		if err := json.Unmarshal(ep.Payload, &mp); err == nil &&
+			mp.MentionedUserID != "" &&
+			mp.MentionedUserID != actorID {
+			p.sendBatch(mp.MentionedUserID, ep.OrderID, []bufferedEvent{ev})
 		}
 		return
 	}
 
-	// All other types: fan out to all users with tokens except the actor.
+	// Fan out to all users with tokens except the actor.
 	userIDs, err := p.getPushUserIDs(actorID)
 	if err != nil {
 		log.Printf("push: get users: %v", err)
@@ -215,11 +252,138 @@ func (p *Pusher) handle(msg *pq.Notification) {
 		if !p.shouldPush(uid, ep.OrderID, ep.Type) {
 			continue
 		}
-		p.sendToUser(uid, ep.OrderID, ep.Type, ep.ActorName, ep.Payload)
+		if highPriority[ep.Type] {
+			// Customer messages and attachments are time-sensitive — bypass buffer.
+			p.sendBatch(uid, ep.OrderID, []bufferedEvent{ev})
+		} else {
+			p.bufferEvent(uid, ep.OrderID, ev)
+		}
 	}
 }
 
-// ── Preference check ─────────────────────────────────────────────────────────
+// ── Debounce buffer ───────────────────────────────────────────────────────────
+
+func (p *Pusher) bufferEvent(userID, orderID string, ev bufferedEvent) {
+	key := userID + ":" + orderID
+
+	p.bufMu.Lock()
+	batch, ok := p.buf[key]
+	if !ok {
+		batch = &orderBatch{}
+		p.buf[key] = batch
+	}
+	p.bufMu.Unlock()
+
+	batch.mu.Lock()
+	batch.events = append(batch.events, ev)
+	if batch.timer != nil {
+		batch.timer.Reset(debounceDelay)
+	} else {
+		batch.timer = time.AfterFunc(debounceDelay, func() {
+			p.flushBatch(userID, orderID)
+		})
+	}
+	batch.mu.Unlock()
+
+	log.Printf("push: buffered event=%s user=%s order=%s (timer reset)", ev.evType, userID, orderID)
+}
+
+func (p *Pusher) flushBatch(userID, orderID string) {
+	key := userID + ":" + orderID
+
+	p.bufMu.Lock()
+	batch, ok := p.buf[key]
+	if !ok {
+		p.bufMu.Unlock()
+		return
+	}
+	delete(p.buf, key)
+	p.bufMu.Unlock()
+
+	batch.mu.Lock()
+	events := make([]bufferedEvent, len(batch.events))
+	copy(events, batch.events)
+	batch.mu.Unlock()
+
+	if len(events) == 0 {
+		return
+	}
+
+	log.Printf("push: flushing batch of %d event(s) for user=%s order=%s", len(events), userID, orderID)
+	p.sendBatch(userID, orderID, events)
+}
+
+// ── Send aggregated batch ─────────────────────────────────────────────────────
+
+func (p *Pusher) sendBatch(userID, orderID string, events []bufferedEvent) {
+	tokens, err := p.getTokens(userID)
+	if err != nil || len(tokens) == 0 {
+		return
+	}
+
+	var orderNum int
+	var orderTitle string
+	p.db.QueryRow(`SELECT order_number, title FROM orders WHERE id::text = $1`, orderID).
+		Scan(&orderNum, &orderTitle)
+
+	// Build notification content based on event count.
+	// 1 event  → full detail
+	// 2 events → one line per event
+	// 3+       → count summary
+	var title, body string
+	switch len(events) {
+	case 1:
+		title, body = buildContent(events[0].evType, events[0].actorName, events[0].payload, orderNum)
+	case 2:
+		title = fmt.Sprintf("Order #%d · 2 updates", orderNum)
+		body = buildShortLine(events[0].evType, events[0].actorName, events[0].payload) +
+			"\n" + buildShortLine(events[1].evType, events[1].actorName, events[1].payload)
+	default:
+		title = fmt.Sprintf("Order #%d · %d new updates", orderNum, len(events))
+		body = orderTitle
+	}
+
+	// collapseId = order:{id} so the OS replaces the existing notification
+	// for this order instead of stacking a new one.
+	collapseID := fmt.Sprintf("order:%s", orderID)
+
+	var msgs []expo.Message
+	for _, tok := range tokens {
+		if expo.IsValidToken(tok) {
+			msgs = append(msgs, expo.Message{
+				To:         tok,
+				Title:      title,
+				Body:       body,
+				Sound:      "default",
+				Priority:   "high",
+				ChannelID:  "default",
+				CollapseID: collapseID,
+				Data: map[string]interface{}{
+					"order_id":   orderID,
+					"event_type": events[len(events)-1].evType,
+					// Deep-link target used by the mobile app on notification tap.
+					"screen": "order",
+				},
+			})
+		}
+	}
+	if len(msgs) == 0 {
+		return
+	}
+
+	log.Printf("push: sending batch(%d) to user=%s order=%s title=%q", len(events), userID, orderID, title)
+	invalid, err := p.expo.Send(msgs)
+	if err != nil {
+		log.Printf("push: send error user=%s: %v", userID, err)
+		return
+	}
+	log.Printf("push: sent ok invalid_tokens=%d", len(invalid))
+	if len(invalid) > 0 {
+		p.deleteTokens(invalid)
+	}
+}
+
+// ── Preference check ──────────────────────────────────────────────────────────
 
 func (p *Pusher) shouldPush(userID, orderID, eventType string) bool {
 	var prefsRaw []byte
@@ -241,19 +405,16 @@ func (p *Pusher) shouldPush(userID, orderID, eventType string) bool {
 		scope = "my_orders"
 	}
 
-	// Check if user is assigned to the order.
 	var isAssigned bool
 	p.db.QueryRow(
 		`SELECT EXISTS(SELECT 1 FROM order_assignees WHERE order_id::text = $1 AND user_id::text = $2)`,
 		orderID, userID,
 	).Scan(&isAssigned)
 
-	// my_orders scope: only push for assigned orders.
 	if scope == "my_orders" && !isAssigned {
 		return false
 	}
 
-	// Use the type prefs for the relevant scope key.
 	scopeKey := "my_orders"
 	if scope == "all_orders" {
 		scopeKey = "all_orders"
@@ -267,112 +428,8 @@ func (p *Pusher) shouldPush(userID, orderID, eventType string) bool {
 	return defaultEnabled[eventType]
 }
 
-// ── Send to a single user ────────────────────────────────────────────────────
+// ── Content builders ──────────────────────────────────────────────────────────
 
-func (p *Pusher) sendToUser(userID, orderID, eventType, actorName string, payload json.RawMessage) {
-	tokens, err := p.getTokens(userID)
-	if err != nil || len(tokens) == 0 {
-		return
-	}
-
-	var orderNum int
-	var orderTitle string
-	p.db.QueryRow(`SELECT order_number, title FROM orders WHERE id::text = $1`, orderID).Scan(&orderNum, &orderTitle)
-
-	// Query the most recent unread events for this user+order.
-	// Same filter as the in-app notification bell.
-	unreadRows, err := p.db.Query(`
-		SELECT e.type, COALESCE(u.first_name || ' ' || u.last_name, 'Someone') AS actor, e.payload
-		FROM order_events e
-		LEFT JOIN users u ON u.id = e.actor_id
-		LEFT JOIN notification_reads nr ON nr.user_id::text = $1 AND nr.order_id::text = $2
-		WHERE e.order_id::text = $2
-		  AND e.type = ANY($3)
-		  AND (e.actor_id IS NULL OR e.actor_id::text != $1)
-		  AND (e.type != 'user_mentioned' OR e.payload->>'mentioned_user_id' = $1)
-		  AND e.created_at > COALESCE(nr.last_seen_at, '1970-01-01 00:00:00 UTC'::timestamptz)
-		ORDER BY e.created_at DESC
-		LIMIT 3
-	`, userID, orderID, notifiableTypes)
-	if err != nil {
-		log.Printf("push: query unread: %v", err)
-		return
-	}
-	defer unreadRows.Close()
-
-	type unreadEvent struct {
-		evType  string
-		actor   string
-		payload json.RawMessage
-	}
-	var unread []unreadEvent
-	for unreadRows.Next() {
-		var ev unreadEvent
-		unreadRows.Scan(&ev.evType, &ev.actor, &ev.payload)
-		unread = append(unread, ev)
-	}
-	unreadCount := len(unread)
-	if unreadCount == 0 {
-		return
-	}
-
-	var title, body string
-	switch {
-	case unreadCount >= 3:
-		// 3+ unread: show count — same pattern as the in-app bell.
-		title = fmt.Sprintf("Order #%d · %d updates", orderNum, unreadCount)
-		body = orderTitle
-	case unreadCount == 2:
-		// 2 unread: show a line for each event.
-		title = fmt.Sprintf("Order #%d · 2 updates", orderNum)
-		body = buildShortLine(unread[1].evType, unread[1].actor, unread[1].payload) +
-			"\n" + buildShortLine(unread[0].evType, unread[0].actor, unread[0].payload)
-	default:
-		// 1 unread: show full content of the event.
-		title, body = buildContent(eventType, actorName, payload, orderNum)
-	}
-
-	// Collapse key per order so repeated notifications replace rather than stack.
-	collapseID := fmt.Sprintf("order:%s", orderID)
-
-	var msgs []expo.Message
-	for _, tok := range tokens {
-		if expo.IsValidToken(tok) {
-			msgs = append(msgs, expo.Message{
-				To:         tok,
-				Title:      title,
-				Body:       body,
-				Sound:      "default",
-				Priority:   "high",
-				ChannelID:  "default",
-				CollapseID: collapseID,
-				Data: map[string]interface{}{
-					"order_id":   orderID,
-					"event_type": eventType,
-				},
-			})
-		}
-	}
-	if len(msgs) == 0 {
-		return
-	}
-
-	log.Printf("push: sending %d message(s) to user %s for order %s", len(msgs), userID, orderID)
-	invalid, err := p.expo.Send(msgs)
-	if err != nil {
-		log.Printf("push: send error (user %s): %v", userID, err)
-		return
-	}
-	log.Printf("push: sent ok, invalid_tokens=%d", len(invalid))
-	if len(invalid) > 0 {
-		log.Printf("push: removing %d invalid tokens", len(invalid))
-		p.deleteTokens(invalid)
-	}
-}
-
-// ── Content builders ─────────────────────────────────────────────────────────
-
-// buildShortLine returns a compact one-liner for a single event (used in 2-event notifications).
 func buildShortLine(eventType, actorName string, payload json.RawMessage) string {
 	trunc := func(s string, n int) string {
 		r := []rune(s)
@@ -421,16 +478,13 @@ func buildContent(eventType, actorName string, payload json.RawMessage, orderNum
 
 	switch eventType {
 	case "order_created":
-		var p struct {
-			CustomerName string `json:"customer_name"`
-		}
+		var p struct{ CustomerName string `json:"customer_name"` }
 		json.Unmarshal(payload, &p)
 		title = "📦 New Order"
 		body = actorName + " created " + ref
 		if p.CustomerName != "" {
 			body += " for " + p.CustomerName
 		}
-
 	case "status_changed":
 		var p struct {
 			From string `json:"from"`
@@ -439,27 +493,19 @@ func buildContent(eventType, actorName string, payload json.RawMessage, orderNum
 		json.Unmarshal(payload, &p)
 		title = "🔄 Status Update"
 		body = ref + ": " + p.From + " → " + p.To
-
 	case "comment_added":
-		var p struct {
-			Text string `json:"text"`
-		}
+		var p struct{ Text string `json:"text"` }
 		json.Unmarshal(payload, &p)
 		title = "💬 New Comment"
 		body = trunc(actorName+": "+p.Text, 100)
-
 	case "user_mentioned":
-		var p struct {
-			Text string `json:"text"`
-		}
+		var p struct{ Text string `json:"text"` }
 		json.Unmarshal(payload, &p)
 		title = "💬 You were mentioned"
 		body = trunc(actorName+" mentioned you: "+p.Text, 100)
-
 	case "attachment_added":
 		title = "📎 New Attachment"
 		body = actorName + " uploaded a file on " + ref
-
 	case "customer_message":
 		var p struct {
 			Text         string `json:"text"`
@@ -476,15 +522,11 @@ func buildContent(eventType, actorName string, payload json.RawMessage, orderNum
 		} else {
 			body = sender + " sent a message on " + ref
 		}
-
 	case "customer_attachment":
 		title = "📎 Customer File"
 		body = "Customer uploaded a file on " + ref
-
 	case "staff_portal_reply":
-		var p struct {
-			Text string `json:"text"`
-		}
+		var p struct{ Text string `json:"text"` }
 		json.Unmarshal(payload, &p)
 		title = "💬 Portal Reply"
 		if p.Text != "" {
@@ -492,11 +534,9 @@ func buildContent(eventType, actorName string, payload json.RawMessage, orderNum
 		} else {
 			body = actorName + " replied on " + ref
 		}
-
 	case "assignees_changed":
 		title = "👤 Assignment Updated"
 		body = actorName + " updated assignees on " + ref
-
 	default:
 		title = "📦 Gift Highway"
 		body = "New activity on " + ref
@@ -504,7 +544,7 @@ func buildContent(eventType, actorName string, payload json.RawMessage, orderNum
 	return
 }
 
-// ── DB helpers ───────────────────────────────────────────────────────────────
+// ── DB helpers ────────────────────────────────────────────────────────────────
 
 func (p *Pusher) getPushUserIDs(excludeID string) ([]string, error) {
 	var rows *sql.Rows

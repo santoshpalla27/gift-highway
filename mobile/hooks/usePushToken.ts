@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
 import Constants from 'expo-constants'
 import { Platform } from 'react-native'
+import { router } from 'expo-router'
 import { useAuthStore } from '../store/authStore'
 import { apiClient } from '../services/apiClient'
 
@@ -93,4 +94,18 @@ export function usePushToken() {
       registerDeviceToken(pushToken)
     })
   }, [token, user?.id])
+
+  // Deep-link to the order when the user taps a notification
+  useEffect(() => {
+    if (Platform.OS === 'web') return
+
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, unknown>
+      if (data?.screen === 'order' && data?.order_id) {
+        router.push(`/order/${data.order_id}` as any)
+      }
+    })
+
+    return () => sub.remove()
+  }, [])
 }
