@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/company/app/push-service/internal/expo"
@@ -55,10 +54,6 @@ type Pusher struct {
 	db          *sql.DB
 	listener    *pq.Listener
 	done        chan struct{}
-
-	// rate limiting: one push per (user, order) per 30 seconds
-	rlMu   sync.Mutex
-	rlLast map[string]time.Time
 }
 
 func New(databaseURL string, expoClient *expo.Client) *Pusher {
@@ -66,20 +61,7 @@ func New(databaseURL string, expoClient *expo.Client) *Pusher {
 		databaseURL: databaseURL,
 		expo:        expoClient,
 		done:        make(chan struct{}),
-		rlLast:      make(map[string]time.Time),
 	}
-}
-
-// rateLimited returns true if a push was already sent for this user+order within 30s.
-func (p *Pusher) rateLimited(userID, orderID string) bool {
-	key := userID + ":" + orderID
-	p.rlMu.Lock()
-	defer p.rlMu.Unlock()
-	if t, ok := p.rlLast[key]; ok && time.Since(t) < 30*time.Second {
-		return true
-	}
-	p.rlLast[key] = time.Now()
-	return false
 }
 
 func (p *Pusher) Start() error {
@@ -288,11 +270,6 @@ func (p *Pusher) shouldPush(userID, orderID, eventType string) bool {
 // ── Send to a single user ────────────────────────────────────────────────────
 
 func (p *Pusher) sendToUser(userID, orderID, eventType, actorName string, payload json.RawMessage) {
-	if p.rateLimited(userID, orderID) {
-		log.Printf("push: rate-limited user=%s order=%s", userID, orderID)
-		return
-	}
-
 	tokens, err := p.getTokens(userID)
 	if err != nil || len(tokens) == 0 {
 		return
@@ -302,27 +279,57 @@ func (p *Pusher) sendToUser(userID, orderID, eventType, actorName string, payloa
 	var orderTitle string
 	p.db.QueryRow(`SELECT order_number, title FROM orders WHERE id::text = $1`, orderID).Scan(&orderNum, &orderTitle)
 
-	// Count unread events for this user+order (including this new one).
-	// Matches the exact query used by the in-app notification system.
-	var unreadCount int
-	p.db.QueryRow(`
-		SELECT COUNT(*) FROM order_events e
+	// Query the most recent unread events for this user+order.
+	// Same filter as the in-app notification bell.
+	unreadRows, err := p.db.Query(`
+		SELECT e.type, COALESCE(u.first_name || ' ' || u.last_name, 'Someone') AS actor, e.payload
+		FROM order_events e
+		LEFT JOIN users u ON u.id = e.actor_id
 		LEFT JOIN notification_reads nr ON nr.user_id::text = $1 AND nr.order_id::text = $2
 		WHERE e.order_id::text = $2
 		  AND e.type = ANY($3)
 		  AND (e.actor_id IS NULL OR e.actor_id::text != $1)
 		  AND (e.type != 'user_mentioned' OR e.payload->>'mentioned_user_id' = $1)
 		  AND e.created_at > COALESCE(nr.last_seen_at, '1970-01-01 00:00:00 UTC'::timestamptz)
-	`, userID, orderID, notifiableTypes).Scan(&unreadCount)
+		ORDER BY e.created_at DESC
+		LIMIT 3
+	`, userID, orderID, notifiableTypes)
+	if err != nil {
+		log.Printf("push: query unread: %v", err)
+		return
+	}
+	defer unreadRows.Close()
+
+	type unreadEvent struct {
+		evType  string
+		actor   string
+		payload json.RawMessage
+	}
+	var unread []unreadEvent
+	for unreadRows.Next() {
+		var ev unreadEvent
+		unreadRows.Scan(&ev.evType, &ev.actor, &ev.payload)
+		unread = append(unread, ev)
+	}
+	unreadCount := len(unread)
+	if unreadCount == 0 {
+		return
+	}
 
 	var title, body string
-	if unreadCount <= 1 {
-		// Single update: show specific content.
+	switch {
+	case unreadCount >= 3:
+		// 3+ unread: show count — same pattern as the in-app bell.
+		title = fmt.Sprintf("Order #%d · %d updates", orderNum, unreadCount)
+		body = orderTitle
+	case unreadCount == 2:
+		// 2 unread: show a line for each event.
+		title = fmt.Sprintf("Order #%d · 2 updates", orderNum)
+		body = buildShortLine(unread[1].evType, unread[1].actor, unread[1].payload) +
+			"\n" + buildShortLine(unread[0].evType, unread[0].actor, unread[0].payload)
+	default:
+		// 1 unread: show full content of the event.
 		title, body = buildContent(eventType, actorName, payload, orderNum)
-	} else {
-		// Multiple unread: show count — same grouping pattern as the in-app bell.
-		title = fmt.Sprintf("📦 %d updates", unreadCount)
-		body = fmt.Sprintf("Order #%d · %s", orderNum, orderTitle)
 	}
 
 	// Collapse key per order so repeated notifications replace rather than stack.
@@ -364,6 +371,43 @@ func (p *Pusher) sendToUser(userID, orderID, eventType, actorName string, payloa
 }
 
 // ── Content builders ─────────────────────────────────────────────────────────
+
+// buildShortLine returns a compact one-liner for a single event (used in 2-event notifications).
+func buildShortLine(eventType, actorName string, payload json.RawMessage) string {
+	trunc := func(s string, n int) string {
+		r := []rune(s)
+		if len(r) > n {
+			return string(r[:n-1]) + "…"
+		}
+		return s
+	}
+	switch eventType {
+	case "comment_added", "user_mentioned", "staff_portal_reply", "customer_message":
+		var p struct {
+			Text string `json:"text"`
+		}
+		json.Unmarshal(payload, &p)
+		if p.Text != "" {
+			return trunc(actorName+": "+p.Text, 60)
+		}
+		return actorName + " left a message"
+	case "status_changed":
+		var p struct {
+			From string `json:"from"`
+			To   string `json:"to"`
+		}
+		json.Unmarshal(payload, &p)
+		return "Status: " + p.From + " → " + p.To
+	case "attachment_added", "customer_attachment":
+		return actorName + " uploaded a file"
+	case "assignees_changed":
+		return actorName + " updated assignees"
+	case "order_created":
+		return actorName + " created this order"
+	default:
+		return actorName + " made an update"
+	}
+}
 
 func buildContent(eventType, actorName string, payload json.RawMessage, orderNum int) (title, body string) {
 	trunc := func(s string, n int) string {
