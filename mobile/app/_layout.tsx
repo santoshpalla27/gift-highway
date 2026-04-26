@@ -36,7 +36,10 @@ function AppNavigator() {
     }
   }, [authReady, shareReady, isAuthenticated, hasShareIntent])
 
-  if (!authReady) {
+  // Wait for both auth AND share intent to resolve before rendering the Stack.
+  // If we render the Stack while shareReady=false, the share routing effect fires
+  // before we know there's an intent and gets lost (navigation has nowhere to go).
+  if (!authReady || !shareReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#6366F1" />

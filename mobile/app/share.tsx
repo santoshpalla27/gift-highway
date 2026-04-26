@@ -49,7 +49,7 @@ interface FileProgress {
 
 export default function ShareScreen() {
   const insets = useSafeAreaInsets()
-  const { shareIntent, resetShareIntent } = useShareIntentContext()
+  const { shareIntent, isReady: intentReady, resetShareIntent } = useShareIntentContext()
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
 
   const [orders, setOrders]             = useState<Order[]>([])
@@ -163,6 +163,16 @@ export default function ShareScreen() {
         <TouchableOpacity style={S.closeBtn} onPress={handleClose}>
           <Text style={S.closeBtnText}>Close</Text>
         </TouchableOpacity>
+      </View>
+    )
+  }
+
+  // ── Waiting for share intent (cold start / background resume) ───────────
+
+  if (!intentReady) {
+    return (
+      <View style={[S.center, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color="#6366F1" />
       </View>
     )
   }

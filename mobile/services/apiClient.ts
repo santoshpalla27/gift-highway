@@ -85,7 +85,12 @@ apiClient.interceptors.response.use(
       return apiClient(original)
     } catch (refreshError) {
       rejectQueue(refreshError)
-      await useAuthStore.getState().clearAuth()
+      // Only force-logout on a definitive auth failure (4xx from the refresh
+      // endpoint). Network errors (device waking from sleep, brief offline)
+      // must NOT clear the session — the user still has a valid refresh token.
+      if (axios.isAxiosError(refreshError) && refreshError.response?.status) {
+        await useAuthStore.getState().clearAuth()
+      }
       return Promise.reject(refreshError)
     } finally {
       isRefreshing = false

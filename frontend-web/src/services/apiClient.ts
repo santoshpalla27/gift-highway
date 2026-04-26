@@ -88,9 +88,13 @@ apiClient.interceptors.response.use(
       return apiClient(original)
     } catch (refreshError) {
       rejectQueue(refreshError)
-      useAuthStore.getState().clearAuth()
-      queryClient.clear()
-      window.location.href = '/login'
+      // Only force-logout on a definitive auth failure (4xx from the refresh
+      // endpoint). Network errors must NOT clear the session.
+      if (axios.isAxiosError(refreshError) && refreshError.response?.status) {
+        useAuthStore.getState().clearAuth()
+        queryClient.clear()
+        window.location.href = '/login'
+      }
       return Promise.reject(refreshError)
     } finally {
       isRefreshing = false
