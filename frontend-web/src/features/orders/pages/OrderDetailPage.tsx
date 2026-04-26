@@ -1305,6 +1305,7 @@ export function OrderDetailPage() {
       }
       setOptimisticEvents(prev => [...prev, optimistic])
       setCommentText('')
+      setTimeout(() => textareaRef.current?.focus(), 0)
       atBottomRef.current = true
       setTimeout(() => feedEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
       return { optId }
@@ -1942,7 +1943,6 @@ export function OrderDetailPage() {
                     value={commentText}
                     onChange={handleCommentChange}
                     onKeyDown={handleKeyDown}
-                    disabled={commenting}
                   />
               }
             </div>
