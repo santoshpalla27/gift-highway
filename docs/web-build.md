@@ -35,9 +35,10 @@ docker compose pull && docker compose up -d --force-recreate
 ## Build and deploy a single service
 
 ### frontend
+
 ```bash
 # Local Mac
-docker build -t santoshpalla27/company-app:frontend ./frontend-web
+docker build --no-cache -t santoshpalla27/company-app:frontend ./frontend-web
 docker push santoshpalla27/company-app:frontend
 
 # Server
@@ -45,9 +46,10 @@ docker compose pull frontend && docker compose up -d --force-recreate frontend
 ```
 
 ### backend
+
 ```bash
 # Local Mac
-docker build -t santoshpalla27/company-app:backend ./backend
+docker build --no-cache -t santoshpalla27/company-app:backend ./backend
 docker push santoshpalla27/company-app:backend
 
 # Server
@@ -55,9 +57,10 @@ docker compose pull backend && docker compose up -d --force-recreate backend
 ```
 
 ### push-service
+
 ```bash
 # Local Mac
-docker build -t santoshpalla27/company-app:push-service ./push-service
+docker build --no-cache -t santoshpalla27/company-app:push-service ./push-service
 docker push santoshpalla27/company-app:push-service
 
 # Server
@@ -65,9 +68,10 @@ docker compose pull push-service && docker compose up -d --force-recreate push-s
 ```
 
 ### monitor
+
 ```bash
 # Local Mac
-docker build -t santoshpalla27/company-app:monitor ./monitor
+docker build --no-cache -t santoshpalla27/company-app:monitor ./monitor
 docker push santoshpalla27/company-app:monitor
 
 # Server
