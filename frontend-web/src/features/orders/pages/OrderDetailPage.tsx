@@ -1894,7 +1894,7 @@ export function OrderDetailPage() {
           <div
             style={{
               borderTop: '1px solid #E4E6EF', background: isDragging ? '#EEF2FF' : '#FFFFFF', padding: '14px 20px',
-              display: 'flex', gap: 12, alignItems: 'flex-end',
+              display: 'flex', gap: 12, alignItems: 'center',
               transition: 'background 0.15s',
             }}
             onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
