@@ -80,6 +80,8 @@ git clone https://github.com/santoshpalla27/gift-highway.git
 cd gift-highway/mobile
 npm install
 
+echo "EXPO_PUBLIC_API_URL=https://main.santoshdevops.cloud/api/v1" > .env
+
 npx expo prebuild --clean --platform android
 
 cd android

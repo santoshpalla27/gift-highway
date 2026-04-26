@@ -13,9 +13,10 @@ interface User {
 interface AuthState {
   user: User | null
   accessToken: string | null
+  refreshToken: string | null
   isAuthenticated: boolean
   setAuth: (user: User, accessToken: string, refreshToken: string) => Promise<void>
-  setAccessToken: (accessToken: string) => void
+  setAccessToken: (accessToken: string, refreshToken?: string) => void
   clearAuth: () => Promise<void>
   loadAuth: () => Promise<void>
 }
@@ -46,32 +47,34 @@ const storage = {
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   accessToken: null,
+  refreshToken: null,
   isAuthenticated: false,
 
-  setAccessToken: (accessToken) => {
-    set({ accessToken })
+  setAccessToken: (accessToken, refreshToken) => {
+    set(refreshToken ? { accessToken, refreshToken } : { accessToken })
   },
 
   setAuth: async (user, accessToken, refreshToken) => {
     await storage.set('access_token', accessToken)
     await storage.set('refresh_token', refreshToken)
     await storage.set('user', JSON.stringify(user))
-    set({ user, accessToken, isAuthenticated: true })
+    set({ user, accessToken, refreshToken, isAuthenticated: true })
   },
 
   clearAuth: async () => {
     await storage.delete('access_token')
     await storage.delete('refresh_token')
     await storage.delete('user')
-    set({ user: null, accessToken: null, isAuthenticated: false })
+    set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false })
   },
 
   loadAuth: async () => {
     try {
       const token = await storage.get('access_token')
+      const refresh = await storage.get('refresh_token')
       const userStr = await storage.get('user')
       if (token && userStr) {
-        set({ accessToken: token, user: JSON.parse(userStr), isAuthenticated: true })
+        set({ accessToken: token, refreshToken: refresh, user: JSON.parse(userStr), isAuthenticated: true })
       }
     } catch {}
   },
