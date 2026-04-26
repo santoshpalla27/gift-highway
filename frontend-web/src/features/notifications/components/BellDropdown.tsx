@@ -78,20 +78,21 @@ function GroupRow({ group, onOpen }: { group: DisplayGroup; onOpen: () => void }
         )}
       </div>
 
-      {group.events.slice(0, group.unread_count <= 2 ? group.unread_count : 1).map(e => (
-        <div key={e.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, paddingLeft: group.isRead ? 0 : 15 }}>
-          <span style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-            {eventPreview(e)}
-          </span>
-          <span style={{ fontSize: 10, color: '#C4C9D4', flexShrink: 0, whiteSpace: 'nowrap' }}>
-            {formatRelative(e.created_at)}
-          </span>
-        </div>
-      ))}
-      {!group.isRead && group.unread_count > 2 && (
+      {!group.isRead && group.unread_count >= 2 ? (
         <div style={{ paddingLeft: 15, fontSize: 12, color: '#9CA3AF' }}>
-          {group.unread_count} new updates
+          {group.unread_count} new messages
         </div>
+      ) : (
+        group.events.slice(0, 1).map(e => (
+          <div key={e.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, paddingLeft: group.isRead ? 0 : 15 }}>
+            <span style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+              {eventPreview(e)}
+            </span>
+            <span style={{ fontSize: 10, color: '#C4C9D4', flexShrink: 0, whiteSpace: 'nowrap' }}>
+              {formatRelative(e.created_at)}
+            </span>
+          </div>
+        ))
       )}
     </button>
   )
@@ -107,10 +108,6 @@ function filterGroupsByTypes(groups: DisplayGroup[], enabledTypes: string[]): Di
       events: g.events.filter(e => typeSet.has(e.type)),
     }))
     .filter(g => g.events.length > 0 || g.isRead)
-    .map(g => ({
-      ...g,
-      unread_count: g.isRead ? g.unread_count : g.events.filter(e => typeSet.has(e.type)).length,
-    }))
 }
 
 export function BellDropdown() {

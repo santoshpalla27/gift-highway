@@ -52,7 +52,6 @@ function priorityColor(priority: string) {
 
 function GroupRow({ group, onOpen, onMarkRead }: { group: DisplayGroup; onOpen: () => void; onMarkRead?: () => void }) {
   const topPriority = group.events[0]?.priority ?? 'medium'
-  const showCount = !group.isRead && group.unread_count > 2
 
   return (
     <TouchableOpacity
@@ -86,10 +85,10 @@ function GroupRow({ group, onOpen, onMarkRead }: { group: DisplayGroup; onOpen: 
         )}
       </View>
 
-      {showCount ? (
-        <Text style={S.preview}>{group.unread_count} new updates</Text>
+      {!group.isRead && group.unread_count >= 2 ? (
+        <Text style={S.preview}>{group.unread_count} new messages</Text>
       ) : (
-        group.events.slice(0, group.unread_count <= 2 ? group.unread_count : 1).map(e => (
+        group.events.slice(0, 1).map(e => (
           <View key={e.id} style={S.previewRow}>
             <Text style={S.preview} numberOfLines={1}>{eventPreview(e)}</Text>
             <Text style={S.time}>{formatRelative(e.created_at)}</Text>
@@ -110,10 +109,6 @@ function filterGroupsByTypes(groups: DisplayGroup[], enabledTypes: string[]): Di
       events: g.events.filter(e => typeSet.has(e.type)),
     }))
     .filter(g => g.events.length > 0 || g.isRead)
-    .map(g => ({
-      ...g,
-      unread_count: g.isRead ? g.unread_count : g.events.length,
-    }))
 }
 
 // ── Screen ────────────────────────────────────────────────────────────────────
