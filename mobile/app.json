@@ -1,10 +1,16 @@
 {
   "expo": {
-    "name": "Company App",
+    "name": "GiftHighway",
     "slug": "company-app",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "scheme": "companyapp",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F0914A"
+    },
     "platforms": [
       "ios",
       "android",
@@ -17,7 +23,8 @@
     "android": {
       "package": "com.gifthighway",
       "adaptiveIcon": {
-        "backgroundColor": "#1d4ed8"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F0914A"
       },
       "googleServicesFile": "./google-services.json"
     },
