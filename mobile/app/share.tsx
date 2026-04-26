@@ -207,7 +207,7 @@ export default function ShareScreen() {
           {sharedFiles.length} {sharedFiles.length === 1 ? 'file' : 'files'} added to{' '}
           <Text style={{ fontWeight: '700' }}>Order #{selectedOrder?.order_number}</Text>
         </Text>
-        <TouchableOpacity style={S.uploadBtn} onPress={handleClose}>
+        <TouchableOpacity style={[S.uploadBtn, S.doneBtnFull]} onPress={handleClose}>
           <Text style={S.uploadBtnText}>Done</Text>
         </TouchableOpacity>
       </View>
@@ -444,6 +444,7 @@ const S = StyleSheet.create({
     backgroundColor: '#6366F1', borderRadius: 12,
     paddingVertical: 14,
   },
+  doneBtnFull: { alignSelf: 'stretch', marginTop: 28, paddingVertical: 18 },
   uploadBtnDisabled: { backgroundColor: '#C7D2FE' },
   uploadBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 

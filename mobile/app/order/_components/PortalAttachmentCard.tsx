@@ -1,7 +1,9 @@
-import { View, Text, Image, TouchableOpacity, ActivityIndicator, Linking } from 'react-native'
+import { View, Text, Image, TouchableOpacity, ActivityIndicator, Linking, Dimensions } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useState, useEffect } from 'react'
 import { staffPortalApi } from '../../../services/portalService'
+
+const ATTACH_MAX_W = Math.round(Dimensions.get('window').width * 0.6)
 
 const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic']
 
@@ -50,15 +52,15 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
   if (isImg) {
     return (
       <View style={{
-        marginTop: 6, overflow: 'hidden', maxWidth: 260,
+        marginTop: 6, overflow: 'hidden', width: ATTACH_MAX_W,
         backgroundColor: hasBubble ? bubbleBg : '#FFFFFF',
         borderWidth: 1, borderColor: hasBubble ? bubbleBorder : '#E5E7EB',
         borderRadius: 14, borderTopRightRadius: trr, borderTopLeftRadius: tlr,
       }}>
         <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}>
           {viewUrl
-            ? <Image source={{ uri: viewUrl }} style={{ width: 258, height: 160 }} resizeMode="cover" />
-            : <View style={{ width: 258, height: 90, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' }}>
+            ? <Image source={{ uri: viewUrl }} style={{ width: '100%', height: 200 }} resizeMode="cover" />
+            : <View style={{ width: '100%', height: 100, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' }}>
                 <ActivityIndicator size="small" color="#94A3B8" />
               </View>
           }
@@ -85,7 +87,7 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
         backgroundColor: hasBubble ? bubbleBg : '#F9FAFB',
         borderWidth: 1, borderColor: hasBubble ? bubbleBorder : '#E5E7EB',
         borderRadius: 14, borderTopRightRadius: trr, borderTopLeftRadius: tlr,
-        paddingHorizontal: 18, paddingVertical: 14, minWidth: 220,
+        paddingHorizontal: 18, paddingVertical: 14, width: ATTACH_MAX_W,
       }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Ionicons name="document-outline" size={16} color="#6B7280" />

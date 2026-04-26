@@ -1,8 +1,11 @@
-import { View, Text, Image, TouchableOpacity, Linking } from 'react-native'
+import { View, Text, Image, TouchableOpacity, Linking, Dimensions } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useState, useRef } from 'react'
 import { attachmentService, isImage, formatBytes } from '../../../services/attachmentService'
-import { BUBBLE_MAX_W } from '../_styles/theme'
+import { AVATAR_SIZE, GAP } from '../_styles/theme'
+
+// Fill most of the available row width (screen minus avatar, gap, and edge margins).
+const ATTACH_MAX_W = Math.round(Dimensions.get('window').width * 0.6)
 
 export function AttachmentCard({ orderId, payload, isOwn }: {
   orderId: string
@@ -42,7 +45,7 @@ export function AttachmentCard({ orderId, payload, isOwn }: {
     <View style={[
       {
         backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0',
-        maxWidth: BUBBLE_MAX_W, minWidth: 60, overflow: 'hidden', padding: 0,
+        width: ATTACH_MAX_W, minWidth: 60, overflow: 'hidden', padding: 0,
       },
       cornerStyle,
     ]}>
