@@ -12,7 +12,6 @@ import (
 	"github.com/lib/pq"
 )
 
-const debounceDelay = 5 * time.Second
 
 // pushWorthy are the types that trigger a push notification.
 var pushWorthy = map[string]bool{
@@ -57,17 +56,16 @@ type bufferedEvent struct {
 	payload   json.RawMessage
 }
 
-// orderBatch accumulates events for one (user, order) pair.
-// The first event is sent immediately; every subsequent event (even across
-// multiple timer flushes) resets the debounce and updates the same notification.
-// The batch is kept alive until 30 min of inactivity so that re-arriving events
-// keep counting up rather than starting fresh.
+// orderBatch tracks events for one (user, order) pair.
+// The first event sends a detailed notification immediately; every subsequent
+// event sends an instant count update replacing the previous notification.
+// The batch is kept alive until the user opens the order (notification_read
+// event) or the cleanup timer fires after 30 min of no activity.
 type orderBatch struct {
 	mu           sync.Mutex
-	allEvents    []bufferedEvent // grows across flushes until the cleanup timer fires
-	timer        *time.Timer    // debounce timer
-	cleanupTimer *time.Timer    // resets the batch after 30 min of no activity
-	notified     bool           // true once any notification has been sent
+	allEvents    []bufferedEvent
+	cleanupTimer *time.Timer // resets the batch after 30 min of no activity
+	notified     bool        // true once any notification has been sent
 }
 
 type Pusher struct {
@@ -131,9 +129,6 @@ func (p *Pusher) Stop() {
 	p.bufMu.Lock()
 	for _, batch := range p.buf {
 		batch.mu.Lock()
-		if batch.timer != nil {
-			batch.timer.Stop()
-		}
 		if batch.cleanupTimer != nil {
 			batch.cleanupTimer.Stop()
 		}
@@ -307,64 +302,24 @@ func (p *Pusher) bufferEvent(userID, orderID string, ev bufferedEvent) {
 	}
 
 	if !batch.notified {
-		// Very first notification for this order (or after a 30-min reset):
-		// send detailed content immediately, then arm the debounce timer so
-		// follow-up events can update the same notification.
+		// Very first notification for this order (or after a reset):
+		// send detailed content immediately.
 		batch.notified = true
-		batch.timer = time.AfterFunc(debounceDelay, func() {
-			p.flushBatch(userID, orderID)
-		})
+		events := []bufferedEvent{ev}
 		batch.mu.Unlock()
 		log.Printf("push: immediate send event=%s user=%s order=%s", ev.evType, userID, orderID)
-		p.sendBatch(userID, orderID, []bufferedEvent{ev})
+		p.sendBatch(userID, orderID, events)
 	} else {
-		// A notification is already in the tray — buffer this event and reset
-		// the timer so we keep updating the count rather than starting fresh.
-		if batch.timer != nil {
-			batch.timer.Reset(debounceDelay)
-		} else {
-			batch.timer = time.AfterFunc(debounceDelay, func() {
-				p.flushBatch(userID, orderID)
-			})
-		}
+		// Notification already in tray — update the count immediately.
+		// No debounce: collapseId/tag ensures the OS replaces the existing one.
+		events := make([]bufferedEvent, len(batch.allEvents))
+		copy(events, batch.allEvents)
 		batch.mu.Unlock()
-		log.Printf("push: buffered event=%s user=%s order=%s total=%d (timer reset)", ev.evType, userID, orderID, len(batch.allEvents))
+		log.Printf("push: instant update event=%s user=%s order=%s total=%d", ev.evType, userID, orderID, len(events))
+		p.sendBatch(userID, orderID, events)
 	}
 }
 
-func (p *Pusher) flushBatch(userID, orderID string) {
-	key := userID + ":" + orderID
-
-	// Do NOT delete the batch — keep it alive so future events know a
-	// notification is already in the tray and continue counting up.
-	p.bufMu.Lock()
-	batch, ok := p.buf[key]
-	p.bufMu.Unlock()
-	if !ok {
-		return
-	}
-
-	batch.mu.Lock()
-	events := make([]bufferedEvent, len(batch.allEvents))
-	copy(events, batch.allEvents)
-	batch.timer = nil
-
-	// Arm a cleanup timer: if nothing arrives for 30 min we assume the user
-	// read the notification and the next event should start fresh.
-	batch.cleanupTimer = time.AfterFunc(30*time.Minute, func() {
-		p.cleanupBatch(userID, orderID)
-	})
-	batch.mu.Unlock()
-
-	// The first event was already sent immediately — only send an update if
-	// follow-up events arrived.
-	if len(events) < 2 {
-		return
-	}
-
-	log.Printf("push: flushing batch of %d event(s) for user=%s order=%s", len(events), userID, orderID)
-	p.sendBatch(userID, orderID, events)
-}
 
 // cleanupBatch removes a batch after 30 min of inactivity so the next event
 // for that order starts a fresh notification thread.
@@ -384,18 +339,19 @@ func (p *Pusher) sendBatch(userID, orderID string, events []bufferedEvent) {
 		return
 	}
 
-	var orderNum int
 	var orderTitle string
-	p.db.QueryRow(`SELECT order_number, title FROM orders WHERE id::text = $1`, orderID).
-		Scan(&orderNum, &orderTitle)
+	p.db.QueryRow(`SELECT title FROM orders WHERE id::text = $1`, orderID).Scan(&orderTitle)
+	if orderTitle == "" {
+		orderTitle = orderID // fallback — should never happen
+	}
 
 	// 1 event  → full detail (immediate send)
-	// 2+ events → count summary (timer flush replacing the first notification)
+	// 2+ events → count summary replacing the first notification
 	var title, body string
 	if len(events) == 1 {
-		title, body = buildContent(events[0].evType, events[0].actorName, events[0].payload, orderNum)
+		title, body = buildContent(events[0].evType, events[0].actorName, events[0].payload, orderTitle)
 	} else {
-		title = fmt.Sprintf("Order #%d", orderNum)
+		title = fmt.Sprintf("Order #%s", orderTitle)
 		body = fmt.Sprintf("%d new messages", len(events))
 	}
 
@@ -523,7 +479,7 @@ func buildShortLine(eventType, actorName string, payload json.RawMessage) string
 	}
 }
 
-func buildContent(eventType, actorName string, payload json.RawMessage, orderNum int) (title, body string) {
+func buildContent(eventType, actorName string, payload json.RawMessage, orderTitle string) (title, body string) {
 	trunc := func(s string, n int) string {
 		r := []rune(s)
 		if len(r) > n {
@@ -531,7 +487,7 @@ func buildContent(eventType, actorName string, payload json.RawMessage, orderNum
 		}
 		return s
 	}
-	ref := fmt.Sprintf("Order #%d", orderNum)
+	ref := fmt.Sprintf("Order #%s", orderTitle)
 
 	switch eventType {
 	case "order_created":
