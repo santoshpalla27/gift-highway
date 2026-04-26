@@ -79,6 +79,31 @@ func (h *PushHandler) SavePrefs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
+// MarkNotificationRead clears the push-service's in-memory batch for this
+// (user, order) pair so the next event starts a fresh notification.
+// POST /api/v1/push/mark-read
+func (h *PushHandler) MarkNotificationRead(c *gin.Context) {
+	var req struct {
+		OrderID string `json:"order_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	userID, _ := c.Get("user_id")
+
+	payload, _ := json.Marshal(map[string]interface{}{
+		"type":      "order.notification_read",
+		"entity_id": req.OrderID,
+		"payload": map[string]string{
+			"order_id": req.OrderID,
+			"user_id":  userID.(string),
+		},
+	})
+	h.db.ExecContext(c.Request.Context(), "SELECT pg_notify('gh_realtime', $1)", string(payload))
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
 // GetPrefs returns the user's saved notification preferences.
 // GET /api/v1/push/prefs
 func (h *PushHandler) GetPrefs(c *gin.Context) {

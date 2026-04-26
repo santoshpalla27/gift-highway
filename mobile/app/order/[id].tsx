@@ -19,6 +19,7 @@ import { InfoSheet } from './_sheets/OrderInfoSheet'
 import { EditOrderSheet } from './_sheets/OrderInfoSheet'
 import { PortalChatSheet } from './_sheets/PortalChatSheet'
 import { formatDate } from '../../utils/date'
+import { apiClient } from '../../services/apiClient'
 
 function NewUpdatesDivider() {
   return (
@@ -54,14 +55,19 @@ export default function OrderDetailScreen() {
   const insets = useSafeAreaInsets()
   const keyboardOffset = insets.top + 56
 
-  // Dismiss any push notifications for this order when the screen is opened (P3).
+  // When the order screen opens: dismiss local push notifications for this
+  // order and tell the backend to reset the push-service batch so the next
+  // event starts a fresh notification instead of incrementing the old count.
   useEffect(() => {
-    if (!id || Platform.OS === 'web') return
-    Notifications.getPresentedNotificationsAsync().then(presented => {
-      presented
-        .filter(n => String(n.request.content.data?.order_id) === String(id))
-        .forEach(n => Notifications.dismissNotificationAsync(n.request.identifier))
-    })
+    if (!id) return
+    if (Platform.OS !== 'web') {
+      Notifications.getPresentedNotificationsAsync().then(presented => {
+        presented
+          .filter(n => String(n.request.content.data?.order_id) === String(id))
+          .forEach(n => Notifications.dismissNotificationAsync(n.request.identifier))
+      })
+    }
+    apiClient.post('/push/mark-read', { order_id: id }).catch(() => {})
   }, [id])
 
   const D = useOrderDetail(id)

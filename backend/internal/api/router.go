@@ -103,6 +103,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 			protected.DELETE("/push/unregister", pushHandler.UnregisterToken)
 			protected.GET("/push/prefs", pushHandler.GetPrefs)
 			protected.PATCH("/push/prefs", pushHandler.SavePrefs)
+			protected.POST("/push/mark-read", pushHandler.MarkNotificationRead)
 
 			// Admin routes (require admin role)
 			adminGroup := protected.Group("/admin")

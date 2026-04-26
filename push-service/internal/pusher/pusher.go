@@ -210,6 +210,20 @@ func (p *Pusher) handle(msg *pq.Notification) {
 		return
 	}
 
+	// User opened the order — clear the in-memory batch so the next event
+	// starts a fresh notification instead of incrementing the old count.
+	if event.Type == "order.notification_read" {
+		var rp struct {
+			OrderID string `json:"order_id"`
+			UserID  string `json:"user_id"`
+		}
+		if err := json.Unmarshal(event.Payload, &rp); err == nil && rp.OrderID != "" && rp.UserID != "" {
+			p.cleanupBatch(rp.UserID, rp.OrderID)
+			log.Printf("push: notification read user=%s order=%s — batch cleared", rp.UserID, rp.OrderID)
+		}
+		return
+	}
+
 	if event.Type != "order.event_added" {
 		return
 	}
