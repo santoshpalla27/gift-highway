@@ -3,6 +3,10 @@
 .env.local
 .env.*.local
 
+# ─── Secrets ────────────────────────────────────────────────
+*firebase-adminsdk*.json
+*service-account*.json
+
 # ─── Go ─────────────────────────────────────────────────────
 backend/vendor/
 *.exe

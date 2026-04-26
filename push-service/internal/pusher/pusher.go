@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/company/app/push-service/internal/expo"
@@ -54,6 +55,10 @@ type Pusher struct {
 	db          *sql.DB
 	listener    *pq.Listener
 	done        chan struct{}
+
+	// rate limiting: one push per (user, order) per 30 seconds
+	rlMu   sync.Mutex
+	rlLast map[string]time.Time
 }
 
 func New(databaseURL string, expoClient *expo.Client) *Pusher {
@@ -61,7 +66,20 @@ func New(databaseURL string, expoClient *expo.Client) *Pusher {
 		databaseURL: databaseURL,
 		expo:        expoClient,
 		done:        make(chan struct{}),
+		rlLast:      make(map[string]time.Time),
 	}
+}
+
+// rateLimited returns true if a push was already sent for this user+order within 30s.
+func (p *Pusher) rateLimited(userID, orderID string) bool {
+	key := userID + ":" + orderID
+	p.rlMu.Lock()
+	defer p.rlMu.Unlock()
+	if t, ok := p.rlLast[key]; ok && time.Since(t) < 30*time.Second {
+		return true
+	}
+	p.rlLast[key] = time.Now()
+	return false
 }
 
 func (p *Pusher) Start() error {
@@ -270,6 +288,11 @@ func (p *Pusher) shouldPush(userID, orderID, eventType string) bool {
 // ── Send to a single user ────────────────────────────────────────────────────
 
 func (p *Pusher) sendToUser(userID, orderID, eventType, actorName string, payload json.RawMessage) {
+	if p.rateLimited(userID, orderID) {
+		log.Printf("push: rate-limited user=%s order=%s", userID, orderID)
+		return
+	}
+
 	tokens, err := p.getTokens(userID)
 	if err != nil || len(tokens) == 0 {
 		return
