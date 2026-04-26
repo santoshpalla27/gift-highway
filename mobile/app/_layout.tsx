@@ -1,34 +1,42 @@
 import { Stack, router } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { View, ActivityIndicator } from 'react-native'
 import { SocketProvider } from '../providers/SocketProvider'
-import { ShareIntentProvider, useShareIntent } from 'expo-share-intent'
+import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent'
 
 function AppNavigator() {
   const { loadAuth, isAuthenticated } = useAuthStore()
-  const { hasShareIntent } = useShareIntent()
-  const [ready, setReady] = useState(false)
+  // Read from the provider — does NOT trigger a second native getShareIntent call.
+  const { hasShareIntent, isReady: shareReady } = useShareIntentContext()
+  const [authReady, setAuthReady] = useState(false)
+  // Guard so we only route once.
+  const routed = useRef(false)
 
   useEffect(() => {
-    loadAuth().finally(() => setReady(true))
+    loadAuth().finally(() => setAuthReady(true))
   }, [loadAuth])
 
+  // Share intent takes priority — route the moment it arrives, regardless of auth state.
   useEffect(() => {
-    if (!ready) return
-    if (hasShareIntent) {
-      // Files shared into the app — go straight to share picker.
-      router.replace('/share' as any)
-      return
-    }
+    if (!hasShareIntent) return
+    routed.current = true
+    router.replace('/share' as any)
+  }, [hasShareIntent])
+
+  // Normal auth routing — waits for share intent check to settle first so we
+  // don't route to the app in the brief window before the native onChange fires.
+  useEffect(() => {
+    if (!authReady || !shareReady || hasShareIntent || routed.current) return
+    routed.current = true
     if (isAuthenticated) {
       router.replace('/(app)')
     } else {
       router.replace('/(auth)/login')
     }
-  }, [ready, isAuthenticated, hasShareIntent])
+  }, [authReady, shareReady, isAuthenticated, hasShareIntent])
 
-  if (!ready) {
+  if (!authReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#6366F1" />

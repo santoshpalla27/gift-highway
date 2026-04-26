@@ -6,7 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
-import { useShareIntent } from 'expo-share-intent'
+import { useShareIntentContext } from 'expo-share-intent'
 import { useAuthStore } from '../store/authStore'
 import { orderService, Order } from '../services/orderService'
 import { attachmentService, formatBytes } from '../services/attachmentService'
@@ -49,7 +49,7 @@ interface FileProgress {
 
 export default function ShareScreen() {
   const insets = useSafeAreaInsets()
-  const { shareIntent, resetShareIntent } = useShareIntent()
+  const { shareIntent, resetShareIntent } = useShareIntentContext()
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
 
   const [orders, setOrders]             = useState<Order[]>([])
