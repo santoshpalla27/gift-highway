@@ -58,12 +58,16 @@ type bufferedEvent struct {
 }
 
 // orderBatch accumulates events for one (user, order) pair.
-// The first event is sent immediately; subsequent events reset the debounce
-// timer so a single aggregated "N new messages" notification replaces the first.
+// The first event is sent immediately; every subsequent event (even across
+// multiple timer flushes) resets the debounce and updates the same notification.
+// The batch is kept alive until 30 min of inactivity so that re-arriving events
+// keep counting up rather than starting fresh.
 type orderBatch struct {
-	mu        sync.Mutex
-	allEvents []bufferedEvent // every event including the one sent immediately
-	timer     *time.Timer
+	mu           sync.Mutex
+	allEvents    []bufferedEvent // grows across flushes until the cleanup timer fires
+	timer        *time.Timer    // debounce timer
+	cleanupTimer *time.Timer    // resets the batch after 30 min of no activity
+	notified     bool           // true once any notification has been sent
 }
 
 type Pusher struct {
@@ -123,12 +127,15 @@ func (p *Pusher) Start() error {
 func (p *Pusher) Stop() {
 	close(p.done)
 
-	// Cancel all pending debounce timers to avoid goroutine leaks.
+	// Cancel all pending timers to avoid goroutine leaks.
 	p.bufMu.Lock()
 	for _, batch := range p.buf {
 		batch.mu.Lock()
 		if batch.timer != nil {
 			batch.timer.Stop()
+		}
+		if batch.cleanupTimer != nil {
+			batch.cleanupTimer.Stop()
 		}
 		batch.mu.Unlock()
 	}
@@ -278,13 +285,18 @@ func (p *Pusher) bufferEvent(userID, orderID string, ev bufferedEvent) {
 
 	batch.mu.Lock()
 	batch.allEvents = append(batch.allEvents, ev)
-	isFirst := len(batch.allEvents) == 1
 
-	if isFirst {
-		// Send the first event immediately so the user gets instant feedback,
-		// then start the debounce timer. If more events arrive, the timer is
-		// reset and flushBatch will send an updated "N new messages" notification
-		// that replaces the first one via collapseId / tag.
+	// Cancel any pending cleanup timer — there is fresh activity.
+	if batch.cleanupTimer != nil {
+		batch.cleanupTimer.Stop()
+		batch.cleanupTimer = nil
+	}
+
+	if !batch.notified {
+		// Very first notification for this order (or after a 30-min reset):
+		// send detailed content immediately, then arm the debounce timer so
+		// follow-up events can update the same notification.
+		batch.notified = true
 		batch.timer = time.AfterFunc(debounceDelay, func() {
 			p.flushBatch(userID, orderID)
 		})
@@ -292,8 +304,14 @@ func (p *Pusher) bufferEvent(userID, orderID string, ev bufferedEvent) {
 		log.Printf("push: immediate send event=%s user=%s order=%s", ev.evType, userID, orderID)
 		p.sendBatch(userID, orderID, []bufferedEvent{ev})
 	} else {
+		// A notification is already in the tray — buffer this event and reset
+		// the timer so we keep updating the count rather than starting fresh.
 		if batch.timer != nil {
 			batch.timer.Reset(debounceDelay)
+		} else {
+			batch.timer = time.AfterFunc(debounceDelay, func() {
+				p.flushBatch(userID, orderID)
+			})
 		}
 		batch.mu.Unlock()
 		log.Printf("push: buffered event=%s user=%s order=%s total=%d (timer reset)", ev.evType, userID, orderID, len(batch.allEvents))
@@ -303,28 +321,45 @@ func (p *Pusher) bufferEvent(userID, orderID string, ev bufferedEvent) {
 func (p *Pusher) flushBatch(userID, orderID string) {
 	key := userID + ":" + orderID
 
+	// Do NOT delete the batch — keep it alive so future events know a
+	// notification is already in the tray and continue counting up.
 	p.bufMu.Lock()
 	batch, ok := p.buf[key]
+	p.bufMu.Unlock()
 	if !ok {
-		p.bufMu.Unlock()
 		return
 	}
-	delete(p.buf, key)
-	p.bufMu.Unlock()
 
 	batch.mu.Lock()
 	events := make([]bufferedEvent, len(batch.allEvents))
 	copy(events, batch.allEvents)
+	batch.timer = nil
+
+	// Arm a cleanup timer: if nothing arrives for 30 min we assume the user
+	// read the notification and the next event should start fresh.
+	batch.cleanupTimer = time.AfterFunc(30*time.Minute, func() {
+		p.cleanupBatch(userID, orderID)
+	})
 	batch.mu.Unlock()
 
-	// The first event was already sent immediately — only flush if there are
-	// follow-up events to aggregate into an updated notification.
+	// The first event was already sent immediately — only send an update if
+	// follow-up events arrived.
 	if len(events) < 2 {
 		return
 	}
 
 	log.Printf("push: flushing batch of %d event(s) for user=%s order=%s", len(events), userID, orderID)
 	p.sendBatch(userID, orderID, events)
+}
+
+// cleanupBatch removes a batch after 30 min of inactivity so the next event
+// for that order starts a fresh notification thread.
+func (p *Pusher) cleanupBatch(userID, orderID string) {
+	key := userID + ":" + orderID
+	p.bufMu.Lock()
+	delete(p.buf, key)
+	p.bufMu.Unlock()
+	log.Printf("push: batch expired user=%s order=%s", userID, orderID)
 }
 
 // ── Send aggregated batch ─────────────────────────────────────────────────────
