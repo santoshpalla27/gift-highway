@@ -594,6 +594,8 @@ func buildContent(eventType, actorName string, payload json.RawMessage, orderTit
 		title = "📦 Gift Highway"
 		body = "New activity on " + ref
 	}
+	// Always surface the order ID in the title so it's visible on every notification.
+	title = fmt.Sprintf("%s · %s", title, ref)
 	return
 }
 
