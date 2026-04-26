@@ -164,8 +164,11 @@ func (p *Pusher) handle(msg *pq.Notification) {
 
 	var event rtEvent
 	if err := json.Unmarshal([]byte(msg.Extra), &event); err != nil {
+		log.Printf("push: json unmarshal event: %v | raw: %.200s", err, msg.Extra)
 		return
 	}
+
+	log.Printf("push: received event type=%s", event.Type)
 
 	// Only handle timeline events — they cover all notification-worthy activity.
 	if event.Type != "order.event_added" {
@@ -174,10 +177,14 @@ func (p *Pusher) handle(msg *pq.Notification) {
 
 	var ep eventPayload
 	if err := json.Unmarshal(event.Payload, &ep); err != nil {
+		log.Printf("push: json unmarshal payload: %v", err)
 		return
 	}
 
+	log.Printf("push: event_type=%s order_id=%s", ep.Type, ep.OrderID)
+
 	if !pushWorthy[ep.Type] {
+		log.Printf("push: skipping non-worthy event type=%s", ep.Type)
 		return
 	}
 
@@ -320,12 +327,15 @@ func (p *Pusher) sendToUser(userID, orderID, eventType, actorName string, payloa
 		return
 	}
 
+	log.Printf("push: sending %d message(s) to user %s for order %s", len(msgs), userID, orderID)
 	invalid, err := p.expo.Send(msgs)
 	if err != nil {
-		log.Printf("push send error (user %s): %v", userID, err)
+		log.Printf("push: send error (user %s): %v", userID, err)
 		return
 	}
+	log.Printf("push: sent ok, invalid_tokens=%d", len(invalid))
 	if len(invalid) > 0 {
+		log.Printf("push: removing %d invalid tokens", len(invalid))
 		p.deleteTokens(invalid)
 	}
 }
