@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Circle, Path, G } from 'react-native-svg'
 import { useNotifications } from '../../hooks/useNotifications'
 import { useNotifPreference } from '../../hooks/useNotifPreference'
+import { usePushToken } from '../../hooks/usePushToken'
 
 function GiftHighwayHeaderLogo() {
   return (
@@ -60,6 +61,7 @@ function NotificationIcon() {
 }
 
 export default function AppLayout() {
+  usePushToken()
   const insets = useSafeAreaInsets()
   const tabBarHeight = 62 + insets.bottom
 

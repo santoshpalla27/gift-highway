@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
+import Constants from 'expo-constants'
 import { Platform } from 'react-native'
 import { useAuthStore } from '../store/authStore'
 import { apiClient } from '../services/apiClient'
@@ -59,7 +60,16 @@ async function getExpoPushToken(): Promise<string | null> {
     })
   }
 
-  const tokenData = await Notifications.getExpoPushTokenAsync()
+  const projectId =
+    Constants.expoConfig?.extra?.eas?.projectId ||
+    Constants.easConfig?.projectId
+
+  if (!projectId) {
+    console.warn('[PushToken] No EAS projectId configured — run `eas init` to link the project')
+    return null
+  }
+
+  const tokenData = await Notifications.getExpoPushTokenAsync({ projectId })
   return tokenData.data
 }
 
