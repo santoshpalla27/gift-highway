@@ -5,7 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "companyapp",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.gifthighway"
@@ -33,7 +37,9 @@
             "NSExtensionActivationSupportsFileWithMaxCount": 10,
             "NSExtensionActivationSupportsImageWithMaxCount": 10
           },
-          "androidIntentFilters": ["*/*"],
+          "androidIntentFilters": [
+            "*/*"
+          ],
           "androidMainActivityAttributes": {
             "android:launchMode": "singleTask"
           }
@@ -42,8 +48,35 @@
     ],
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "0c56871c-426a-4053-896e-173a2b316648",
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "ShareExtension",
+                  "bundleIdentifier": "com.gifthighway.share-extension",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.gifthighway"
+                    ]
+                  }
+                },
+                {
+                  "targetName": "ShareExtension",
+                  "bundleIdentifier": "com.gifthighway.share-extension",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.gifthighway"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
       }
-    }
+    },
+    "owner": "gift-highway"
   }
 }
