@@ -10,22 +10,21 @@ function AppNavigator() {
   // Read from the provider — does NOT trigger a second native getShareIntent call.
   const { hasShareIntent, isReady: shareReady } = useShareIntentContext()
   const [authReady, setAuthReady] = useState(false)
-  // Guard so we only route once.
+  // Guard so we only do the initial route once.
   const routed = useRef(false)
 
   useEffect(() => {
     loadAuth().finally(() => setAuthReady(true))
   }, [loadAuth])
 
-  // Share intent takes priority — route the moment it arrives, regardless of auth state.
+  // Share intent takes priority — but the Stack must be rendered first (authReady + shareReady).
   useEffect(() => {
-    if (!hasShareIntent) return
+    if (!hasShareIntent || !authReady || !shareReady) return
     routed.current = true
     router.replace('/share' as any)
-  }, [hasShareIntent])
+  }, [hasShareIntent, authReady, shareReady])
 
-  // Normal auth routing — waits for share intent check to settle first so we
-  // don't route to the app in the brief window before the native onChange fires.
+  // Initial auth routing — waits for share intent check to settle first.
   useEffect(() => {
     if (!authReady || !shareReady || hasShareIntent || routed.current) return
     routed.current = true
@@ -36,9 +35,14 @@ function AppNavigator() {
     }
   }, [authReady, shareReady, isAuthenticated, hasShareIntent])
 
-  // Wait for both auth AND share intent to resolve before rendering the Stack.
-  // If we render the Stack while shareReady=false, the share routing effect fires
-  // before we know there's an intent and gets lost (navigation has nowhere to go).
+  // Forced logout — fires when tokens expire while the app is already running.
+  // routed.current blocks the initial effect above from re-running, so we need
+  // this separate watch to redirect back to login.
+  useEffect(() => {
+    if (!routed.current || !authReady || isAuthenticated) return
+    router.replace('/(auth)/login')
+  }, [isAuthenticated, authReady])
+
   if (!authReady || !shareReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>

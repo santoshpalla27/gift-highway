@@ -118,7 +118,10 @@ export default function ShareScreen() {
           selectedOrder.id, fileName, mimeType, fileSize,
         )
 
-        await attachmentService.uploadToR2(upload_url, file.path, mimeType, pct => {
+        // expo-file-system requires a file:// URI, but expo-share-intent returns
+        // a bare path on some platforms.
+        const fileUri = file.path.startsWith('file://') ? file.path : `file://${file.path}`
+        await attachmentService.uploadToR2(upload_url, fileUri, mimeType, pct => {
           update({ progress: pct })
         })
 
