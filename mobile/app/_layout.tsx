@@ -1,13 +1,17 @@
 import { Stack, router } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
-import { View, ActivityIndicator } from 'react-native'
+import { View, ActivityIndicator, Platform } from 'react-native'
 import { SocketProvider } from '../providers/SocketProvider'
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent'
 
 function AppNavigator() {
   const { loadAuth, isAuthenticated } = useAuthStore()
-  const { hasShareIntent, isReady: shareReady } = useShareIntentContext()
+  const { hasShareIntent, isReady: shareIntentReady } = useShareIntentContext()
+  // expo-share-intent's native module is unavailable on web — the provider's
+  // setIsReady() is never called, so isReady stays false forever.
+  // Treat web as always ready so the spinner doesn't block indefinitely.
+  const shareReady = shareIntentReady || Platform.OS === 'web'
   const [authReady, setAuthReady] = useState(false)
   // useState (not useRef) so effects that depend on it re-run after it flips true.
   const [routed, setRouted] = useState(false)
