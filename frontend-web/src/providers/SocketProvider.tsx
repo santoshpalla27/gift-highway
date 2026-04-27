@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../store/authStore'
+import { refreshAccessToken } from '../services/tokenRefresh'
 
 export type SocketStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
 
@@ -28,29 +29,12 @@ const WS_BASE =
   import.meta.env.VITE_WS_URL ??
   `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api/v1'
-
 function isTokenExpired(token: string): boolean {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
     return Date.now() / 1000 >= payload.exp - 60
   } catch {
     return true
-  }
-}
-
-async function tryRefreshToken(refreshToken: string): Promise<string | null> {
-  try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    return data.tokens?.access_token ?? null
-  } catch {
-    return null
   }
 }
 
@@ -89,12 +73,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
       let token = store.accessToken
 
-      // Refresh before connecting if token is expired
+      // Refresh before connecting if token is expired (shared singleton — no race with apiClient)
       if (isTokenExpired(token)) {
-        if (!store.refreshToken) { store.clearAuth(); return }
-        const fresh = await tryRefreshToken(store.refreshToken)
-        if (!fresh) { store.clearAuth(); return }
-        store.setAccessToken(fresh)
+        const fresh = await refreshAccessToken()
+        if (!fresh) return  // clearAuth already called inside on 4xx; network error → retry later
         token = fresh
       }
 
@@ -145,17 +127,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         wsRef.current = null
         if (destroyedRef.current) return
 
-        // Hard auth failure — try token refresh once then reconnect
+        // Hard auth failure — refresh and reconnect (shared singleton avoids race with apiClient)
         if (e.code === 4001) {
-          const s = useAuthStore.getState()
-          if (s.refreshToken) {
-            const fresh = await tryRefreshToken(s.refreshToken)
-            if (fresh) { s.setAccessToken(fresh); retryRef.current = 0 }
-            else { s.clearAuth(); return }
-          } else {
-            useAuthStore.getState().clearAuth()
-            return
-          }
+          const fresh = await refreshAccessToken()
+          if (!fresh) return  // clearAuth already called inside on 4xx
+          retryRef.current = 0
         }
 
         scheduleReconnect()

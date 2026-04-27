@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
-import { Platform } from 'react-native'
 import { useAuthStore } from '../store/authStore'
+import { refreshAccessToken } from '../services/tokenRefresh'
 
 export type SocketStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
 
@@ -42,31 +42,6 @@ function isTokenExpired(token: string): boolean {
   }
 }
 
-async function getStoredRefreshToken(): Promise<string | null> {
-  try {
-    if (Platform.OS === 'web') return localStorage.getItem('refresh_token')
-    const SecureStore = await import('expo-secure-store')
-    return SecureStore.getItemAsync('refresh_token')
-  } catch {
-    return null
-  }
-}
-
-async function refreshAccessToken(refreshToken: string): Promise<string | null> {
-  try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    return data.tokens?.access_token ?? null
-  } catch {
-    return null
-  }
-}
-
 // ── Provider ──────────────────────────────────────────────────────────────────
 export function SocketProvider({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
@@ -88,11 +63,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
       let token = store.accessToken
       if (isTokenExpired(token)) {
-        const rt = await getStoredRefreshToken()
-        if (!rt) { store.clearAuth(); return }
-        const fresh = await refreshAccessToken(rt)
-        if (!fresh) { store.clearAuth(); return }
-        store.setAccessToken(fresh)
+        const fresh = await refreshAccessToken()
+        if (!fresh) return  // clearAuth already called inside on 4xx; network error → retry later
         token = fresh
       }
 
@@ -122,15 +94,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         wsRef.current = null
         if (destroyedRef.current) return
         if (e.code === 4001) {
-          const store2 = useAuthStore.getState()
-          const rt = await getStoredRefreshToken()
-          if (rt) {
-            const fresh = await refreshAccessToken(rt)
-            if (fresh) { store2.setAccessToken(fresh); retryRef.current = 0 }
-            else { store2.clearAuth(); return }
-          } else {
-            store2.clearAuth(); return
-          }
+          const fresh = await refreshAccessToken()
+          if (!fresh) return  // clearAuth already called inside on 4xx
+          retryRef.current = 0
         }
         scheduleReconnect()
       }
