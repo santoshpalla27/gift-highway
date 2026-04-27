@@ -1,4 +1,4 @@
-# Database Backup — GiftHighway
+# Database Backup & Recovery — GiftHighway
 
 ## How it works
 
@@ -10,7 +10,7 @@
 | Upload to Cloudflare R2 | Off-site copy via `rclone` | ~20 MB while uploading |
 | Rotate files > 7 days | `find -mtime +7 -delete` | 0 MB |
 
-Total extra RAM during backup: **~22 MB** peak — well within the 640 MB buffer.
+Total extra RAM during backup: **~22 MB** peak.
 
 ---
 
@@ -20,7 +20,7 @@ Total extra RAM during backup: **~22 MB** peak — well within the 640 MB buffer
 # 1. Copy scripts to the server
 scp -r scripts/ user@your-server:~/gift-highway/scripts/
 
-# 2. Run setup (auto-installs rclone via apt, sets up cron + log rotation)
+# 2. Run setup (auto-installs rclone, sets up cron + log rotation)
 cd ~/gift-highway
 sudo bash scripts/setup-backup-cron.sh
 
@@ -37,52 +37,73 @@ tail /var/log/app-backup.log
 ## Schedule
 
 - **Every 5 hours** — cron: `0 */5 * * *`
-- Local retention: **7 days** (files on disk)
-- R2 retention: unlimited (cheap cold storage; delete manually or set an R2 lifecycle rule)
+- Local retention: **7 days**
+- R2 retention: unlimited (set an R2 lifecycle rule to auto-expire if desired)
 
 ---
 
-## Estimated disk usage
+## Which recovery script to use?
 
-A typical dump produces **1–20 MB compressed**.
-7 days × 5 backups/day × 20 MB = **~700 MB** worst case on the server.
+| Situation | Script |
+| --------- | ------ |
+| App is misbehaving, want to roll back to an earlier backup | `restore-db.sh` |
+| Postgres container crashed, stopped, or volume corrupted | `disaster-recovery.sh` |
+| Entire server is gone, starting fresh on a new machine | `disaster-recovery.sh` |
 
 ---
 
-## Restore
+## restore-db.sh — normal rollback
 
-The restore script handles everything automatically — just run it:
+Use when the postgres container is **running** and you want to roll back data.
 
 ```bash
+# Latest backup (auto-selects local or downloads from R2)
 sudo bash scripts/restore-db.sh
-```
 
-It will:
-1. Find the latest local backup (or download from R2 if none exist locally)
-2. Show current tables and ask for confirmation
-3. Stop `backend` and `push-service`
-4. Drop and recreate the database
-5. Restore and verify
-6. Restart both services
-
-To restore a specific file:
-
-```bash
+# Specific backup file
 sudo bash scripts/restore-db.sh /var/backups/app/app_2025-01-15_02-00-01.sql.gz
 ```
 
-Or restore from R2 manually:
+What it does: stops backend + push-service → drops DB → restores → restarts services.
+
+---
+
+## disaster-recovery.sh — container down or full server loss
+
+Use when the postgres container is **not running**, the volume is lost/corrupted,
+or you are on a brand-new server.
 
 ```bash
-RCLONE_CONFIG_R2_TYPE=s3 \
-RCLONE_CONFIG_R2_PROVIDER=Cloudflare \
-RCLONE_CONFIG_R2_ACCESS_KEY_ID=<R2_ACCESS_KEY> \
-RCLONE_CONFIG_R2_SECRET_ACCESS_KEY=<R2_SECRET_KEY> \
-RCLONE_CONFIG_R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com \
-rclone copy "r2:<bucket>/db-backups/app_2025-01-15_02-00-01.sql.gz" /tmp/
+sudo bash scripts/disaster-recovery.sh
+```
 
-gunzip -c /tmp/app_2025-01-15_02-00-01.sql.gz \
-  | docker exec -i app-postgres psql -U app -d appdb
+It will:
+1. Stop all app services
+2. Start (or recreate) the postgres container and wait for it to be ready
+3. Download the latest backup from R2 if no local backup exists
+4. Drop + recreate the database
+5. Restore and verify (fails loudly if no tables found after restore)
+6. Start all services with `docker compose up -d`
+
+### Full server loss — new machine from scratch
+
+```bash
+# 1. Install Docker
+curl -fsSL https://get.docker.com | sh
+apt-get install -y docker-compose-plugin rclone
+
+# 2. Get the app files
+git clone <your-repo> ~/gift-highway
+cd ~/gift-highway
+
+# 3. Create .env.prod (DB creds, R2 creds, domain, etc.)
+cp .env.prod.example .env.prod
+nano .env.prod
+
+# 4. Run disaster recovery — starts postgres, downloads backup from R2, restores
+sudo bash scripts/disaster-recovery.sh
+
+# That's it. All services come up at the end automatically.
 ```
 
 ---

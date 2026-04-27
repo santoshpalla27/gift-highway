@@ -20,6 +20,7 @@ if [ ! -f "$BACKUP_SCRIPT" ]; then
 fi
 chmod +x "$BACKUP_SCRIPT"
 chmod +x "$SCRIPT_DIR/restore-db.sh"
+chmod +x "$SCRIPT_DIR/disaster-recovery.sh"
 chmod +x "$SCRIPT_DIR/setup-backup-cron.sh"
 
 # Create log file

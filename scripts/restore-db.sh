@@ -13,6 +13,8 @@
 #   6. Restores from the backup
 #   7. Restarts backend + push-service
 #   8. Verifies tables exist after restore
+#
+# If the postgres container is down or the volume is lost, use disaster-recovery.sh instead.
 set -euo pipefail
 
 BACKUP_DIR=/var/backups/app
@@ -29,7 +31,6 @@ fi
 POSTGRES_USER="${POSTGRES_USER:-app}"
 POSTGRES_DB="${POSTGRES_DB:-appdb}"
 
-# Derive R2_ENDPOINT from R2_ACCOUNT_ID if not set explicitly
 if [ -z "${R2_ENDPOINT:-}" ] && [ -n "${R2_ACCOUNT_ID:-}" ]; then
   R2_ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 fi
@@ -38,7 +39,6 @@ fi
 log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"; }
 die() { echo "ERROR: $*" >&2; exit 1; }
 
-# ── R2 rclone helper ──────────────────────────────────────────────────────────
 r2_env() {
   RCLONE_CONFIG_R2_TYPE=s3 \
   RCLONE_CONFIG_R2_PROVIDER=Cloudflare \
@@ -54,18 +54,15 @@ if [ $# -ge 1 ]; then
   BACKUP_FILE="$1"
   [ -f "$BACKUP_FILE" ] || die "File not found: $BACKUP_FILE"
 else
-  # 1. Try local first
   BACKUP_FILE=$(find "$BACKUP_DIR" -name "app_*.sql.gz" 2>/dev/null | sort | tail -1)
 
-  # 2. Fall back to latest from R2
   if [ -z "$BACKUP_FILE" ]; then
     log "No local backup found — fetching latest from R2..."
-
-    command -v rclone &>/dev/null        || die "rclone not installed (apt install rclone)"
-    [ -n "${R2_ACCESS_KEY:-}" ]          || die "R2_ACCESS_KEY not set in .env.prod"
-    [ -n "${R2_SECRET_KEY:-}" ]          || die "R2_SECRET_KEY not set in .env.prod"
-    [ -n "${R2_ENDPOINT:-}" ]            || die "R2_ENDPOINT or R2_ACCOUNT_ID not set in .env.prod"
-    [ -n "${R2_BUCKET:-}" ]              || die "R2_BUCKET not set in .env.prod"
+    command -v rclone &>/dev/null   || die "rclone not installed (apt install rclone)"
+    [ -n "${R2_ACCESS_KEY:-}" ]     || die "R2_ACCESS_KEY not set in .env.prod"
+    [ -n "${R2_SECRET_KEY:-}" ]     || die "R2_SECRET_KEY not set in .env.prod"
+    [ -n "${R2_ENDPOINT:-}" ]       || die "R2_ENDPOINT or R2_ACCOUNT_ID not set in .env.prod"
+    [ -n "${R2_BUCKET:-}" ]         || die "R2_BUCKET not set in .env.prod"
 
     LATEST_R2=$(r2_env lsf "r2:${R2_BUCKET}/db-backups/" --include "app_*.sql.gz" \
                   2>/dev/null | sort | tail -1)
@@ -83,7 +80,7 @@ log "Backup file: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
 
 # ── Check postgres container is running ───────────────────────────────────────
 docker inspect --format='{{.State.Status}}' "$CONTAINER" 2>/dev/null | grep -q "^running$" \
-  || die "Container '$CONTAINER' is not running"
+  || die "Container '$CONTAINER' is not running. If the DB has crashed, use: sudo bash scripts/disaster-recovery.sh"
 log "Postgres container: running"
 
 # ── Show current tables ───────────────────────────────────────────────────────
