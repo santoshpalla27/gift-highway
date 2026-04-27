@@ -32,6 +32,7 @@ func main() {
 	mux.HandleFunc("/api/logs/", handleLogs)
 	mux.HandleFunc("/api/errors", handleErrors)
 	mux.HandleFunc("/api/backup", handleBackup)
+	mux.HandleFunc("/api/backup/logs", handleBackupLogs)
 
 	log.Printf("monitor listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
@@ -96,6 +97,15 @@ func handleBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respond(w, status)
+}
+
+func handleBackupLogs(w http.ResponseWriter, r *http.Request) {
+	lines, err := collectBackupLogs(200)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	respond(w, map[string]any{"logs": lines})
 }
 
 func respond(w http.ResponseWriter, v any) {

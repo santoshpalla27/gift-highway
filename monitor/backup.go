@@ -18,6 +18,31 @@ type BackupStatus struct {
 	LastOK  int64  `json:"last_ok"`  // unix ts of last successful completion (0 = never)
 }
 
+// collectBackupLogs returns the last n lines of the backup log file.
+func collectBackupLogs(n int) ([]string, error) {
+	f, err := os.Open(backupLogPath)
+	if os.IsNotExist(err) {
+		return []string{"(backup log not found — no backup has run yet)"}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return lines, nil
+}
+
 func collectBackupStatus() (*BackupStatus, error) {
 	f, err := os.Open(backupLogPath)
 	if os.IsNotExist(err) {

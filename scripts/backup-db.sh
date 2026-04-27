@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PostgreSQL backup for company app (2 GB server, Ubuntu)
+# PostgreSQL backup for GiftHighway (2 GB server, Ubuntu)
 # Runs pg_dump inside the existing postgres container — zero extra RAM cost.
 # Off-site upload uses rclone (apt install rclone) — no AWS CLI needed.
 set -euo pipefail
@@ -7,8 +7,9 @@ set -euo pipefail
 # ── Config ────────────────────────────────────────────────────────────────────
 LOG=/var/log/app-backup.log
 BACKUP_DIR=/var/backups/app
-KEEP_DAYS=1
+KEEP_DAYS=7
 CONTAINER=app-postgres
+LOCK_FILE=/tmp/app-backup.lock
 
 # ── Load .env (get DB creds + R2 creds) ──────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -34,6 +35,14 @@ log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*" | tee -a "$LOG"; }
 # Redirect all unexpected stderr to the log as well
 exec 2>> "$LOG"
 
+# ── Lock — prevent concurrent runs ───────────────────────────────────────────
+if [ -f "$LOCK_FILE" ]; then
+  log "ERROR: Another backup is already running (lock: $LOCK_FILE). Exiting."
+  exit 1
+fi
+trap 'rm -f "$LOCK_FILE"' EXIT INT TERM
+touch "$LOCK_FILE"
+
 # ── Start ─────────────────────────────────────────────────────────────────────
 mkdir -p "$BACKUP_DIR"
 touch "$LOG"
@@ -52,6 +61,15 @@ if ! docker exec "$CONTAINER" pg_dump \
       -d "$POSTGRES_DB" \
     | gzip -6 > "$DUMP_FILE"; then
   log "ERROR: pg_dump or gzip failed. Removing partial file."
+  rm -f "$DUMP_FILE"
+  exit 1
+fi
+
+# ── Integrity check — fail fast on empty/truncated dump ──────────────────────
+MIN_BYTES=1024
+ACTUAL_BYTES=$(stat -c%s "$DUMP_FILE" 2>/dev/null || echo 0)
+if [ "$ACTUAL_BYTES" -lt "$MIN_BYTES" ]; then
+  log "ERROR: Dump is only ${ACTUAL_BYTES} bytes — likely corrupt or empty. Removing."
   rm -f "$DUMP_FILE"
   exit 1
 fi

@@ -162,6 +162,7 @@ tbody tr:hover td { background: rgba(255,255,255,.025); }
       <div class="card-value" id="backup-val">—</div>
       <div class="card-sub" id="backup-sub">&nbsp;</div>
       <div class="bar"><div class="bar-fill ok" id="backup-bar" style="width:0%"></div></div>
+      <div style="margin-top:12px"><button class="log-btn" onclick="openBackupLogs()" style="font-size:11px;padding:3px 10px">View Log</button></div>
     </div>
   </div>
 
@@ -567,7 +568,32 @@ function filterLogs() {
 async function reloadLogs() {
   if (!currentLogId) return;
   document.getElementById('log-pre').textContent = 'Loading…';
+  if (currentLogId === '__backup__') {
+    await loadBackupLogs();
+    return;
+  }
   await loadLogs(currentLogId);
+}
+
+async function loadBackupLogs() {
+  try {
+    const d = await fetch('/api/backup/logs').then(r => r.json());
+    currentLogLines = d.logs || [];
+    filterLogs();
+    document.getElementById('log-pre').parentElement.scrollTop =
+      document.getElementById('log-pre').parentElement.scrollHeight;
+  } catch (e) {
+    document.getElementById('log-pre').textContent = 'Error fetching backup log: ' + e.message;
+  }
+}
+
+async function openBackupLogs() {
+  currentLogId = '__backup__';
+  document.getElementById('modal-title').textContent = 'Backup Log — last 200 lines';
+  document.getElementById('log-pre').textContent = 'Loading…';
+  document.getElementById('log-search').value = '';
+  document.getElementById('overlay').classList.add('open');
+  await loadBackupLogs();
 }
 
 function closeModal() {

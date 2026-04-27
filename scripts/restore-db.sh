@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Restore a company app backup into the running database.
+# Restore a GiftHighway backup into the running database.
 # Usage:
 #   ./restore-db.sh              — restores the latest local backup
 #   ./restore-db.sh <file.sql.gz> — restores a specific backup file
@@ -8,16 +8,16 @@
 #   1. Checks the postgres container is running
 #   2. Finds the backup file to restore
 #   3. Lists tables currently in the database
-#   4. Stops the backend (no writes during restore)
+#   4. Stops backend + push-service (no writes during restore)
 #   5. Drops and recreates the database
 #   6. Restores from the backup
-#   7. Restarts the backend
+#   7. Restarts backend + push-service
 #   8. Verifies tables exist after restore
 set -euo pipefail
 
 BACKUP_DIR=/var/backups/app
 CONTAINER=app-postgres
-COMPOSE_FILE="$(cd "$(dirname "$0")/.." && pwd)/docker-compose.prod.yml"
+COMPOSE_FILE="$(cd "$(dirname "$0")/.." && pwd)/docker-compose.yml"
 
 # ── Load .env ─────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -100,9 +100,9 @@ read -r -p "  Continue? [y/N] " CONFIRM
 [[ "$CONFIRM" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
 
 # ── Stop app services ─────────────────────────────────────────────────────────
-log "Stopping backend..."
-docker compose -f "$COMPOSE_FILE" stop backend 2>/dev/null \
-  || log "WARNING: could not stop backend (it may not be running)"
+log "Stopping backend and push-service..."
+docker compose -f "$COMPOSE_FILE" stop backend push-service 2>/dev/null \
+  || log "WARNING: could not stop services (they may not be running)"
 
 # ── Drop + recreate database ──────────────────────────────────────────────────
 log "Terminating active connections to '$POSTGRES_DB'..."
@@ -119,17 +119,17 @@ docker exec "$CONTAINER" psql -U "$POSTGRES_USER" -d postgres -c \
   "CREATE DATABASE \"$POSTGRES_DB\" OWNER \"$POSTGRES_USER\";" > /dev/null
 
 # ── Restore ───────────────────────────────────────────────────────────────────
-log "Restoring from backup..."
+log "Restoring from backup (errors will be shown)..."
 gunzip -c "$BACKUP_FILE" \
-  | docker exec -i "$CONTAINER" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -q
+  | docker exec -i "$CONTAINER" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 
 # ── Verify ────────────────────────────────────────────────────────────────────
 log "Tables after restore:"
 docker exec "$CONTAINER" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dt"
 
 # ── Restart app services ──────────────────────────────────────────────────────
-log "Restarting backend..."
-docker compose -f "$COMPOSE_FILE" start backend 2>/dev/null \
-  || log "WARNING: could not restart backend — start it manually"
+log "Restarting backend and push-service..."
+docker compose -f "$COMPOSE_FILE" start backend push-service 2>/dev/null \
+  || log "WARNING: could not restart services — start them manually"
 
 log "Done. Restore complete."
