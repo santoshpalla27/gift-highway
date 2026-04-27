@@ -23,15 +23,23 @@ set -euo pipefail
 
 BACKUP_DIR=/var/backups/app
 CONTAINER=app-postgres
-COMPOSE_FILE="$(cd "$(dirname "$0")/.." && pwd)/docker-compose.yml"
 PG_READY_TIMEOUT=60
 
 # ── Load .env ─────────────────────────────────────────────────────────────────
+# Checks same directory first (standalone deployment), then parent directory
+# (repo deployment where scripts live in gift-highway/scripts/).
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-if [ -f "$SCRIPT_DIR/../.env.prod" ]; then
-  set -a; source "$SCRIPT_DIR/../.env.prod"; set +a
-elif [ -f "$SCRIPT_DIR/../.env" ]; then
-  set -a; source "$SCRIPT_DIR/../.env"; set +a
+# shellcheck disable=SC1090
+if   [ -f "$SCRIPT_DIR/.env.prod" ];    then set -a; source "$SCRIPT_DIR/.env.prod";    set +a
+elif [ -f "$SCRIPT_DIR/.env" ];         then set -a; source "$SCRIPT_DIR/.env";          set +a
+elif [ -f "$SCRIPT_DIR/../.env.prod" ]; then set -a; source "$SCRIPT_DIR/../.env.prod";  set +a
+elif [ -f "$SCRIPT_DIR/../.env" ];      then set -a; source "$SCRIPT_DIR/../.env";        set +a
+fi
+
+# Resolve docker-compose.yml: same directory first, then parent (repo layout)
+if   [ -f "$SCRIPT_DIR/docker-compose.yml" ];     then COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
+elif [ -f "$SCRIPT_DIR/../docker-compose.yml" ];  then COMPOSE_FILE="$(cd "$SCRIPT_DIR/.." && pwd)/docker-compose.yml"
+else COMPOSE_FILE="$SCRIPT_DIR/../docker-compose.yml"  # preflight check will catch this
 fi
 POSTGRES_USER="${POSTGRES_USER:-app}"
 POSTGRES_DB="${POSTGRES_DB:-appdb}"

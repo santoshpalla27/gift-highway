@@ -12,13 +12,14 @@ CONTAINER=app-postgres
 LOCK_FILE=/tmp/app-backup.lock
 
 # ── Load .env (get DB creds + R2 creds) ──────────────────────────────────────
+# Checks same directory first (standalone deployment), then parent directory
+# (repo deployment where scripts live in gift-highway/scripts/).
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-if [ -f "$SCRIPT_DIR/../.env.prod" ]; then
-  # shellcheck disable=SC1090
-  set -a; source "$SCRIPT_DIR/../.env.prod"; set +a
-elif [ -f "$SCRIPT_DIR/../.env" ]; then
-  # shellcheck disable=SC1090
-  set -a; source "$SCRIPT_DIR/../.env"; set +a
+# shellcheck disable=SC1090
+if   [ -f "$SCRIPT_DIR/.env.prod" ];    then set -a; source "$SCRIPT_DIR/.env.prod";    set +a
+elif [ -f "$SCRIPT_DIR/.env" ];         then set -a; source "$SCRIPT_DIR/.env";          set +a
+elif [ -f "$SCRIPT_DIR/../.env.prod" ]; then set -a; source "$SCRIPT_DIR/../.env.prod";  set +a
+elif [ -f "$SCRIPT_DIR/../.env" ];      then set -a; source "$SCRIPT_DIR/../.env";        set +a
 fi
 
 POSTGRES_USER="${POSTGRES_USER:-app}"
