@@ -11,9 +11,10 @@
 #   2. Start (or recreate) the postgres container
 #   3. Wait for postgres to be ready
 #   4. Find the latest backup (local → R2 fallback)
-#   5. Drop + recreate the database
-#   6. Restore from backup
-#   7. Verify and restart all services
+#   5. Snapshot current DB state → /var/backups/app/disaster/ + R2 db-backups/disaster/
+#   6. Drop + recreate the database
+#   7. Restore from backup
+#   8. Verify and restart all services
 #
 # Usage:
 #   sudo bash scripts/disaster-recovery.sh              # auto-selects latest backup
@@ -149,6 +150,48 @@ until docker exec "$CONTAINER" pg_isready -U "$POSTGRES_USER" -q 2>/dev/null; do
   log "  waiting... (${ELAPSED}s)"
 done
 log "Postgres is ready."
+
+# ── Safety dump — snapshot current state before wiping ───────────────────────
+step "Safety snapshot (pre-wipe)"
+
+DATE=$(date -u +%Y-%m-%d_%H-%M-%S)
+SAFETY_DIR=/var/backups/app/disaster
+SAFETY_FILE="$SAFETY_DIR/pre_wipe_${DATE}.sql.gz"
+mkdir -p "$SAFETY_DIR"
+
+# Check the database actually exists and has tables before trying to dump it
+DB_EXISTS=$(docker exec "$CONTAINER" psql -U "$POSTGRES_USER" -d postgres -t -c \
+  "SELECT 1 FROM pg_database WHERE datname = '$POSTGRES_DB';" 2>/dev/null | tr -d ' \n' || echo "")
+
+if [ "$DB_EXISTS" = "1" ]; then
+  log "Dumping current '$POSTGRES_DB' to $SAFETY_FILE ..."
+  if docker exec "$CONTAINER" pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+      | gzip -6 > "$SAFETY_FILE" 2>/dev/null; then
+    SIZE=$(du -h "$SAFETY_FILE" | cut -f1)
+    log "Safety dump saved locally: $SAFETY_FILE ($SIZE)"
+
+    # Upload to R2 under db-backups/disaster/ if credentials are available
+    if command -v rclone &>/dev/null \
+       && [ -n "${R2_ACCESS_KEY:-}" ] \
+       && [ -n "${R2_SECRET_KEY:-}" ] \
+       && [ -n "${R2_ENDPOINT:-}" ] \
+       && [ -n "${R2_BUCKET:-}" ]; then
+      if r2_env copy "$SAFETY_FILE" "r2:${R2_BUCKET}/db-backups/disaster/" \
+           --no-traverse --log-level ERROR 2>/dev/null; then
+        log "Safety dump uploaded to R2: db-backups/disaster/$(basename "$SAFETY_FILE")"
+      else
+        log "WARNING: R2 upload of safety dump failed — local copy still at $SAFETY_FILE"
+      fi
+    else
+      log "INFO: R2 not configured — safety dump kept locally only"
+    fi
+  else
+    log "WARNING: pg_dump failed (DB may be corrupt/empty) — skipping safety snapshot"
+    rm -f "$SAFETY_FILE"
+  fi
+else
+  log "Database '$POSTGRES_DB' does not exist — nothing to snapshot"
+fi
 
 # ── Drop + recreate database ──────────────────────────────────────────────────
 step "Preparing database"
