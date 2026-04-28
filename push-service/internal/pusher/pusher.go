@@ -258,7 +258,8 @@ func (p *Pusher) handle(msg *pq.Notification) {
 		}
 		if err := json.Unmarshal(ep.Payload, &mp); err == nil &&
 			mp.MentionedUserID != "" &&
-			mp.MentionedUserID != actorID {
+			mp.MentionedUserID != actorID &&
+			p.shouldPush(mp.MentionedUserID, ep.OrderID, ep.Type) {
 			p.sendBatch(mp.MentionedUserID, ep.OrderID, []bufferedEvent{ev})
 		}
 		return
@@ -439,44 +440,38 @@ func (p *Pusher) sendBatch(userID, orderID string, events []bufferedEvent) {
 // ── Preference check ──────────────────────────────────────────────────────────
 
 func (p *Pusher) shouldPush(userID, orderID, eventType string) bool {
+	// Default scope is "my_orders" — applied even when the user has never saved prefs.
+	scope := "my_orders"
+	var typeMap map[string]bool
+
 	var prefsRaw []byte
-	err := p.db.QueryRow(`SELECT notification_prefs FROM users WHERE id::text = $1`, userID).Scan(&prefsRaw)
-	if err != nil || len(prefsRaw) == 0 {
-		return defaultEnabled[eventType]
-	}
-
-	var prefs struct {
-		Scope string                     `json:"scope"`
-		Types map[string]map[string]bool `json:"types"`
-	}
-	if err := json.Unmarshal(prefsRaw, &prefs); err != nil {
-		return defaultEnabled[eventType]
-	}
-
-	scope := prefs.Scope
-	if scope == "" {
-		scope = "my_orders"
-	}
-
-	var isAssigned bool
-	p.db.QueryRow(
-		`SELECT EXISTS(SELECT 1 FROM order_assignees WHERE order_id::text = $1 AND user_id::text = $2)`,
-		orderID, userID,
-	).Scan(&isAssigned)
-
-	if scope == "my_orders" && !isAssigned {
-		return false
-	}
-
-	scopeKey := "my_orders"
-	if scope == "all_orders" {
-		scopeKey = "all_orders"
-	}
-
-	if typeMap, ok := prefs.Types[scopeKey]; ok {
-		if enabled, ok := typeMap[eventType]; ok {
-			return enabled
+	if err := p.db.QueryRow(`SELECT notification_prefs FROM users WHERE id::text = $1`, userID).Scan(&prefsRaw); err == nil && len(prefsRaw) > 0 {
+		var prefs struct {
+			Scope string                     `json:"scope"`
+			Types map[string]map[string]bool `json:"types"`
 		}
+		if json.Unmarshal(prefsRaw, &prefs) == nil {
+			if prefs.Scope != "" {
+				scope = prefs.Scope
+			}
+			typeMap = prefs.Types[scope]
+		}
+	}
+
+	// Scope filter — always enforced, even for users with no saved prefs.
+	if scope == "my_orders" {
+		var isAssigned bool
+		p.db.QueryRow(
+			`SELECT EXISTS(SELECT 1 FROM order_assignees WHERE order_id::text = $1 AND user_id::text = $2)`,
+			orderID, userID,
+		).Scan(&isAssigned)
+		if !isAssigned {
+			return false
+		}
+	}
+
+	if enabled, ok := typeMap[eventType]; ok {
+		return enabled
 	}
 	return defaultEnabled[eventType]
 }

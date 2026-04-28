@@ -1,9 +1,10 @@
 import { Stack, router } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { View, ActivityIndicator, Platform } from 'react-native'
 import { SocketProvider } from '../providers/SocketProvider'
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent'
+import * as Notifications from 'expo-notifications'
 
 function AppNavigator() {
   const { loadAuth, isAuthenticated } = useAuthStore()
@@ -15,6 +16,7 @@ function AppNavigator() {
   const [authReady, setAuthReady] = useState(false)
   // useState (not useRef) so effects that depend on it re-run after it flips true.
   const [routed, setRouted] = useState(false)
+  const coldStartChecked = useRef(false)
 
   useEffect(() => {
     loadAuth().finally(() => setAuthReady(true))
@@ -45,6 +47,22 @@ function AppNavigator() {
     if (!routed || !authReady || isAuthenticated) return
     router.replace('/(auth)/login')
   }, [isAuthenticated, authReady, routed])
+
+  // Step 4 — cold-start: app was dead when the user tapped a push notification.
+  // getLastNotificationResponseAsync() returns the tap that launched the app.
+  // Runs once after the base screen exists (routed=true) and the user is logged in.
+  useEffect(() => {
+    if (!routed || !authReady || !isAuthenticated || Platform.OS === 'web') return
+    if (coldStartChecked.current) return
+    coldStartChecked.current = true
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return
+      const data = response.notification.request.content.data as Record<string, unknown>
+      if (data?.screen === 'order' && data?.order_id) {
+        router.push(`/order/${data.order_id}` as any)
+      }
+    })
+  }, [routed, authReady, isAuthenticated])
 
   if (!authReady || !shareReady) {
     return (
