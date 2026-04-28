@@ -1,0 +1,47 @@
+===============================
+
+     to find total no of rows 
+
+docker exec -it app-postgres psql -U kanban -d appdb -c "
+DO \$\$
+DECLARE r RECORD;
+DECLARE total BIGINT := 0;
+DECLARE cnt BIGINT;
+BEGIN
+  FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public'
+  LOOP
+    EXECUTE format('SELECT count(*) FROM %I', r.tablename) INTO cnt;
+    total := total + cnt;
+  END LOOP;
+  RAISE NOTICE 'Total rows: %', total;
+END \$\$;
+"
+
+===============================
+  
+              rows per table 
+
+
+docker exec -it app-postgres psql -U kanban -d appdb -c "
+SELECT relname AS table_name, n_live_tup AS rows
+FROM pg_stat_user_tables
+ORDER BY n_live_tup DESC;
+"
+
+================================
+          
+           list all tables 
+
+docker exec -it app-postgres psql -U kanban -d appdb -c "\dt"
+
+=================================
+
+       see the table size 
+
+docker exec -it app-postgres psql -U kanban -d appdb -c "
+SELECT
+  relname AS table_name,
+  pg_size_pretty(pg_total_relation_size(relid)) AS size
+FROM pg_catalog.pg_statio_user_tables
+ORDER BY pg_total_relation_size(relid) DESC;
+"

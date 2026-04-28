@@ -58,6 +58,25 @@ func (r *UserRepository) UpdateLastLogin(ctx context.Context, userID string) err
 }
 
 func (r *UserRepository) SaveRefreshToken(ctx context.Context, token *models.RefreshToken) error {
+	// Lazy GC: hard-delete this user's expired/revoked tokens before inserting.
+	_, _ = r.db.ExecContext(ctx, `
+		DELETE FROM refresh_tokens
+		WHERE user_id = $1
+		  AND (revoked_at IS NOT NULL OR expires_at < NOW())
+	`, token.UserID)
+
+	// Cap active sessions at 10 per user — drop the oldest if over the limit.
+	_, _ = r.db.ExecContext(ctx, `
+		DELETE FROM refresh_tokens
+		WHERE user_id = $1
+		  AND id NOT IN (
+		    SELECT id FROM refresh_tokens
+		    WHERE user_id = $1
+		    ORDER BY created_at DESC
+		    LIMIT 9
+		  )
+	`, token.UserID)
+
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, user_agent, ip_address)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -69,7 +88,7 @@ func (r *UserRepository) FindRefreshToken(ctx context.Context, tokenHash string)
 	rt := &models.RefreshToken{}
 	err := r.db.GetContext(ctx, rt, `
 		SELECT id, user_id, token_hash, expires_at, created_at, revoked_at, user_agent, ip_address
-		FROM refresh_tokens WHERE token_hash = $1 AND revoked_at IS NULL
+		FROM refresh_tokens WHERE token_hash = $1
 	`, tokenHash)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -79,14 +98,14 @@ func (r *UserRepository) FindRefreshToken(ctx context.Context, tokenHash string)
 
 func (r *UserRepository) RevokeRefreshToken(ctx context.Context, tokenHash string) error {
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = $1
+		DELETE FROM refresh_tokens WHERE token_hash = $1
 	`, tokenHash)
 	return err
 }
 
 func (r *UserRepository) RevokeAllUserTokens(ctx context.Context, userID string) error {
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL
+		DELETE FROM refresh_tokens WHERE user_id = $1
 	`, userID)
 	return err
 }
