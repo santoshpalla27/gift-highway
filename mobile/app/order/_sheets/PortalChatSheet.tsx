@@ -1,8 +1,10 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView,
   Image, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Share, Linking,
 } from 'react-native'
+import { ImageViewerModal } from '../_components/ImageViewerModal'
+import { ImageAnnotationSheet } from '../_components/ImageAnnotationSheet'
 import { formatRelative } from '../../../utils/date'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -39,6 +41,10 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
   const [showAttachSheet, setShowAttachSheet] = React.useState(false)
   const [menuMsg, setMenuMsg] = React.useState<(typeof chat.messages)[0] | null>(null)
   const [deleteConfirmMsg, setDeleteConfirmMsg] = React.useState<(typeof chat.messages)[0] | null>(null)
+  const [imageViewer, setImageViewer] = useState<{
+    uri: string; filename: string; fileSizeBytes?: number; msgId: number; onDownload?: () => void
+  } | null>(null)
+  const [annotation, setAnnotation] = useState<{ src: string; filename: string } | null>(null)
 
   const chat = usePortalChat(orderId, portalAttachments, onAttachmentsChange, refreshRef)
 
@@ -165,7 +171,13 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
                         return (
                           <View key={tok.id} style={{ marginTop: idx === 0 && (hasText || quotedMsg) ? 6 : idx > 0 ? 4 : 0 }}>
                             {isImg && att?.view_url ? (
-                              <TouchableOpacity onPress={() => Linking.openURL(att.view_url)} activeOpacity={0.85}>
+                              <TouchableOpacity
+                                onPress={() => setImageViewer({
+                                  uri: att.view_url, filename: att.file_name, fileSizeBytes: att.file_size, msgId: msg.id,
+                                  onDownload: async () => { try { const url = await staffPortalApi.getAttachmentDownloadURL(orderId, att.id, att.file_name); Linking.openURL(url) } catch { Linking.openURL(att.view_url) } },
+                                })}
+                                activeOpacity={0.85}
+                              >
                                 <Image source={{ uri: att.view_url }} style={{ width: 160, height: 160, borderRadius: 8 }} resizeMode="cover" />
                               </TouchableOpacity>
                             ) : (
@@ -336,6 +348,36 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {imageViewer && (
+        <ImageViewerModal
+          uri={imageViewer.uri}
+          filename={imageViewer.filename}
+          fileSizeBytes={imageViewer.fileSizeBytes}
+          onClose={() => setImageViewer(null)}
+          onReply={() => {
+            const msg = chat.messages.find(m => m.id === imageViewer.msgId)
+            setImageViewer(null)
+            if (msg) chat.setReplyTo(msg)
+          }}
+          onDelete={() => {
+            const msg = chat.messages.find(m => m.id === imageViewer.msgId)
+            setImageViewer(null)
+            if (msg) setDeleteConfirmMsg(msg)
+          }}
+          onDownload={imageViewer.onDownload}
+          onAnnotate={() => setAnnotation({ src: imageViewer.uri, filename: imageViewer.filename })}
+        />
+      )}
+      {annotation && (
+        <ImageAnnotationSheet
+          src={annotation.src}
+          filename={annotation.filename}
+          orderId={orderId}
+          onSaved={() => setAnnotation(null)}
+          onCancel={() => setAnnotation(null)}
+        />
+      )}
     </Modal>
   )
 }

@@ -422,6 +422,7 @@ func (h *PortalHandler) StaffListAttachments(c *gin.Context) {
 		FileType  string `json:"file_type"`
 		FileSize  int64  `json:"file_size"`
 		ViewURL   string `json:"view_url"`
+		FileKey   string `json:"file_key"`
 		CreatedAt string `json:"created_at"`
 	}
 	items := make([]attResp, len(atts))
@@ -432,6 +433,7 @@ func (h *PortalHandler) StaffListAttachments(c *gin.Context) {
 			FileType:  a.FileType,
 			FileSize:  a.FileSize,
 			ViewURL:   a.ViewURL,
+			FileKey:   a.S3Key,
 			CreatedAt: a.CreatedAt.Format(time.RFC3339),
 		}
 	}

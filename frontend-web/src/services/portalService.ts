@@ -27,6 +27,7 @@ export interface PortalAttachment {
   file_type: string
   file_size: number
   view_url: string
+  file_key?: string
   created_at: string
 }
 

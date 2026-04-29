@@ -95,6 +95,7 @@ export function TimelineItem({
   event, isOptimistic, onRetry, onDelete, onEdit, onReply,
   onHighlightQuoted, onHighlightPortalMsg,
   orderId, portalMessages, portalAttachments, quotedEvent, highlighted, attCaption,
+  onPreviewImage,
 }: {
   event: OrderEvent & { failed?: boolean }
   isOptimistic?: boolean
@@ -110,6 +111,7 @@ export function TimelineItem({
   quotedEvent?: (OrderEvent & { failed?: boolean }) | null
   highlighted?: boolean
   attCaption?: string
+  onPreviewImage?: (uri: string, filename: string, fileSizeBytes?: number, onReply?: () => void, onDelete?: () => void, onDownload?: () => void, sourceAttachmentId?: string) => void
 }) {
   const { user } = useAuthStore()
   const isOwn = String(event.actor_id) === String(user?.id)
@@ -233,7 +235,17 @@ export function TimelineItem({
           senderInitials={getInitials(event.actor_name || '?')}
           canMenu={canMenu} forAttachment
         >
-          <AttachmentCard orderId={orderId} payload={p} isOwn={isOwn} />
+          <AttachmentCard
+            orderId={orderId}
+            payload={p}
+            isOwn={isOwn}
+            onPreview={onPreviewImage ? (uri, onDownload) => onPreviewImage(
+              uri, p.file_name,
+              Number(p.size_bytes) || undefined,
+              onReply, onDelete, onDownload,
+              p.att_id || undefined,
+            ) : undefined}
+          />
         </BubbleRow>
         <TimeRow time={formatTimestamp(event.created_at)} />
       </View>
@@ -261,7 +273,14 @@ export function TimelineItem({
           <MenuSheet visible={menuOpen} onClose={() => setMenuOpen(false)} onReply={onReply} forAttachment />
           <NameRow name={isOwn ? 'You' : senderName} color={nameColor} />
           <BubbleRow avatarBg={avatarBg} avatarTextColor={avatarColor} senderInitials={getInitials(senderName)} canMenu={canMenu} forAttachment>
-            <PortalAttachmentCard orderId={orderId} attId={attIdRaw} fileName={fileName} fileType={p.file_type} isOwn={isOwn} isStaff={false} caption={attCaption} />
+            <PortalAttachmentCard
+              orderId={orderId} attId={attIdRaw} fileName={fileName} fileType={p.file_type}
+              isOwn={isOwn} isStaff={false} caption={attCaption}
+              onPreview={onPreviewImage ? (uri, onDownload) => {
+                const sz = portalAttachments?.find(a => a.id === attIdRaw)?.file_size
+                onPreviewImage(uri, fileName, sz, onReply, undefined, onDownload)
+              } : undefined}
+            />
           </BubbleRow>
           <TimeRow time={formatTimestamp(event.created_at)} />
         </View>
@@ -303,7 +322,13 @@ export function TimelineItem({
             })()}
             {parsed.text !== '' && <Text style={T.commentText}>{parsed.text}</Text>}
             {event.type === 'staff_portal_reply' && parsed.tokens.map(tok =>
-              <PortalAttachmentCard key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={isOwn} isStaff />
+              <PortalAttachmentCard
+                key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={isOwn} isStaff
+                onPreview={onPreviewImage ? (uri, onDownload) => {
+                  const sz = portalAttachments?.find(a => a.id === tok.id)?.file_size
+                  onPreviewImage(uri, tok.name, sz, onReply, undefined, onDownload)
+                } : undefined}
+              />
             )}
           </View>
         </BubbleRow>

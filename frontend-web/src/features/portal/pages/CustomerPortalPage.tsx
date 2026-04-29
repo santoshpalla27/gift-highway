@@ -104,7 +104,7 @@ export default function CustomerPortalPage() {
   const [textInput, setTextInput] = useState('')
   const [sending, setSending] = useState(false)
   const sendingRef = useRef(false)
-  const [lightbox, setLightbox] = useState<{ src: string; filename: string; attId: number } | null>(null)
+  const [lightbox, setLightbox] = useState<{ src: string; filename: string; attId: number; fileSizeBytes?: number } | null>(null)
   const [deletingAttId, setDeletingAttId] = useState<number | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
 
@@ -567,7 +567,7 @@ export default function CustomerPortalPage() {
                           {att && attIsImage && attUrl && (
                             <div
                               className="mt-2 rounded-xl overflow-hidden cursor-pointer w-full max-w-[180px] aspect-square"
-                              onClick={() => !wasSwipedRef.current && setLightbox({ src: attUrl, filename: att.file_name, attId: att.id })}
+                              onClick={() => !wasSwipedRef.current && setLightbox({ src: attUrl, filename: att.file_name, attId: att.id, fileSizeBytes: att.file_size })}
                             >
                               <img src={attUrl} alt={att.file_name} className="w-full h-full object-cover" />
                             </div>
@@ -769,10 +769,20 @@ export default function CustomerPortalPage() {
               <a href={lightbox.src} target="_blank" rel="noreferrer" className="bg-white/90 backdrop-blur-sm p-2 rounded-lg hover:bg-white transition-colors shadow-lg" title="Open in new tab" onClick={(e) => e.stopPropagation()}>
                 <svg className="w-5 h-5 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
               </a>
+              <button disabled title="Annotate (coming soon)" className="bg-white/90 backdrop-blur-sm p-2 rounded-lg shadow-lg opacity-40 cursor-not-allowed" onClick={(e) => e.stopPropagation()}>
+                <svg className="w-5 h-5 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+              </button>
               <button onClick={() => { setLightbox(null); setConfirmingDelete(false) }} className="bg-white/90 backdrop-blur-sm p-2 rounded-lg hover:bg-white transition-colors shadow-lg" title="Close">
                 <XIcon className="w-5 h-5 text-gray-800" />
               </button>
             </div>
+            {lightbox.fileSizeBytes != null && (
+              <div className="absolute bottom-3 left-0 right-0 flex justify-center" onClick={(e) => e.stopPropagation()}>
+                <span className="text-xs text-white/60 bg-black/40 rounded-full px-3 py-1">
+                  {lightbox.filename} · {lightbox.fileSizeBytes < 1024 * 1024 ? `${(lightbox.fileSizeBytes / 1024).toFixed(1)} KB` : `${(lightbox.fileSizeBytes / (1024 * 1024)).toFixed(2)} MB`}
+                </span>
+              </div>
+            )}
           </div>
 
           {confirmingDelete && (

@@ -10,7 +10,7 @@ const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic']
 // Module-level cache: survives remounts caused by parent re-renders
 const _urlCache = new Map<string, string>()
 
-export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff, caption }: {
+export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff, caption, onPreview }: {
   orderId: string
   attId: number | null
   fileName: string
@@ -18,6 +18,7 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
   isOwn?: boolean
   isStaff?: boolean
   caption?: string
+  onPreview?: (uri: string, onDownload: () => void) => void
 }) {
   const ext = ('.' + (fileName.split('.').pop() ?? '')).toLowerCase()
   const isImg = IMG_EXTS.includes(ext)
@@ -57,7 +58,7 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
         borderWidth: 1, borderColor: hasBubble ? bubbleBorder : '#E5E7EB',
         borderRadius: 14, borderTopRightRadius: trr, borderTopLeftRadius: tlr,
       }}>
-        <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}>
+        <TouchableOpacity onPress={onPreview && viewUrl ? () => onPreview(viewUrl, handleDownload) : handleDownload} activeOpacity={0.85}>
           {viewUrl
             ? <Image source={{ uri: viewUrl }} style={{ width: '100%', height: 200 }} resizeMode="cover" />
             : <View style={{ width: '100%', height: 100, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' }}>

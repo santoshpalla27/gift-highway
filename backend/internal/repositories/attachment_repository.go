@@ -11,6 +11,7 @@ const attachmentSelectSQL = `
 	SELECT
 		a.id, a.order_id, a.event_id, a.uploaded_by,
 		a.file_name, a.file_key, a.file_url, a.mime_type, a.size_bytes, a.created_at,
+		a.is_annotation, a.source_attachment_id,
 		COALESCE(CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')), 'Unknown') AS uploader_name
 	FROM order_attachments a
 	LEFT JOIN users u ON a.uploaded_by = u.id
@@ -28,17 +29,20 @@ func (r *AttachmentRepository) Create(ctx context.Context, a *models.OrderAttach
 	var out models.OrderAttachment
 	err := r.db.QueryRowxContext(ctx, `
 		WITH ins AS (
-			INSERT INTO order_attachments (order_id, event_id, uploaded_by, file_name, file_key, file_url, mime_type, size_bytes)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			INSERT INTO order_attachments
+				(order_id, event_id, uploaded_by, file_name, file_key, file_url, mime_type, size_bytes, is_annotation, source_attachment_id)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 			RETURNING *
 		)
 		SELECT
 			ins.id, ins.order_id, ins.event_id, ins.uploaded_by,
 			ins.file_name, ins.file_key, ins.file_url, ins.mime_type, ins.size_bytes, ins.created_at,
+			ins.is_annotation, ins.source_attachment_id,
 			COALESCE(CONCAT(u.first_name, ' ', COALESCE(u.last_name, '')), 'Unknown') AS uploader_name
 		FROM ins
 		LEFT JOIN users u ON ins.uploaded_by = u.id
 	`, a.OrderID, a.EventID, a.UploadedBy, a.FileName, a.FileKey, a.FileURL, a.MimeType, a.SizeBytes,
+		a.IsAnnotation, a.SourceAttachmentID,
 	).StructScan(&out)
 	return &out, err
 }

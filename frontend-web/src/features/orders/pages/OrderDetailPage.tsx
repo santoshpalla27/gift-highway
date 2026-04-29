@@ -15,6 +15,8 @@ import { useSocketEvent } from '../../../providers/SocketProvider'
 import type { Order } from '../../../services/orderService'
 import { staffPortalApi, getPortalURL, type PortalStatus, type PortalAttachment, type PortalMessage } from '../../../services/portalService'
 import { StaffPortalChatModal } from '../components/StaffPortalChatModal'
+import { ImageLightboxModal } from '../../../components/ImageLightboxModal'
+import { ImageAnnotationCanvas } from '../../../components/ImageAnnotationCanvas'
 
 // ─── Meta maps ───────────────────────────────────────────────────────────────
 
@@ -200,8 +202,9 @@ async function downloadFile(orderId: string, fileKey: string, fileName: string) 
 
 // ─── Attachment image with signed-url refresh on 403/load-error ─────────────
 
-function AttachmentImage({ orderId, fileKey, fileName, fileUrl }: {
+function AttachmentImage({ orderId, fileKey, fileName, fileUrl, onClickImage }: {
   orderId: string; fileKey: string; fileName: string; fileUrl: string
+  onClickImage?: (currentSrc: string) => void
 }) {
   const [src, setSrc] = useState(fileUrl)
   const [failed, setFailed] = useState(false)
@@ -228,14 +231,15 @@ function AttachmentImage({ orderId, fileKey, fileName, fileUrl }: {
       src={src}
       alt={fileName}
       onError={handleError}
-      style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }}
+      onClick={onClickImage ? () => onClickImage(src) : undefined}
+      style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block', cursor: onClickImage ? 'pointer' : 'default' }}
     />
   )
 }
 
 // ─── Portal attachment card that can fetch its own URL if needed ──────────────
 
-function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isStaff, caption, portalAttachments }: {
+function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isStaff, caption, portalAttachments, onPreview }: {
   orderId: string
   attId: number | null
   fileName: string
@@ -244,6 +248,7 @@ function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isSta
   isStaff?: boolean
   caption?: string
   portalAttachments?: PortalAttachment[]
+  onPreview?: (src: string, fileSizeBytes?: number, onDownload?: () => void) => void
 }) {
   const [viewUrl, setViewUrl] = useState<string | null>(null)
   const ext = ('.' + (fileName.split('.').pop() ?? '')).toLowerCase()
@@ -275,6 +280,7 @@ function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isSta
   const bubbleRadius = isOwn ? '12px 4px 12px 12px' : '4px 12px 12px 12px'
 
   if (isImg) {
+    const existing = attId != null ? portalAttachments?.find(a => a.id === attId) : null
     return (
       <div style={{
         marginTop: 6, overflow: 'hidden', width: 280, maxWidth: '100%',
@@ -282,7 +288,7 @@ function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isSta
         borderRadius: isStaff !== undefined ? bubbleRadius : 8,
       }}>
         <div
-          onClick={handleDownload}
+          onClick={onPreview && viewUrl ? () => onPreview(viewUrl, existing?.file_size, handleDownload) : handleDownload}
           style={{ cursor: 'pointer', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           {viewUrl ? (
@@ -353,6 +359,8 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
   const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState('')
+  const [lightbox, setLightbox] = useState<{ src: string; filename: string; fileSizeBytes?: number; onDownload?: () => void; sourceAttachmentId?: string; fileKey?: string } | null>(null)
+  const [annotation, setAnnotation] = useState<{ src: string; filename: string; sourceAttachmentId?: string; fileKey?: string } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -557,6 +565,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
     const p = event.payload as Record<string, string>
     const fileIsImage = isImage(p.mime_type ?? '')
     return (
+      <>
       <div style={{
         display: 'flex',
         flexDirection: isOwn ? 'row-reverse' : 'row',
@@ -593,7 +602,10 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
               overflow: 'hidden', maxWidth: '60%', boxShadow: '0 1px 3px rgba(0,0,0,.04)',
             }}>
               {fileIsImage ? (
-                <AttachmentImage orderId={orderId} fileKey={p.file_key} fileName={p.file_name} fileUrl={p.file_url} />
+                <AttachmentImage
+                  orderId={orderId} fileKey={p.file_key} fileName={p.file_name} fileUrl={p.file_url}
+                  onClickImage={(imgSrc) => setLightbox({ src: imgSrc, filename: p.file_name, fileSizeBytes: Number(p.size_bytes) || undefined, onDownload: () => downloadFile(orderId, p.file_key, p.file_name), sourceAttachmentId: (p as any).att_id || undefined, fileKey: p.file_key })}
+                />
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 22px' }}>
                   <div style={{ width: 36, height: 36, borderRadius: 8, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -665,6 +677,31 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
           </div>
         </div>
       </div>
+      {lightbox && (
+        <ImageLightboxModal
+          src={lightbox.src}
+          filename={lightbox.filename}
+          fileSizeBytes={lightbox.fileSizeBytes}
+          onClose={() => setLightbox(null)}
+          onReply={onReply ? () => { setLightbox(null); onReply() } : undefined}
+          onDelete={onDelete ? () => { setLightbox(null); onDelete() } : undefined}
+          onDownload={lightbox.onDownload}
+          onAnnotate={() => setAnnotation({ src: lightbox.src, filename: lightbox.filename, sourceAttachmentId: lightbox.sourceAttachmentId, fileKey: lightbox.fileKey })}
+          zIndex={1000}
+        />
+      )}
+      {annotation && (
+        <ImageAnnotationCanvas
+          src={annotation.src}
+          filename={annotation.filename}
+          orderId={orderId}
+          fileKey={annotation.fileKey}
+          sourceAttachmentId={annotation.sourceAttachmentId}
+          onSaved={() => setAnnotation(null)}
+          onCancel={() => setAnnotation(null)}
+        />
+      )}
+      </>
     )
   }
 
@@ -727,6 +764,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
     }
 
     return (
+      <>
       <div style={{
         display: 'flex',
         flexDirection: isOwn ? 'row-reverse' : 'row',
@@ -815,6 +853,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                   isOwn={isOwn}
                   isStaff={true}
                   portalAttachments={portalAttachments}
+                  onPreview={(src, sz, onDownload) => setLightbox({ src, filename: tok.name, fileSizeBytes: sz, onDownload })}
                 />
               ))}
               {event.type === 'customer_attachment' && p.file_name && (() => {
@@ -830,6 +869,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                     isStaff={false}
                     caption={caption}
                     portalAttachments={portalAttachments}
+                    onPreview={(src, sz, onDownload) => setLightbox({ src, filename: p.file_name, fileSizeBytes: sz, onDownload })}
                   />
                 )
               })()}
@@ -873,6 +913,29 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
           </div>
         </div>
       </div>
+      {lightbox && (
+        <ImageLightboxModal
+          src={lightbox.src}
+          filename={lightbox.filename}
+          fileSizeBytes={lightbox.fileSizeBytes}
+          onClose={() => setLightbox(null)}
+          onReply={onReply ? () => { setLightbox(null); onReply() } : undefined}
+          onDownload={lightbox.onDownload}
+          onAnnotate={() => setAnnotation({ src: lightbox.src, filename: lightbox.filename, fileKey: lightbox.fileKey })}
+          zIndex={1000}
+        />
+      )}
+      {annotation && (
+        <ImageAnnotationCanvas
+          src={annotation.src}
+          filename={annotation.filename}
+          orderId={orderId}
+          fileKey={annotation.fileKey}
+          onSaved={() => setAnnotation(null)}
+          onCancel={() => setAnnotation(null)}
+        />
+      )}
+      </>
     )
   }
 

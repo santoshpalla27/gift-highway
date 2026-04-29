@@ -172,6 +172,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				ordersGroup.GET("/:id/attachments/signed-url", attachmentHandler.GetSignedURL)
 				ordersGroup.GET("/:id/attachments/download-url", attachmentHandler.GetDownloadURL)
 				ordersGroup.DELETE("/:id/attachments/:attachmentId", attachmentHandler.DeleteAttachment)
+				ordersGroup.GET("/:id/attachments/proxy-image", attachmentHandler.ProxyImage)
 
 				// Portal management (staff)
 				ordersGroup.POST("/:id/portal", portalHandler.CreatePortal)

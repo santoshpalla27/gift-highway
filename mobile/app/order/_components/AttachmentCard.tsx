@@ -7,10 +7,11 @@ import { AVATAR_SIZE, GAP } from '../_styles/theme'
 // Fill most of the available row width (screen minus avatar, gap, and edge margins).
 const ATTACH_MAX_W = Math.round(Dimensions.get('window').width * 0.6)
 
-export function AttachmentCard({ orderId, payload, isOwn }: {
+export function AttachmentCard({ orderId, payload, isOwn, onPreview }: {
   orderId: string
   payload: Record<string, string>
   isOwn?: boolean
+  onPreview?: (uri: string, onDownload: () => void) => void
 }) {
   const [imgUri, setImgUri] = useState(payload.file_url)
   const [imgFailed, setImgFailed] = useState(false)
@@ -51,7 +52,7 @@ export function AttachmentCard({ orderId, payload, isOwn }: {
     ]}>
       {imgFile ? (
         <>
-          <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}>
+          <TouchableOpacity onPress={onPreview ? () => onPreview(imgUri, handleDownload) : handleDownload} activeOpacity={0.85}>
             {imgFailed ? (
               <View style={{ height: 60, alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ fontSize: 12, color: '#9CA3AF' }}>Image unavailable</Text>

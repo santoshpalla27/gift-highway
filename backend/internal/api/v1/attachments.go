@@ -2,6 +2,7 @@ package v1
 
 import (
 	"errors"
+	"io"
 	"net/http"
 
 	"github.com/company/app/backend/internal/models"
@@ -118,6 +119,27 @@ func (h *AttachmentHandler) GetSignedURL(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"url": url})
 }
 
+func (h *AttachmentHandler) ProxyImage(c *gin.Context) {
+	fileKey := c.Query("key")
+	if fileKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "key required"})
+		return
+	}
+	body, ct, err := h.svc.GetImageContent(c.Request.Context(), fileKey)
+	if err != nil {
+		if errors.Is(err, services.ErrStorageNotConfigured) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "storage not configured"})
+			return
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+	defer body.Close()
+	c.Header("Content-Type", ct)
+	c.Header("Cache-Control", "private, max-age=3600")
+	io.Copy(c.Writer, body) //nolint:errcheck
+}
+
 func (h *AttachmentHandler) DeleteAttachment(c *gin.Context) {
 	orderID := c.Param("id")
 	attachmentID := c.Param("attachmentId")
@@ -149,16 +171,18 @@ func (h *AttachmentHandler) DeleteAttachment(c *gin.Context) {
 }
 
 type attachmentResponse struct {
-	ID           string `json:"id"`
-	OrderID      string `json:"order_id"`
-	UploadedBy   string `json:"uploaded_by"`
-	UploaderName string `json:"uploader_name"`
-	FileName     string `json:"file_name"`
-	FileKey      string `json:"file_key"`
-	FileURL      string `json:"file_url"`
-	MimeType     string `json:"mime_type"`
-	SizeBytes    int64  `json:"size_bytes"`
-	CreatedAt    string `json:"created_at"`
+	ID                 string  `json:"id"`
+	OrderID            string  `json:"order_id"`
+	UploadedBy         string  `json:"uploaded_by"`
+	UploaderName       string  `json:"uploader_name"`
+	FileName           string  `json:"file_name"`
+	FileKey            string  `json:"file_key"`
+	FileURL            string  `json:"file_url"`
+	MimeType           string  `json:"mime_type"`
+	SizeBytes          int64   `json:"size_bytes"`
+	CreatedAt          string  `json:"created_at"`
+	IsAnnotation       bool    `json:"is_annotation"`
+	SourceAttachmentID *string `json:"source_attachment_id,omitempty"`
 }
 
 func toAttachmentResponse(a *models.OrderAttachment) attachmentResponse {
@@ -167,15 +191,17 @@ func toAttachmentResponse(a *models.OrderAttachment) attachmentResponse {
 		uploaderID = *a.UploadedBy
 	}
 	return attachmentResponse{
-		ID:           a.ID,
-		OrderID:      a.OrderID,
-		UploadedBy:   uploaderID,
-		UploaderName: a.UploaderName,
-		FileName:     a.FileName,
-		FileKey:      a.FileKey,
-		FileURL:      a.FileURL,
-		MimeType:     a.MimeType,
-		SizeBytes:    a.SizeBytes,
-		CreatedAt:    a.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		ID:                 a.ID,
+		OrderID:            a.OrderID,
+		UploadedBy:         uploaderID,
+		UploaderName:       a.UploaderName,
+		FileName:           a.FileName,
+		FileKey:            a.FileKey,
+		FileURL:            a.FileURL,
+		MimeType:           a.MimeType,
+		SizeBytes:          a.SizeBytes,
+		CreatedAt:          a.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		IsAnnotation:       a.IsAnnotation,
+		SourceAttachmentID: a.SourceAttachmentID,
 	}
 }

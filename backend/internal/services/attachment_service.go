@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 	"unicode"
@@ -61,11 +62,13 @@ type UploadURLResponse struct {
 }
 
 type ConfirmUploadRequest struct {
-	FileName  string `json:"file_name"`
-	FileKey   string `json:"file_key"`
-	FileURL   string `json:"file_url"`
-	MimeType  string `json:"mime_type"`
-	SizeBytes int64  `json:"size_bytes"`
+	FileName           string  `json:"file_name"`
+	FileKey            string  `json:"file_key"`
+	FileURL            string  `json:"file_url"`
+	MimeType           string  `json:"mime_type"`
+	SizeBytes          int64   `json:"size_bytes"`
+	IsAnnotation       bool    `json:"is_annotation,omitempty"`
+	SourceAttachmentID *string `json:"source_attachment_id,omitempty"`
 }
 
 func sanitizeFilename(name string) string {
@@ -195,20 +198,61 @@ func (s *AttachmentService) ConfirmUpload(ctx context.Context, orderID, userID s
 	}
 
 	attachment := &models.OrderAttachment{
-		OrderID:    orderID,
-		EventID:    &ev.ID,
-		UploadedBy: &userID,
-		FileName:   req.FileName,
-		FileKey:    req.FileKey,
-		FileURL:    req.FileURL,
-		MimeType:   req.MimeType,
-		SizeBytes:  req.SizeBytes,
+		OrderID:            orderID,
+		EventID:            &ev.ID,
+		UploadedBy:         &userID,
+		FileName:           req.FileName,
+		FileKey:            req.FileKey,
+		FileURL:            req.FileURL,
+		MimeType:           req.MimeType,
+		SizeBytes:          req.SizeBytes,
+		IsAnnotation:       req.IsAnnotation,
+		SourceAttachmentID: req.SourceAttachmentID,
 	}
 	att, err := s.repo.Create(ctx, attachment)
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// Back-fill att_id + annotation metadata into the event payload
+	payload := map[string]interface{}{
+		"file_name":  req.FileName,
+		"file_key":   req.FileKey,
+		"file_url":   req.FileURL,
+		"mime_type":  req.MimeType,
+		"size_bytes": req.SizeBytes,
+		"att_id":     att.ID,
+	}
+	if req.IsAnnotation {
+		payload["is_annotation"] = true
+		if req.SourceAttachmentID != nil {
+			payload["source_attachment_id"] = *req.SourceAttachmentID
+		}
+	}
+	_ = s.eventRepo.UpdateTypeAndPayload(ctx, ev.ID, models.EvtAttachmentAdded, payload)
+
 	return att, ev, nil
+}
+
+// GetImageContent fetches an R2 object server-side, returning its body and content-type.
+// Used by the proxy endpoint so the browser can draw it onto a canvas without CORS restrictions.
+func (s *AttachmentService) GetImageContent(ctx context.Context, fileKey string) (io.ReadCloser, string, error) {
+	client, err := s.newR2Client(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	result, err := client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.cfg.R2Bucket),
+		Key:    aws.String(fileKey),
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	ct := "image/jpeg"
+	if result.ContentType != nil && *result.ContentType != "" {
+		ct = *result.ContentType
+	}
+	return result.Body, ct, nil
 }
 
 func (s *AttachmentService) ListAttachments(ctx context.Context, orderID string) ([]*models.OrderAttachment, error) {

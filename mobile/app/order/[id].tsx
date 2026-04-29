@@ -3,9 +3,11 @@ import {
   ActivityIndicator, KeyboardAvoidingView, Platform,
   Modal, Image, RefreshControl, TextInput,
 } from 'react-native'
+import { ImageViewerModal } from './_components/ImageViewerModal'
+import { ImageAnnotationSheet } from './_components/ImageAnnotationSheet'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import * as Notifications from 'expo-notifications'
 import { Ionicons } from '@expo/vector-icons'
 
@@ -71,6 +73,12 @@ export default function OrderDetailScreen() {
   }, [id])
 
   const D = useOrderDetail(id)
+  const [imageViewer, setImageViewer] = useState<{
+    uri: string; filename: string; fileSizeBytes?: number
+    onReply?: () => void; onDelete?: () => void; onDownload?: () => void
+    sourceAttachmentId?: string
+  } | null>(null)
+  const [annotation, setAnnotation] = useState<{ src: string; filename: string; sourceAttachmentId?: string } | null>(null)
 
   // ── Loading / error states ─────────────────────────────────────────────
 
@@ -282,6 +290,9 @@ export default function OrderDetailScreen() {
                         portalAttachments={D.portalAttachments}
                         highlighted={D.highlightedEventId === ev.id}
                         attCaption={attCaption}
+                        onPreviewImage={(uri, filename, fileSizeBytes, onReply, onDelete, onDownload, sourceAttachmentId) =>
+                          setImageViewer({ uri, filename, fileSizeBytes, onReply, onDelete, onDownload, sourceAttachmentId })
+                        }
                       />
                     </View>
                   )
@@ -460,6 +471,29 @@ export default function OrderDetailScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {imageViewer && (
+        <ImageViewerModal
+          uri={imageViewer.uri}
+          filename={imageViewer.filename}
+          fileSizeBytes={imageViewer.fileSizeBytes}
+          onClose={() => setImageViewer(null)}
+          onReply={imageViewer.onReply ? () => { setImageViewer(null); imageViewer.onReply!() } : undefined}
+          onDelete={imageViewer.onDelete ? () => { setImageViewer(null); imageViewer.onDelete!() } : undefined}
+          onDownload={imageViewer.onDownload}
+          onAnnotate={() => setAnnotation({ src: imageViewer.uri, filename: imageViewer.filename, sourceAttachmentId: imageViewer.sourceAttachmentId })}
+        />
+      )}
+      {annotation && (
+        <ImageAnnotationSheet
+          src={annotation.src}
+          filename={annotation.filename}
+          orderId={id!}
+          sourceAttachmentId={annotation.sourceAttachmentId}
+          onSaved={() => setAnnotation(null)}
+          onCancel={() => setAnnotation(null)}
+        />
+      )}
     </KeyboardAvoidingView>
   )
 }

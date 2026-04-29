@@ -59,6 +59,7 @@ export const attachmentService = {
 
   confirmUpload: async (orderId: string, data: {
     file_name: string; file_key: string; file_url: string; mime_type: string; size_bytes: number
+    is_annotation?: boolean; source_attachment_id?: string
   }): Promise<Attachment> => {
     const res = await apiClient.post<{ attachment: Attachment }>(`/orders/${orderId}/attachments`, data)
     return res.data.attachment

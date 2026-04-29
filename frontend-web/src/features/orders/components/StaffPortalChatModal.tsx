@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { formatTime } from '../../../utils/date'
 import { staffPortalApi, getPortalURL, type PortalMessage, type PortalAttachment, type PortalStatus } from '../../../services/portalService'
 import { useSocketEvent } from '../../../providers/SocketProvider'
+import { ImageLightboxModal } from '../../../components/ImageLightboxModal'
+import { ImageAnnotationCanvas } from '../../../components/ImageAnnotationCanvas'
 
 interface Props {
   orderId: string
@@ -74,7 +76,8 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
   const [replyText, setReplyText] = useState('')
   const [sending, setSending] = useState(false)
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
-  const [lightbox, setLightbox] = useState<{ src: string; filename: string } | null>(null)
+  const [lightbox, setLightbox] = useState<{ src: string; filename: string; fileSizeBytes: number; msgId: number; attId: number; fileKey?: string } | null>(null)
+  const [annotation, setAnnotation] = useState<{ src: string; filename: string; fileKey?: string } | null>(null)
   const [replyTo, setReplyTo] = useState<PortalMessage | null>(null)
   const [highlightedMsgId, setHighlightedMsgId] = useState<number | null>(null)
   const [dotMenu, setDotMenu] = useState<{ msgId: number; x: number; y: number } | null>(null)
@@ -387,7 +390,7 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
                           <div key={tok.id} style={{ marginTop: parsed.text ? 6 : 0 }}>
                             {isImg && att.view_url ? (
                               <div
-                                onClick={() => setLightbox({ src: att.view_url, filename: att.file_name })}
+                                onClick={() => setLightbox({ src: att.view_url, filename: att.file_name, fileSizeBytes: att.file_size, msgId: msg.id, attId: att.id, fileKey: att.file_key })}
                                 style={{ width: 160, height: 160, borderRadius: 8, overflow: 'hidden', cursor: 'pointer' }}
                               >
                                 <img src={att.view_url} alt={att.file_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -545,17 +548,43 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
 
       {/* Lightbox */}
       {lightbox && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 700, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setLightbox(null)}>
-          <img src={lightbox.src} alt={lightbox.filename} style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: 8 }} onClick={e => e.stopPropagation()} />
-          <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 8 }}>
-            <a href={lightbox.src} download={lightbox.filename} style={{ background: 'rgba(255,255,255,0.9)', borderRadius: 8, padding: 8, display: 'flex', color: '#111' }} onClick={e => e.stopPropagation()}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-            </a>
-            <button style={{ background: 'rgba(255,255,255,0.9)', borderRadius: 8, padding: 8, border: 'none', cursor: 'pointer', display: 'flex', color: '#111' }} onClick={() => setLightbox(null)}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-        </div>
+        <ImageLightboxModal
+          src={lightbox.src}
+          filename={lightbox.filename}
+          fileSizeBytes={lightbox.fileSizeBytes}
+          onClose={() => setLightbox(null)}
+          onReply={() => {
+            const msg = messages.find(m => m.id === lightbox.msgId)
+            setLightbox(null)
+            if (msg) handleSelectReply(msg)
+          }}
+          onDelete={async () => {
+            const msgId = lightbox.msgId
+            setLightbox(null)
+            try {
+              await staffPortalApi.deleteMessage(orderId, msgId)
+              setMessages(prev => prev.filter(m => m.id !== msgId))
+            } catch (_) {}
+          }}
+          onDownload={async () => {
+            try {
+              const url = await staffPortalApi.getAttachmentDownloadURL(orderId, lightbox.attId, lightbox.filename)
+              window.location.href = url
+            } catch { window.location.href = lightbox.src }
+          }}
+          onAnnotate={() => setAnnotation({ src: lightbox.src, filename: lightbox.filename, fileKey: lightbox.fileKey })}
+          zIndex={700}
+        />
+      )}
+      {annotation && (
+        <ImageAnnotationCanvas
+          src={annotation.src}
+          filename={annotation.filename}
+          orderId={orderId}
+          fileKey={annotation.fileKey}
+          onSaved={() => setAnnotation(null)}
+          onCancel={() => setAnnotation(null)}
+        />
       )}
     </div>
   )
