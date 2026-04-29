@@ -1,9 +1,9 @@
 import { useRef, useState, useEffect } from 'react'
 import {
   View, Text, Modal, TouchableOpacity, StyleSheet,
-  PanResponder, Dimensions, ActivityIndicator, Alert, Platform,
+  PanResponder, Dimensions, ActivityIndicator, Alert, Platform, Image,
 } from 'react-native'
-import Svg, { Path, Ellipse, Rect as SvgRect, Image as SvgImage } from 'react-native-svg'
+import Svg, { Path, Ellipse, Rect as SvgRect } from 'react-native-svg'
 import * as FileSystem from 'expo-file-system/legacy'
 import { captureRef } from 'react-native-view-shot'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -130,7 +130,7 @@ export function ImageAnnotationSheet({ src, filename, orderId, sourceAttachmentI
 
         // Draw background image (works if imgDataUri is a data: URI or if R2 returns CORS headers)
         try {
-          const img = new Image()
+          const img = document.createElement('img')
           img.crossOrigin = 'anonymous'
           await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; img.src = imgDataUri! })
           ctx.drawImage(img, 0, 0, CANVAS_W, CANVAS_H)
@@ -266,16 +266,17 @@ export function ImageAnnotationSheet({ src, filename, orderId, sourceAttachmentI
 
         {/* Drawing area */}
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <View ref={viewRef} style={{ width: CANVAS_W, height: CANVAS_H, backgroundColor: '#000' }}>
-            {/* Single View with panHandlers so locationX/Y are always in canvas coords */}
+          {/* collapsable={false} ensures Android doesn't elide this layer for captureRef */}
+          <View ref={viewRef} collapsable={false} style={{ width: CANVAS_W, height: CANVAS_H, backgroundColor: '#000' }}>
+            {/* RN Image as background — captureRef captures it reliably unlike SvgImage */}
+            <Image
+              source={{ uri: imgDataUri }}
+              style={StyleSheet.absoluteFillObject}
+              resizeMode="contain"
+            />
+            {/* SVG overlay for strokes only; pan handlers here so coords stay in canvas space */}
             <View style={StyleSheet.absoluteFillObject} {...panResponder.panHandlers}>
               <Svg width={CANVAS_W} height={CANVAS_H}>
-                <SvgImage
-                  href={imgDataUri}
-                  x={0} y={0}
-                  width={CANVAS_W} height={CANVAS_H}
-                  preserveAspectRatio="xMidYMid meet"
-                />
                 {allStrokes.map((s, i) => renderStroke(s, i))}
               </Svg>
             </View>
