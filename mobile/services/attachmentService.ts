@@ -53,8 +53,8 @@ function uploadToR2Web(uploadUrl: string, uri: string, mimeType: string, onProgr
 }
 
 async function uploadToR2Native(uploadUrl: string, uri: string, mimeType: string, onProgress: (pct: number) => void): Promise<void> {
-  // Ensure the URI has the file:// scheme that expo-file-system requires
-  const fileUri = uri.startsWith('file://') ? uri : `file://${uri}`
+  // Ensure the URI has the file:// scheme or content:// scheme
+  const fileUri = uri.startsWith('file://') || uri.startsWith('content://') ? uri : `file://${uri}`
 
   // Verify the file exists before attempting upload
   const info = await FileSystem.getInfoAsync(fileUri)
@@ -62,24 +62,35 @@ async function uploadToR2Native(uploadUrl: string, uri: string, mimeType: string
     throw new Error('File not found at the given path')
   }
 
-  const task = FileSystem.createUploadTask(
-    uploadUrl,
-    fileUri,
-    {
-      httpMethod: 'PUT',
-      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-      sessionType: FileSystem.FileSystemSessionType.FOREGROUND,
-      headers: { 'Content-Type': mimeType },
-    },
-    (data) => {
-      if (data.totalBytesExpectedToSend > 0) {
-        onProgress(Math.round((data.totalBytesSent / data.totalBytesExpectedToSend) * 100))
+  // Use the same XMLHttpRequest approach as the web. 
+  // expo-file-system's createUploadTask on Android often strips Content-Type 
+  // or mangles the presigned URL query parameters, causing R2 to return 403.
+  // React Native's fetch and XHR support local file URIs and raw binary PUTs natively.
+  try {
+    const response = await fetch(fileUri)
+    const blob = await response.blob()
+
+    return new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('PUT', uploadUrl)
+      xhr.setRequestHeader('Content-Type', mimeType)
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          onProgress(Math.round((e.loaded / e.total) * 100))
+        }
       }
-    },
-  )
-  const result = await task.uploadAsync()
-  if (!result || result.status < 200 || result.status >= 300) {
-    throw new Error(`Upload failed: ${result?.status ?? 'no response'}`)
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve()
+        } else {
+          reject(new Error(`Upload failed: ${xhr.status}`))
+        }
+      }
+      xhr.onerror = () => reject(new Error('Upload failed'))
+      xhr.send(blob)
+    })
+  } catch (err) {
+    throw new Error(`Upload failed: ${err instanceof Error ? err.message : String(err)}`)
   }
 }
 
