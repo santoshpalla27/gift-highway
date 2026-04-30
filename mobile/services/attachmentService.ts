@@ -53,9 +53,18 @@ function uploadToR2Web(uploadUrl: string, uri: string, mimeType: string, onProgr
 }
 
 async function uploadToR2Native(uploadUrl: string, uri: string, mimeType: string, onProgress: (pct: number) => void): Promise<void> {
+  // Ensure the URI has the file:// scheme that expo-file-system requires
+  const fileUri = uri.startsWith('file://') ? uri : `file://${uri}`
+
+  // Verify the file exists before attempting upload
+  const info = await FileSystem.getInfoAsync(fileUri)
+  if (!info.exists) {
+    throw new Error('File not found at the given path')
+  }
+
   const task = FileSystem.createUploadTask(
     uploadUrl,
-    uri,
+    fileUri,
     {
       httpMethod: 'PUT',
       uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,

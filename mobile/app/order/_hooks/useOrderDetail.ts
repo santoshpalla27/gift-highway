@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { ScrollView, Alert, Keyboard } from 'react-native'
+import { ScrollView, Alert, Keyboard, Platform } from 'react-native'
 import { orderService, type Order, type OrderEvent, type UserOption } from '../../../services/orderService'
 import { attachmentService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from '../../../services/attachmentService'
 import { staffPortalApi, type PortalStatus, type PortalMessage, type PortalAttachment } from '../../../services/portalService'
@@ -10,6 +10,7 @@ import { useNetworkStatus } from '../../../hooks/useNetworkStatus'
 import { useOrderSocket } from '../../../hooks/useOrderSocket'
 import * as ImagePicker from 'expo-image-picker'
 import * as DocumentPicker from 'expo-document-picker'
+import * as FileSystem from 'expo-file-system/legacy'
 
 const LIMIT = 30
 
@@ -565,10 +566,41 @@ export function useOrderDetail(orderId: string | undefined) {
   const handlePickImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== 'granted') { Alert.alert('Permission required', 'Allow photo access to upload images.'); return }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsMultipleSelection: true, quality: 0.85 })
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'] as ImagePicker.MediaType[],
+      allowsMultipleSelection: true,
+      quality: 0.85,
+    })
     if (!result.canceled) {
       for (const asset of result.assets) {
-        await uploadFile(asset.uri, asset.fileName ?? `photo-${Date.now()}.jpg`, asset.mimeType ?? 'image/jpeg', asset.fileSize ?? 0)
+        // Normalize URI — expo-file-system requires file:// prefix on native
+        const uri = (Platform.OS !== 'web' && !asset.uri.startsWith('file://')) ? `file://${asset.uri}` : asset.uri
+
+        // Infer MIME type from extension when the picker doesn't provide it
+        let mimeType = asset.mimeType
+        if (!mimeType) {
+          const ext = (asset.uri.split('.').pop() ?? '').toLowerCase()
+          const mimeMap: Record<string, string> = {
+            jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+            webp: 'image/webp', heic: 'image/jpeg', heif: 'image/jpeg',
+          }
+          mimeType = mimeMap[ext] ?? 'image/jpeg'
+        }
+
+        // Get reliable file size via FileSystem — asset.fileSize is often 0/undefined
+        let size = asset.fileSize ?? 0
+        if ((!size || size === 0) && Platform.OS !== 'web') {
+          try {
+            const info = await FileSystem.getInfoAsync(uri)
+            if (info.exists && info.size) size = info.size
+          } catch { /* use fallback */ }
+        }
+
+        // Build a sensible filename
+        const fileExt = (asset.uri.split('.').pop() ?? 'jpg').toLowerCase()
+        const fileName = asset.fileName ?? `photo-${Date.now()}.${fileExt}`
+
+        await uploadFile(uri, fileName, mimeType, size)
       }
     }
   }, [uploadFile])
@@ -577,7 +609,19 @@ export function useOrderDetail(orderId: string | undefined) {
     const result = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true })
     if (!result.canceled) {
       for (const asset of result.assets) {
-        await uploadFile(asset.uri, asset.name, asset.mimeType ?? 'application/octet-stream', asset.size ?? 0)
+        // Normalize URI for native platforms
+        const uri = (Platform.OS !== 'web' && !asset.uri.startsWith('file://')) ? `file://${asset.uri}` : asset.uri
+
+        // Get reliable file size via FileSystem when document picker returns 0
+        let size = asset.size ?? 0
+        if ((!size || size === 0) && Platform.OS !== 'web') {
+          try {
+            const info = await FileSystem.getInfoAsync(uri)
+            if (info.exists && info.size) size = info.size
+          } catch { /* use fallback */ }
+        }
+
+        await uploadFile(uri, asset.name, asset.mimeType ?? 'application/octet-stream', size)
       }
     }
   }, [uploadFile])
