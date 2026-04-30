@@ -14,7 +14,11 @@ export interface Attachment {
 }
 
 export const ALLOWED_MIME_TYPES = [
-  'image/jpeg', 'image/png', 'image/webp',
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp', 'image/tiff', 'image/svg+xml',
+  'image/vnd.adobe.photoshop', 'application/x-photoshop',
+  'image/x-cdr', 'application/x-coreldraw', 'application/cdr',
+  'application/dxf', 'image/vnd.dxf', 'application/x-dxf',
+  'application/zip',
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -24,8 +28,35 @@ export const ALLOWED_MIME_TYPES = [
 
 export const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
 
+const BROWSER_RENDERABLE_IMAGE_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+  'image/bmp', 'image/svg+xml', 'image/tiff',
+])
+
 export function isImage(mimeType: string) {
-  return mimeType.startsWith('image/')
+  return BROWSER_RENDERABLE_IMAGE_TYPES.has(mimeType)
+}
+
+const EXT_TO_MIME: Record<string, string> = {
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp',
+  '.bmp': 'image/bmp', '.tiff': 'image/tiff', '.tif': 'image/tiff',
+  '.svg': 'image/svg+xml',
+  '.psd': 'image/vnd.adobe.photoshop',
+  '.cdr': 'image/x-cdr',
+  '.dxf': 'application/dxf',
+  '.zip': 'application/zip',
+  '.pdf': 'application/pdf',
+  '.doc': 'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.txt': 'text/plain',
+}
+
+export function resolveFileMime(file: File): string {
+  if (file.type && file.type !== 'application/octet-stream') return file.type
+  const ext = '.' + (file.name.split('.').pop() ?? '').toLowerCase()
+  return EXT_TO_MIME[ext] ?? file.type
 }
 
 export function formatBytes(bytes: number): string {
@@ -43,11 +74,11 @@ export const attachmentService = {
     return res.data
   },
 
-  uploadToR2: (uploadUrl: string, file: File, onProgress: (pct: number) => void): Promise<void> => {
+  uploadToR2: (uploadUrl: string, file: File, mimeType: string, onProgress: (pct: number) => void): Promise<void> => {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest()
       xhr.open('PUT', uploadUrl)
-      xhr.setRequestHeader('Content-Type', file.type)
+      xhr.setRequestHeader('Content-Type', mimeType)
       xhr.upload.onprogress = e => {
         if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
       }

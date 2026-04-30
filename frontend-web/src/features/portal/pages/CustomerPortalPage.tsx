@@ -16,7 +16,7 @@ function formatSize(bytes: number) {
 }
 
 const isImageType = (ext: string) =>
-  ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic'].includes(ext.toLowerCase())
+  ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.svg', '.tiff', '.tif'].includes(ext.toLowerCase())
 
 interface StagedFile {
   file: File
@@ -189,7 +189,7 @@ export default function CustomerPortalPage() {
   }, [])
 
   const stageFiles = (files: File[]) => {
-    const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.docx', '.doc', '.xlsx', '.txt', '.csv', '.zip']
+    const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.tif', '.svg', '.psd', '.cdr', '.dxf', '.pdf', '.docx', '.doc', '.xlsx', '.txt', '.csv', '.zip']
     const valid = files.filter(f => allowed.includes('.' + f.name.split('.').pop()?.toLowerCase()))
     if (!valid.length) return
     const newStaged: StagedFile[] = valid.map(f => {
@@ -671,7 +671,7 @@ export default function CustomerPortalPage() {
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/*,.pdf,.doc,.docx,.txt,.xlsx,.csv,.zip"
+          accept="image/*,.pdf,.doc,.docx,.txt,.xlsx,.csv,.zip,.svg,.tiff,.tif,.psd,.cdr,.dxf"
           className="hidden"
           onChange={(e) => { if (e.target.files) { stageFiles(Array.from(e.target.files)); e.target.value = '' } }}
         />

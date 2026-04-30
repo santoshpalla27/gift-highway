@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { ScrollView, Alert, Keyboard, Platform } from 'react-native'
 import { orderService, type Order, type OrderEvent, type UserOption } from '../../../services/orderService'
-import { attachmentService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from '../../../services/attachmentService'
+import { attachmentService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE, resolveFileMime, isImage } from '../../../services/attachmentService'
 import { staffPortalApi, type PortalStatus, type PortalMessage, type PortalAttachment } from '../../../services/portalService'
 import { notificationService } from '../../../services/notificationService'
 import { markNotificationOrderRead } from '../../../hooks/useNotifications'
@@ -548,12 +548,13 @@ export function useOrderDetail(orderId: string | undefined) {
     }
   }, [orderId])
 
-  const uploadFile = useCallback(async (uri: string, name: string, mimeType: string, size: number) => {
+  const uploadFile = useCallback(async (uri: string, name: string, rawMime: string, size: number) => {
     if (!orderId) return
+    const mimeType = resolveFileMime(name, rawMime)
     if (!ALLOWED_MIME_TYPES.includes(mimeType)) { Alert.alert('Error', `"${name}" has an unsupported file type.`); return }
     if (size > MAX_FILE_SIZE) { Alert.alert('Error', `"${name}" exceeds the 50 MB limit.`); return }
     const uid = `upload-${Date.now()}`
-    setUploadingFiles(prev => [...prev, { id: uid, name, mime: mimeType, progress: 0, previewUri: mimeType.startsWith('image/') ? uri : undefined, retryArgs: { uri, mimeType, size } }])
+    setUploadingFiles(prev => [...prev, { id: uid, name, mime: mimeType, progress: 0, previewUri: isImage(mimeType) ? uri : undefined, retryArgs: { uri, mimeType, size } }])
     runUpload(uid, uri, name, mimeType, size)
   }, [orderId, runUpload])
 

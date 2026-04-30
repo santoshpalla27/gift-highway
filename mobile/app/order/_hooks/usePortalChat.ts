@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { ScrollView, Alert } from 'react-native'
 import { staffPortalApi, type PortalMessage, type PortalAttachment } from '../../../services/portalService'
-import { attachmentService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from '../../../services/attachmentService'
+import { attachmentService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE, resolveFileMime, isImage } from '../../../services/attachmentService'
 import * as ImagePicker from 'expo-image-picker'
 import * as DocumentPicker from 'expo-document-picker'
 import { parsePortalMsg, getPortalMsgPreview } from './useOrderDetail'
@@ -105,11 +105,12 @@ export function usePortalChat(orderId: string, initialAttachments: PortalAttachm
     }
   }, [orderId, load])
 
-  const uploadPortalFile = useCallback(async (uri: string, name: string, mimeType: string, size: number) => {
+  const uploadPortalFile = useCallback(async (uri: string, name: string, rawMime: string, size: number) => {
+    const mimeType = resolveFileMime(name, rawMime)
     if (!ALLOWED_MIME_TYPES.includes(mimeType)) { Alert.alert('Error', `"${name}" has an unsupported file type.`); return }
     if (size > MAX_FILE_SIZE) { Alert.alert('Error', `"${name}" exceeds the 50 MB limit.`); return }
     const uid = `portal-${Date.now()}`
-    setUploadingFiles(prev => [...prev, { id: uid, name, mime: mimeType, progress: 0, previewUri: mimeType.startsWith('image/') ? uri : undefined }])
+    setUploadingFiles(prev => [...prev, { id: uid, name, mime: mimeType, progress: 0, previewUri: isImage(mimeType) ? uri : undefined }])
     runPortalUpload(uid, uri, name, mimeType, size)
   }, [runPortalUpload])
 

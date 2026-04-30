@@ -5,7 +5,7 @@ import { formatDate, formatRelative, formatDayGroup, fmt12hrStr } from '../../..
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { orderService, OrderEvent, UserOption } from '../../../services/orderService'
-import { attachmentService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE, isImage, formatBytes } from '../../../services/attachmentService'
+import { attachmentService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE, isImage, formatBytes, resolveFileMime } from '../../../services/attachmentService'
 import { useUpdateOrderStatus } from '../hooks/useOrders'
 import { OrderModal } from '../components/OrderModal'
 import { useAuthStore } from '../../../store/authStore'
@@ -153,12 +153,12 @@ function getPortalMsgThumb(msg: PortalMessage, atts: PortalAttachment[]): string
   const m = msg.message.match(/\[attachment:(\d+):.+?\]/)
   if (!m) return null
   const att = atts.find(a => a.id === parseInt(m[1]))
-  const imgExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic']
+  const imgExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.svg', '.tiff', '.tif']
   if (att && imgExts.includes(att.file_type.toLowerCase()) && att.view_url) return att.view_url
   return null
 }
 
-const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic']
+const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.svg', '.tiff', '.tif']
 function isImgExt(name: string) { return IMG_EXTS.includes(('.' + (name.split('.').pop() ?? '')).toLowerCase()) }
 
 function getEventThumb(event: LocalOrderEvent, portalAttachments?: PortalAttachment[]): string | null {
@@ -1424,13 +1424,14 @@ export function OrderDetailPage() {
   // ── File upload ─────────────────────────────────────────────────────────────
   const runUpload = async (uid: string, file: File) => {
     if (!id) return
+    const mime = resolveFileMime(file)
     try {
-      const { upload_url, file_key, file_url } = await attachmentService.getUploadURL(id, file.name, file.type, file.size)
-      await attachmentService.uploadToR2(upload_url, file, pct => {
+      const { upload_url, file_key, file_url } = await attachmentService.getUploadURL(id, file.name, mime, file.size)
+      await attachmentService.uploadToR2(upload_url, file, mime, pct => {
         setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, progress: pct } : f))
       })
       await attachmentService.confirmUpload(id, {
-        file_name: file.name, file_key, file_url, mime_type: file.type, size_bytes: file.size,
+        file_name: file.name, file_key, file_url, mime_type: mime, size_bytes: file.size,
       })
       setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, done: true, progress: 100 } : f))
       setTimeout(() => {
@@ -1448,7 +1449,8 @@ export function OrderDetailPage() {
   const uploadFiles = async (files: FileList | File[]) => {
     if (!id) return
     for (const file of Array.from(files)) {
-      if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      const mime = resolveFileMime(file)
+      if (!ALLOWED_MIME_TYPES.includes(mime)) {
         alert(`"${file.name}" has an unsupported file type.`)
         continue
       }
@@ -1457,8 +1459,8 @@ export function OrderDetailPage() {
         continue
       }
       const uid = `upload-${Date.now()}-${Math.random()}`
-      const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
-      setUploadingFiles(prev => [...prev, { id: uid, name: file.name, mime: file.type, progress: 0, previewUrl, file }])
+      const previewUrl = isImage(mime) ? URL.createObjectURL(file) : undefined
+      setUploadingFiles(prev => [...prev, { id: uid, name: file.name, mime, progress: 0, previewUrl, file }])
       runUpload(uid, file)
     }
   }
@@ -1907,7 +1909,7 @@ export function OrderDetailPage() {
               ref={fileInputRef}
               type="file"
               multiple
-              accept={ALLOWED_MIME_TYPES.join(',')}
+              accept={[...ALLOWED_MIME_TYPES, '.cdr', '.dxf', '.psd', '.tiff', '.tif', '.svg', '.bmp', '.gif', '.zip'].join(',')}
               style={{ display: 'none' }}
               onChange={handleFileInputChange}
             />

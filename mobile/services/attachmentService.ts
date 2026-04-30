@@ -16,7 +16,11 @@ export interface Attachment {
 }
 
 export const ALLOWED_MIME_TYPES = [
-  'image/jpeg', 'image/png', 'image/webp',
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp', 'image/tiff', 'image/svg+xml',
+  'image/vnd.adobe.photoshop', 'application/x-photoshop',
+  'image/x-cdr', 'application/x-coreldraw', 'application/cdr',
+  'application/dxf', 'image/vnd.dxf', 'application/x-dxf',
+  'application/zip',
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -26,8 +30,34 @@ export const ALLOWED_MIME_TYPES = [
 
 export const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
 
+const NATIVE_RENDERABLE_IMAGE_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp',
+])
+
 export function isImage(mimeType: string) {
-  return mimeType.startsWith('image/')
+  return NATIVE_RENDERABLE_IMAGE_TYPES.has(mimeType)
+}
+
+const EXT_TO_MIME: Record<string, string> = {
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp',
+  '.bmp': 'image/bmp', '.tiff': 'image/tiff', '.tif': 'image/tiff',
+  '.svg': 'image/svg+xml',
+  '.psd': 'image/vnd.adobe.photoshop',
+  '.cdr': 'image/x-cdr',
+  '.dxf': 'application/dxf',
+  '.zip': 'application/zip',
+  '.pdf': 'application/pdf',
+  '.doc': 'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.txt': 'text/plain',
+}
+
+export function resolveFileMime(fileName: string, reportedMime?: string): string {
+  if (reportedMime && reportedMime !== 'application/octet-stream') return reportedMime
+  const ext = '.' + (fileName.split('.').pop() ?? '').toLowerCase()
+  return EXT_TO_MIME[ext] ?? reportedMime ?? 'application/octet-stream'
 }
 
 export function formatBytes(bytes: number): string {

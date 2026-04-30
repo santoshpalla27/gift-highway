@@ -9,7 +9,7 @@ import { router } from 'expo-router'
 import { useShareIntentContext } from 'expo-share-intent'
 import { useAuthStore } from '../store/authStore'
 import { orderService, Order } from '../services/orderService'
-import { attachmentService, formatBytes } from '../services/attachmentService'
+import { attachmentService, formatBytes, resolveFileMime } from '../services/attachmentService'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -93,7 +93,7 @@ export default function ShareScreen() {
 
     const initial: FileProgress[] = sharedFiles.map(f => ({
       fileName:  f.fileName ?? 'file',
-      mimeType:  f.mimeType ?? 'application/octet-stream',
+      mimeType:  resolveFileMime(f.fileName ?? 'file', f.mimeType),
       sizeBytes: f.size ?? 0,
       progress:  0,
       done:      false,
@@ -107,7 +107,7 @@ export default function ShareScreen() {
     for (let i = 0; i < sharedFiles.length; i++) {
       const file     = sharedFiles[i]
       const fileName = file.fileName ?? `file_${i + 1}`
-      const mimeType = file.mimeType ?? 'application/octet-stream'
+      const mimeType = resolveFileMime(fileName, file.mimeType)
       const fileSize = file.size ?? 0
 
       const update = (patch: Partial<FileProgress>) =>
