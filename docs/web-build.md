@@ -77,3 +77,11 @@ docker push santoshpalla27/company-app:monitor
 # Server
 docker compose pull monitor && docker compose up -d --force-recreate monitor
 ```
+
+docker compose pull backend && docker compose up -d --force-recreate backend
+
+docker compose pull frontend && docker compose up -d --force-recreate frontend
+
+docker compose pull monitor && docker compose up -d --force-recreate monitor
+
+docker compose pull push-service && docker compose up -d --force-recreate push-service
