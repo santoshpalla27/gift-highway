@@ -102,6 +102,9 @@ func (s *AuthService) Login(ctx context.Context, req LoginRequest, userAgent, ip
 }
 
 func (s *AuthService) Logout(ctx context.Context, refreshTokenHash string, userID string) error {
+	if refreshTokenHash != "" {
+		return s.userRepo.RevokeRefreshToken(ctx, refreshTokenHash)
+	}
 	return s.userRepo.RevokeAllUserTokens(ctx, userID)
 }
 

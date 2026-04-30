@@ -6,10 +6,10 @@ import { queryClient } from '../../../services/queryClient'
 
 export function useLogout() {
   const navigate = useNavigate()
-  const { clearAuth } = useAuthStore()
+  const { clearAuth, refreshToken } = useAuthStore()
 
   return useMutation({
-    mutationFn: authService.logout,
+    mutationFn: () => authService.logout(refreshToken ?? ''),
     onSettled: () => {
       clearAuth()
       queryClient.clear()

@@ -46,7 +46,19 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 func (h *AuthHandler) Logout(c *gin.Context) {
 	userID, _ := c.Get("user_id")
-	if err := h.authService.Logout(c.Request.Context(), "", userID.(string)); err != nil {
+
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	_ = c.ShouldBindJSON(&req)
+
+	var tokenHash string
+	if req.RefreshToken != "" {
+		h2 := sha256.Sum256([]byte(req.RefreshToken))
+		tokenHash = hex.EncodeToString(h2[:])
+	}
+
+	if err := h.authService.Logout(c.Request.Context(), tokenHash, userID.(string)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "logout failed"})
 		return
 	}

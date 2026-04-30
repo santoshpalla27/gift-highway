@@ -193,7 +193,7 @@ function AvatarSection({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets()
-  const { user, clearAuth } = useAuthStore()
+  const { user, clearAuth, refreshToken } = useAuthStore()
 
   const [profile, setProfile] = useState<Profile | null>(null)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
@@ -281,7 +281,7 @@ export default function SettingsScreen() {
   const handleLogout = async () => {
     const performLogout = async () => {
       try {
-        await authService.logout()
+        await authService.logout(refreshToken ?? '')
       } catch {}
       await clearAuth()
       router.replace('/(auth)/login')
