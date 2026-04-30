@@ -2,11 +2,13 @@ package v1
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/company/app/backend/internal/realtime"
+	"github.com/company/app/backend/internal/repositories"
 	"github.com/company/app/backend/internal/services"
 	"github.com/company/app/backend/internal/utils"
 	"github.com/gin-gonic/gin"
@@ -504,6 +506,33 @@ func (h *PortalHandler) StaffConfirmAttachment(c *gin.Context) {
 	})
 }
 
+func (h *PortalHandler) ProxyPortalImage(c *gin.Context) {
+	token := c.Param("token")
+	attIDStr := c.Query("id")
+	attID, err := strconv.ParseInt(attIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid attachment id"})
+		return
+	}
+	body, contentType, err := h.svc.ProxyAttachmentImage(c.Request.Context(), token, attID)
+	if err != nil {
+		if errors.Is(err, services.ErrPortalNotFound) || errors.Is(err, services.ErrPortalDisabled) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or inactive portal link"})
+			return
+		}
+		if errors.Is(err, repositories.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "attachment not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to proxy image"})
+		return
+	}
+	defer body.Close()
+	c.Header("Content-Type", contentType)
+	c.Header("Cache-Control", "private, max-age=3600")
+	io.Copy(c.Writer, body) //nolint:errcheck
+}
+
 func (h *PortalHandler) StaffGetAttachmentDownloadURL(c *gin.Context) {
 	attIDStr := c.Param("attId")
 	attID, err := strconv.ParseInt(attIDStr, 10, 64)
@@ -518,4 +547,27 @@ func (h *PortalHandler) StaffGetAttachmentDownloadURL(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"url": url})
+}
+
+func (h *PortalHandler) StaffProxyPortalImage(c *gin.Context) {
+	orderID := c.Param("id")
+	attIDStr := c.Param("attId")
+	attID, err := strconv.ParseInt(attIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid attachment id"})
+		return
+	}
+	body, contentType, err := h.svc.StaffProxyAttachmentImage(c.Request.Context(), orderID, attID)
+	if err != nil {
+		if errors.Is(err, repositories.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "attachment not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to proxy image"})
+		return
+	}
+	defer body.Close()
+	c.Header("Content-Type", contentType)
+	c.Header("Cache-Control", "private, max-age=3600")
+	io.Copy(c.Writer, body) //nolint:errcheck
 }

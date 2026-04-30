@@ -4,7 +4,6 @@ import {
   Image, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Share, Linking,
 } from 'react-native'
 import { ImageViewerModal } from '../_components/ImageViewerModal'
-import { ImageAnnotationSheet } from '../_components/ImageAnnotationSheet'
 import { formatRelative } from '../../../utils/date'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -27,7 +26,7 @@ function getInitials(name: string) {
 
 // ─── Main sheet ───────────────────────────────────────────────────────────────
 
-export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, onPortalChange, onAttachmentsChange, refreshRef }: {
+export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, onPortalChange, onAttachmentsChange, refreshRef, onRequestAnnotation }: {
   orderId: string
   portal: PortalStatus
   portalAttachments: PortalAttachment[]
@@ -35,6 +34,7 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
   onPortalChange: (p: PortalStatus | null) => void
   onAttachmentsChange: (a: PortalAttachment[]) => void
   refreshRef: React.MutableRefObject<(() => void) | null>
+  onRequestAnnotation?: (src: string, filename: string, sourceAttachmentId?: string, staffPortalOrderId?: string) => void
 }) {
   const insets = useSafeAreaInsets()
   const [showOptions, setShowOptions] = React.useState(false)
@@ -43,8 +43,8 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
   const [deleteConfirmMsg, setDeleteConfirmMsg] = React.useState<(typeof chat.messages)[0] | null>(null)
   const [imageViewer, setImageViewer] = useState<{
     uri: string; filename: string; fileSizeBytes?: number; msgId: number; onDownload?: () => void
+    sourceAttachmentId?: string
   } | null>(null)
-  const [annotation, setAnnotation] = useState<{ src: string; filename: string } | null>(null)
 
   const chat = usePortalChat(orderId, portalAttachments, onAttachmentsChange, refreshRef)
 
@@ -174,6 +174,7 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
                               <TouchableOpacity
                                 onPress={() => setImageViewer({
                                   uri: att.view_url, filename: att.file_name, fileSizeBytes: att.file_size, msgId: msg.id,
+                                  sourceAttachmentId: String(att.id),
                                   onDownload: async () => { try { const url = await staffPortalApi.getAttachmentDownloadURL(orderId, att.id, att.file_name); Linking.openURL(url) } catch { Linking.openURL(att.view_url) } },
                                 })}
                                 activeOpacity={0.85}
@@ -366,16 +367,7 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
             if (msg) setDeleteConfirmMsg(msg)
           }}
           onDownload={imageViewer.onDownload}
-          onAnnotate={() => setAnnotation({ src: imageViewer.uri, filename: imageViewer.filename })}
-        />
-      )}
-      {annotation && (
-        <ImageAnnotationSheet
-          src={annotation.src}
-          filename={annotation.filename}
-          orderId={orderId}
-          onSaved={() => setAnnotation(null)}
-          onCancel={() => setAnnotation(null)}
+          onAnnotate={() => onRequestAnnotation?.(imageViewer.uri, imageViewer.filename, imageViewer.sourceAttachmentId, orderId)}
         />
       )}
     </Modal>

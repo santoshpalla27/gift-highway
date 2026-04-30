@@ -8,6 +8,8 @@ import * as FileSystem from 'expo-file-system/legacy'
 import { captureRef } from 'react-native-view-shot'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { attachmentService } from '../../../services/attachmentService'
+import { staffPortalApi } from '../../../services/portalService'
+import { apiClient } from '../../../services/apiClient'
 
 type Tool = 'pen' | 'arrow' | 'circle' | 'rect'
 interface Point { x: number; y: number }
@@ -31,11 +33,12 @@ interface Props {
   filename: string
   orderId: string
   sourceAttachmentId?: string
+  staffPortalOrderId?: string
   onSaved: () => void
   onCancel: () => void
 }
 
-export function ImageAnnotationSheet({ src, filename, orderId, sourceAttachmentId, onSaved, onCancel }: Props) {
+export function ImageAnnotationSheet({ src, filename, orderId, sourceAttachmentId, staffPortalOrderId, onSaved, onCancel }: Props) {
   const insets = useSafeAreaInsets()
   // base64 data URI embedded inline — SvgImage renders it synchronously with no async layer issues
   const [imgDataUri, setImgDataUri] = useState<string | null>(null)
@@ -53,9 +56,14 @@ export function ImageAnnotationSheet({ src, filename, orderId, sourceAttachmentI
 
   useEffect(() => {
     if (Platform.OS === 'web') {
-      // FileSystem is not available on web — try fetching as blob for a data URI
-      fetch(src)
-        .then(r => r.blob())
+      // On web, fetch as data URI to avoid R2 CORS restrictions when drawing on canvas.
+      // Portal attachments: use the staff proxy endpoint (auth'd, no CORS issues).
+      // Regular attachments: fetch the presigned URL directly (works if R2 CORS allows it).
+      const load = staffPortalOrderId && sourceAttachmentId
+        ? apiClient.get(`/orders/${staffPortalOrderId}/portal/attachments/${sourceAttachmentId}/proxy-image`, { responseType: 'blob' })
+            .then(r => r.data as Blob)
+        : fetch(src).then(r => r.blob())
+      load
         .then(blob => new Promise<string>((res, rej) => {
           const reader = new FileReader()
           reader.onload = () => res(reader.result as string)
@@ -120,30 +128,50 @@ export function ImageAnnotationSheet({ src, filename, orderId, sourceAttachmentI
       const annotatedName = `annotated_${baseName}.${outExt}`
 
       if (Platform.OS === 'web') {
-        // captureRef is native-only — use Canvas 2D API on web
+        // Load image element to get natural dimensions (imgDataUri is a data URI — no CORS issue)
+        const img = document.createElement('img')
+        await new Promise<void>(res => {
+          img.onload = () => res()
+          img.onerror = () => res()
+          img.src = imgDataUri!
+          if (img.complete) res()
+        })
+
+        const nw = img.naturalWidth || CANVAS_W
+        const nh = img.naturalHeight || CANVAS_H
+
+        // Contain-mode layout: how the image fits inside CANVAS_W × CANVAS_H
+        const scale = Math.min(CANVAS_W / nw, CANVAS_H / nh)
+        const dispW = nw * scale
+        const dispH = nh * scale
+        const offsetX = (CANVAS_W - dispW) / 2
+        const offsetY = (CANVAS_H - dispH) / 2
+        // inv transforms a View-space coord to natural-image-space coord
+        const inv = 1 / scale
+        const tp = (p: Point) => ({ x: (p.x - offsetX) * inv, y: (p.y - offsetY) * inv })
+
+        // Export at natural image resolution — no stretching, no letterbox bars
         const canvas = document.createElement('canvas')
-        canvas.width = CANVAS_W
-        canvas.height = CANVAS_H
+        canvas.width = nw
+        canvas.height = nh
         const ctx = canvas.getContext('2d')!
-        ctx.fillStyle = '#000'
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-        // Draw background image (works if imgDataUri is a data: URI or if R2 returns CORS headers)
-        try {
-          const img = document.createElement('img')
-          img.crossOrigin = 'anonymous'
-          await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; img.src = imgDataUri! })
-          ctx.drawImage(img, 0, 0, CANVAS_W, CANVAS_H)
-        } catch { /* CORS not configured — strokes will render on dark background */ }
+        if (img.naturalWidth > 0) {
+          ctx.drawImage(img, 0, 0, nw, nh)
+        } else {
+          ctx.fillStyle = '#000'
+          ctx.fillRect(0, 0, nw, nh)
+        }
 
-        // Re-draw all strokes via Canvas 2D
-        ctx.lineWidth = STROKE_W
+        // Re-draw strokes with coordinate transform: View space → natural image space
+        const sw = STROKE_W * inv
         ctx.lineCap = 'round'
         ctx.lineJoin = 'round'
         for (const s of strokes) {
-          const pts = s.points
+          const pts = s.points.map(tp)
           if (pts.length < 2) continue
           ctx.strokeStyle = s.color
+          ctx.lineWidth = sw
           if (s.tool === 'pen') {
             ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y)
             for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
@@ -151,7 +179,7 @@ export function ImageAnnotationSheet({ src, filename, orderId, sourceAttachmentI
           } else if (s.tool === 'arrow') {
             const [a, b] = [pts[0], pts[pts.length - 1]]
             const angle = Math.atan2(b.y - a.y, b.x - a.x)
-            const head = Math.max(14, STROKE_W * 4)
+            const head = Math.max(14, STROKE_W * 4) * inv
             ctx.beginPath()
             ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y)
             ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - head * Math.cos(angle - Math.PI / 6), b.y - head * Math.sin(angle - Math.PI / 6))
@@ -172,13 +200,23 @@ export function ImageAnnotationSheet({ src, filename, orderId, sourceAttachmentI
           canvas.toBlob(b => b ? res(b) : rej(new Error('toBlob returned null')), outMime)
         )
         const sizeBytes = blob.size
-        const presign = await attachmentService.getUploadURL(orderId, annotatedName, outMime, sizeBytes)
-        const uploadRes = await fetch(presign.upload_url, { method: 'PUT', headers: { 'Content-Type': outMime }, body: blob })
-        if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`)
-        await attachmentService.confirmUpload(orderId, {
-          file_name: annotatedName, file_key: presign.file_key, file_url: presign.file_url,
-          mime_type: outMime, size_bytes: sizeBytes, is_annotation: true, source_attachment_id: sourceAttachmentId,
-        })
+        if (staffPortalOrderId) {
+          const presign = await staffPortalApi.getAttachmentUploadURL(staffPortalOrderId, annotatedName)
+          const uploadRes = await fetch(presign.upload_url, { method: 'PUT', headers: { 'Content-Type': presign.content_type }, body: blob })
+          if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`)
+          await staffPortalApi.confirmAttachment(staffPortalOrderId, {
+            s3_key: presign.s3_key, file_name: annotatedName,
+            file_type: '.' + outExt, file_size: sizeBytes,
+          })
+        } else {
+          const presign = await attachmentService.getUploadURL(orderId, annotatedName, outMime, sizeBytes)
+          const uploadRes = await fetch(presign.upload_url, { method: 'PUT', headers: { 'Content-Type': outMime }, body: blob })
+          if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`)
+          await attachmentService.confirmUpload(orderId, {
+            file_name: annotatedName, file_key: presign.file_key, file_url: presign.file_url,
+            mime_type: outMime, size_bytes: sizeBytes, is_annotation: true, source_attachment_id: sourceAttachmentId,
+          })
+        }
         onSaved()
         return
       }
@@ -187,13 +225,25 @@ export function ImageAnnotationSheet({ src, filename, orderId, sourceAttachmentI
       const outFmt: 'png' | 'jpg' = isJpeg ? 'jpg' : 'png'
       const tmpUri = await captureRef(viewRef, { format: outFmt, quality: 1 })
       const info = await FileSystem.getInfoAsync(tmpUri)
-      const sizeBytes = info.exists ? info.size : 0
-      const presign = await attachmentService.getUploadURL(orderId, annotatedName, outMime, sizeBytes)
-      await attachmentService.uploadToR2(presign.upload_url, tmpUri, outMime, () => {})
-      await attachmentService.confirmUpload(orderId, {
-        file_name: annotatedName, file_key: presign.file_key, file_url: presign.file_url,
-        mime_type: outMime, size_bytes: sizeBytes, is_annotation: true, source_attachment_id: sourceAttachmentId,
-      })
+      const sizeBytes = (info.exists && info.size) ? info.size : 1
+
+      if (staffPortalOrderId) {
+        // Staff portal chat: save as portal attachment so it appears in the chat thread
+        // Backend StaffConfirmAttachment auto-creates the [attachment:id:name] chat message
+        const presign = await staffPortalApi.getAttachmentUploadURL(staffPortalOrderId, annotatedName)
+        await attachmentService.uploadToR2(presign.upload_url, tmpUri, presign.content_type, () => {})
+        await staffPortalApi.confirmAttachment(staffPortalOrderId, {
+          s3_key: presign.s3_key, file_name: annotatedName,
+          file_type: '.' + outExt, file_size: sizeBytes,
+        })
+      } else {
+        const presign = await attachmentService.getUploadURL(orderId, annotatedName, outMime, sizeBytes)
+        await attachmentService.uploadToR2(presign.upload_url, tmpUri, outMime, () => {})
+        await attachmentService.confirmUpload(orderId, {
+          file_name: annotatedName, file_key: presign.file_key, file_url: presign.file_url,
+          mime_type: outMime, size_bytes: sizeBytes, is_annotation: true, source_attachment_id: sourceAttachmentId,
+        })
+      }
       FileSystem.deleteAsync(tmpUri, { idempotent: true }).catch(() => {})
       onSaved()
     } catch {

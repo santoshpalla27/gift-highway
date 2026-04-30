@@ -74,6 +74,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 		apiPortal.GET("/:token/attachments", portalHandler.GetAttachments)
 		apiPortal.POST("/:token/attachments/upload-url", portalHandler.GetAttachmentUploadURL)
 		apiPortal.POST("/:token/attachments", portalHandler.ConfirmAttachment)
+		apiPortal.GET("/:token/proxy-image", portalHandler.ProxyPortalImage)
 		apiPortal.DELETE("/:token/attachments/:attId", portalHandler.DeletePortalAttachmentPublic)
 		apiPortal.DELETE("/:token/messages/:msgId", portalHandler.CustomerDeleteMessage)
 	}
@@ -187,6 +188,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				ordersGroup.DELETE("/:id/portal/attachments/:attId", portalHandler.DeletePortalAttachment)
 				ordersGroup.DELETE("/:id/portal/messages/:msgId", portalHandler.StaffDeleteMessage)
 				ordersGroup.GET("/:id/portal/attachments/:attId/download-url", portalHandler.StaffGetAttachmentDownloadURL)
+				ordersGroup.GET("/:id/portal/attachments/:attId/proxy-image", portalHandler.StaffProxyPortalImage)
 			}
 		}
 	}

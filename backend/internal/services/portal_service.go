@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -302,6 +303,68 @@ func (s *PortalService) GetAttachmentDownloadURL(ctx context.Context, attID int6
 		return "", err
 	}
 	return req.URL, nil
+}
+
+// StaffProxyAttachmentImage fetches a portal attachment by ID, verifies it belongs
+// to the given order, and streams the R2 object so the browser can draw it on a
+// canvas without hitting R2 CORS restrictions (staff-authenticated path).
+func (s *PortalService) StaffProxyAttachmentImage(ctx context.Context, orderID string, attID int64) (io.ReadCloser, string, error) {
+	att, err := s.repo.GetAttachment(ctx, attID)
+	if err != nil {
+		return nil, "", repositories.ErrNotFound
+	}
+	if att.OrderID != orderID {
+		return nil, "", repositories.ErrNotFound
+	}
+	client, err := s.newR2Client(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	out, err := client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.cfg.R2Bucket),
+		Key:    aws.String(att.S3Key),
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	ct := "application/octet-stream"
+	if out.ContentType != nil {
+		ct = *out.ContentType
+	}
+	return out.Body, ct, nil
+}
+
+// ProxyAttachmentImage validates the portal token, verifies the attachment belongs
+// to that order, and streams the R2 object so the browser can draw it on a canvas
+// without hitting R2 CORS restrictions.
+func (s *PortalService) ProxyAttachmentImage(ctx context.Context, token string, attID int64) (io.ReadCloser, string, error) {
+	portal, err := s.ValidateToken(ctx, token)
+	if err != nil {
+		return nil, "", err
+	}
+	att, err := s.repo.GetAttachment(ctx, attID)
+	if err != nil {
+		return nil, "", repositories.ErrNotFound
+	}
+	if att.OrderID != portal.OrderID {
+		return nil, "", repositories.ErrNotFound
+	}
+	client, err := s.newR2Client(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	out, err := client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.cfg.R2Bucket),
+		Key:    aws.String(att.S3Key),
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	ct := "application/octet-stream"
+	if out.ContentType != nil {
+		ct = *out.ContentType
+	}
+	return out.Body, ct, nil
 }
 
 func (s *PortalService) getViewURL(ctx context.Context, s3Key string) (string, error) {

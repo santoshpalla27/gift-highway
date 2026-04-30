@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { attachmentService } from '../services/attachmentService'
 import { apiClient } from '../services/apiClient'
+import { publicPortalApi, staffPortalApi } from '../services/portalService'
 
 type Tool = 'pen' | 'arrow' | 'circle' | 'rect'
 
@@ -17,11 +18,14 @@ interface Props {
   orderId: string
   fileKey?: string
   sourceAttachmentId?: string
+  portalToken?: string
+  portalAttId?: number
+  staffPortalOrderId?: string
   onSaved: () => void
   onCancel: () => void
 }
 
-export function ImageAnnotationCanvas({ src, filename, orderId, fileKey, sourceAttachmentId, onSaved, onCancel }: Props) {
+export function ImageAnnotationCanvas({ src, filename, orderId, fileKey, sourceAttachmentId, portalToken, portalAttId, staffPortalOrderId, onSaved, onCancel }: Props) {
   const [tool, setTool] = useState<Tool>('pen')
   const [color, setColor] = useState('#EF4444')
   const [strokes, setStrokes] = useState<Stroke[]>([])
@@ -40,20 +44,27 @@ export function ImageAnnotationCanvas({ src, filename, orderId, fileKey, sourceA
   const imgBlobUrlRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!fileKey) return
-    apiClient.get(`/orders/${orderId}/attachments/proxy-image`, {
-      params: { key: fileKey },
-      responseType: 'blob',
-    }).then((res) => {
-      imgBlobUrlRef.current = URL.createObjectURL(res.data as Blob)
-    }).catch(() => {})
-    return () => {
+    const cleanup = () => {
       if (imgBlobUrlRef.current) {
         URL.revokeObjectURL(imgBlobUrlRef.current)
         imgBlobUrlRef.current = null
       }
     }
-  }, [fileKey, orderId])
+    if (portalToken && portalAttId != null) {
+      fetch(`/api/portal/${portalToken}/proxy-image?id=${portalAttId}`)
+        .then(r => r.blob())
+        .then(blob => { imgBlobUrlRef.current = URL.createObjectURL(blob) })
+        .catch(() => {})
+    } else if (fileKey) {
+      apiClient.get(`/orders/${orderId}/attachments/proxy-image`, {
+        params: { key: fileKey },
+        responseType: 'blob',
+      }).then((res) => {
+        imgBlobUrlRef.current = URL.createObjectURL(res.data as Blob)
+      }).catch(() => {})
+    }
+    return cleanup
+  }, [fileKey, orderId, portalToken, portalAttId])
 
   const handleImgLoad = useCallback(() => {
     const img = imgRef.current
@@ -130,15 +141,23 @@ export function ImageAnnotationCanvas({ src, filename, orderId, fileKey, sourceA
 
       // Fetch via backend proxy if not already done (avoids R2 CORS restriction on canvas)
       let blobUrl = imgBlobUrlRef.current
-      if (!blobUrl && fileKey) {
-        try {
-          const res = await apiClient.get(`/orders/${orderId}/attachments/proxy-image`, {
-            params: { key: fileKey },
-            responseType: 'blob',
-          })
-          blobUrl = URL.createObjectURL(res.data as Blob)
-          imgBlobUrlRef.current = blobUrl
-        } catch { /* fall through */ }
+      if (!blobUrl) {
+        if (portalToken && portalAttId != null) {
+          try {
+            const r = await fetch(`/api/portal/${portalToken}/proxy-image?id=${portalAttId}`)
+            blobUrl = URL.createObjectURL(await r.blob())
+            imgBlobUrlRef.current = blobUrl
+          } catch { /* fall through */ }
+        } else if (fileKey) {
+          try {
+            const res = await apiClient.get(`/orders/${orderId}/attachments/proxy-image`, {
+              params: { key: fileKey },
+              responseType: 'blob',
+            })
+            blobUrl = URL.createObjectURL(res.data as Blob)
+            imgBlobUrlRef.current = blobUrl
+          } catch { /* fall through */ }
+        }
       }
 
       if (blobUrl) {
@@ -177,18 +196,40 @@ export function ImageAnnotationCanvas({ src, filename, orderId, fileKey, sourceA
 
       const baseName = filename.replace(/\.[^.]+$/, '')
       const annotatedName = `annotated_${baseName}.${outExt}`
-      const file = new File([blob], annotatedName, { type: outMime })
-      const presign = await attachmentService.getUploadURL(orderId, annotatedName, outMime, blob.size)
-      await attachmentService.uploadToR2(presign.upload_url, file, () => {})
-      await attachmentService.confirmUpload(orderId, {
-        file_name: annotatedName,
-        file_key: presign.file_key,
-        file_url: presign.file_url,
-        mime_type: outMime,
-        size_bytes: blob.size,
-        is_annotation: true,
-        source_attachment_id: sourceAttachmentId,
-      })
+
+      if (portalToken) {
+        // Customer portal: upload to portal bucket, then send a message linking to it
+        const presign = await publicPortalApi.getUploadURL(portalToken, annotatedName)
+        await fetch(presign.upload_url, { method: 'PUT', headers: { 'Content-Type': presign.content_type }, body: blob })
+        const confirmed = await publicPortalApi.confirmAttachment(portalToken, {
+          s3_key: presign.s3_key, file_name: annotatedName,
+          file_type: '.' + outExt, file_size: blob.size,
+        })
+        await publicPortalApi.sendMessage(portalToken, `[attachment:${confirmed.id}:${annotatedName}]`)
+      } else if (staffPortalOrderId) {
+        // Staff portal chat: upload to portal bucket via staff API
+        // Backend StaffConfirmAttachment auto-creates the portal chat message
+        const presign = await staffPortalApi.getAttachmentUploadURL(staffPortalOrderId, annotatedName)
+        await fetch(presign.upload_url, { method: 'PUT', headers: { 'Content-Type': presign.content_type }, body: blob })
+        await staffPortalApi.confirmAttachment(staffPortalOrderId, {
+          s3_key: presign.s3_key, file_name: annotatedName,
+          file_type: '.' + outExt, file_size: blob.size,
+        })
+      } else {
+        // Regular order timeline attachment
+        const file = new File([blob], annotatedName, { type: outMime })
+        const presign = await attachmentService.getUploadURL(orderId, annotatedName, outMime, blob.size)
+        await attachmentService.uploadToR2(presign.upload_url, file, () => {})
+        await attachmentService.confirmUpload(orderId, {
+          file_name: annotatedName,
+          file_key: presign.file_key,
+          file_url: presign.file_url,
+          mime_type: outMime,
+          size_bytes: blob.size,
+          is_annotation: true,
+          source_attachment_id: sourceAttachmentId,
+        })
+      }
       onSaved()
     } catch {
       alert('Failed to save annotation. Please try again.')
@@ -203,7 +244,7 @@ export function ImageAnnotationCanvas({ src, filename, orderId, fileKey, sourceA
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1100, background: '#000', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1100, background: '#000', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
       {/* Header */}
       <div style={{
         flexShrink: 0, background: 'rgba(0,0,0,0.8)', padding: '10px 16px',

@@ -582,7 +582,19 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
           filename={annotation.filename}
           orderId={orderId}
           fileKey={annotation.fileKey}
-          onSaved={() => setAnnotation(null)}
+          staffPortalOrderId={orderId}
+          onSaved={() => {
+            setAnnotation(null)
+            Promise.all([
+              staffPortalApi.getMessages(orderId),
+              staffPortalApi.listAttachments(orderId),
+            ]).then(([msgs, atts]) => {
+              const safe = msgs ?? []
+              setMessages(safe)
+              setAttachments(atts ?? [])
+              if (safe.length) lastMsgIdRef.current = safe[safe.length - 1].id
+            }).catch(() => {})
+          }}
           onCancel={() => setAnnotation(null)}
         />
       )}

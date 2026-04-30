@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { ScrollView, Alert } from 'react-native'
+import { ScrollView, Alert, Platform } from 'react-native'
 import { staffPortalApi, type PortalMessage, type PortalAttachment } from '../../../services/portalService'
 import { attachmentService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from '../../../services/attachmentService'
 import * as ImagePicker from 'expo-image-picker'
@@ -43,12 +43,12 @@ export function usePortalChat(orderId: string, initialAttachments: PortalAttachm
 
   // Expose a refresh function for socket-triggered refreshes from parent
   useEffect(() => {
-    refreshRef.current = () => {
-      staffPortalApi.getMessages(orderId).then(setMessages).catch(() => {})
-      staffPortalApi.listAttachments(orderId).then(onAttachmentsChange).catch(() => {})
+    refreshRef.current = async () => {
+      await load()
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)
     }
     return () => { refreshRef.current = null }
-  }, [orderId, refreshRef, onAttachmentsChange])
+  }, [orderId, refreshRef, load])
 
   // Initial load
   useEffect(() => {
@@ -91,11 +91,22 @@ export function usePortalChat(orderId: string, initialAttachments: PortalAttachm
   const runPortalUpload = useCallback(async (uid: string, uri: string, name: string, _mime: string, size: number) => {
     try {
       const { upload_url, content_type, s3_key } = await staffPortalApi.getAttachmentUploadURL(orderId, name)
-      await attachmentService.uploadToR2(upload_url, uri, content_type, pct =>
-        setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, progress: pct } : f))
-      )
+      let fileSize = size
+      if (Platform.OS === 'web') {
+        // FileSystem.createUploadTask is not available on web — fetch the blob and PUT it directly
+        const resp = await fetch(uri)
+        const blob = await resp.blob()
+        const uploadRes = await fetch(upload_url, { method: 'PUT', headers: { 'Content-Type': content_type }, body: blob })
+        if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`)
+        fileSize = blob.size || size || 1
+        setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, progress: 100 } : f))
+      } else {
+        await attachmentService.uploadToR2(upload_url, uri, content_type, pct =>
+          setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, progress: pct } : f))
+        )
+      }
       const fileExt = '.' + (name.split('.').pop() ?? '').toLowerCase()
-      await staffPortalApi.confirmAttachment(orderId, { s3_key, file_name: name, file_type: fileExt, file_size: size })
+      await staffPortalApi.confirmAttachment(orderId, { s3_key, file_name: name, file_type: fileExt, file_size: fileSize || 1 })
       setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, done: true, progress: 100 } : f))
       await load()
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)

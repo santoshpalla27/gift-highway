@@ -7,6 +7,7 @@ import {
   type PortalMessage,
   type PortalAttachment,
 } from '../../../services/portalService'
+import { ImageAnnotationCanvas } from '../../../components/ImageAnnotationCanvas'
 
 
 function formatSize(bytes: number) {
@@ -105,6 +106,7 @@ export default function CustomerPortalPage() {
   const [sending, setSending] = useState(false)
   const sendingRef = useRef(false)
   const [lightbox, setLightbox] = useState<{ src: string; filename: string; attId: number; fileSizeBytes?: number } | null>(null)
+  const [annotation, setAnnotation] = useState<{ src: string; filename: string; attId: number } | null>(null)
   const [deletingAttId, setDeletingAttId] = useState<number | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
 
@@ -754,6 +756,28 @@ export default function CustomerPortalPage() {
         </div>
       )}
 
+      {/* Annotation canvas */}
+      {annotation && token && (
+        <ImageAnnotationCanvas
+          src={annotation.src}
+          filename={annotation.filename}
+          orderId=""
+          portalToken={token}
+          portalAttId={annotation.attId}
+          onSaved={() => {
+            setAnnotation(null)
+            Promise.all([
+              publicPortalApi.getAttachments(token),
+              publicPortalApi.getMessages(token),
+            ]).then(([atts, msgs]) => {
+              setAttachments(atts ?? [])
+              setMessages(msgs ?? [])
+            }).catch(() => {})
+          }}
+          onCancel={() => setAnnotation(null)}
+        />
+      )}
+
       {/* Lightbox */}
       {lightbox && (
         <div
@@ -769,7 +793,11 @@ export default function CustomerPortalPage() {
               <a href={lightbox.src} target="_blank" rel="noreferrer" className="bg-white/90 backdrop-blur-sm p-2 rounded-lg hover:bg-white transition-colors shadow-lg" title="Open in new tab" onClick={(e) => e.stopPropagation()}>
                 <svg className="w-5 h-5 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
               </a>
-              <button disabled title="Annotate (coming soon)" className="bg-white/90 backdrop-blur-sm p-2 rounded-lg shadow-lg opacity-40 cursor-not-allowed" onClick={(e) => e.stopPropagation()}>
+              <button
+                title="Annotate"
+                className="bg-white/90 backdrop-blur-sm p-2 rounded-lg hover:bg-white transition-colors shadow-lg"
+                onClick={(e) => { e.stopPropagation(); if (lightbox) { setAnnotation({ src: lightbox.src, filename: lightbox.filename, attId: lightbox.attId }); setLightbox(null) } }}
+              >
                 <svg className="w-5 h-5 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
               </button>
               <button onClick={() => { setLightbox(null); setConfirmingDelete(false) }} className="bg-white/90 backdrop-blur-sm p-2 rounded-lg hover:bg-white transition-colors shadow-lg" title="Close">

@@ -78,7 +78,7 @@ export default function OrderDetailScreen() {
     onReply?: () => void; onDelete?: () => void; onDownload?: () => void
     sourceAttachmentId?: string
   } | null>(null)
-  const [annotation, setAnnotation] = useState<{ src: string; filename: string; sourceAttachmentId?: string } | null>(null)
+  const [annotation, setAnnotation] = useState<{ src: string; filename: string; sourceAttachmentId?: string; staffPortalOrderId?: string } | null>(null)
 
   // ── Loading / error states ─────────────────────────────────────────────
 
@@ -402,6 +402,9 @@ export default function OrderDetailScreen() {
           onPortalChange={p => D.setPortal(p ?? null)}
           onAttachmentsChange={D.setPortalAttachments}
           refreshRef={D.portalChatRefreshRef}
+          onRequestAnnotation={(src, filename, sourceAttachmentId, staffPortalOrderId) =>
+            setAnnotation({ src, filename, sourceAttachmentId, staffPortalOrderId })
+          }
         />
       )}
 
@@ -490,7 +493,12 @@ export default function OrderDetailScreen() {
           filename={annotation.filename}
           orderId={id!}
           sourceAttachmentId={annotation.sourceAttachmentId}
-          onSaved={() => setAnnotation(null)}
+          staffPortalOrderId={annotation.staffPortalOrderId}
+          onSaved={() => {
+            const wasPortal = !!annotation.staffPortalOrderId
+            setAnnotation(null)
+            if (wasPortal) D.portalChatRefreshRef.current?.()
+          }}
           onCancel={() => setAnnotation(null)}
         />
       )}
