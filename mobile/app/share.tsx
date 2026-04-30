@@ -134,8 +134,9 @@ export default function ShareScreen() {
         })
 
         update({ progress: 100, done: true })
-      } catch {
-        update({ error: 'Upload failed' })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        update({ error: msg })
         anyError = true
       }
     }

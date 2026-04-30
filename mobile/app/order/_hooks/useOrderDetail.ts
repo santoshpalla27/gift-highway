@@ -542,8 +542,9 @@ export function useOrderDetail(orderId: string | undefined) {
       await attachmentService.confirmUpload(orderId, { file_name: name, file_key, file_url, mime_type: mimeType, size_bytes: size })
       setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, done: true, progress: 100 } : f))
       setTimeout(() => setUploadingFiles(prev => prev.filter(f => f.id !== uid)), 1500)
-    } catch {
-      setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, error: 'Upload failed' } : f))
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, error: msg } : f))
     }
   }, [orderId])
 
