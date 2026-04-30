@@ -16,7 +16,7 @@ function formatSize(bytes: number) {
 }
 
 const isImageType = (ext: string) =>
-  ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.svg', '.tiff', '.tif'].includes(ext.toLowerCase())
+  ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.svg'].includes(ext.toLowerCase())
 
 interface StagedFile {
   file: File

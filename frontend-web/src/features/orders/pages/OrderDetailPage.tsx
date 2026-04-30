@@ -153,12 +153,12 @@ function getPortalMsgThumb(msg: PortalMessage, atts: PortalAttachment[]): string
   const m = msg.message.match(/\[attachment:(\d+):.+?\]/)
   if (!m) return null
   const att = atts.find(a => a.id === parseInt(m[1]))
-  const imgExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.svg', '.tiff', '.tif']
+  const imgExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.svg']
   if (att && imgExts.includes(att.file_type.toLowerCase()) && att.view_url) return att.view_url
   return null
 }
 
-const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.svg', '.tiff', '.tif']
+const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic', '.svg']
 function isImgExt(name: string) { return IMG_EXTS.includes(('.' + (name.split('.').pop() ?? '')).toLowerCase()) }
 
 function getEventThumb(event: LocalOrderEvent, portalAttachments?: PortalAttachment[]): string | null {

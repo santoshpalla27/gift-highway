@@ -30,7 +30,7 @@ export const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
 
 const BROWSER_RENDERABLE_IMAGE_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/webp', 'image/gif',
-  'image/bmp', 'image/svg+xml', 'image/tiff',
+  'image/bmp', 'image/svg+xml',
 ])
 
 export function isImage(mimeType: string) {
