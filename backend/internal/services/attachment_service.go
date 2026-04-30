@@ -119,10 +119,9 @@ func (s *AttachmentService) GetUploadURL(ctx context.Context, orderID string, re
 
 	// PUT URL for the direct upload (5 min)
 	putReq, err := presignClient.PresignPutObject(ctx, &s3.PutObjectInput{
-		Bucket:        aws.String(s.cfg.R2Bucket),
-		Key:           aws.String(fileKey),
-		ContentType:   aws.String(req.MimeType),
-		ContentLength: aws.Int64(req.SizeBytes),
+		Bucket:      aws.String(s.cfg.R2Bucket),
+		Key:         aws.String(fileKey),
+		ContentType: aws.String(req.MimeType),
 	}, s3.WithPresignExpires(5*time.Minute))
 	if err != nil {
 		return nil, err

@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy'
+import { Platform } from 'react-native'
 import { apiClient } from './apiClient'
 
 export interface Attachment {
@@ -35,6 +36,44 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+function uploadToR2Web(uploadUrl: string, uri: string, mimeType: string, onProgress: (pct: number) => void): Promise<void> {
+  return fetch(uri)
+    .then(r => r.blob())
+    .then(blob => new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('PUT', uploadUrl)
+      xhr.setRequestHeader('Content-Type', mimeType)
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
+      }
+      xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`)))
+      xhr.onerror = () => reject(new Error('Upload failed'))
+      xhr.send(blob)
+    }))
+}
+
+async function uploadToR2Native(uploadUrl: string, uri: string, mimeType: string, onProgress: (pct: number) => void): Promise<void> {
+  const task = FileSystem.createUploadTask(
+    uploadUrl,
+    uri,
+    {
+      httpMethod: 'PUT',
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      sessionType: FileSystem.FileSystemSessionType.FOREGROUND,
+      headers: { 'Content-Type': mimeType },
+    },
+    (data) => {
+      if (data.totalBytesExpectedToSend > 0) {
+        onProgress(Math.round((data.totalBytesSent / data.totalBytesExpectedToSend) * 100))
+      }
+    },
+  )
+  const result = await task.uploadAsync()
+  if (!result || result.status < 200 || result.status >= 300) {
+    throw new Error(`Upload failed: ${result?.status ?? 'no response'}`)
+  }
+}
+
 export const attachmentService = {
   getUploadURL: async (orderId: string, fileName: string, mimeType: string, sizeBytes: number) => {
     const res = await apiClient.post<{ upload_url: string; file_key: string; file_url: string }>(
@@ -44,25 +83,11 @@ export const attachmentService = {
     return res.data
   },
 
-  uploadToR2: async (uploadUrl: string, uri: string, mimeType: string, onProgress: (pct: number) => void): Promise<void> => {
-    const task = FileSystem.createUploadTask(
-      uploadUrl,
-      uri,
-      {
-        httpMethod: 'PUT',
-        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-        headers: { 'Content-Type': mimeType },
-      },
-      (data) => {
-        if (data.totalBytesExpectedToSend > 0) {
-          onProgress(Math.round((data.totalBytesSent / data.totalBytesExpectedToSend) * 100))
-        }
-      },
-    )
-    const result = await task.uploadAsync()
-    if (!result || result.status < 200 || result.status >= 300) {
-      throw new Error(`Upload failed: ${result?.status ?? 'no response'}`)
+  uploadToR2: (uploadUrl: string, uri: string, mimeType: string, onProgress: (pct: number) => void): Promise<void> => {
+    if (Platform.OS === 'web') {
+      return uploadToR2Web(uploadUrl, uri, mimeType, onProgress)
     }
+    return uploadToR2Native(uploadUrl, uri, mimeType, onProgress)
   },
 
   confirmUpload: async (orderId: string, data: {
