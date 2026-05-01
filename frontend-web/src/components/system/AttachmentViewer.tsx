@@ -116,13 +116,20 @@ export function AttachmentViewer({
           }}>
             {isImg ? '🖼️' : fileIcon?.emoji}
           </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'baseline', minWidth: 0 }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
-              {baseName}
-            </span>
-            {extName && (
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#0F172A', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                {extName}
+          <div style={{ flex: 1, display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', minWidth: 0, flex: 1 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+                {baseName}
+              </span>
+              {extName && (
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#0F172A', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                  {extName}
+                </span>
+              )}
+            </div>
+            {!!sizeBytes && (
+              <span style={{ fontSize: 12, color: '#94A3B8', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                {formatFileSize(sizeBytes)}
               </span>
             )}
           </div>

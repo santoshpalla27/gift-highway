@@ -101,19 +101,16 @@ export function AttachmentViewer({
           <TouchableOpacity onPress={onClose} style={S.toolbarBtn} hitSlop={8}>
             <Ionicons name="close" size={22} color="#0F172A" />
           </TouchableOpacity>
-          <View style={S.toolbarTitleRow}>
-            <Text numberOfLines={1} ellipsizeMode="tail" style={S.toolbarTitleBase}>{baseName}</Text>
-            {extName ? <Text style={S.toolbarTitleExt}>{extName}</Text> : null}
-          </View>
+          <View style={{ flex: 1 }} />
           <View style={S.toolbarActions}>
-            <TouchableOpacity onPress={handleDownload} style={S.toolbarBtn} hitSlop={8}>
-              <Ionicons name="arrow-down-circle-outline" size={22} color="#6366F1" />
-            </TouchableOpacity>
             {onReply && (
               <TouchableOpacity onPress={() => { onClose(); onReply() }} style={S.toolbarBtn} hitSlop={8}>
                 <Ionicons name="arrow-undo-outline" size={22} color="#6366F1" />
               </TouchableOpacity>
             )}
+            <TouchableOpacity onPress={handleDownload} style={S.toolbarBtn} hitSlop={8}>
+              <Ionicons name="arrow-down-circle-outline" size={22} color="#6366F1" />
+            </TouchableOpacity>
           </View>
         </View>
         <View style={S.divider} />
@@ -168,6 +165,17 @@ export function AttachmentViewer({
             )}
           </View>
         )}
+
+        {/* Bottom name + size bar */}
+        <View style={S.bottomBar}>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'baseline', minWidth: 0 }}>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={S.bottomName}>{baseName}</Text>
+            {extName ? <Text style={S.bottomExt}>{extName}</Text> : null}
+          </View>
+          {!!sizeBytes && sizeBytes > 0 && (
+            <Text style={S.bottomSize}>{formatBytes(sizeBytes)}</Text>
+          )}
+        </View>
       </SafeAreaView>
     </Modal>
   )
@@ -274,4 +282,12 @@ const S = StyleSheet.create({
     justifyContent: 'center',
   },
   replyBtnText: { fontSize: 15, fontWeight: '600', color: '#6366F1' },
+  bottomBar: {
+    flexDirection: 'row', alignItems: 'baseline',
+    paddingHorizontal: 16, paddingVertical: 10,
+    borderTopWidth: 1, borderTopColor: '#F1F5F9', gap: 6,
+  },
+  bottomName: { flexShrink: 1, fontSize: 13, fontWeight: '600', color: '#0F172A' },
+  bottomExt: { flexShrink: 0, fontSize: 13, fontWeight: '600', color: '#0F172A' },
+  bottomSize: { flexShrink: 0, fontSize: 12, color: '#94A3B8' },
 })
