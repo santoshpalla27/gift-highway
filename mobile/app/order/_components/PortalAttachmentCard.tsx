@@ -60,13 +60,13 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
             activeOpacity={0.85}
           >
             {viewUrl
-              ? <Image source={{ uri: viewUrl }} style={{ width: '100%', height: 200 }} resizeMode="cover" />
-              : <View style={{ width: '100%', height: 100, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' }}>
+              ? <Image source={{ uri: viewUrl }} style={{ width: '100%', height: 180 }} resizeMode="cover" />
+              : <View style={{ width: '100%', height: 60, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' }}>
                   <ActivityIndicator size="small" color="#94A3B8" />
                 </View>
             }
           </TouchableOpacity>
-          <View style={{ paddingHorizontal: 16, paddingVertical: 10 }}>
+          <View style={{ paddingHorizontal: 18, paddingVertical: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text style={{ fontSize: 11, color: '#6B7280', flex: 1 }} numberOfLines={1}>{fileName}</Text>
               {viewUrl && (
@@ -99,20 +99,22 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
         backgroundColor: hasBubble ? bubbleBg : '#F9FAFB',
         borderWidth: 1, borderColor: hasBubble ? bubbleBorder : '#E5E7EB',
         borderRadius: 14, borderTopRightRadius: trr, borderTopLeftRadius: tlr,
-        paddingHorizontal: 18, paddingVertical: 14, width: ATTACH_MAX_W,
+        paddingHorizontal: 20, paddingVertical: 16, width: ATTACH_MAX_W,
       }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <TouchableOpacity
             onPress={() => { if (viewUrl) setViewerVisible(true) }}
             activeOpacity={0.85}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}
           >
-            <Ionicons name="document-outline" size={16} color="#6B7280" />
-            <Text style={{ fontSize: 12, color: '#374151', flex: 1 }} numberOfLines={1}>{fileName}</Text>
+            <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="document-outline" size={20} color="#6B7280" />
+            </View>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', flex: 1 }} numberOfLines={1}>{fileName}</Text>
           </TouchableOpacity>
           {viewUrl
             ? <TouchableOpacity onPress={() => downloadAttachment(viewUrl, fileName)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="arrow-down-circle-outline" size={18} color="#6366F1" />
+                <Ionicons name="arrow-down-circle-outline" size={20} color="#6366F1" />
               </TouchableOpacity>
             : <ActivityIndicator size="small" color="#94A3B8" />
           }
