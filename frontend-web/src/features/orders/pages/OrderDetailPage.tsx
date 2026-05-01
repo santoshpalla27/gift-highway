@@ -560,6 +560,9 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
   if (event.type === 'attachment_added') {
     const p = event.payload as Record<string, string>
     const fileIsImage = isImage(p.mime_type ?? '')
+    const _dot = p.file_name.lastIndexOf('.')
+    const baseName = _dot > 0 ? p.file_name.slice(0, _dot) : p.file_name
+    const extName  = _dot > 0 ? p.file_name.slice(_dot)  : ''
     return (<>
       <div style={{
         display: 'flex',
@@ -609,9 +612,12 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                   <div style={{ width: 36, height: 36, borderRadius: 8, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.file_name}</div>
-                    <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{formatBytes(Number(p.size_bytes))}</div>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <div style={{ display: 'flex', minWidth: 0, flex: 1 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{baseName}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#111827', flexShrink: 0, whiteSpace: 'nowrap' }}>{extName}</span>
+                    </div>
+                    <span style={{ fontSize: 11, color: '#9CA3AF', flexShrink: 0, whiteSpace: 'nowrap' }}>{formatBytes(Number(p.size_bytes))}</span>
                   </div>
                   <button onClick={(e) => { e.stopPropagation(); downloadFile(orderId, p.file_key, p.file_name) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, padding: 0, lineHeight: 1 }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -619,9 +625,13 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                 </div>
               )}
               {fileIsImage && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 18px', borderTop: '1px solid #F3F4F6' }}>
-                  <span style={{ fontSize: 11, color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.file_name}</span>
-                  <button onClick={(e) => { e.stopPropagation(); downloadFile(orderId, p.file_key, p.file_name) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, marginLeft: 8, padding: 0, lineHeight: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderTop: '1px solid #F3F4F6', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', minWidth: 0, flex: 1 }}>
+                    <span style={{ fontSize: 11, color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{baseName}</span>
+                    <span style={{ fontSize: 11, color: '#9CA3AF', flexShrink: 0, whiteSpace: 'nowrap' }}>{extName}</span>
+                  </div>
+                  <span style={{ fontSize: 11, color: '#9CA3AF', flexShrink: 0, whiteSpace: 'nowrap' }}>{formatBytes(Number(p.size_bytes))}</span>
+                  <button onClick={(e) => { e.stopPropagation(); downloadFile(orderId, p.file_key, p.file_name) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, padding: 0, lineHeight: 1 }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   </button>
                 </div>
@@ -675,7 +685,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
           </div>
         </div>
       </div>
-      {viewer && <AttachmentViewer src={viewer.src} filename={viewer.filename} mimeType={viewer.mimeType} sizeBytes={viewer.sizeBytes} onClose={() => setViewer(null)} />}
+      {viewer && <AttachmentViewer src={viewer.src} filename={viewer.filename} mimeType={viewer.mimeType} sizeBytes={viewer.sizeBytes} onClose={() => setViewer(null)} onReply={onReply ? () => { setViewer(null); onReply() } : undefined} />}
     </>)
   }
 
@@ -886,7 +896,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
           </div>
         </div>
       </div>
-      {viewer && <AttachmentViewer src={viewer.src} filename={viewer.filename} mimeType={viewer.mimeType} sizeBytes={viewer.sizeBytes} onClose={() => setViewer(null)} />}
+      {viewer && <AttachmentViewer src={viewer.src} filename={viewer.filename} mimeType={viewer.mimeType} sizeBytes={viewer.sizeBytes} onClose={() => setViewer(null)} onReply={onReply ? () => { setViewer(null); onReply() } : undefined} />}
     </>)
   }
 

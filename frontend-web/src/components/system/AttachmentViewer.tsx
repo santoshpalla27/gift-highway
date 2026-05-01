@@ -51,10 +51,11 @@ export interface AttachmentViewerProps {
   sizeBytes?: number
   onClose: () => void
   onDelete?: () => Promise<void>
+  onReply?: () => void
 }
 
 export function AttachmentViewer({
-  src, filename, mimeType, sizeBytes, onClose, onDelete,
+  src, filename, mimeType, sizeBytes, onClose, onDelete, onReply,
 }: AttachmentViewerProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -64,6 +65,9 @@ export function AttachmentViewer({
   const isImg = resolveIsImage(mimeType, filename)
   const fileIcon = isImg ? null : getFileIconInfo(mimeType, filename)
   const ext = (filename.split('.').pop() ?? '').toUpperCase()
+  const _dot = filename.lastIndexOf('.')
+  const baseName = _dot > 0 ? filename.slice(0, _dot) : filename
+  const extName  = _dot > 0 ? filename.slice(_dot)  : ''
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -112,19 +116,27 @@ export function AttachmentViewer({
           }}>
             {isImg ? '🖼️' : fileIcon?.emoji}
           </div>
-          <span style={{
-            flex: 1, fontSize: 14, fontWeight: 600, color: '#0F172A',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {filename}
-          </span>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'baseline', minWidth: 0 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+              {baseName}
+            </span>
+            {extName && (
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#0F172A', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                {extName}
+              </span>
+            )}
+          </div>
 
-          {isImg && (
-            <a href={src} target="_blank" rel="noreferrer" style={btn} title="Open in new tab">
+          {onReply && (
+            <button
+              onClick={() => { onClose(); onReply() }}
+              style={{ ...btn, background: '#EEF2FF', border: '1px solid #C7D2FE' }}
+              title="Reply"
+            >
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                <path d="M7 2H2v12h12V9M10 2h4v4M14 2l-7 7" stroke="#475569" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M2 8l5-4v2.5c4 0 7 2 7 6-1.5-2.5-4-3.5-7-3.5V11L2 8z" fill="#6366F1" />
               </svg>
-            </a>
+            </button>
           )}
           <a href={src} download={filename} style={{ ...btn, textDecoration: 'none' }} title="Download">
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
