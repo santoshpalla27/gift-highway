@@ -387,26 +387,34 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
                         return (
                           <div key={tok.id} style={{ marginTop: parsed.text ? 6 : 0 }}>
                             {isImg && att.view_url ? (
-                              <div
-                                onClick={() => setViewer({ src: att.view_url, filename: att.file_name })}
-                                style={{ width: 160, height: 160, borderRadius: 8, overflow: 'hidden', cursor: 'pointer' }}
-                              >
-                                <img src={att.view_url} alt={att.file_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              <div style={{ width: 240, borderRadius: 8, overflow: 'hidden' }}>
+                                <div onClick={() => setViewer({ src: att.view_url, filename: att.file_name })} style={{ width: 240, height: 180, cursor: 'pointer' }}>
+                                  <img src={att.view_url} alt={att.file_name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', background: 'rgba(0,0,0,0.04)' }}>
+                                  <span style={{ fontSize: 10, color: '#667781', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.file_name}</span>
+                                  {att.file_size > 0 && <span style={{ fontSize: 10, color: '#667781', flexShrink: 0 }}>{formatSize(att.file_size)}</span>}
+                                  <button onClick={(e) => { e.stopPropagation(); staffPortalApi.getAttachmentDownloadURL(orderId, att.id, att.file_name).then(url => { window.location.href = url }) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#667781', padding: 0, lineHeight: 1, flexShrink: 0 }} title="Download">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                  </button>
+                                </div>
                               </div>
                             ) : att.view_url ? (
-                              <div
-                                onClick={() => setViewer({ src: att.view_url, filename: att.file_name })}
-                                style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.06)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#667781" strokeWidth="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                <span style={{ fontSize: 12, color: '#111b21', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.file_name}</span>
-                                <span style={{ fontSize: 10, color: '#667781', flexShrink: 0 }}>{formatSize(att.file_size)}</span>
+                              <div style={{ width: 240, display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.06)', borderRadius: 8, padding: '6px 10px' }}>
+                                <div onClick={() => setViewer({ src: att.view_url, filename: att.file_name })} style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, cursor: 'pointer', minWidth: 0 }}>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#667781" strokeWidth="1.5" style={{ flexShrink: 0 }}><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                  <span style={{ fontSize: 12, color: '#111b21', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.file_name}</span>
+                                  {att.file_size > 0 && <span style={{ fontSize: 10, color: '#667781', flexShrink: 0 }}>{formatSize(att.file_size)}</span>}
+                                </div>
+                                <button onClick={(e) => { e.stopPropagation(); staffPortalApi.getAttachmentDownloadURL(orderId, att.id, att.file_name).then(url => { window.location.href = url }) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#667781', padding: 0, lineHeight: 1, flexShrink: 0 }} title="Download">
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                </button>
                               </div>
                             ) : (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.06)', borderRadius: 8, padding: '6px 10px' }}>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#667781" strokeWidth="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                              <div style={{ width: 240, display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.06)', borderRadius: 8, padding: '6px 10px' }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#667781" strokeWidth="1.5" style={{ flexShrink: 0 }}><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                 <span style={{ fontSize: 12, color: '#111b21', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.file_name}</span>
-                                <span style={{ fontSize: 10, color: '#667781', flexShrink: 0 }}>{formatSize(att.file_size)}</span>
+                                {att.file_size > 0 && <span style={{ fontSize: 10, color: '#667781', flexShrink: 0 }}>{formatSize(att.file_size)}</span>}
                               </div>
                             )}
                           </div>

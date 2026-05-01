@@ -565,24 +565,30 @@ export default function CustomerPortalPage() {
                       return (
                         <div key={tok.id}>
                           {att && attIsImage && attUrl && (
-                            <div
-                              className="mt-2 rounded-xl overflow-hidden cursor-pointer w-full max-w-[180px] aspect-square"
-                              onClick={() => !wasSwipedRef.current && setViewer({ src: attUrl, filename: att.file_name, attId: att.id })}
-                            >
-                              <img src={attUrl} alt={att.file_name} className="w-full h-full object-cover" />
+                            <div className="mt-2 rounded-xl overflow-hidden" style={{ width: 240 }}>
+                              <div
+                                style={{ width: 240, height: 180, cursor: 'pointer' }}
+                                onClick={() => !wasSwipedRef.current && setViewer({ src: attUrl, filename: att.file_name, attId: att.id })}
+                              >
+                                <img src={attUrl} alt={att.file_name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', background: 'rgba(0,0,0,0.04)' }}>
+                                <span style={{ fontSize: 10, color: '#667781', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.file_name}</span>
+                                {att.file_size > 0 && <span style={{ fontSize: 10, color: '#667781', flexShrink: 0 }}>{formatSize(att.file_size)}</span>}
+                              </div>
                             </div>
                           )}
                           {att && !attIsImage && attUrl && (
                             <div
                               className="mt-2 flex items-center gap-2 rounded-lg p-2 cursor-pointer"
-                              style={{ background: 'rgba(0,0,0,0.06)' }}
+                              style={{ background: 'rgba(0,0,0,0.06)', width: 240 }}
                               onClick={() => !wasSwipedRef.current && setViewer({ src: attUrl, filename: att.file_name, attId: att.id })}
                             >
-                              <svg className="w-5 h-5 flex-shrink-0" style={{ color: '#667781' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <svg className="flex-shrink-0" width="14" height="14" style={{ color: '#667781' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
-                              <span className="text-xs truncate" style={{ color: '#111b21' }}>{att.file_name}</span>
-                              <span className="text-[10px] flex-shrink-0" style={{ color: '#667781' }}>{formatSize(att.file_size)}</span>
+                              <span style={{ fontSize: 12, color: '#111b21', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.file_name}</span>
+                              <span style={{ fontSize: 10, color: '#667781', flexShrink: 0 }}>{formatSize(att.file_size)}</span>
                             </div>
                           )}
                         </div>
