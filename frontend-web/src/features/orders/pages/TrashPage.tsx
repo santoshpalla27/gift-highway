@@ -3,12 +3,20 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { orderService, type TrashOrder } from '../../../services/orderService'
 import { purgeNotificationOrder } from '../../notifications/hooks/useNotifications'
 import { useNavigate } from 'react-router-dom'
+import { DateInput } from '../../../components/system/DateInput'
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
   new:         { label: 'Yet to Start', color: '#6B7280', bg: '#F3F4F6' },
   in_progress: { label: 'Working',      color: '#3B82F6', bg: '#EFF6FF' },
   completed:   { label: 'Done',         color: '#10B981', bg: '#ECFDF5' },
 }
+
+const STATUS_OPTIONS = [
+  { key: 'all',         label: 'All statuses' },
+  { key: 'new',         label: 'Yet to Start' },
+  { key: 'in_progress', label: 'Working' },
+  { key: 'completed',   label: 'Done' },
+]
 
 function ConfirmDeleteModal({ order, onClose, onConfirm }: {
   order: TrashOrder
@@ -107,10 +115,28 @@ export function TrashPage() {
   const [deleteTarget, setDeleteTarget] = useState<TrashOrder | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [dateFrom, setDateFrom] = useState('')   // "YYYY-MM-DD" or ""
 
   const { data: orders = [], isLoading } = useQuery<TrashOrder[]>({
     queryKey: ['trash'],
     queryFn: orderService.listTrash,
+  })
+
+  const filteredOrders = orders.filter(o => {
+    const q = search.trim().toLowerCase()
+    const matchesSearch = !q ||
+      o.title.toLowerCase().includes(q) ||
+      o.customer_name.toLowerCase().includes(q) ||
+      (o.archived_by_name ?? '').toLowerCase().includes(q)
+    const matchesStatus = statusFilter === 'all' || o.status === statusFilter
+    const matchesDate = !dateFrom || (
+      o.archived_at
+        ? new Date(o.archived_at) >= new Date(dateFrom + 'T00:00:00')
+        : false
+    )
+    return matchesSearch && matchesStatus && matchesDate
   })
 
   function showToast(msg: string) {
@@ -164,14 +190,103 @@ export function TrashPage() {
         .trash-table tr:last-child td { border-bottom: none; }
         .trash-table tbody tr { background: #FFFFFF; }
         .trash-table tbody tr:hover { background: #F9FAFB; }
+        .trash-select {
+          appearance: none; -webkit-appearance: none;
+          padding: 7px 32px 7px 11px; border-radius: 9px; border: 1.5px solid #E4E6EF;
+          font-size: 13px; font-weight: 500; color: #374151; background: #FFFFFF;
+          cursor: pointer; outline: none; min-width: 140px;
+        }
+        .trash-select:focus { border-color: #6366F1; }
+
       `}</style>
 
       {/* Header */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 4px 0', letterSpacing: '-0.5px' }}>Trash</h1>
         <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>
-          {isLoading ? 'Loading…' : `${orders.length} archived order${orders.length !== 1 ? 's' : ''}`}
+          {isLoading ? 'Loading…' : `${filteredOrders.length} of ${orders.length} archived order${orders.length !== 1 ? 's' : ''}`}
         </p>
+      </div>
+
+      {/* Search + Filters */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+
+        {/* Search */}
+        <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 160, maxWidth: 320 }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2"
+            style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search by order, customer…"
+            style={{
+              width: '100%', paddingLeft: 32, paddingRight: search ? 32 : 12,
+              paddingTop: 8, paddingBottom: 8, borderRadius: 9, border: '1.5px solid #E4E6EF',
+              fontSize: 13, outline: 'none', boxSizing: 'border-box', background: '#FFFFFF',
+              color: '#111827',
+            }}
+          />
+          {search && (
+            <button onClick={() => setSearch('')} style={{
+              position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+              background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#9CA3AF',
+              display: 'flex', alignItems: 'center',
+            }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {/* Status dropdown */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <select
+            className="trash-select"
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+          >
+            {STATUS_OPTIONS.map(o => (
+              <option key={o.key} value={o.key}>{o.label}</option>
+            ))}
+          </select>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2.5"
+            style={{ position: 'absolute', right: 10, pointerEvents: 'none' }}>
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+
+        {/* Date from */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <DateInput
+            value={dateFrom}
+            onChange={setDateFrom}
+            placeholder="Archived from…"
+            style={{
+              padding: '7px 11px', borderRadius: 9,
+              border: `1.5px solid ${dateFrom ? '#6366F1' : '#E4E6EF'}`,
+              background: dateFrom ? '#EEF2FF' : '#FFFFFF',
+              color: dateFrom ? '#4F46E5' : '#6B7280',
+            }}
+          />
+          {dateFrom && (
+            <button
+              onClick={() => setDateFrom('')}
+              title="Clear date filter"
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+                color: '#9CA3AF', display: 'flex', alignItems: 'center',
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
+        </div>
+
       </div>
 
       <div style={{ flex: 1, minHeight: 0, background: '#FFFFFF', border: '1px solid #E4E6EF', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,.06)' }}>
@@ -189,6 +304,16 @@ export function TrashPage() {
               <div style={{ fontSize: 15, fontWeight: 600, color: '#374151', marginBottom: 4 }}>Trash is empty</div>
               <div style={{ fontSize: 13, color: '#9CA3AF' }}>Archived orders will appear here.</div>
             </div>
+          ) : filteredOrders.length === 0 ? (
+            <div style={{ padding: 60, textAlign: 'center' }}>
+              <div style={{ marginBottom: 12, color: '#D1D5DB' }}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#374151', marginBottom: 4 }}>No results</div>
+              <div style={{ fontSize: 13, color: '#9CA3AF' }}>Try adjusting your search, status, or date filter.</div>
+            </div>
           ) : (
             <table className="trash-table">
               <thead>
@@ -202,7 +327,7 @@ export function TrashPage() {
                 </tr>
               </thead>
               <tbody>
-                {orders.map(order => {
+                {filteredOrders.map(order => {
                   const meta = STATUS_META[order.status] ?? STATUS_META.new
                   const busy = actionLoading === order.id
                   return (
