@@ -105,7 +105,7 @@ export default function CustomerPortalPage() {
   const [textInput, setTextInput] = useState('')
   const [sending, setSending] = useState(false)
   const sendingRef = useRef(false)
-  const [viewer, setViewer] = useState<{ src: string; filename: string; attId: number } | null>(null)
+  const [viewer, setViewer] = useState<{ src: string; filename: string; attId: number; msg: PortalMessage } | null>(null)
   const [deletingAttId, setDeletingAttId] = useState<number | null>(null)
 
   const [replyTo, setReplyTo] = useState<PortalMessage | null>(null)
@@ -568,7 +568,7 @@ export default function CustomerPortalPage() {
                             <div className="mt-2 rounded-xl overflow-hidden" style={{ width: 240 }}>
                               <div
                                 style={{ width: 240, height: 180, cursor: 'pointer' }}
-                                onClick={() => !wasSwipedRef.current && setViewer({ src: attUrl, filename: att.file_name, attId: att.id })}
+                                onClick={() => !wasSwipedRef.current && setViewer({ src: attUrl, filename: att.file_name, attId: att.id, msg })}
                               >
                                 <img src={attUrl} alt={att.file_name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                               </div>
@@ -582,7 +582,7 @@ export default function CustomerPortalPage() {
                             <div
                               className="mt-2 flex items-center gap-2 rounded-lg p-2 cursor-pointer"
                               style={{ background: 'rgba(0,0,0,0.06)', width: 240 }}
-                              onClick={() => !wasSwipedRef.current && setViewer({ src: attUrl, filename: att.file_name, attId: att.id })}
+                              onClick={() => !wasSwipedRef.current && setViewer({ src: attUrl, filename: att.file_name, attId: att.id, msg })}
                             >
                               <svg className="flex-shrink-0" width="14" height="14" style={{ color: '#667781' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -769,6 +769,7 @@ export default function CustomerPortalPage() {
           src={viewer.src}
           filename={viewer.filename}
           onClose={() => setViewer(null)}
+          onReply={() => { setViewer(null); setReplyTo(viewer.msg) }}
           onDelete={async () => {
             if (!token || !viewer) return
             setDeletingAttId(viewer.attId)
