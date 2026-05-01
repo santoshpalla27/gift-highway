@@ -7,6 +7,7 @@ import {
   type PortalMessage,
   type PortalAttachment,
 } from '../../../services/portalService'
+import { AttachmentViewer } from '../../../components/system/AttachmentViewer'
 
 
 function formatSize(bytes: number) {
@@ -104,9 +105,8 @@ export default function CustomerPortalPage() {
   const [textInput, setTextInput] = useState('')
   const [sending, setSending] = useState(false)
   const sendingRef = useRef(false)
-  const [lightbox, setLightbox] = useState<{ src: string; filename: string; attId: number } | null>(null)
+  const [viewer, setViewer] = useState<{ src: string; filename: string; attId: number } | null>(null)
   const [deletingAttId, setDeletingAttId] = useState<number | null>(null)
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   const [replyTo, setReplyTo] = useState<PortalMessage | null>(null)
   const [highlightedMsgId, setHighlightedMsgId] = useState<number | null>(null)
@@ -567,13 +567,17 @@ export default function CustomerPortalPage() {
                           {att && attIsImage && attUrl && (
                             <div
                               className="mt-2 rounded-xl overflow-hidden cursor-pointer w-full max-w-[180px] aspect-square"
-                              onClick={() => !wasSwipedRef.current && setLightbox({ src: attUrl, filename: att.file_name, attId: att.id })}
+                              onClick={() => !wasSwipedRef.current && setViewer({ src: attUrl, filename: att.file_name, attId: att.id })}
                             >
                               <img src={attUrl} alt={att.file_name} className="w-full h-full object-cover" />
                             </div>
                           )}
-                          {att && !attIsImage && (
-                            <div className="mt-2 flex items-center gap-2 rounded-lg p-2" style={{ background: 'rgba(0,0,0,0.06)' }}>
+                          {att && !attIsImage && attUrl && (
+                            <div
+                              className="mt-2 flex items-center gap-2 rounded-lg p-2 cursor-pointer"
+                              style={{ background: 'rgba(0,0,0,0.06)' }}
+                              onClick={() => !wasSwipedRef.current && setViewer({ src: attUrl, filename: att.file_name, attId: att.id })}
+                            >
                               <svg className="w-5 h-5 flex-shrink-0" style={{ color: '#667781' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
@@ -754,63 +758,23 @@ export default function CustomerPortalPage() {
         </div>
       )}
 
-      {/* Lightbox */}
-      {lightbox && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
-          onMouseDown={(e) => { if (e.target === e.currentTarget) { setLightbox(null); setConfirmingDelete(false) } }}
-        >
-          <div className="relative max-w-4xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-            <img src={lightbox.src} alt={lightbox.filename} className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl" />
-            <div className="absolute top-3 right-3 flex gap-2">
-              <a href={lightbox.src} download={lightbox.filename} className="bg-white/90 backdrop-blur-sm p-2 rounded-lg hover:bg-white transition-colors shadow-lg" title="Download" onClick={(e) => e.stopPropagation()}>
-                <svg className="w-5 h-5 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-              </a>
-              <a href={lightbox.src} target="_blank" rel="noreferrer" className="bg-white/90 backdrop-blur-sm p-2 rounded-lg hover:bg-white transition-colors shadow-lg" title="Open in new tab" onClick={(e) => e.stopPropagation()}>
-                <svg className="w-5 h-5 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-              </a>
-              <button onClick={() => { setLightbox(null); setConfirmingDelete(false) }} className="bg-white/90 backdrop-blur-sm p-2 rounded-lg hover:bg-white transition-colors shadow-lg" title="Close">
-                <XIcon className="w-5 h-5 text-gray-800" />
-              </button>
-            </div>
-          </div>
-
-          {confirmingDelete && (
-            <div className="absolute inset-0 flex items-center justify-center p-6" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-white rounded-2xl p-6 text-center shadow-2xl w-full max-w-xs">
-                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                </div>
-                <h3 className="text-base font-semibold text-gray-900 mb-1">Delete this file?</h3>
-                <p className="text-sm text-gray-500 mb-5">This can't be undone.</p>
-                <div className="flex gap-3">
-                  <button onClick={() => setConfirmingDelete(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-                  <button
-                    disabled={!!deletingAttId}
-                    onClick={async () => {
-                      if (!token || !lightbox) return
-                      setDeletingAttId(lightbox.attId)
-                      try {
-                        // Customer can delete their own attachments via portal API
-                        // This uses the public portal token; backend deletes by attachment ID
-                        await fetch(`/api/portal/${token}/attachments/${lightbox.attId}`, { method: 'DELETE' })
-                        setAttachments(prev => prev.filter(a => a.id !== lightbox.attId))
-                        setLightbox(null)
-                        setConfirmingDelete(false)
-                      } finally {
-                        setDeletingAttId(null)
-                      }
-                    }}
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-sm font-medium text-white disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                  >
-                    {deletingAttId ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : null}
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+      {viewer && (
+        <AttachmentViewer
+          src={viewer.src}
+          filename={viewer.filename}
+          onClose={() => setViewer(null)}
+          onDelete={async () => {
+            if (!token || !viewer) return
+            setDeletingAttId(viewer.attId)
+            try {
+              await fetch(`/api/portal/${token}/attachments/${viewer.attId}`, { method: 'DELETE' })
+              setAttachments(prev => prev.filter(a => a.id !== viewer.attId))
+              setViewer(null)
+            } finally {
+              setDeletingAttId(null)
+            }
+          }}
+        />
       )}
     </div>
   )

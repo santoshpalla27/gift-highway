@@ -1,13 +1,13 @@
-import { View, Text, Image, TouchableOpacity, ActivityIndicator, Linking, Dimensions } from 'react-native'
+import { View, Text, Image, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useState, useEffect } from 'react'
 import { staffPortalApi } from '../../../services/portalService'
+import { AttachmentViewer } from '../../../components/AttachmentViewer'
 
 const ATTACH_MAX_W = Math.round(Dimensions.get('window').width * 0.6)
 
 const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic']
 
-// Module-level cache: survives remounts caused by parent re-renders
 const _urlCache = new Map<string, string>()
 
 export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff, caption }: {
@@ -23,10 +23,10 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
   const isImg = IMG_EXTS.includes(ext)
   const cacheKey = attId != null ? `${orderId}:${attId}` : null
 
-  // Initialise from cache so a remount never shows the spinner again
   const [viewUrl, setViewUrl] = useState<string | null>(() =>
     cacheKey ? _urlCache.get(cacheKey) ?? null : null
   )
+  const [viewerVisible, setViewerVisible] = useState(false)
 
   useEffect(() => {
     if (attId == null || viewUrl != null) return
@@ -38,11 +38,6 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
       .catch(() => {})
   }, [orderId, attId, fileName])
 
-  const handleDownload = async () => {
-    if (!viewUrl) return
-    Linking.openURL(viewUrl)
-  }
-
   const hasBubble = isStaff !== undefined
   const bubbleBg     = isStaff ? '#EFF6FF' : '#F0FDF4'
   const bubbleBorder = isStaff ? '#BFDBFE' : '#A7F3D0'
@@ -51,50 +46,81 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
 
   if (isImg) {
     return (
-      <View style={{
-        marginTop: 6, overflow: 'hidden', width: ATTACH_MAX_W,
-        backgroundColor: hasBubble ? bubbleBg : '#FFFFFF',
-        borderWidth: 1, borderColor: hasBubble ? bubbleBorder : '#E5E7EB',
-        borderRadius: 14, borderTopRightRadius: trr, borderTopLeftRadius: tlr,
-      }}>
-        <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}>
-          {viewUrl
-            ? <Image source={{ uri: viewUrl }} style={{ width: '100%', height: 200 }} resizeMode="cover" />
-            : <View style={{ width: '100%', height: 100, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' }}>
-                <ActivityIndicator size="small" color="#94A3B8" />
-              </View>
-          }
-        </TouchableOpacity>
-        <View style={{ paddingHorizontal: 16, paddingVertical: 10 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontSize: 11, color: '#6B7280', flex: 1 }} numberOfLines={1}>{fileName}</Text>
-            {viewUrl && (
-              <TouchableOpacity onPress={handleDownload} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                <Ionicons name="download-outline" size={14} color="#6366F1" />
-              </TouchableOpacity>
-            )}
+      <>
+        <View style={{
+          marginTop: 6, overflow: 'hidden', width: ATTACH_MAX_W,
+          backgroundColor: hasBubble ? bubbleBg : '#FFFFFF',
+          borderWidth: 1, borderColor: hasBubble ? bubbleBorder : '#E5E7EB',
+          borderRadius: 14, borderTopRightRadius: trr, borderTopLeftRadius: tlr,
+        }}>
+          <TouchableOpacity
+            onPress={() => { if (viewUrl) setViewerVisible(true) }}
+            activeOpacity={0.85}
+          >
+            {viewUrl
+              ? <Image source={{ uri: viewUrl }} style={{ width: '100%', height: 200 }} resizeMode="cover" />
+              : <View style={{ width: '100%', height: 100, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' }}>
+                  <ActivityIndicator size="small" color="#94A3B8" />
+                </View>
+            }
+          </TouchableOpacity>
+          <View style={{ paddingHorizontal: 16, paddingVertical: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ fontSize: 11, color: '#6B7280', flex: 1 }} numberOfLines={1}>{fileName}</Text>
+              {viewUrl && (
+                <TouchableOpacity onPress={() => setViewerVisible(true)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                  <Ionicons name="expand-outline" size={14} color="#6366F1" />
+                </TouchableOpacity>
+              )}
+            </View>
+            {caption ? <Text style={{ fontSize: 13, color: '#374151', marginTop: 4, lineHeight: 18 }}>{caption}</Text> : null}
           </View>
-          {caption ? <Text style={{ fontSize: 13, color: '#374151', marginTop: 4, lineHeight: 18 }}>{caption}</Text> : null}
         </View>
-      </View>
+
+        {viewerVisible && viewUrl ? (
+          <AttachmentViewer
+            visible={viewerVisible}
+            onClose={() => setViewerVisible(false)}
+            url={viewUrl}
+            filename={fileName}
+          />
+        ) : null}
+      </>
     )
   }
 
   return (
-    <TouchableOpacity onPress={handleDownload} activeOpacity={0.85}
-      style={{
-        flexDirection: 'column', gap: 6, marginTop: 4,
-        backgroundColor: hasBubble ? bubbleBg : '#F9FAFB',
-        borderWidth: 1, borderColor: hasBubble ? bubbleBorder : '#E5E7EB',
-        borderRadius: 14, borderTopRightRadius: trr, borderTopLeftRadius: tlr,
-        paddingHorizontal: 18, paddingVertical: 14, width: ATTACH_MAX_W,
-      }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Ionicons name="document-outline" size={16} color="#6B7280" />
-        <Text style={{ fontSize: 12, color: '#374151', flex: 1 }} numberOfLines={1}>{fileName}</Text>
-        <Ionicons name="download-outline" size={14} color="#6366F1" />
-      </View>
-      {caption ? <Text style={{ fontSize: 13, color: '#374151', lineHeight: 18 }}>{caption}</Text> : null}
-    </TouchableOpacity>
+    <>
+      <TouchableOpacity
+        onPress={() => { if (viewUrl) setViewerVisible(true) }}
+        activeOpacity={0.85}
+        style={{
+          flexDirection: 'column', gap: 6, marginTop: 4,
+          backgroundColor: hasBubble ? bubbleBg : '#F9FAFB',
+          borderWidth: 1, borderColor: hasBubble ? bubbleBorder : '#E5E7EB',
+          borderRadius: 14, borderTopRightRadius: trr, borderTopLeftRadius: tlr,
+          paddingHorizontal: 18, paddingVertical: 14, width: ATTACH_MAX_W,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Ionicons name="document-outline" size={16} color="#6B7280" />
+          <Text style={{ fontSize: 12, color: '#374151', flex: 1 }} numberOfLines={1}>{fileName}</Text>
+          {viewUrl
+            ? <Ionicons name="eye-outline" size={14} color="#6366F1" />
+            : <ActivityIndicator size="small" color="#94A3B8" />
+          }
+        </View>
+        {caption ? <Text style={{ fontSize: 13, color: '#374151', lineHeight: 18 }}>{caption}</Text> : null}
+      </TouchableOpacity>
+
+      {viewerVisible && viewUrl ? (
+        <AttachmentViewer
+          visible={viewerVisible}
+          onClose={() => setViewerVisible(false)}
+          url={viewUrl}
+          filename={fileName}
+        />
+      ) : null}
+    </>
   )
 }

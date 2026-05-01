@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { formatTime } from '../../../utils/date'
 import { staffPortalApi, getPortalURL, type PortalMessage, type PortalAttachment, type PortalStatus } from '../../../services/portalService'
 import { useSocketEvent } from '../../../providers/SocketProvider'
+import { AttachmentViewer } from '../../../components/system/AttachmentViewer'
 
 interface Props {
   orderId: string
@@ -74,7 +75,7 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
   const [replyText, setReplyText] = useState('')
   const [sending, setSending] = useState(false)
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([])
-  const [lightbox, setLightbox] = useState<{ src: string; filename: string } | null>(null)
+  const [viewer, setViewer] = useState<{ src: string; filename: string } | null>(null)
   const [replyTo, setReplyTo] = useState<PortalMessage | null>(null)
   const [highlightedMsgId, setHighlightedMsgId] = useState<number | null>(null)
   const [dotMenu, setDotMenu] = useState<{ msgId: number; x: number; y: number } | null>(null)
@@ -387,10 +388,19 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
                           <div key={tok.id} style={{ marginTop: parsed.text ? 6 : 0 }}>
                             {isImg && att.view_url ? (
                               <div
-                                onClick={() => setLightbox({ src: att.view_url, filename: att.file_name })}
+                                onClick={() => setViewer({ src: att.view_url, filename: att.file_name })}
                                 style={{ width: 160, height: 160, borderRadius: 8, overflow: 'hidden', cursor: 'pointer' }}
                               >
                                 <img src={att.view_url} alt={att.file_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              </div>
+                            ) : att.view_url ? (
+                              <div
+                                onClick={() => setViewer({ src: att.view_url, filename: att.file_name })}
+                                style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.06)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#667781" strokeWidth="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                <span style={{ fontSize: 12, color: '#111b21', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.file_name}</span>
+                                <span style={{ fontSize: 10, color: '#667781', flexShrink: 0 }}>{formatSize(att.file_size)}</span>
                               </div>
                             ) : (
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.06)', borderRadius: 8, padding: '6px 10px' }}>
@@ -543,19 +553,12 @@ export function StaffPortalChatModal({ orderId, portal, onClose }: Props) {
         </div>
       )}
 
-      {/* Lightbox */}
-      {lightbox && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 700, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setLightbox(null)}>
-          <img src={lightbox.src} alt={lightbox.filename} style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: 8 }} onClick={e => e.stopPropagation()} />
-          <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 8 }}>
-            <a href={lightbox.src} download={lightbox.filename} style={{ background: 'rgba(255,255,255,0.9)', borderRadius: 8, padding: 8, display: 'flex', color: '#111' }} onClick={e => e.stopPropagation()}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-            </a>
-            <button style={{ background: 'rgba(255,255,255,0.9)', borderRadius: 8, padding: 8, border: 'none', cursor: 'pointer', display: 'flex', color: '#111' }} onClick={() => setLightbox(null)}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-        </div>
+      {viewer && (
+        <AttachmentViewer
+          src={viewer.src}
+          filename={viewer.filename}
+          onClose={() => setViewer(null)}
+        />
       )}
     </div>
   )

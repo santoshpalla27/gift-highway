@@ -15,6 +15,7 @@ import { useSocketEvent } from '../../../providers/SocketProvider'
 import type { Order } from '../../../services/orderService'
 import { staffPortalApi, getPortalURL, type PortalStatus, type PortalAttachment, type PortalMessage } from '../../../services/portalService'
 import { StaffPortalChatModal } from '../components/StaffPortalChatModal'
+import { AttachmentViewer } from '../../../components/system/AttachmentViewer'
 
 // ─── Meta maps ───────────────────────────────────────────────────────────────
 
@@ -200,8 +201,8 @@ async function downloadFile(orderId: string, fileKey: string, fileName: string) 
 
 // ─── Attachment image with signed-url refresh on 403/load-error ─────────────
 
-function AttachmentImage({ orderId, fileKey, fileName, fileUrl }: {
-  orderId: string; fileKey: string; fileName: string; fileUrl: string
+function AttachmentImage({ orderId, fileKey, fileName, fileUrl, onOpen }: {
+  orderId: string; fileKey: string; fileName: string; fileUrl: string; onOpen?: (src: string) => void
 }) {
   const [src, setSrc] = useState(fileUrl)
   const [failed, setFailed] = useState(false)
@@ -228,14 +229,15 @@ function AttachmentImage({ orderId, fileKey, fileName, fileUrl }: {
       src={src}
       alt={fileName}
       onError={handleError}
-      style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }}
+      onClick={() => onOpen?.(src)}
+      style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block', cursor: onOpen ? 'pointer' : 'default' }}
     />
   )
 }
 
 // ─── Portal attachment card that can fetch its own URL if needed ──────────────
 
-function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isStaff, caption, portalAttachments }: {
+function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isStaff, caption, portalAttachments, onOpen }: {
   orderId: string
   attId: number | null
   fileName: string
@@ -244,6 +246,7 @@ function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isSta
   isStaff?: boolean
   caption?: string
   portalAttachments?: PortalAttachment[]
+  onOpen?: (url: string) => void
 }) {
   const [viewUrl, setViewUrl] = useState<string | null>(null)
   const ext = ('.' + (fileName.split('.').pop() ?? '')).toLowerCase()
@@ -282,7 +285,7 @@ function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isSta
         borderRadius: isStaff !== undefined ? bubbleRadius : 8,
       }}>
         <div
-          onClick={handleDownload}
+          onClick={() => { if (viewUrl && onOpen) onOpen(viewUrl); else handleDownload() }}
           style={{ cursor: 'pointer', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           {viewUrl ? (
@@ -296,7 +299,7 @@ function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isSta
         <div style={{ padding: '8px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{fileName}</span>
-            <button onClick={handleDownload} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', lineHeight: 1, flexShrink: 0, padding: 0 }} title="Download">
+            <button onClick={(e) => { e.stopPropagation(); handleDownload() }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', lineHeight: 1, flexShrink: 0, padding: 0 }} title="Download">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             </button>
           </div>
@@ -310,7 +313,7 @@ function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isSta
 
   return (
     <div
-      onClick={handleDownload}
+      onClick={() => { if (viewUrl && onOpen) onOpen(viewUrl); else handleDownload() }}
       style={{
         display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4,
         background: bubbleBg ?? '#F9FAFB', border: bubbleBorder,
@@ -353,6 +356,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
   const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState('')
+  const [viewer, setViewer] = useState<{ src: string; filename: string; mimeType?: string; sizeBytes?: number } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -556,7 +560,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
   if (event.type === 'attachment_added') {
     const p = event.payload as Record<string, string>
     const fileIsImage = isImage(p.mime_type ?? '')
-    return (
+    return (<>
       <div style={{
         display: 'flex',
         flexDirection: isOwn ? 'row-reverse' : 'row',
@@ -593,9 +597,15 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
               overflow: 'hidden', maxWidth: '60%', boxShadow: '0 1px 3px rgba(0,0,0,.04)',
             }}>
               {fileIsImage ? (
-                <AttachmentImage orderId={orderId} fileKey={p.file_key} fileName={p.file_name} fileUrl={p.file_url} />
+                <AttachmentImage
+                  orderId={orderId} fileKey={p.file_key} fileName={p.file_name} fileUrl={p.file_url}
+                  onOpen={(src) => setViewer({ src, filename: p.file_name, mimeType: p.mime_type, sizeBytes: p.size_bytes ? Number(p.size_bytes) : undefined })}
+                />
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 22px' }}>
+                <div
+                  onClick={() => setViewer({ src: p.file_url, filename: p.file_name, mimeType: p.mime_type, sizeBytes: p.size_bytes ? Number(p.size_bytes) : undefined })}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 22px', cursor: 'pointer' }}
+                >
                   <div style={{ width: 36, height: 36, borderRadius: 8, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                   </div>
@@ -603,7 +613,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.file_name}</div>
                     <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{formatBytes(Number(p.size_bytes))}</div>
                   </div>
-                  <button onClick={() => downloadFile(orderId, p.file_key, p.file_name)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, padding: 0, lineHeight: 1 }}>
+                  <button onClick={(e) => { e.stopPropagation(); downloadFile(orderId, p.file_key, p.file_name) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, padding: 0, lineHeight: 1 }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   </button>
                 </div>
@@ -611,7 +621,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
               {fileIsImage && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 18px', borderTop: '1px solid #F3F4F6' }}>
                   <span style={{ fontSize: 11, color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.file_name}</span>
-                  <button onClick={() => downloadFile(orderId, p.file_key, p.file_name)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, marginLeft: 8, padding: 0, lineHeight: 1 }}>
+                  <button onClick={(e) => { e.stopPropagation(); downloadFile(orderId, p.file_key, p.file_name) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', flexShrink: 0, marginLeft: 8, padding: 0, lineHeight: 1 }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   </button>
                 </div>
@@ -665,7 +675,8 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
           </div>
         </div>
       </div>
-    )
+      {viewer && <AttachmentViewer src={viewer.src} filename={viewer.filename} mimeType={viewer.mimeType} sizeBytes={viewer.sizeBytes} onClose={() => setViewer(null)} />}
+    </>)
   }
 
   // Deleted attachment tombstone
@@ -726,7 +737,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
       return null
     }
 
-    return (
+    return (<>
       <div style={{
         display: 'flex',
         flexDirection: isOwn ? 'row-reverse' : 'row',
@@ -815,6 +826,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                   isOwn={isOwn}
                   isStaff={true}
                   portalAttachments={portalAttachments}
+                  onOpen={(url) => setViewer({ src: url, filename: tok.name })}
                 />
               ))}
               {event.type === 'customer_attachment' && p.file_name && (() => {
@@ -830,6 +842,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                     isStaff={false}
                     caption={caption}
                     portalAttachments={portalAttachments}
+                    onOpen={(url) => setViewer({ src: url, filename: p.file_name })}
                   />
                 )
               })()}
@@ -873,7 +886,8 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
           </div>
         </div>
       </div>
-    )
+      {viewer && <AttachmentViewer src={viewer.src} filename={viewer.filename} mimeType={viewer.mimeType} sizeBytes={viewer.sizeBytes} onClose={() => setViewer(null)} />}
+    </>)
   }
 
   // System event
