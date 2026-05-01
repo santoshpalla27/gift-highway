@@ -2,6 +2,7 @@ import { View, Text, Image, TouchableOpacity, ActivityIndicator, Dimensions } fr
 import { Ionicons } from '@expo/vector-icons'
 import { useState, useEffect } from 'react'
 import { staffPortalApi } from '../../../services/portalService'
+import { downloadAttachment } from '../../../services/attachmentService'
 import { AttachmentViewer } from '../../../components/AttachmentViewer'
 
 const ATTACH_MAX_W = Math.round(Dimensions.get('window').width * 0.6)
@@ -10,7 +11,7 @@ const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic']
 
 const _urlCache = new Map<string, string>()
 
-export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff, caption }: {
+export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff, caption, onReply }: {
   orderId: string
   attId: number | null
   fileName: string
@@ -18,6 +19,7 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
   isOwn?: boolean
   isStaff?: boolean
   caption?: string
+  onReply?: () => void
 }) {
   const ext = ('.' + (fileName.split('.').pop() ?? '')).toLowerCase()
   const isImg = IMG_EXTS.includes(ext)
@@ -68,8 +70,8 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text style={{ fontSize: 11, color: '#6B7280', flex: 1 }} numberOfLines={1}>{fileName}</Text>
               {viewUrl && (
-                <TouchableOpacity onPress={() => setViewerVisible(true)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                  <Ionicons name="expand-outline" size={14} color="#6366F1" />
+                <TouchableOpacity onPress={() => downloadAttachment(viewUrl, fileName)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                  <Ionicons name="arrow-down-circle-outline" size={16} color="#6366F1" />
                 </TouchableOpacity>
               )}
             </View>
@@ -83,6 +85,7 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
             onClose={() => setViewerVisible(false)}
             url={viewUrl}
             filename={fileName}
+            onReply={onReply}
           />
         ) : null}
       </>
@@ -91,27 +94,31 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
 
   return (
     <>
-      <TouchableOpacity
-        onPress={() => { if (viewUrl) setViewerVisible(true) }}
-        activeOpacity={0.85}
-        style={{
-          flexDirection: 'column', gap: 6, marginTop: 4,
-          backgroundColor: hasBubble ? bubbleBg : '#F9FAFB',
-          borderWidth: 1, borderColor: hasBubble ? bubbleBorder : '#E5E7EB',
-          borderRadius: 14, borderTopRightRadius: trr, borderTopLeftRadius: tlr,
-          paddingHorizontal: 18, paddingVertical: 14, width: ATTACH_MAX_W,
-        }}
-      >
+      <View style={{
+        flexDirection: 'column', gap: 6, marginTop: 4,
+        backgroundColor: hasBubble ? bubbleBg : '#F9FAFB',
+        borderWidth: 1, borderColor: hasBubble ? bubbleBorder : '#E5E7EB',
+        borderRadius: 14, borderTopRightRadius: trr, borderTopLeftRadius: tlr,
+        paddingHorizontal: 18, paddingVertical: 14, width: ATTACH_MAX_W,
+      }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Ionicons name="document-outline" size={16} color="#6B7280" />
-          <Text style={{ fontSize: 12, color: '#374151', flex: 1 }} numberOfLines={1}>{fileName}</Text>
+          <TouchableOpacity
+            onPress={() => { if (viewUrl) setViewerVisible(true) }}
+            activeOpacity={0.85}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}
+          >
+            <Ionicons name="document-outline" size={16} color="#6B7280" />
+            <Text style={{ fontSize: 12, color: '#374151', flex: 1 }} numberOfLines={1}>{fileName}</Text>
+          </TouchableOpacity>
           {viewUrl
-            ? <Ionicons name="eye-outline" size={14} color="#6366F1" />
+            ? <TouchableOpacity onPress={() => downloadAttachment(viewUrl, fileName)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="arrow-down-circle-outline" size={18} color="#6366F1" />
+              </TouchableOpacity>
             : <ActivityIndicator size="small" color="#94A3B8" />
           }
         </View>
         {caption ? <Text style={{ fontSize: 13, color: '#374151', lineHeight: 18 }}>{caption}</Text> : null}
-      </TouchableOpacity>
+      </View>
 
       {viewerVisible && viewUrl ? (
         <AttachmentViewer
@@ -119,6 +126,7 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
           onClose={() => setViewerVisible(false)}
           url={viewUrl}
           filename={fileName}
+          onReply={onReply}
         />
       ) : null}
     </>

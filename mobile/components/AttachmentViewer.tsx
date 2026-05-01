@@ -10,8 +10,6 @@ import {
   SafeAreaView,
   Dimensions,
   ActivityIndicator,
-  Share,
-  Platform,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { formatBytes } from '../services/attachmentService'
@@ -64,6 +62,7 @@ export interface AttachmentViewerProps {
   filename: string
   mimeType?: string
   sizeBytes?: number
+  onReply?: () => void
 }
 
 export function AttachmentViewer({
@@ -73,6 +72,7 @@ export function AttachmentViewer({
   filename,
   mimeType,
   sizeBytes,
+  onReply,
 }: AttachmentViewerProps) {
   const [imgLoading, setImgLoading] = useState(true)
   const [imgError, setImgError] = useState(false)
@@ -80,19 +80,12 @@ export function AttachmentViewer({
   const isImg = resolveIsImage(mimeType, filename)
   const fileIcon = isImg ? null : getFileIconInfo(mimeType, filename)
   const ext = (filename.split('.').pop() ?? '').toUpperCase()
+  const _dot = filename.lastIndexOf('.')
+  const baseName = _dot > 0 ? filename.slice(0, _dot) : filename
+  const extName  = _dot > 0 ? filename.slice(_dot)  : ''
 
   async function handleDownload() {
     await Linking.openURL(url)
-  }
-
-  async function handleShare() {
-    try {
-      await Share.share(
-        Platform.OS === 'ios'
-          ? { url, title: filename }
-          : { message: url, title: filename },
-      )
-    } catch {}
   }
 
   return (
@@ -108,14 +101,19 @@ export function AttachmentViewer({
           <TouchableOpacity onPress={onClose} style={S.toolbarBtn} hitSlop={8}>
             <Ionicons name="close" size={22} color="#0F172A" />
           </TouchableOpacity>
-          <Text style={S.toolbarTitle} numberOfLines={1}>{filename}</Text>
+          <View style={S.toolbarTitleRow}>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={S.toolbarTitleBase}>{baseName}</Text>
+            {extName ? <Text style={S.toolbarTitleExt}>{extName}</Text> : null}
+          </View>
           <View style={S.toolbarActions}>
             <TouchableOpacity onPress={handleDownload} style={S.toolbarBtn} hitSlop={8}>
               <Ionicons name="arrow-down-circle-outline" size={22} color="#6366F1" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleShare} style={S.toolbarBtn} hitSlop={8}>
-              <Ionicons name="share-outline" size={22} color="#6366F1" />
-            </TouchableOpacity>
+            {onReply && (
+              <TouchableOpacity onPress={() => { onClose(); onReply() }} style={S.toolbarBtn} hitSlop={8}>
+                <Ionicons name="arrow-undo-outline" size={22} color="#6366F1" />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
         <View style={S.divider} />
@@ -162,10 +160,12 @@ export function AttachmentViewer({
               <Ionicons name="arrow-down-circle-outline" size={20} color="#FFFFFF" />
               <Text style={S.downloadBtnText}>Download</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={S.shareBtn} onPress={handleShare} activeOpacity={0.85}>
-              <Ionicons name="share-outline" size={20} color="#6366F1" />
-              <Text style={S.shareBtnText}>Share</Text>
-            </TouchableOpacity>
+            {onReply && (
+              <TouchableOpacity style={S.replyBtn} onPress={() => { onClose(); onReply() }} activeOpacity={0.85}>
+                <Ionicons name="arrow-undo-outline" size={20} color="#6366F1" />
+                <Text style={S.replyBtnText}>Reply</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </SafeAreaView>
@@ -190,13 +190,9 @@ const S = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  toolbarTitle: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#0F172A',
-    textAlign: 'center',
-  },
+  toolbarTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  toolbarTitleBase: { flex: 1, fontSize: 15, fontWeight: '600', color: '#0F172A' },
+  toolbarTitleExt: { flexShrink: 0, fontSize: 15, fontWeight: '600', color: '#0F172A' },
   toolbarActions: { flexDirection: 'row', gap: 8 },
   divider: { height: 1, backgroundColor: '#F1F5F9' },
 
@@ -266,7 +262,7 @@ const S = StyleSheet.create({
     justifyContent: 'center',
   },
   downloadBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
-  shareBtn: {
+  replyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -277,5 +273,5 @@ const S = StyleSheet.create({
     width: '100%',
     justifyContent: 'center',
   },
-  shareBtnText: { fontSize: 15, fontWeight: '600', color: '#6366F1' },
+  replyBtnText: { fontSize: 15, fontWeight: '600', color: '#6366F1' },
 })

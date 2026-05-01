@@ -233,7 +233,7 @@ export function TimelineItem({
           senderInitials={getInitials(event.actor_name || '?')}
           canMenu={canMenu} forAttachment
         >
-          <AttachmentCard orderId={orderId} payload={p} isOwn={isOwn} />
+          <AttachmentCard orderId={orderId} payload={p} isOwn={isOwn} onReply={onReply} />
         </BubbleRow>
         <TimeRow time={formatTimestamp(event.created_at)} />
       </View>
@@ -261,7 +261,7 @@ export function TimelineItem({
           <MenuSheet visible={menuOpen} onClose={() => setMenuOpen(false)} onReply={onReply} forAttachment />
           <NameRow name={isOwn ? 'You' : senderName} color={nameColor} />
           <BubbleRow avatarBg={avatarBg} avatarTextColor={avatarColor} senderInitials={getInitials(senderName)} canMenu={canMenu} forAttachment>
-            <PortalAttachmentCard orderId={orderId} attId={attIdRaw} fileName={fileName} fileType={p.file_type} isOwn={isOwn} isStaff={false} caption={attCaption} />
+            <PortalAttachmentCard orderId={orderId} attId={attIdRaw} fileName={fileName} fileType={p.file_type} isOwn={isOwn} isStaff={false} caption={attCaption} onReply={onReply} />
           </BubbleRow>
           <TimeRow time={formatTimestamp(event.created_at)} />
         </View>

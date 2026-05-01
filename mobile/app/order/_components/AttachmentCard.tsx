@@ -1,16 +1,16 @@
-import { View, Text, Image, TouchableOpacity, Linking, Dimensions, ActivityIndicator } from 'react-native'
+import { View, Text, Image, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useState, useRef } from 'react'
-import { attachmentService, isImage, formatBytes } from '../../../services/attachmentService'
-import { AVATAR_SIZE, GAP } from '../_styles/theme'
+import { attachmentService, isImage, formatBytes, downloadAttachment } from '../../../services/attachmentService'
 import { AttachmentViewer } from '../../../components/AttachmentViewer'
 
 const ATTACH_MAX_W = Math.round(Dimensions.get('window').width * 0.6)
 
-export function AttachmentCard({ orderId, payload, isOwn }: {
+export function AttachmentCard({ orderId, payload, isOwn, onReply }: {
   orderId: string
   payload: Record<string, string>
   isOwn?: boolean
+  onReply?: () => void
 }) {
   const [imgUri, setImgUri] = useState(payload.file_url)
   const [imgFailed, setImgFailed] = useState(false)
@@ -45,7 +45,7 @@ export function AttachmentCard({ orderId, payload, isOwn }: {
       setViewerUrl(url)
       setViewerVisible(true)
     } catch {
-      Linking.openURL(payload.file_url)
+      await downloadAttachment(payload.file_url, payload.file_name)
     } finally {
       setResolving(false)
     }
@@ -80,14 +80,14 @@ export function AttachmentCard({ orderId, payload, isOwn }: {
             </TouchableOpacity>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 10 }}>
               <Text style={{ fontSize: 11, color: '#9CA3AF', flex: 1 }} numberOfLines={1}>{payload.file_name}</Text>
-              <TouchableOpacity onPress={handleOpen} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="expand-outline" size={14} color="#6366F1" />
+              <TouchableOpacity onPress={() => downloadAttachment(imgUri, payload.file_name)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="arrow-down-circle-outline" size={16} color="#6366F1" />
               </TouchableOpacity>
             </View>
           </>
         ) : (
-          <TouchableOpacity onPress={handleOpen} activeOpacity={0.85}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 16 }}>
+            <TouchableOpacity onPress={handleOpen} activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
               <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
                 {resolving
                   ? <ActivityIndicator size="small" color="#6366F1" />
@@ -98,9 +98,14 @@ export function AttachmentCard({ orderId, payload, isOwn }: {
                 <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827' }} numberOfLines={1}>{payload.file_name}</Text>
                 <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{formatBytes(Number(payload.size_bytes))}</Text>
               </View>
-              <Ionicons name="eye-outline" size={16} color="#6366F1" />
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => downloadAttachment(viewerUrl || payload.file_url, payload.file_name)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="arrow-down-circle-outline" size={20} color="#6366F1" />
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
@@ -112,6 +117,7 @@ export function AttachmentCard({ orderId, payload, isOwn }: {
           filename={payload.file_name}
           mimeType={payload.mime_type}
           sizeBytes={payload.size_bytes ? Number(payload.size_bytes) : undefined}
+          onReply={onReply}
         />
       ) : null}
     </>
