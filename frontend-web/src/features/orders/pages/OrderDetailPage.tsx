@@ -1505,6 +1505,23 @@ export function OrderDetailPage() {
     e.target.value = ''
   }
 
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const imageFiles: File[] = []
+    for (const item of Array.from(e.clipboardData.items)) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile()
+        if (file) {
+          const ext = item.type.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
+          imageFiles.push(new File([file], `paste-${Date.now()}.${ext}`, { type: item.type }))
+        }
+      }
+    }
+    if (imageFiles.length > 0) {
+      e.preventDefault()
+      uploadFiles(imageFiles)
+    }
+  }
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
@@ -1973,6 +1990,7 @@ export function OrderDetailPage() {
                     value={commentText}
                     onChange={handleCommentChange}
                     onKeyDown={handleKeyDown}
+                    onPaste={handlePaste}
                   />
               }
             </div>
