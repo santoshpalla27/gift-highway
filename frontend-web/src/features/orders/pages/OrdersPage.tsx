@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { formatDate, formatRelative } from '../../../utils/date'
 import { DateInput } from '../../../components/system/DateInput'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useOrders, useUpdateOrderStatus } from '../hooks/useOrders'
+import { useOrders } from '../hooks/useOrders'
 import { OrderModal } from '../components/OrderModal'
 import { useAuthStore } from '../../../store/authStore'
 import { EmptyState } from '../../../components/system/EmptyState'
@@ -129,62 +129,6 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-// ─── Status Dropdown ─────────────────────────────────────────────────────────
-
-function StatusDropdown({ order, onChanged }: { order: Order; onChanged?: (msg: string) => void }) {
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
-  const ref = useRef<HTMLDivElement>(null)
-  const { mutate: updateStatus } = useUpdateOrderStatus()
-  const open = pos !== null
-
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setPos(null)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
-
-  const handleToggle = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (open) { setPos(null); return }
-    if (!ref.current) return
-    const rect = ref.current.getBoundingClientRect()
-    const dropH = 120
-    const top = window.innerHeight - rect.bottom < dropH + 8 ? rect.top - dropH - 4 : rect.bottom + 4
-    setPos({ top, left: rect.left })
-  }
-
-  return (
-    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
-      <div onClick={handleToggle} style={{ cursor: 'pointer' }}>
-        <StatusBadge status={order.status} />
-      </div>
-      {open && pos && (
-        <div style={{
-          position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999,
-          background: '#FFFFFF', border: '1px solid #E4E6EF', borderRadius: 10,
-          boxShadow: '0 4px 16px rgba(0,0,0,.08)', padding: 4, minWidth: 130,
-        }}>
-          {STATUS_OPTIONS.map(s => (
-            <div key={s} onClick={e => {
-              e.stopPropagation(); setPos(null)
-              if (s !== order.status) updateStatus({ id: order.id, status: s }, { onSuccess: () => onChanged?.(`Status → ${STATUS_META[s].label}`) })
-            }} style={{
-              padding: '8px 12px', fontSize: 12, fontWeight: order.status === s ? 600 : 500,
-              color: order.status === s ? '#111827' : '#6B7280',
-              background: order.status === s ? '#F5F6FA' : 'transparent',
-              borderRadius: 6, cursor: 'pointer',
-            }}>
-              {STATUS_META[s]?.label}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -681,7 +625,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                   <tr key={order.id} onClick={() => navigate(`/orders/${order.id}`)}>
                     <td><span style={{ fontWeight: 700, fontSize: 13.5, color: '#2563EB' }}>#{order.title}</span></td>
                     <td><span style={{ fontWeight: 600, fontSize: 13.5, color: '#111827' }}>{order.customer_name}</span></td>
-                    <td><StatusDropdown order={order} onChanged={msg => setToast(msg)} /></td>
+                    <td><StatusBadge status={order.status} /></td>
                     <td>
                       {order.assigned_names?.length > 0 ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
