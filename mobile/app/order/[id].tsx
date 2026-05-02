@@ -149,8 +149,8 @@ export default function OrderDetailScreen() {
         <View style={S.chipRow}>
           <TouchableOpacity
             style={[S.chip, { backgroundColor: sm.bg }]}
-            onPress={D.canEdit(order) ? () => D.setShowStatus(true) : undefined}
-            activeOpacity={D.canEdit(order) ? 0.7 : 1}
+            onPress={() => D.setShowStatus(true)}
+            activeOpacity={0.7}
           >
             <Text style={[S.chipText, { color: sm.color }]}>{sm.label}</Text>
             <Ionicons name="chevron-down" size={13} color={sm.color} style={{ marginLeft: 2 }} />
@@ -368,7 +368,7 @@ export default function OrderDetailScreen() {
 
       {/* Sheets */}
       {D.showStatus && (
-        <StatusSheet order={order} onClose={() => D.setShowStatus(false)} onChanged={() => { D.fetchOrder(); /* fetchLatest called by socket */ }} />
+        <StatusSheet order={order} onClose={() => D.setShowStatus(false)} onChanged={D.fetchOrder} />
       )}
       {D.showInfo && (
         <InfoSheet

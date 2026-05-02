@@ -88,6 +88,11 @@ export const orderService = {
     await apiClient.patch(`/orders/${id}`, data)
   },
 
+  getOrder: async (id: string): Promise<Order> => {
+    const res = await apiClient.get<{ order: Order }>(`/orders/${id}`)
+    return res.data.order
+  },
+
   updateStatus: async (id: string, status: string): Promise<void> => {
     await apiClient.patch(`/orders/${id}/status`, { status })
   },

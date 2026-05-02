@@ -284,9 +284,8 @@ export function useOrderDetail(orderId: string | undefined) {
   const fetchOrder = useCallback(async () => {
     if (!orderId) return
     try {
-      const data = await orderService.listOrders({ search: '', page: 1, limit: 200 })
-      const found = data.orders.find(o => o.id === orderId)
-      if (found) setOrder(found)
+      const found = await orderService.getOrder(orderId)
+      setOrder(found)
     } catch { /* ignore */ } finally {
       setLoadingOrder(false)
     }

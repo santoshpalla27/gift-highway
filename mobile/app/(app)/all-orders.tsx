@@ -594,42 +594,11 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
   )
 }
 
-// ─── Status Picker Modal ──────────────────────────────────────────────────────
-
-function StatusPickerModal({ order, onClose, onRefresh }: { order: Order | null; onClose: () => void; onRefresh: () => void }) {
-  const insets = useSafeAreaInsets()
-  const handlePick = async (status: string) => {
-    if (!order) return
-    try { await orderService.updateStatus(order.id, status); onRefresh() }
-    catch { Alert.alert('Error', 'Could not update status') }
-    onClose()
-  }
-  return (
-    <Modal visible={!!order} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={SP.overlay}>
-        <View style={[SP.sheet, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
-          <Text style={SP.title}>Change Status</Text>
-          <Text style={SP.sub}>Updating #{order?.title}</Text>
-          {STATUS_OPTIONS.map(s => (
-            <TouchableOpacity key={s} style={[SP.row, order?.status === s && SP.rowActive]} onPress={() => handlePick(s)}>
-              <View style={[SP.dot, { backgroundColor: STATUS_META[s].color }]} />
-              <Text style={[SP.rowText, order?.status === s && { color: STATUS_META[s].color, fontWeight: '600' }]}>{STATUS_META[s].label}</Text>
-              {order?.status === s && <Ionicons name="checkmark" size={18} color={STATUS_META[s].color} />}
-            </TouchableOpacity>
-          ))}
-          <TouchableOpacity style={SP.cancelBtn} onPress={onClose}>
-            <Text style={SP.cancelText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  )
-}
 
 // ─── Order Card ───────────────────────────────────────────────────────────────
 
-function OrderCard({ order, onOpen, onStatusPress, unreadCount = 0 }: {
-  order: Order; onOpen: () => void; onStatusPress: () => void; unreadCount?: number
+function OrderCard({ order, onOpen, unreadCount = 0 }: {
+  order: Order; onOpen: () => void; unreadCount?: number
 }) {
   const due = formatDueDate(order.due_date)
   const sm = STATUS_META[order.status] ?? STATUS_META.new
@@ -643,12 +612,10 @@ function OrderCard({ order, onOpen, onStatusPress, unreadCount = 0 }: {
       {/* Top row: Order ID (left) | Status badge (right) */}
       <View style={C.rowTop}>
         <Text style={C.orderNum} numberOfLines={1}>#{order.title}</Text>
-        <TouchableOpacity onPress={onStatusPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <View style={[C.statusBadge, { backgroundColor: sm.bg }]}>
-            <View style={[C.statusDot, { backgroundColor: sm.color }]} />
-            <Text style={[C.statusText, { color: sm.color }]}>{sm.label}</Text>
-          </View>
-        </TouchableOpacity>
+        <View style={[C.statusBadge, { backgroundColor: sm.bg }]}>
+          <View style={[C.statusDot, { backgroundColor: sm.color }]} />
+          <Text style={[C.statusText, { color: sm.color }]}>{sm.label}</Text>
+        </View>
       </View>
 
       {/* Centered notification alert */}
@@ -735,7 +702,6 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
   const [filters, setFilters] = useState<FilterState>(emptyFilters)
   const [showCreate, setShowCreate] = useState(false)
   const [editOrder, setEditOrder] = useState<Order | null>(null)
-  const [statusOrder, setStatusOrder] = useState<Order | null>(null)
 
   const d0 = new Date()
   const today = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
@@ -878,7 +844,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F172A" />}
         >
           {orders.map(o => (
-            <OrderCard key={o.id} order={o} onOpen={() => router.push(`/order/${o.id}`)} onStatusPress={() => setStatusOrder(o)} unreadCount={unreadByOrder.get(o.id) ?? 0} />
+            <OrderCard key={o.id} order={o} onOpen={() => router.push(`/order/${o.id}`)} unreadCount={unreadByOrder.get(o.id) ?? 0} />
           ))}
         </ScrollView>
       )}
@@ -895,7 +861,6 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
         myOrdersOnly={myOrdersOnly}
       />
       <OrderFormModal visible={showCreate} order={editOrder} onClose={() => setShowCreate(false)} onRefresh={() => fetchOrders(false)} />
-      <StatusPickerModal order={statusOrder} onClose={() => setStatusOrder(null)} onRefresh={() => fetchOrders(false)} />
     </View>
   )
 }
@@ -1094,15 +1059,3 @@ const F = StyleSheet.create({
   portalLabel: { flex: 1, fontSize: 14, color: '#374151', fontWeight: '500' },
 })
 
-const SP = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 28, paddingBottom: Platform.OS === 'ios' ? 40 : 28 },
-  title: { fontSize: 22, fontWeight: '800', color: '#111827', marginBottom: 6 },
-  sub: { fontSize: 15, color: '#6B7280', marginBottom: 24, fontWeight: '500' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16, paddingHorizontal: 16, borderRadius: 16, marginBottom: 8, borderWidth: 1, borderColor: 'transparent' },
-  rowActive: { backgroundColor: '#F8FAFC', borderColor: '#F1F5F9' },
-  dot: { width: 12, height: 12, borderRadius: 6 },
-  rowText: { flex: 1, fontSize: 16, color: '#374151', fontWeight: '600' },
-  cancelBtn: { marginTop: 16, padding: 16, alignItems: 'center', backgroundColor: '#F3F4F6', borderRadius: 16 },
-  cancelText: { fontSize: 16, fontWeight: '800', color: '#374151' },
-})

@@ -18,7 +18,7 @@ backend/vendor/
 *.out
 
 order-app 
-
+reference-mobile
 combined-code.txt
 
 # ─── Node / Frontend ────────────────────────────────────────
