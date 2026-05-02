@@ -70,6 +70,11 @@ export function InfoSheet({ order, portal, onClose, onPortalChange, onArchived }
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: Math.max(insets.bottom + 16, 48) }}>
 
           <View style={IN.section}>
+            <Text style={IN.label}>ORDER ID</Text>
+            <Text style={IN.value}>#{order.title}</Text>
+          </View>
+
+          <View style={IN.section}>
             <Text style={IN.label}>CUSTOMER</Text>
             <Text style={IN.value}>{order.customer_name}</Text>
             {!!order.contact_number && <Text style={IN.sub}>{order.contact_number}</Text>}
