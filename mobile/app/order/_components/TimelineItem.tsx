@@ -35,14 +35,14 @@ function ReplyQuote({ senderName, previewText, thumb, borderColor, onPress }: {
       activeOpacity={onPress ? 0.7 : 1}
       style={{ flexDirection: 'row', alignItems: 'stretch', marginBottom: 8, borderLeftWidth: 3, borderLeftColor: borderColor, backgroundColor: '#EEF2FF', borderRadius: 4, overflow: 'hidden' }}
     >
-      <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
+      <View style={{ flex: 1, paddingHorizontal: 10, paddingVertical: 6 }}>
         {senderName && (
-          <Text style={{ fontSize: 10, fontWeight: '700', color: borderColor, marginBottom: 1 }} numberOfLines={1}>{senderName}</Text>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: borderColor, marginBottom: 2 }} numberOfLines={1}>{senderName}</Text>
         )}
-        <Text style={{ fontSize: 11, color: '#6B7280' }} numberOfLines={2}>{previewText}</Text>
+        <Text style={{ fontSize: 13, color: '#6B7280', lineHeight: 18 }} numberOfLines={2}>{previewText}</Text>
       </View>
       {thumb && (
-        <Image source={{ uri: thumb }} style={{ width: 44, height: 44 }} resizeMode="cover" />
+        <Image source={{ uri: thumb }} style={{ width: 52, height: 52 }} resizeMode="cover" />
       )}
     </TouchableOpacity>
   )
