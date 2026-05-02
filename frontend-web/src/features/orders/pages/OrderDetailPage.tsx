@@ -840,7 +840,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                   isOwn={isOwn}
                   isStaff={true}
                   portalAttachments={portalAttachments}
-                  onOpen={(url) => setViewer({ src: url, filename: tok.name })}
+                  onOpen={(url) => setViewer({ src: url, filename: tok.name, sizeBytes: portalAttachments?.find(a => a.id === tok.id)?.file_size ?? undefined })}
                 />
               ))}
               {event.type === 'customer_attachment' && p.file_name && (() => {
@@ -856,7 +856,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                     isStaff={false}
                     caption={caption}
                     portalAttachments={portalAttachments}
-                    onOpen={(url) => setViewer({ src: url, filename: p.file_name })}
+                    onOpen={(url) => setViewer({ src: url, filename: p.file_name, sizeBytes: attId != null ? (portalAttachments?.find(a => a.id === attId)?.file_size ?? undefined) : undefined })}
                   />
                 )
               })()}
