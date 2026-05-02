@@ -52,10 +52,11 @@ export interface AttachmentViewerProps {
   onClose: () => void
   onDelete?: () => Promise<void>
   onReply?: () => void
+  onDraw?: () => void
 }
 
 export function AttachmentViewer({
-  src, filename, mimeType, sizeBytes, onClose, onDelete, onReply,
+  src, filename, mimeType, sizeBytes, onClose, onDelete, onReply, onDraw,
 }: AttachmentViewerProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -145,6 +146,12 @@ export function AttachmentViewer({
               </svg>
             </button>
           )}
+          <button onClick={() => onDraw?.()} style={btn} title="Draw">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+              <path d="M11.5 2.5a1.5 1.5 0 012.121 2.121l-8 8L3 13.5l.879-2.621 8-8z" stroke="#475569" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M10 4l2 2" stroke="#475569" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+          </button>
           <a href={src} download={filename} style={{ ...btn, textDecoration: 'none' }} title="Download">
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
               <path d="M8 2v8M5 7l3 3 3-3M2 12h12" stroke="#475569" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

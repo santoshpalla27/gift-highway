@@ -63,6 +63,7 @@ export interface AttachmentViewerProps {
   mimeType?: string
   sizeBytes?: number
   onReply?: () => void
+  onDraw?: () => void
 }
 
 export function AttachmentViewer({
@@ -73,6 +74,7 @@ export function AttachmentViewer({
   mimeType,
   sizeBytes,
   onReply,
+  onDraw,
 }: AttachmentViewerProps) {
   const [imgLoading, setImgLoading] = useState(true)
   const [imgError, setImgError] = useState(false)
@@ -108,6 +110,9 @@ export function AttachmentViewer({
                 <Ionicons name="arrow-undo-outline" size={22} color="#6366F1" />
               </TouchableOpacity>
             )}
+            <TouchableOpacity onPress={() => onDraw?.()} style={S.toolbarBtn} hitSlop={8}>
+              <Ionicons name="pencil-outline" size={20} color="#475569" />
+            </TouchableOpacity>
             <TouchableOpacity onPress={handleDownload} style={S.toolbarBtn} hitSlop={8}>
               <Ionicons name="arrow-down-circle-outline" size={22} color="#6366F1" />
             </TouchableOpacity>
