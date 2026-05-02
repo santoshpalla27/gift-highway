@@ -127,16 +127,16 @@ export function AttachmentViewer({
               </TouchableOpacity>
             )}
             <TouchableOpacity onPress={() => onDraw?.()} style={S.toolbarBtn} hitSlop={8}>
-              <Ionicons name="pencil-outline" size={20} color="#475569" />
+              <Ionicons name="pencil" size={20} color="#475569" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleShare} style={S.toolbarBtn} hitSlop={8} disabled={sharing}>
+            <TouchableOpacity onPress={handleShare} style={[S.toolbarBtn, S.toolbarBtnShare]} hitSlop={8} disabled={sharing}>
               {sharing
-                ? <ActivityIndicator size="small" color="#475569" />
-                : <Ionicons name="share-outline" size={20} color="#475569" />
+                ? <ActivityIndicator size="small" color="#10B981" />
+                : <Ionicons name="share-social" size={20} color="#10B981" />
               }
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleDownload} style={S.toolbarBtn} hitSlop={8}>
-              <Ionicons name="arrow-down-circle-outline" size={22} color="#6366F1" />
+            <TouchableOpacity onPress={handleDownload} style={[S.toolbarBtn, S.toolbarBtnDownload]} hitSlop={8}>
+              <Ionicons name="arrow-down-circle" size={22} color="#6366F1" />
             </TouchableOpacity>
           </View>
         </View>
@@ -186,8 +186,8 @@ export function AttachmentViewer({
             </TouchableOpacity>
             <TouchableOpacity style={S.shareBtn} onPress={handleShare} activeOpacity={0.85} disabled={sharing}>
               {sharing
-                ? <ActivityIndicator size="small" color="#475569" />
-                : <Ionicons name="share-outline" size={20} color="#475569" />
+                ? <ActivityIndicator size="small" color="#10B981" />
+                : <Ionicons name="share-social" size={20} color="#10B981" />
               }
               <Text style={S.shareBtnText}>Share</Text>
             </TouchableOpacity>
@@ -235,6 +235,8 @@ const S = StyleSheet.create({
   toolbarTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   toolbarTitleBase: { flex: 1, fontSize: 15, fontWeight: '600', color: '#0F172A' },
   toolbarTitleExt: { flexShrink: 0, fontSize: 15, fontWeight: '600', color: '#0F172A' },
+  toolbarBtnShare: { backgroundColor: '#ECFDF5' },
+  toolbarBtnDownload: { backgroundColor: '#EEF2FF' },
   toolbarActions: { flexDirection: 'row', gap: 8 },
   divider: { height: 1, backgroundColor: '#F1F5F9' },
 
@@ -308,16 +310,16 @@ const S = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#ECFDF5',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#A7F3D0',
     paddingHorizontal: 28,
     paddingVertical: 14,
     width: '100%',
     justifyContent: 'center',
   },
-  shareBtnText: { fontSize: 15, fontWeight: '600', color: '#475569' },
+  shareBtnText: { fontSize: 15, fontWeight: '600', color: '#10B981' },
   replyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
