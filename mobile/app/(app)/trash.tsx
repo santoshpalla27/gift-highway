@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ActivityIndicator, Modal, TextInput, StatusBar, ScrollView, Platform,
@@ -43,7 +43,7 @@ function FilterSheet({ visible, filters, onApply, onClose }: {
   const insets = useSafeAreaInsets()
   const [draft, setDraft] = useState<FilterState>(filters)
   const [showDatePicker, setShowDatePicker] = useState(false)
-  const dateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [tempDateObj, setTempDateObj] = useState(new Date())
 
   const set = (patch: Partial<FilterState>) => setDraft(d => ({ ...d, ...patch }))
   const hasChanges = JSON.stringify(draft) !== JSON.stringify(filters)
@@ -114,36 +114,48 @@ function FilterSheet({ visible, filters, onApply, onClose }: {
                 )
               })()
             ) : (
-              <TouchableOpacity style={FS.dateInput} onPress={() => setShowDatePicker(true)}>
+              <TouchableOpacity style={FS.dateInput} onPress={() => {
+                setTempDateObj(draft.archivedFrom ? new Date(draft.archivedFrom + 'T00:00:00') : new Date())
+                setShowDatePicker(true)
+              }}>
                 <Text style={{ color: draft.archivedFrom ? '#0F172A' : '#94A3B8', fontSize: 14 }}>
                   {draft.archivedFrom ? formatDate(draft.archivedFrom) : 'DD/MM/YYYY'}
                 </Text>
               </TouchableOpacity>
             )}
 
-            {/* Native date picker modal */}
-            {Platform.OS !== 'web' && (
-              <Modal visible={showDatePicker} transparent animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
-                <TouchableOpacity style={FS.pickerOverlay} activeOpacity={1} onPress={() => setShowDatePicker(false)}>
-                  <TouchableOpacity activeOpacity={1} style={FS.pickerSheet}>
-                    <DateTimePicker
-                      value={draft.archivedFrom ? new Date(draft.archivedFrom + 'T00:00:00') : new Date()}
-                      mode="date"
-                      display="spinner"
-                      maximumDate={new Date()}
-                      onChange={(_, d) => {
-                        if (d) {
-                          const iso = d.toISOString().split('T')[0]
-                          set({ archivedFrom: iso })
-                          if (dateTimerRef.current) clearTimeout(dateTimerRef.current)
-                          dateTimerRef.current = setTimeout(() => setShowDatePicker(false), 1000)
-                        }
-                      }}
-                      style={{ width: '100%', height: 216 }}
-                    />
-                  </TouchableOpacity>
-                </TouchableOpacity>
+            {/* Native date picker — iOS: Cancel/Done sheet; Android: native dialog */}
+            {Platform.OS === 'ios' && (
+              <Modal visible={showDatePicker} transparent animationType="slide" onRequestClose={() => setShowDatePicker(false)}>
+                <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                  <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: Math.max(insets.bottom + 8, 24) }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                      <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                        <Text style={{ fontSize: 16, color: '#6B7280', fontWeight: '600' }}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => {
+                        set({ archivedFrom: `${tempDateObj.getFullYear()}-${String(tempDateObj.getMonth()+1).padStart(2,'0')}-${String(tempDateObj.getDate()).padStart(2,'0')}` })
+                        setShowDatePicker(false)
+                      }}>
+                        <Text style={{ fontSize: 16, color: '#6366F1', fontWeight: '700' }}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker value={tempDateObj} mode="date" display="spinner" maximumDate={new Date()}
+                      onChange={(_, d) => { if (d) setTempDateObj(d) }}
+                      style={{ width: '100%', height: 216 }} />
+                  </View>
+                </View>
               </Modal>
+            )}
+            {Platform.OS === 'android' && showDatePicker && (
+              <DateTimePicker
+                value={draft.archivedFrom ? new Date(draft.archivedFrom + 'T00:00:00') : new Date()}
+                mode="date" display="default" maximumDate={new Date()}
+                onChange={(event, d) => {
+                  setShowDatePicker(false)
+                  if (event.type === 'set' && d) set({ archivedFrom: d.toISOString().split('T')[0] })
+                }}
+              />
             )}
           </View>
 
