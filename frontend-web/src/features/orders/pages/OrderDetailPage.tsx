@@ -299,6 +299,7 @@ function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isSta
         <div style={{ padding: '8px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{fileName}</span>
+            {(() => { const sz = attId != null ? portalAttachments?.find(a => a.id === attId)?.file_size : undefined; return sz ? <span style={{ fontSize: 11, color: '#9CA3AF', flexShrink: 0, whiteSpace: 'nowrap' }}>{formatBytes(sz)}</span> : null })()}
             <button onClick={(e) => { e.stopPropagation(); handleDownload() }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', lineHeight: 1, flexShrink: 0, padding: 0 }} title="Download">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             </button>
@@ -323,7 +324,10 @@ function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isSta
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-        <span style={{ fontSize: 12, color: '#374151', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fileName}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fileName}</div>
+          {(() => { const sz = attId != null ? portalAttachments?.find(a => a.id === attId)?.file_size : undefined; return sz ? <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>{formatBytes(sz)}</div> : null })()}
+        </div>
         <button onClick={(e) => { e.stopPropagation(); handleDownload() }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', lineHeight: 1, flexShrink: 0, padding: 0 }} title="Download">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
         </button>
