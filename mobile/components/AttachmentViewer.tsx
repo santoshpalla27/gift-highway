@@ -337,7 +337,7 @@ const S = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 10,
     borderTopWidth: 1, borderTopColor: '#F1F5F9', gap: 6,
   },
-  bottomName: { flexShrink: 1, fontSize: 13, fontWeight: '600', color: '#0F172A' },
-  bottomExt: { flexShrink: 0, fontSize: 13, fontWeight: '600', color: '#0F172A' },
-  bottomSize: { flexShrink: 0, fontSize: 12, color: '#94A3B8' },
+  bottomName: { flexShrink: 1, fontSize: 16, fontWeight: '600', color: '#0F172A' },
+  bottomExt: { flexShrink: 0, fontSize: 16, fontWeight: '600', color: '#0F172A' },
+  bottomSize: { flexShrink: 0, fontSize: 16, color: '#94A3B8' },
 })
