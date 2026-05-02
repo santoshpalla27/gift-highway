@@ -5,7 +5,7 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { orderService, type Order, type UserOption } from '../../../services/orderService'
 import { staffPortalApi, getPortalURL, type PortalStatus } from '../../../services/portalService'
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus'
@@ -192,11 +192,13 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
   const [dueTime, setDueTime] = useState(order.due_time ?? '')
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [showTimePicker, setShowTimePicker] = useState(false)
+  // iOS: temp state so changes only commit when Done is pressed
+  const [tempDateObj, setTempDateObj] = useState(new Date())
+  const [tempTimeObj, setTempTimeObj] = useState(new Date())
   const [assignedTo, setAssignedTo] = useState<string[]>(order.assigned_to ?? [])
   const [users, setUsers] = useState<UserOption[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const pickerTimerRef = useRef<any>(null)
 
   useEffect(() => {
     orderService.listUsersForAssignment().then(setUsers).catch(() => {})
@@ -267,7 +269,10 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
             <TouchableOpacity
               style={[E.input, { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
-              onPress={() => setShowDatePicker(true)}
+              onPress={() => {
+                setTempDateObj(dueDate ? new Date(dueDate + 'T00:00:00') : new Date())
+                setShowDatePicker(true)
+              }}
             >
               <Text style={{ fontSize: 15, color: dueDate ? '#0F172A' : '#94A3B8' }}>
                 {dueDate ? formatDate(dueDate) : 'DD/MM/YYYY'}
@@ -276,7 +281,12 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
             </TouchableOpacity>
             <TouchableOpacity
               style={[E.input, { width: 110, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
-              onPress={() => setShowTimePicker(true)}
+              onPress={() => {
+                const base = dueDate ? new Date(dueDate + 'T00:00:00') : new Date()
+                if (dueTime) { const [h, min] = dueTime.split(':').map(Number); base.setHours(h, min, 0, 0) }
+                setTempTimeObj(base)
+                setShowTimePicker(true)
+              }}
             >
               <Text style={{ fontSize: 15, color: dueTime ? '#0F172A' : '#94A3B8' }}>
                 {dueTime ? fmt12hrStr(dueTime) : 'Time'}
@@ -285,53 +295,89 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
             </TouchableOpacity>
           </View>
 
-          {showDatePicker && (
-            <Modal visible transparent animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
-              <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setShowDatePicker(false)}>
-                <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: Math.max(insets.bottom + 16, 32) }}>
+          {/* Date picker */}
+          {Platform.OS === 'ios' ? (
+            <Modal visible={showDatePicker} transparent animationType="slide" onRequestClose={() => setShowDatePicker(false)}>
+              <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: Math.max(insets.bottom + 8, 24) }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <Text style={{ fontSize: 16, color: '#6B7280', fontWeight: '600' }}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => {
+                      const d = tempDateObj
+                      setDueDate(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)
+                      setShowDatePicker(false)
+                    }}>
+                      <Text style={{ fontSize: 16, color: '#6366F1', fontWeight: '700' }}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
                   <DateTimePicker
-                    value={dueDate ? new Date(dueDate + 'T00:00:00') : new Date()}
+                    value={tempDateObj}
                     mode="date" display="spinner"
-                    onChange={(_, date) => {
-                      if (date) {
-                        const y = date.getFullYear()
-                        const m = String(date.getMonth() + 1).padStart(2, '0')
-                        const d = String(date.getDate()).padStart(2, '0')
-                        setDueDate(`${y}-${m}-${d}`)
-                        if (pickerTimerRef.current) clearTimeout(pickerTimerRef.current)
-                        pickerTimerRef.current = setTimeout(() => setShowDatePicker(false), 1000)
-                      }
-                    }}
+                    onChange={(_, date) => { if (date) setTempDateObj(date) }}
                     style={{ width: '100%', height: 216 }}
                   />
-                </TouchableOpacity>
-              </TouchableOpacity>
+                </View>
+              </View>
             </Modal>
+          ) : (
+            showDatePicker && (
+              <DateTimePicker
+                value={dueDate ? new Date(dueDate + 'T00:00:00') : new Date()}
+                mode="date" display="default"
+                onChange={(event, date) => {
+                  setShowDatePicker(false)
+                  if (event.type === 'set' && date) {
+                    setDueDate(`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`)
+                  }
+                }}
+              />
+            )
           )}
 
-          {showTimePicker && (
-            <Modal visible transparent animationType="fade" onRequestClose={() => setShowTimePicker(false)}>
-              <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setShowTimePicker(false)}>
-                <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: Math.max(insets.bottom + 16, 32) }}>
+          {/* Time picker */}
+          {Platform.OS === 'ios' ? (
+            <Modal visible={showTimePicker} transparent animationType="slide" onRequestClose={() => setShowTimePicker(false)}>
+              <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: Math.max(insets.bottom + 8, 24) }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                    <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                      <Text style={{ fontSize: 16, color: '#6B7280', fontWeight: '600' }}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => {
+                      setDueTime(`${String(tempTimeObj.getHours()).padStart(2,'0')}:${String(tempTimeObj.getMinutes()).padStart(2,'0')}`)
+                      setShowTimePicker(false)
+                    }}>
+                      <Text style={{ fontSize: 16, color: '#6366F1', fontWeight: '700' }}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
                   <DateTimePicker
-                    value={(() => {
-                      const base = dueDate ? new Date(dueDate + 'T00:00:00') : new Date()
-                      if (dueTime) { const [h, min] = dueTime.split(':').map(Number); base.setHours(h, min, 0, 0) }
-                      return base
-                    })()}
+                    value={tempTimeObj}
                     mode="time" display="spinner"
-                    onChange={(_, date) => {
-                      if (date) {
-                        setDueTime(`${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`)
-                        if (pickerTimerRef.current) clearTimeout(pickerTimerRef.current)
-                        pickerTimerRef.current = setTimeout(() => setShowTimePicker(false), 1000)
-                      }
-                    }}
+                    onChange={(_, date) => { if (date) setTempTimeObj(date) }}
                     style={{ width: '100%', height: 216 }}
                   />
-                </TouchableOpacity>
-              </TouchableOpacity>
+                </View>
+              </View>
             </Modal>
+          ) : (
+            showTimePicker && (
+              <DateTimePicker
+                value={(() => {
+                  const base = dueDate ? new Date(dueDate + 'T00:00:00') : new Date()
+                  if (dueTime) { const [h, min] = dueTime.split(':').map(Number); base.setHours(h, min, 0, 0) }
+                  return base
+                })()}
+                mode="time" display="default"
+                onChange={(event, date) => {
+                  setShowTimePicker(false)
+                  if (event.type === 'set' && date) {
+                    setDueTime(`${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`)
+                  }
+                }}
+              />
+            )
           )}
 
           <Text style={E.label}>Assign To</Text>
