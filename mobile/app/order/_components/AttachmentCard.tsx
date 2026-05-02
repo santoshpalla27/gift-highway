@@ -78,8 +78,11 @@ export function AttachmentCard({ orderId, payload, isOwn, onReply }: {
                 />
               )}
             </TouchableOpacity>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 10, gap: 6 }}>
               <Text style={{ fontSize: 11, color: '#9CA3AF', flex: 1 }} numberOfLines={1}>{payload.file_name}</Text>
+              {!!payload.size_bytes && Number(payload.size_bytes) > 0 && (
+                <Text style={{ fontSize: 11, color: '#9CA3AF', flexShrink: 0 }}>{formatBytes(Number(payload.size_bytes))}</Text>
+              )}
               <TouchableOpacity onPress={() => downloadAttachment(imgUri, payload.file_name)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="arrow-down-circle-outline" size={16} color="#6366F1" />
               </TouchableOpacity>
