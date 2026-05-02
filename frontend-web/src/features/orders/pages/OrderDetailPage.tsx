@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { notificationService } from '../../../services/notificationService'
 import { useNotifications } from '../../notifications/hooks/useNotifications'
 import { formatDate, formatRelative, formatDayGroup, fmt12hrStr } from '../../../utils/date'
@@ -359,15 +360,19 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
   currentUserId?: string | null
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [menuAnchor, setMenuAnchor] = useState<{ top: number; bottom: number; left: number; right: number; flipUp: boolean } | null>(null)
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState('')
   const [viewer, setViewer] = useState<{ src: string; filename: string; mimeType?: string; sizeBytes?: number; fileKey?: string } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const portalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!menuOpen) return
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+      const inButton = menuRef.current?.contains(e.target as Node)
+      const inPortal = portalRef.current?.contains(e.target as Node)
+      if (!inButton && !inPortal) setMenuOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -482,55 +487,60 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
             {canMenu && !editing && (
               <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
                 <button
-                  onClick={() => setMenuOpen(o => !o)}
+                  onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setMenuAnchor({ top: r.top, bottom: r.bottom, left: r.left, right: r.right, flipUp: window.innerHeight - r.top < 150 }); setMenuOpen(o => !o) }}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#9CA3AF', lineHeight: 1, borderRadius: 4 }}
                   onMouseEnter={e => (e.currentTarget.style.color = '#374151')}
                   onMouseLeave={e => (e.currentTarget.style.color = '#9CA3AF')}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="12" cy="19" r="2.5"/></svg>
                 </button>
-                {menuOpen && (
-                  <div style={{
-                    position: 'absolute', right: isOwn ? 'auto' : 0, left: isOwn ? 0 : 'auto', top: '100%', zIndex: 50, marginTop: 4,
-                    background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8,
-                    boxShadow: '0 4px 12px rgba(0,0,0,.1)', minWidth: 130, overflow: 'hidden',
-                  }}>
-                    {onReply && (
-                      <button
-                        onClick={() => { setMenuOpen(false); onReply() }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#374151', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
-                        Reply
-                      </button>
-                    )}
-                    {onEdit && (
-                      <button
-                        onClick={() => { setEditText(cleanText); setEditing(true); setMenuOpen(false) }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#374151', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        Edit
-                      </button>
-                    )}
-                    {onDelete && (
-                      <button
-                        onClick={() => { setMenuOpen(false); onDelete() }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#EF4444', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#FFF5F5')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
+            )}
+            {menuOpen && menuAnchor && createPortal(
+              <div ref={portalRef} style={{
+                position: 'fixed',
+                top: menuAnchor.flipUp ? 'auto' : menuAnchor.top,
+                bottom: menuAnchor.flipUp ? window.innerHeight - menuAnchor.bottom : 'auto',
+                left: isOwn ? 'auto' : menuAnchor.right + 8,
+                right: isOwn ? window.innerWidth - menuAnchor.left + 8 : 'auto',
+                zIndex: 9999, background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8,
+                boxShadow: '0 4px 12px rgba(0,0,0,.1)', minWidth: 130, overflow: 'hidden',
+              }}>
+                {onReply && (
+                  <button
+                    onClick={() => { setMenuOpen(false); onReply() }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#374151', textAlign: 'left' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                    Reply
+                  </button>
+                )}
+                {onEdit && (
+                  <button
+                    onClick={() => { setEditText(cleanText); setEditing(true); setMenuOpen(false) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#374151', textAlign: 'left' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Edit
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    onClick={() => { setMenuOpen(false); onDelete() }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#EF4444', textAlign: 'left' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#FFF5F5')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                    Delete
+                  </button>
+                )}
+              </div>,
+              document.body
             )}
           </div>
           <div style={{
@@ -645,40 +655,41 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
             {(onReply || onDelete) && (
               <div ref={menuRef} style={{ position: 'relative' }}>
                 <button
-                  onClick={() => setMenuOpen(o => !o)}
+                  onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setMenuAnchor({ top: r.top, bottom: r.bottom, left: r.left, right: r.right, flipUp: window.innerHeight - r.top < 150 }); setMenuOpen(o => !o) }}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#9CA3AF', lineHeight: 1, borderRadius: 4 }}
                   onMouseEnter={e => (e.currentTarget.style.color = '#374151')}
                   onMouseLeave={e => (e.currentTarget.style.color = '#9CA3AF')}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="12" cy="19" r="2.5"/></svg>
                 </button>
-                {menuOpen && (
-                  <div style={{ position: 'absolute', right: isOwn ? 'auto' : 0, left: isOwn ? 0 : 'auto', top: '100%', zIndex: 50, marginTop: 4, background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,.1)', minWidth: 130, overflow: 'hidden' }}>
-                    {onReply && (
-                      <button
-                        onClick={() => { setMenuOpen(false); onReply() }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#374151', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
-                        Reply
-                      </button>
-                    )}
-                    {onDelete && (
-                      <button
-                        onClick={() => { setMenuOpen(false); onDelete() }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#EF4444', textAlign: 'left' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = '#FFF5F5')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
+            )}
+            {menuOpen && menuAnchor && createPortal(
+              <div ref={portalRef} style={{ position: 'fixed', top: menuAnchor.flipUp ? 'auto' : menuAnchor.top, bottom: menuAnchor.flipUp ? window.innerHeight - menuAnchor.bottom : 'auto', left: isOwn ? 'auto' : menuAnchor.right + 8, right: isOwn ? window.innerWidth - menuAnchor.left + 8 : 'auto', zIndex: 9999, background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,.1)', minWidth: 130, overflow: 'hidden' }}>
+                {onReply && (
+                  <button
+                    onClick={() => { setMenuOpen(false); onReply() }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#374151', textAlign: 'left' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                    Reply
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    onClick={() => { setMenuOpen(false); onDelete() }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#EF4444', textAlign: 'left' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#FFF5F5')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                    Delete
+                  </button>
+                )}
+              </div>,
+              document.body
             )}
           </div>
           <div style={{
@@ -865,31 +876,36 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
             {onReply && (
               <div ref={menuRef} style={{ position: 'relative', flexShrink: 0 }}>
                 <button
-                  onClick={() => setMenuOpen(o => !o)}
+                  onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setMenuAnchor({ top: r.top, bottom: r.bottom, left: r.left, right: r.right, flipUp: window.innerHeight - r.top < 150 }); setMenuOpen(o => !o) }}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#9CA3AF', lineHeight: 1, borderRadius: 4 }}
                   onMouseEnter={e => (e.currentTarget.style.color = '#374151')}
                   onMouseLeave={e => (e.currentTarget.style.color = '#9CA3AF')}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="12" cy="19" r="2.5"/></svg>
                 </button>
-                {menuOpen && (
-                  <div style={{
-                    position: 'absolute', right: isOwn ? 'auto' : 0, left: isOwn ? 0 : 'auto', top: '100%', zIndex: 50, marginTop: 4,
-                    background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8,
-                    boxShadow: '0 4px 12px rgba(0,0,0,.1)', minWidth: 130, overflow: 'hidden',
-                  }}>
-                    <button
-                      onClick={() => { setMenuOpen(false); onReply() }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#374151', textAlign: 'left' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
-                      Reply
-                    </button>
-                  </div>
-                )}
               </div>
+            )}
+            {menuOpen && menuAnchor && createPortal(
+              <div ref={portalRef} style={{
+                position: 'fixed',
+                top: menuAnchor.flipUp ? 'auto' : menuAnchor.top,
+                bottom: menuAnchor.flipUp ? window.innerHeight - menuAnchor.bottom : 'auto',
+                left: isOwn ? 'auto' : menuAnchor.right + 8,
+                right: isOwn ? window.innerWidth - menuAnchor.left + 8 : 'auto',
+                zIndex: 9999, background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8,
+                boxShadow: '0 4px 12px rgba(0,0,0,.1)', minWidth: 130, overflow: 'hidden',
+              }}>
+                <button
+                  onClick={() => { setMenuOpen(false); onReply?.() }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#374151', textAlign: 'left' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                  Reply
+                </button>
+              </div>,
+              document.body
             )}
           </div>
           <div style={{
