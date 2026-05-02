@@ -303,7 +303,7 @@ export function TimelineItem({
             })()}
             {parsed.text !== '' && <Text style={T.commentText}>{parsed.text}</Text>}
             {event.type === 'staff_portal_reply' && parsed.tokens.map(tok =>
-              <PortalAttachmentCard key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={isOwn} isStaff sizeBytes={portalAttachments?.find(a => a.id === tok.id)?.file_size ?? undefined} />
+              <PortalAttachmentCard key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={isOwn} isStaff sizeBytes={portalAttachments?.find(a => a.id === tok.id)?.file_size ?? undefined} onReply={onReply} />
             )}
           </View>
         </BubbleRow>

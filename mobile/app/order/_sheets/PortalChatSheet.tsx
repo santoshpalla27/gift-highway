@@ -40,7 +40,7 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
   const [showAttachSheet, setShowAttachSheet] = React.useState(false)
   const [menuMsg, setMenuMsg] = React.useState<(typeof chat.messages)[0] | null>(null)
   const [deleteConfirmMsg, setDeleteConfirmMsg] = React.useState<(typeof chat.messages)[0] | null>(null)
-  const [viewer, setViewer] = React.useState<{ url: string; filename: string } | null>(null)
+  const [viewer, setViewer] = React.useState<{ url: string; filename: string; sizeBytes?: number; msg: (typeof chat.messages)[0] } | null>(null)
 
   const chat = usePortalChat(orderId, portalAttachments, onAttachmentsChange, refreshRef)
 
@@ -168,7 +168,7 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
                           <View key={tok.id} style={{ marginTop: idx === 0 && (hasText || quotedMsg) ? 6 : idx > 0 ? 4 : 0 }}>
                             {isImg && att?.view_url ? (
                               <View style={{ width: 240, borderRadius: 8, overflow: 'hidden' }}>
-                                <TouchableOpacity onPress={() => setViewer({ url: att.view_url, filename: att.file_name ?? tok.name })} activeOpacity={0.85}>
+                                <TouchableOpacity onPress={() => setViewer({ url: att.view_url, filename: att.file_name ?? tok.name, sizeBytes: att.file_size || undefined, msg })} activeOpacity={0.85}>
                                   <Image source={{ uri: att.view_url }} style={{ width: 240, height: 180 }} resizeMode="cover" />
                                 </TouchableOpacity>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingVertical: 5, backgroundColor: 'rgba(0,0,0,0.04)' }}>
@@ -182,7 +182,7 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
                             ) : (
                               <View style={{ width: 240, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
                                 <TouchableOpacity
-                                  onPress={() => att?.view_url && setViewer({ url: att.view_url, filename: att.file_name ?? tok.name })}
+                                  onPress={() => att?.view_url && setViewer({ url: att.view_url, filename: att.file_name ?? tok.name, sizeBytes: att.file_size || undefined, msg })}
                                   style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}
                                 >
                                   <Ionicons name="document-outline" size={14} color="#667781" />
@@ -361,6 +361,8 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
           onClose={() => setViewer(null)}
           url={viewer.url}
           filename={viewer.filename}
+          sizeBytes={viewer.sizeBytes}
+          onReply={() => { setViewer(null); chat.setReplyTo(viewer.msg) }}
         />
       )}
     </Modal>
