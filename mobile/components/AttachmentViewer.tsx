@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { formatBytes, downloadAttachment } from '../services/attachmentService'
+import { formatBytes, downloadAttachment, shareAttachment } from '../services/attachmentService'
 
 const { width: SW } = Dimensions.get('window')
 
@@ -80,6 +80,7 @@ export function AttachmentViewer({
   const insets = useSafeAreaInsets()
   const [imgLoading, setImgLoading] = useState(true)
   const [imgError, setImgError] = useState(false)
+  const [sharing, setSharing] = useState(false)
 
   const isImg = resolveIsImage(mimeType, filename)
   const fileIcon = isImg ? null : getFileIconInfo(mimeType, filename)
@@ -93,6 +94,15 @@ export function AttachmentViewer({
       onDownload()
     } else {
       downloadAttachment(url, filename)
+    }
+  }
+
+  async function handleShare() {
+    setSharing(true)
+    try {
+      await shareAttachment(url, filename)
+    } finally {
+      setSharing(false)
     }
   }
 
@@ -118,6 +128,12 @@ export function AttachmentViewer({
             )}
             <TouchableOpacity onPress={() => onDraw?.()} style={S.toolbarBtn} hitSlop={8}>
               <Ionicons name="pencil-outline" size={20} color="#475569" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleShare} style={S.toolbarBtn} hitSlop={8} disabled={sharing}>
+              {sharing
+                ? <ActivityIndicator size="small" color="#475569" />
+                : <Ionicons name="share-outline" size={20} color="#475569" />
+              }
             </TouchableOpacity>
             <TouchableOpacity onPress={handleDownload} style={S.toolbarBtn} hitSlop={8}>
               <Ionicons name="arrow-down-circle-outline" size={22} color="#6366F1" />
@@ -167,6 +183,13 @@ export function AttachmentViewer({
             <TouchableOpacity style={S.downloadBtn} onPress={handleDownload} activeOpacity={0.85}>
               <Ionicons name="arrow-down-circle-outline" size={20} color="#FFFFFF" />
               <Text style={S.downloadBtnText}>Download</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={S.shareBtn} onPress={handleShare} activeOpacity={0.85} disabled={sharing}>
+              {sharing
+                ? <ActivityIndicator size="small" color="#475569" />
+                : <Ionicons name="share-outline" size={20} color="#475569" />
+              }
+              <Text style={S.shareBtnText}>Share</Text>
             </TouchableOpacity>
             {onReply && (
               <TouchableOpacity style={S.replyBtn} onPress={() => { onClose(); onReply() }} activeOpacity={0.85}>
@@ -281,6 +304,20 @@ const S = StyleSheet.create({
     justifyContent: 'center',
   },
   downloadBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  shareBtnText: { fontSize: 15, fontWeight: '600', color: '#475569' },
   replyBtn: {
     flexDirection: 'row',
     alignItems: 'center',

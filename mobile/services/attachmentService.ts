@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy'
-import { Platform, Linking } from 'react-native'
+import { Platform, Linking, Share } from 'react-native'
 import { apiClient } from './apiClient'
 
 export async function downloadAttachment(url: string, _filename: string): Promise<void> {
@@ -8,6 +8,20 @@ export async function downloadAttachment(url: string, _filename: string): Promis
     return
   }
   await Linking.openURL(url)
+}
+
+export async function shareAttachment(url: string, filename: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      await navigator.share({ title: filename, url })
+    } else {
+      window.open(url, '_blank')
+    }
+    return
+  }
+  const localUri = (FileSystem.cacheDirectory ?? '') + filename
+  const { uri } = await FileSystem.downloadAsync(url, localUri)
+  await Share.share(Platform.OS === 'ios' ? { url: uri } : { title: filename, message: uri })
 }
 
 export interface Attachment {
