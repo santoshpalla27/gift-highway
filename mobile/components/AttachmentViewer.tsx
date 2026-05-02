@@ -63,6 +63,7 @@ export interface AttachmentViewerProps {
   sizeBytes?: number
   onReply?: () => void
   onDraw?: () => void
+  onDownload?: () => void | Promise<void>
 }
 
 export function AttachmentViewer({
@@ -74,6 +75,7 @@ export function AttachmentViewer({
   sizeBytes,
   onReply,
   onDraw,
+  onDownload,
 }: AttachmentViewerProps) {
   const [imgLoading, setImgLoading] = useState(true)
   const [imgError, setImgError] = useState(false)
@@ -86,7 +88,11 @@ export function AttachmentViewer({
   const extName  = _dot > 0 ? filename.slice(_dot)  : ''
 
   function handleDownload() {
-    downloadAttachment(url, filename)
+    if (onDownload) {
+      onDownload()
+    } else {
+      downloadAttachment(url, filename)
+    }
   }
 
   return (

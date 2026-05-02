@@ -1,7 +1,7 @@
-import { View, Text, Image, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native'
+import { View, Text, Image, TouchableOpacity, Dimensions, ActivityIndicator, Linking } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useState, useRef } from 'react'
-import { attachmentService, isImage, formatBytes, downloadAttachment } from '../../../services/attachmentService'
+import { attachmentService, isImage, formatBytes } from '../../../services/attachmentService'
 import { AttachmentViewer } from '../../../components/AttachmentViewer'
 
 const ATTACH_MAX_W = Math.round(Dimensions.get('window').width * 0.6)
@@ -45,9 +45,18 @@ export function AttachmentCard({ orderId, payload, isOwn, onReply }: {
       setViewerUrl(url)
       setViewerVisible(true)
     } catch {
-      await downloadAttachment(payload.file_url, payload.file_name)
+      await Linking.openURL(payload.file_url)
     } finally {
       setResolving(false)
+    }
+  }
+
+  const handleDownload = async () => {
+    try {
+      const url = await attachmentService.getDownloadUrl(orderId, payload.file_key, payload.file_name)
+      await Linking.openURL(url)
+    } catch {
+      await Linking.openURL(payload.file_url)
     }
   }
 
@@ -83,7 +92,7 @@ export function AttachmentCard({ orderId, payload, isOwn, onReply }: {
               {!!payload.size_bytes && Number(payload.size_bytes) > 0 && (
                 <Text style={{ fontSize: 11, color: '#9CA3AF', flexShrink: 0 }}>{formatBytes(Number(payload.size_bytes))}</Text>
               )}
-              <TouchableOpacity onPress={() => downloadAttachment(imgUri, payload.file_name)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity onPress={handleDownload} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="arrow-down-circle-outline" size={16} color="#6366F1" />
               </TouchableOpacity>
             </View>
@@ -102,10 +111,7 @@ export function AttachmentCard({ orderId, payload, isOwn, onReply }: {
                 <Text style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{formatBytes(Number(payload.size_bytes))}</Text>
               </View>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => downloadAttachment(viewerUrl || payload.file_url, payload.file_name)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
+            <TouchableOpacity onPress={handleDownload} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="arrow-down-circle-outline" size={20} color="#6366F1" />
             </TouchableOpacity>
           </View>
@@ -121,6 +127,7 @@ export function AttachmentCard({ orderId, payload, isOwn, onReply }: {
           mimeType={payload.mime_type}
           sizeBytes={payload.size_bytes ? Number(payload.size_bytes) : undefined}
           onReply={onReply}
+          onDownload={handleDownload}
         />
       ) : null}
     </>

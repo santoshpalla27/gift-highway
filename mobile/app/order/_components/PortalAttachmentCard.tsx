@@ -1,8 +1,8 @@
-import { View, Text, Image, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native'
+import { View, Text, Image, TouchableOpacity, ActivityIndicator, Dimensions, Linking } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useState, useEffect } from 'react'
 import { staffPortalApi } from '../../../services/portalService'
-import { downloadAttachment, formatBytes } from '../../../services/attachmentService'
+import { formatBytes } from '../../../services/attachmentService'
 import { AttachmentViewer } from '../../../components/AttachmentViewer'
 
 const ATTACH_MAX_W = Math.round(Dimensions.get('window').width * 0.6)
@@ -47,6 +47,11 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
   const trr = isOwn ? 4 : 14
   const tlr = isOwn ? 14 : 4
 
+  const handleDownload = async () => {
+    if (!viewUrl) return
+    await Linking.openURL(viewUrl)
+  }
+
   if (isImg) {
     return (
       <>
@@ -74,7 +79,7 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
                 <Text style={{ fontSize: 11, color: '#9CA3AF', flexShrink: 0 }}>{formatBytes(sizeBytes)}</Text>
               )}
               {viewUrl && (
-                <TouchableOpacity onPress={() => downloadAttachment(viewUrl, fileName)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                <TouchableOpacity onPress={handleDownload} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                   <Ionicons name="arrow-down-circle-outline" size={16} color="#6366F1" />
                 </TouchableOpacity>
               )}
@@ -91,6 +96,7 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
             filename={fileName}
             sizeBytes={sizeBytes}
             onReply={onReply}
+            onDownload={handleDownload}
           />
         ) : null}
       </>
@@ -123,7 +129,7 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
             </View>
           </TouchableOpacity>
           {viewUrl
-            ? <TouchableOpacity onPress={() => downloadAttachment(viewUrl, fileName)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            ? <TouchableOpacity onPress={handleDownload} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="arrow-down-circle-outline" size={20} color="#6366F1" />
               </TouchableOpacity>
             : <ActivityIndicator size="small" color="#94A3B8" />
@@ -140,6 +146,7 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
           filename={fileName}
           sizeBytes={sizeBytes}
           onReply={onReply}
+          onDownload={handleDownload}
         />
       ) : null}
     </>

@@ -1,14 +1,14 @@
 import React from 'react'
 import {
   View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView,
-  Image, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Share,
+  Image, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Share, Linking,
 } from 'react-native'
 import { formatRelative } from '../../../utils/date'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { PortalStatus, PortalAttachment } from '../../../services/portalService'
 import { staffPortalApi, getPortalURL } from '../../../services/portalService'
-import { formatBytes, downloadAttachment } from '../../../services/attachmentService'
+import { formatBytes } from '../../../services/attachmentService'
 import { usePortalChat } from '../_hooks/usePortalChat'
 import { getPortalMsgThumb } from '../_hooks/useOrderDetail'
 import { ComposerBar } from '../_components/ComposerBar'
@@ -40,7 +40,7 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
   const [showAttachSheet, setShowAttachSheet] = React.useState(false)
   const [menuMsg, setMenuMsg] = React.useState<(typeof chat.messages)[0] | null>(null)
   const [deleteConfirmMsg, setDeleteConfirmMsg] = React.useState<(typeof chat.messages)[0] | null>(null)
-  const [viewer, setViewer] = React.useState<{ url: string; filename: string; sizeBytes?: number; msg: (typeof chat.messages)[0] } | null>(null)
+  const [viewer, setViewer] = React.useState<{ url: string; filename: string; sizeBytes?: number; msg: (typeof chat.messages)[0]; attId?: number } | null>(null)
 
   const chat = usePortalChat(orderId, portalAttachments, onAttachmentsChange, refreshRef)
 
@@ -168,13 +168,13 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
                           <View key={tok.id} style={{ marginTop: idx === 0 && (hasText || quotedMsg) ? 6 : idx > 0 ? 4 : 0 }}>
                             {isImg && att?.view_url ? (
                               <View style={{ width: 240, borderRadius: 8, overflow: 'hidden' }}>
-                                <TouchableOpacity onPress={() => setViewer({ url: att.view_url, filename: att.file_name ?? tok.name, sizeBytes: att.file_size || undefined, msg })} activeOpacity={0.85}>
+                                <TouchableOpacity onPress={() => setViewer({ url: att.view_url, filename: att.file_name ?? tok.name, sizeBytes: att.file_size || undefined, msg, attId: att.id })} activeOpacity={0.85}>
                                   <Image source={{ uri: att.view_url }} style={{ width: 240, height: 180 }} resizeMode="cover" />
                                 </TouchableOpacity>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingVertical: 5, backgroundColor: 'rgba(0,0,0,0.04)' }}>
                                   <Text style={{ fontSize: 10, color: '#667781', flex: 1 }} numberOfLines={1}>{att.file_name ?? tok.name}</Text>
                                   {att.file_size > 0 && <Text style={{ fontSize: 10, color: '#667781', flexShrink: 0 }}>{formatBytes(att.file_size)}</Text>}
-                                  <TouchableOpacity onPress={() => staffPortalApi.getAttachmentDownloadURL(orderId, att.id, att.file_name ?? tok.name).then(url => downloadAttachment(url, att.file_name ?? tok.name))} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                                  <TouchableOpacity onPress={() => staffPortalApi.getAttachmentDownloadURL(orderId, att.id, att.file_name ?? tok.name).then(url => Linking.openURL(url))} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                                     <Ionicons name="arrow-down-circle-outline" size={14} color="#667781" />
                                   </TouchableOpacity>
                                 </View>
@@ -182,7 +182,7 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
                             ) : (
                               <View style={{ width: 240, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
                                 <TouchableOpacity
-                                  onPress={() => att?.view_url && setViewer({ url: att.view_url, filename: att.file_name ?? tok.name, sizeBytes: att.file_size || undefined, msg })}
+                                  onPress={() => att?.view_url && setViewer({ url: att.view_url, filename: att.file_name ?? tok.name, sizeBytes: att.file_size || undefined, msg, attId: att.id })}
                                   style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}
                                 >
                                   <Ionicons name="document-outline" size={14} color="#667781" />
@@ -190,7 +190,7 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
                                   {att != null && <Text style={{ fontSize: 10, color: '#667781', flexShrink: 0 }}>{formatBytes(att.file_size)}</Text>}
                                 </TouchableOpacity>
                                 {att?.view_url && (
-                                  <TouchableOpacity onPress={() => staffPortalApi.getAttachmentDownloadURL(orderId, att.id, att.file_name ?? tok.name).then(url => downloadAttachment(url, att.file_name ?? tok.name))} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                                  <TouchableOpacity onPress={() => staffPortalApi.getAttachmentDownloadURL(orderId, att.id, att.file_name ?? tok.name).then(url => Linking.openURL(url))} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                                     <Ionicons name="arrow-down-circle-outline" size={14} color="#667781" />
                                   </TouchableOpacity>
                                 )}
@@ -363,6 +363,12 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
           filename={viewer.filename}
           sizeBytes={viewer.sizeBytes}
           onReply={() => { setViewer(null); chat.setReplyTo(viewer.msg) }}
+          onDownload={viewer.attId != null
+            ? async () => {
+                const url = await staffPortalApi.getAttachmentDownloadURL(orderId, viewer.attId!, viewer.filename)
+                await Linking.openURL(url)
+              }
+            : undefined}
         />
       )}
     </Modal>
