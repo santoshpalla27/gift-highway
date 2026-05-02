@@ -18,7 +18,7 @@ import { StatusSheet } from './_sheets/StatusSheet'
 import { InfoSheet } from './_sheets/OrderInfoSheet'
 import { EditOrderSheet } from './_sheets/OrderInfoSheet'
 import { PortalChatSheet } from './_sheets/PortalChatSheet'
-import { formatDate } from '../../utils/date'
+import { formatDate, fmt12hrStr } from '../../utils/date'
 import { apiClient } from '../../services/apiClient'
 
 function NewUpdatesDivider() {
@@ -169,7 +169,9 @@ export default function OrderDetailScreen() {
           {order.due_date && (
             <View style={[S.chip, { backgroundColor: '#F8FAFC' }]}>
               <Ionicons name="calendar-outline" size={13} color="#64748B" />
-              <Text style={[S.chipText, { color: '#64748B', marginLeft: 4 }]}>{formatDate(order.due_date)}</Text>
+              <Text style={[S.chipText, { color: '#64748B', marginLeft: 4 }]}>
+                {formatDate(order.due_date)}{order.due_time ? ` · ${fmt12hrStr(order.due_time)}` : ''}
+              </Text>
             </View>
           )}
           {/* PORTAL HIDDEN: portal chip removed — see docs/portal-hidden.md to restore */}
