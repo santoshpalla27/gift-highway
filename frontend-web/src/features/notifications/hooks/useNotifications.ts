@@ -100,6 +100,11 @@ export function useNotifications({ mineOnly = false, othersOnly = false }: { min
     const retained = [...recentlyRead.values()]
       .filter(e => !apiIds.has(e.group.order_id))
       .map(e => e.group)
+      .sort((a, b) => {
+        const at = new Date(a.events[0]?.created_at ?? 0).getTime()
+        const bt = new Date(b.events[0]?.created_at ?? 0).getTime()
+        return bt - at
+      })
 
     return [
       ...apiGroups.map(g => ({ ...g, isRead: false })),
