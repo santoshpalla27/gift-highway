@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import { DrawingEditor } from './DrawingEditor'
+import { attachmentService } from '../../services/attachmentService'
 
 const IMG_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'avif', 'svg']
 
@@ -52,16 +54,19 @@ export interface AttachmentViewerProps {
   onClose: () => void
   onDelete?: () => Promise<void>
   onReply?: () => void
-  onDraw?: () => void
   onDownload?: () => void
+  orderId?: string
+  onAnnotationSaved?: () => void
 }
 
 export function AttachmentViewer({
-  src, filename, mimeType, sizeBytes, onClose, onDelete, onReply, onDraw, onDownload,
+  src, filename, mimeType, sizeBytes, onClose, onDelete, onReply, onDownload,
+  orderId, onAnnotationSaved,
 }: AttachmentViewerProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [imgError, setImgError] = useState(false)
+  const [drawingMode, setDrawingMode] = useState(false)
   const overlayRef = useRef<HTMLDivElement>(null)
 
   function handleDownload() {
@@ -155,12 +160,14 @@ export function AttachmentViewer({
               </svg>
             </button>
           )}
-          <button onClick={() => onDraw?.()} style={btn} title="Draw">
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-              <path d="M11.5 2.5a1.5 1.5 0 012.121 2.121l-8 8L3 13.5l.879-2.621 8-8z" stroke="#475569" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M10 4l2 2" stroke="#475569" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
-          </button>
+          {isImg && orderId && (
+            <button onClick={() => setDrawingMode(true)} style={btn} title="Draw / Annotate">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <path d="M11.5 2.5a1.5 1.5 0 012.121 2.121l-8 8L3 13.5l.879-2.621 8-8z" stroke="#475569" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M10 4l2 2" stroke="#475569" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
           <button onClick={handleDownload} style={btn} title="Download">
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3M2 12h12" stroke="#475569" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
@@ -278,6 +285,26 @@ export function AttachmentViewer({
           </div>
         )}
       </div>
+
+      {/* Drawing editor overlay */}
+      {drawingMode && orderId && (
+        <DrawingEditor
+          src={src}
+          filename={filename}
+          onCancel={() => setDrawingMode(false)}
+          onSave={async (blob, annotatedFilename) => {
+            // Upload annotated image as a new attachment
+            const mimeType = 'image/png'
+            const sizeBytes = blob.size
+            const { upload_url, file_key, file_url } = await attachmentService.getUploadURL(orderId, annotatedFilename, mimeType, sizeBytes)
+            await attachmentService.uploadToR2(upload_url, new File([blob], annotatedFilename, { type: mimeType }), mimeType, () => {})
+            await attachmentService.confirmUpload(orderId, { file_name: annotatedFilename, file_key, file_url, mime_type: mimeType, size_bytes: sizeBytes })
+            setDrawingMode(false)
+            onAnnotationSaved?.()
+            onClose()
+          }}
+        />
+      )}
     </div>
   )
 }

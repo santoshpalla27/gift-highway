@@ -97,6 +97,7 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
             sizeBytes={sizeBytes}
             onReply={onReply}
             onDownload={handleDownload}
+            orderId={orderId}
           />
         ) : null}
       </>
@@ -147,6 +148,7 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
           sizeBytes={sizeBytes}
           onReply={onReply}
           onDownload={handleDownload}
+          orderId={orderId}
         />
       ) : null}
     </>

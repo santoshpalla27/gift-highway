@@ -701,7 +701,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
           </div>
         </div>
       </div>
-      {viewer && <AttachmentViewer src={viewer.src} filename={viewer.filename} mimeType={viewer.mimeType} sizeBytes={viewer.sizeBytes} onClose={() => setViewer(null)} onReply={onReply ? () => { setViewer(null); onReply() } : undefined} onDownload={viewer.fileKey ? () => downloadFile(orderId, viewer!.fileKey!, viewer!.filename) : () => { window.location.href = viewer!.src }} />}
+      {viewer && <AttachmentViewer src={viewer.src} filename={viewer.filename} mimeType={viewer.mimeType} sizeBytes={viewer.sizeBytes} onClose={() => setViewer(null)} onReply={onReply ? () => { setViewer(null); onReply() } : undefined} onDownload={viewer.fileKey ? () => downloadFile(orderId, viewer!.fileKey!, viewer!.filename) : () => { window.location.href = viewer!.src }} orderId={orderId} />}
     </>)
   }
 
@@ -917,7 +917,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
           </div>
         </div>
       </div>
-      {viewer && <AttachmentViewer src={viewer.src} filename={viewer.filename} mimeType={viewer.mimeType} sizeBytes={viewer.sizeBytes} onClose={() => setViewer(null)} onReply={onReply ? () => { setViewer(null); onReply() } : undefined} onDownload={viewer.fileKey ? () => downloadFile(orderId, viewer!.fileKey!, viewer!.filename) : () => { window.location.href = viewer!.src }} />}
+      {viewer && <AttachmentViewer src={viewer.src} filename={viewer.filename} mimeType={viewer.mimeType} sizeBytes={viewer.sizeBytes} onClose={() => setViewer(null)} onReply={onReply ? () => { setViewer(null); onReply() } : undefined} onDownload={viewer.fileKey ? () => downloadFile(orderId, viewer!.fileKey!, viewer!.filename) : () => { window.location.href = viewer!.src }} orderId={orderId} />}
     </>)
   }
 

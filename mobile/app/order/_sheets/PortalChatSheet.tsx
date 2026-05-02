@@ -369,6 +369,7 @@ export function PortalChatSheet({ orderId, portal, portalAttachments, onClose, o
                 await Linking.openURL(url)
               }
             : undefined}
+          orderId={orderId}
         />
       )}
     </Modal>

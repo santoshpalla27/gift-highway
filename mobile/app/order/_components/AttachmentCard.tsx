@@ -128,6 +128,7 @@ export function AttachmentCard({ orderId, payload, isOwn, onReply }: {
           sizeBytes={payload.size_bytes ? Number(payload.size_bytes) : undefined}
           onReply={onReply}
           onDownload={handleDownload}
+          orderId={orderId}
         />
       ) : null}
     </>

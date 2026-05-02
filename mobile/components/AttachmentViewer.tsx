@@ -8,10 +8,12 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
+  Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { formatBytes, downloadAttachment, shareAttachment } from '../services/attachmentService'
+import { formatBytes, downloadAttachment, shareAttachment, attachmentService } from '../services/attachmentService'
+import { DrawingEditor } from './DrawingEditor'
 
 const { width: SW } = Dimensions.get('window')
 
@@ -62,8 +64,9 @@ export interface AttachmentViewerProps {
   mimeType?: string
   sizeBytes?: number
   onReply?: () => void
-  onDraw?: () => void
   onDownload?: () => void | Promise<void>
+  orderId?: string
+  onAnnotationSaved?: () => void
 }
 
 export function AttachmentViewer({
@@ -74,13 +77,15 @@ export function AttachmentViewer({
   mimeType,
   sizeBytes,
   onReply,
-  onDraw,
   onDownload,
+  orderId,
+  onAnnotationSaved,
 }: AttachmentViewerProps) {
   const insets = useSafeAreaInsets()
   const [imgLoading, setImgLoading] = useState(true)
   const [imgError, setImgError] = useState(false)
   const [sharing, setSharing] = useState(false)
+  const [drawingMode, setDrawingMode] = useState(false)
 
   const isImg = resolveIsImage(mimeType, filename)
   const fileIcon = isImg ? null : getFileIconInfo(mimeType, filename)
@@ -107,6 +112,7 @@ export function AttachmentViewer({
   }
 
   return (
+    <>
     <Modal
       visible={visible}
       animationType="slide"
@@ -126,9 +132,11 @@ export function AttachmentViewer({
                 <Ionicons name="arrow-undo-outline" size={22} color="#6366F1" />
               </TouchableOpacity>
             )}
-            <TouchableOpacity onPress={() => onDraw?.()} style={S.toolbarBtn} hitSlop={8}>
-              <Ionicons name="pencil" size={20} color="#475569" />
-            </TouchableOpacity>
+            {isImg && orderId ? (
+              <TouchableOpacity onPress={() => setDrawingMode(true)} style={S.toolbarBtn} hitSlop={8}>
+                <Ionicons name="pencil" size={20} color="#475569" />
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity onPress={handleShare} style={[S.toolbarBtn, S.toolbarBtnShare]} hitSlop={8} disabled={sharing}>
               {sharing
                 ? <ActivityIndicator size="small" color="#10B981" />
@@ -212,6 +220,40 @@ export function AttachmentViewer({
         </View>
       </View>
     </Modal>
+
+    {/* Drawing editor modal */}
+    {drawingMode && orderId && (
+      <DrawingEditor
+        visible={drawingMode}
+        imageUrl={url}
+        filename={filename}
+        onCancel={() => setDrawingMode(false)}
+        onSave={async (uri, annotatedFilename) => {
+          const mimeType = 'image/png'
+          // Get file size
+          let fileSize = 0
+          if (Platform.OS === 'web') {
+            // For web data URL, estimate size from base64
+            const base64 = uri.split(',')[1] ?? ''
+            fileSize = Math.round(base64.length * 0.75)
+          } else {
+            const FileSystem = require('expo-file-system/legacy')
+            const info = await FileSystem.getInfoAsync(uri)
+            fileSize = info.size ?? 0
+          }
+
+          // Upload via existing flow
+          const { upload_url, file_key, file_url } = await attachmentService.getUploadURL(orderId, annotatedFilename, mimeType, fileSize)
+          await attachmentService.uploadToR2(upload_url, uri, mimeType, () => {})
+          await attachmentService.confirmUpload(orderId, { file_name: annotatedFilename, file_key, file_url, mime_type: mimeType, size_bytes: fileSize })
+
+          setDrawingMode(false)
+          onAnnotationSaved?.()
+          onClose()
+        }}
+      />
+    )}
+    </>
   )
 }
 
