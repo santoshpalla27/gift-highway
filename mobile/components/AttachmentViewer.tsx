@@ -5,14 +5,13 @@ import {
   Text,
   TouchableOpacity,
   Image,
-  Linking,
   StyleSheet,
   SafeAreaView,
   Dimensions,
   ActivityIndicator,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { formatBytes } from '../services/attachmentService'
+import { formatBytes, downloadAttachment } from '../services/attachmentService'
 
 const { width: SW } = Dimensions.get('window')
 
@@ -86,8 +85,8 @@ export function AttachmentViewer({
   const baseName = _dot > 0 ? filename.slice(0, _dot) : filename
   const extName  = _dot > 0 ? filename.slice(_dot)  : ''
 
-  async function handleDownload() {
-    await Linking.openURL(url)
+  function handleDownload() {
+    downloadAttachment(url, filename)
   }
 
   return (

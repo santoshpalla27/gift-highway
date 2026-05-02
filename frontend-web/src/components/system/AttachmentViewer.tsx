@@ -53,15 +53,24 @@ export interface AttachmentViewerProps {
   onDelete?: () => Promise<void>
   onReply?: () => void
   onDraw?: () => void
+  onDownload?: () => void
 }
 
 export function AttachmentViewer({
-  src, filename, mimeType, sizeBytes, onClose, onDelete, onReply, onDraw,
+  src, filename, mimeType, sizeBytes, onClose, onDelete, onReply, onDraw, onDownload,
 }: AttachmentViewerProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [imgError, setImgError] = useState(false)
   const overlayRef = useRef<HTMLDivElement>(null)
+
+  function handleDownload() {
+    if (onDownload) {
+      onDownload()
+    } else {
+      window.location.href = src
+    }
+  }
 
   const isImg = resolveIsImage(mimeType, filename)
   const fileIcon = isImg ? null : getFileIconInfo(mimeType, filename)
@@ -152,11 +161,9 @@ export function AttachmentViewer({
               <path d="M10 4l2 2" stroke="#475569" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
           </button>
-          <a href={src} download={filename} style={{ ...btn, textDecoration: 'none' }} title="Download">
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-              <path d="M8 2v8M5 7l3 3 3-3M2 12h12" stroke="#475569" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </a>
+          <button onClick={handleDownload} style={btn} title="Download">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3M2 12h12" stroke="#475569" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
 
           {onDelete && !confirmDelete && (
             <button
@@ -258,18 +265,16 @@ export function AttachmentViewer({
                 {formatFileSize(sizeBytes)}
               </div>
             )}
-            <a href={src} download={filename} style={{
+            <button onClick={handleDownload} style={{
               display: 'flex', alignItems: 'center', gap: 8, marginTop: 10,
-              padding: '14px 36px', borderRadius: 14,
+              padding: '14px 36px', borderRadius: 14, border: 'none', cursor: 'pointer',
               background: '#6366F1', color: '#fff',
-              fontWeight: 700, fontSize: 15, textDecoration: 'none',
+              fontWeight: 700, fontSize: 15,
               boxShadow: '0 4px 14px rgba(99,102,241,0.28)',
             }}>
-              <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
-                <path d="M8 2v8M5 7l3 3 3-3M2 12h12" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3M2 12h12" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               Download
-            </a>
+            </button>
           </div>
         )}
       </div>

@@ -360,7 +360,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
   const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState('')
-  const [viewer, setViewer] = useState<{ src: string; filename: string; mimeType?: string; sizeBytes?: number } | null>(null)
+  const [viewer, setViewer] = useState<{ src: string; filename: string; mimeType?: string; sizeBytes?: number; fileKey?: string } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -606,11 +606,11 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
               {fileIsImage ? (
                 <AttachmentImage
                   orderId={orderId} fileKey={p.file_key} fileName={p.file_name} fileUrl={p.file_url}
-                  onOpen={(src) => setViewer({ src, filename: p.file_name, mimeType: p.mime_type, sizeBytes: p.size_bytes ? Number(p.size_bytes) : undefined })}
+                  onOpen={(src) => setViewer({ src, filename: p.file_name, mimeType: p.mime_type, sizeBytes: p.size_bytes ? Number(p.size_bytes) : undefined, fileKey: p.file_key })}
                 />
               ) : (
                 <div
-                  onClick={() => setViewer({ src: p.file_url, filename: p.file_name, mimeType: p.mime_type, sizeBytes: p.size_bytes ? Number(p.size_bytes) : undefined })}
+                  onClick={() => setViewer({ src: p.file_url, filename: p.file_name, mimeType: p.mime_type, sizeBytes: p.size_bytes ? Number(p.size_bytes) : undefined, fileKey: p.file_key })}
                   style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 22px', cursor: 'pointer' }}
                 >
                   <div style={{ width: 36, height: 36, borderRadius: 8, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -689,7 +689,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
           </div>
         </div>
       </div>
-      {viewer && <AttachmentViewer src={viewer.src} filename={viewer.filename} mimeType={viewer.mimeType} sizeBytes={viewer.sizeBytes} onClose={() => setViewer(null)} onReply={onReply ? () => { setViewer(null); onReply() } : undefined} />}
+      {viewer && <AttachmentViewer src={viewer.src} filename={viewer.filename} mimeType={viewer.mimeType} sizeBytes={viewer.sizeBytes} onClose={() => setViewer(null)} onReply={onReply ? () => { setViewer(null); onReply() } : undefined} onDownload={viewer.fileKey ? () => downloadFile(orderId, viewer!.fileKey!, viewer!.filename) : () => { window.location.href = viewer!.src }} />}
     </>)
   }
 
@@ -900,7 +900,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
           </div>
         </div>
       </div>
-      {viewer && <AttachmentViewer src={viewer.src} filename={viewer.filename} mimeType={viewer.mimeType} sizeBytes={viewer.sizeBytes} onClose={() => setViewer(null)} onReply={onReply ? () => { setViewer(null); onReply() } : undefined} />}
+      {viewer && <AttachmentViewer src={viewer.src} filename={viewer.filename} mimeType={viewer.mimeType} sizeBytes={viewer.sizeBytes} onClose={() => setViewer(null)} onReply={onReply ? () => { setViewer(null); onReply() } : undefined} onDownload={viewer.fileKey ? () => downloadFile(orderId, viewer!.fileKey!, viewer!.filename) : () => { window.location.href = viewer!.src }} />}
     </>)
   }
 

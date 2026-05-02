@@ -51,7 +51,8 @@
             "android:launchMode": "singleTask"
           }
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "extra": {
       "eas": {
