@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   Image,
   StyleSheet,
-  SafeAreaView,
   Dimensions,
   ActivityIndicator,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { formatBytes, downloadAttachment } from '../services/attachmentService'
 
@@ -77,6 +77,7 @@ export function AttachmentViewer({
   onDraw,
   onDownload,
 }: AttachmentViewerProps) {
+  const insets = useSafeAreaInsets()
   const [imgLoading, setImgLoading] = useState(true)
   const [imgError, setImgError] = useState(false)
 
@@ -102,7 +103,7 @@ export function AttachmentViewer({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={S.root}>
+      <View style={[S.root, { paddingTop: insets.top }]}>
         {/* Toolbar */}
         <View style={S.toolbar}>
           <TouchableOpacity onPress={onClose} style={S.toolbarBtn} hitSlop={8}>
@@ -177,7 +178,7 @@ export function AttachmentViewer({
         )}
 
         {/* Bottom name + size bar */}
-        <View style={S.bottomBar}>
+        <View style={[S.bottomBar, { paddingBottom: Math.max(insets.bottom + 10, 10) }]}>
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'baseline', minWidth: 0 }}>
             <Text numberOfLines={1} ellipsizeMode="tail" style={S.bottomName}>{baseName}</Text>
             {extName ? <Text style={S.bottomExt}>{extName}</Text> : null}
@@ -186,7 +187,7 @@ export function AttachmentViewer({
             <Text style={S.bottomSize}>{formatBytes(sizeBytes)}</Text>
           )}
         </View>
-      </SafeAreaView>
+      </View>
     </Modal>
   )
 }
