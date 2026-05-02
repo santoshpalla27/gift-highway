@@ -611,7 +611,9 @@ function OrderCard({ order, onOpen, unreadCount = 0 }: {
     <TouchableOpacity style={[C.card, unreadCount > 0 && C.cardUnread]} onPress={onOpen} activeOpacity={0.6}>
       {/* Top row: Order ID (left) | Status badge (right) */}
       <View style={C.rowTop}>
-        <Text style={C.orderNum} numberOfLines={1}>#{order.title}</Text>
+        <View style={C.orderNumWrap}>
+          <Text style={C.orderNum} numberOfLines={1}>#{order.title}</Text>
+        </View>
         <View style={[C.statusBadge, { backgroundColor: sm.bg }]}>
           <View style={[C.statusDot, { backgroundColor: sm.color }]} />
           <Text style={[C.statusText, { color: sm.color }]}>{sm.label}</Text>
@@ -1005,7 +1007,8 @@ const C = StyleSheet.create({
   },
   // Top row: order ID left, status right
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  orderNum: { fontSize: 15, fontWeight: '800', color: '#6366F1', flex: 1 },
+  orderNumWrap: { flex: 1, minWidth: 0 },
+  orderNum: { fontSize: 15, fontWeight: '800', color: '#6366F1' },
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, flexShrink: 0 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 12, fontWeight: '700' },
