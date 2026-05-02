@@ -96,7 +96,7 @@ export function AttachmentViewer({
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 20,
       }}
-      onMouseDown={e => { if (e.target === overlayRef.current) onClose() }}
+      onClick={e => { if (e.target === overlayRef.current) onClose() }}
     >
       <div style={{
         background: '#FFFFFF', borderRadius: 20,
