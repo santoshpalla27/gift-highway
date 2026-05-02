@@ -116,6 +116,7 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
   // ── Pan gesture for drawing ─────────────────────────────────────────────
 
   const panGesture = Gesture.Pan()
+    .runOnJS(true)
     .minPointers(1)
     .maxPointers(1)
     .onBegin((e) => {
