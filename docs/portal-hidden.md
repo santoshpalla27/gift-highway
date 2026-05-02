@@ -25,6 +25,29 @@ Every removed block was replaced with a one-line comment rather than being delet
   In `App.tsx` (non-JSX context), the same pattern is used with `//` prefix.
 - To find all hidden spots in one go, search the codebase for `PORTAL HIDDEN`.
 
+### TypeScript build fix (variable renames)
+
+Hiding the portal UI left several state variables declared but never read, which caused `TS6133` build errors. To suppress them without deleting the variables, the following were prefixed with `_`:
+
+**`frontend-web/src/features/orders/pages/OrderDetailPage.tsx`**
+
+| Before | After | Reason |
+|---|---|---|
+| `const [portal, setPortal]` | `const [_portal, setPortal]` | `portal` value no longer rendered; `setPortal` still called by data-fetch |
+| `const [portalLoading, setPortalLoading]` | `const [_portalLoading, _setPortalLoading]` | Both sides only used in commented-out UI |
+| `const [portalCopied, setPortalCopied]` | `const [_portalCopied, _setPortalCopied]` | Both sides only used in commented-out UI |
+| `const [showPortalChat, setShowPortalChat]` | `const [_showPortalChat, _setShowPortalChat]` | Both sides only used in commented-out UI |
+
+`portalAttachments`, `portalMessages`, and `setPortal` were **not** renamed — they are still read by the timeline rendering and `highlightPortalMsg` callback.
+
+**`frontend-web/src/features/orders/components/OrderModal.tsx`**
+
+| Before | After | Reason |
+|---|---|---|
+| `const [createPortal, setCreatePortal]` | `const [createPortal, _setCreatePortal]` | `createPortal` is still read in `handleSubmit`; setter's checkbox was commented out |
+
+**When restoring:** remove the `_` prefix from all variables listed above so they match the original names used in the JSX blocks you are re-enabling.
+
 ---
 
 ## What Was Hidden (the only changes made)
@@ -463,16 +486,16 @@ All portal code is still in the repo at these paths:
 | Mobile | `mobile/app/order/_hooks/usePortalChat.ts` | Chat state hook |
 | Tests | `tests/api/test_portal.py` | API tests |
 
-The 7 files actually edited (comments only, no logic removed):
+The 7 files actually edited:
 
-| File | What was commented out |
+| File | What was changed |
 |---|---|
-| `frontend-web/src/app/App.tsx` | Import + `/portal/:token` route |
-| `frontend-web/src/features/orders/pages/OrderDetailPage.tsx` | Header button, sidebar panel, modal mount |
-| `frontend-web/src/features/orders/components/OrderModal.tsx` | "Generate portal link" checkbox in Create Order form |
-| `mobile/app/order/[id].tsx` | Portal chip, sheet mount |
-| `mobile/app/order/_sheets/OrderInfoSheet.tsx` | "CUSTOMER PORTAL" section in the ⓘ info sheet |
-| `mobile/app/(app)/all-orders.tsx` | "Generate portal link" checkbox in Create Order sheet |
+| `frontend-web/src/app/App.tsx` | Commented out: import + `/portal/:token` route |
+| `frontend-web/src/features/orders/pages/OrderDetailPage.tsx` | Commented out: header button, sidebar panel, modal mount · `_` prefix on 4 unused state variables (see TypeScript build fix above) |
+| `frontend-web/src/features/orders/components/OrderModal.tsx` | Commented out: "Generate portal link" checkbox · `_setCreatePortal` rename |
+| `mobile/app/order/[id].tsx` | Commented out: portal chip, sheet mount |
+| `mobile/app/order/_sheets/OrderInfoSheet.tsx` | Commented out: "CUSTOMER PORTAL" section in the ⓘ info sheet |
+| `mobile/app/(app)/all-orders.tsx` | Commented out: "Generate portal link" checkbox in Create Order sheet |
 
 To find all hidden spots in one search, run: `grep -r "PORTAL HIDDEN" --include="*.tsx" --include="*.ts" .`
 

@@ -2207,6 +2207,10 @@ export function OrderDetailPage() {
                   setArchiving(true)
                   try {
                     await orderService.archiveOrder(order.id)
+                    await Promise.all([
+                      qc.invalidateQueries({ queryKey: ['trash'] }),
+                      qc.invalidateQueries({ queryKey: ['orders'] }),
+                    ])
                     navigate(-1)
                   } catch {
                     setArchiving(false)
