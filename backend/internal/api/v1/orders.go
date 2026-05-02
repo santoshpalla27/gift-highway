@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/company/app/backend/internal/models"
@@ -90,11 +91,25 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 
+	var assignedTo []string
+	unassigned := false
+	if raw := c.Query("assigned_to"); raw != "" {
+		for _, id := range strings.Split(raw, ",") {
+			id = strings.TrimSpace(id)
+			if id == "unassigned" {
+				unassigned = true
+			} else if id != "" {
+				assignedTo = append(assignedTo, id)
+			}
+		}
+	}
+
 	orders, total, err := h.orderService.ListOrders(c.Request.Context(), services.ListOrdersParams{
 		Search:     c.Query("search"),
 		Status:     c.Query("status"),
 		Priority:   c.Query("priority"),
-		AssignedTo: c.Query("assigned_to"),
+		AssignedTo: assignedTo,
+		Unassigned: unassigned,
 		DueFrom:    c.Query("due_from"),
 		DueTo:      c.Query("due_to"),
 		Page:       page,

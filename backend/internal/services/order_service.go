@@ -55,7 +55,8 @@ type ListOrdersParams struct {
 	Search     string
 	Status     string
 	Priority   string
-	AssignedTo string
+	AssignedTo []string
+	Unassigned bool
 	DueFrom    string
 	DueTo      string
 	Page       int
@@ -70,6 +71,7 @@ func (s *OrderService) ListOrders(ctx context.Context, p ListOrdersParams) ([]*m
 		Status:     p.Status,
 		Priority:   p.Priority,
 		AssignedTo: p.AssignedTo,
+		Unassigned: p.Unassigned,
 		DueFrom:    p.DueFrom,
 		DueTo:      p.DueTo,
 		Page:       p.Page,

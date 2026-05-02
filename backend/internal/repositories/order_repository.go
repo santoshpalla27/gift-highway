@@ -15,7 +15,8 @@ type OrderFilter struct {
 	Search     string
 	Status     string
 	Priority   string
-	AssignedTo string
+	AssignedTo []string // user IDs to filter by (OR logic)
+	Unassigned bool     // include orders with no assignees
 	DueFrom    string
 	DueTo      string
 	Page       int
@@ -86,12 +87,33 @@ func (r *OrderRepository) buildWhere(f OrderFilter) (string, []interface{}) {
 		args = append(args, f.Priority)
 		idx++
 	}
-	if f.AssignedTo != "" {
-		conditions = append(conditions, fmt.Sprintf(
-			"EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = o.id AND oa.user_id = $%d)", idx,
-		))
-		args = append(args, f.AssignedTo)
-		idx++
+	if len(f.AssignedTo) > 0 || f.Unassigned {
+		noAssignee := "NOT EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = o.id)"
+		if len(f.AssignedTo) > 0 && f.Unassigned {
+			placeholders := make([]string, len(f.AssignedTo))
+			for i := range f.AssignedTo {
+				placeholders[i] = fmt.Sprintf("$%d", idx+i)
+				args = append(args, f.AssignedTo[i])
+			}
+			conditions = append(conditions, fmt.Sprintf(
+				"(%s OR EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = o.id AND oa.user_id IN (%s)))",
+				noAssignee, strings.Join(placeholders, ", "),
+			))
+			idx += len(f.AssignedTo)
+		} else if f.Unassigned {
+			conditions = append(conditions, noAssignee)
+		} else {
+			placeholders := make([]string, len(f.AssignedTo))
+			for i := range f.AssignedTo {
+				placeholders[i] = fmt.Sprintf("$%d", idx+i)
+				args = append(args, f.AssignedTo[i])
+			}
+			conditions = append(conditions, fmt.Sprintf(
+				"EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = o.id AND oa.user_id IN (%s))",
+				strings.Join(placeholders, ", "),
+			))
+			idx += len(f.AssignedTo)
+		}
 	}
 	if f.DueFrom != "" {
 		conditions = append(conditions, fmt.Sprintf("o.due_date >= $%d", idx))

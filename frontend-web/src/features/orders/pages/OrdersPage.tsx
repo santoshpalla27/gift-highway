@@ -198,8 +198,8 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
   const search       = searchParams.get('q') ?? ''
   const statusFilter = searchParams.get('status') ?? ''
   const priorityFilter = searchParams.get('priority') ?? ''
-  const assigneeFilter = searchParams.get('assignee') ?? ''
-  const assigneeName   = searchParams.get('assignee_name') ?? ''
+  const assigneeRaw    = searchParams.get('assignee') ?? ''
+  const assigneeIds    = assigneeRaw ? assigneeRaw.split(',').filter(Boolean) : []
   const dueDateFrom    = searchParams.get('due_from') ?? ''
   const dueDateTo      = searchParams.get('due_to') ?? ''
   const overdueOnly    = searchParams.get('overdue') === '1'
@@ -270,7 +270,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
     search: search || undefined,
     status: statusFilter || undefined,
     priority: priorityFilter || undefined,
-    assigned_to: myOrdersOnly && user ? user.id : (assigneeFilter || undefined),
+    assigned_to: myOrdersOnly && user ? user.id : (assigneeRaw || undefined),
     due_from: overdueOnly ? undefined : dueTodayOnly ? today : (dueDateFrom || undefined),
     due_to: overdueOnly ? yesterday : dueTodayOnly ? today : (dueDateTo || undefined),
     page,
@@ -293,7 +293,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
     if (!isLoading && total > 0 && page > totalPages) gotoPage(totalPages)
   }, [isLoading, total, page, totalPages])
 
-  const hasFilters = !!(statusFilter || priorityFilter || assigneeFilter || dueDateFrom || dueDateTo || overdueOnly || dueTodayOnly || unreadOnly)
+  const hasFilters = !!(statusFilter || priorityFilter || assigneeRaw || dueDateFrom || dueDateTo || overdueOnly || dueTodayOnly || unreadOnly)
 
   function clearAll() {
     setSearchParams(prev => {
@@ -306,6 +306,19 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
     setDueDraftFrom('')
     setDueDraftTo('')
   }
+
+  const assigneeLabel = (() => {
+    if (!assigneeIds.length) return undefined
+    const hasUnassigned = assigneeIds.includes('unassigned')
+    const userIds = assigneeIds.filter(id => id !== 'unassigned')
+    const parts: string[] = []
+    if (hasUnassigned) parts.push('Unassigned')
+    const matchedNames = userIds.map(id => users.find(u => u.id === id)?.name).filter(Boolean) as string[]
+    parts.push(...matchedNames)
+    if (parts.length === 0) return undefined
+    if (parts.length <= 2) return parts.join(', ')
+    return `${parts[0]}, ${parts[1]} +${parts.length - 2}`
+  })()
 
   const dueDateLabel = dueDateFrom && dueDateTo
     ? `${formatDate(dueDateFrom)} – ${formatDate(dueDateTo)}`
@@ -432,28 +445,43 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
 
         {/* Assignee */}
         {!myOrdersOnly && (
-          <FilterPill label="Assignee" value={assigneeName || undefined} onClear={() => update({ assignee: undefined, assignee_name: undefined })}>
-            {close => {
+          <FilterPill label="Assignee" value={assigneeLabel} onClear={() => update({ assignee: undefined })}>
+            {() => {
               loadUsers()
+              const toggle = (id: string) => {
+                const next = assigneeIds.includes(id)
+                  ? assigneeIds.filter(x => x !== id)
+                  : [...assigneeIds, id]
+                update({ assignee: next.length ? next.join(',') : undefined })
+              }
               return (
-                <div style={{ padding: 4, maxHeight: 220, overflowY: 'auto', minWidth: 180 }}>
+                <div style={{ padding: 4, maxHeight: 260, overflowY: 'auto', minWidth: 190 }}>
+                  {/* Unassigned row */}
+                  <div style={pillListItem(assigneeIds.includes('unassigned'))}
+                    onMouseEnter={e => { if (!assigneeIds.includes('unassigned')) e.currentTarget.style.background = '#F5F6FA' }}
+                    onMouseLeave={e => { if (!assigneeIds.includes('unassigned')) e.currentTarget.style.background = 'transparent' }}
+                    onClick={() => toggle('unassigned')}>
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#F3F4F6', color: '#6B7280', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, flexShrink: 0 }}>—</div>
+                    Unassigned
+                    {assigneeIds.includes('unassigned') && <svg style={{ marginLeft: 'auto' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>}
+                  </div>
                   {users.length === 0 ? (
                     <div style={{ padding: '10px 14px', fontSize: 13, color: '#9CA3AF' }}>Loading…</div>
-                  ) : users.map(u => (
-                    <div key={u.id} style={pillListItem(assigneeFilter === u.id)}
-                      onMouseEnter={e => { if (assigneeFilter !== u.id) e.currentTarget.style.background = '#F5F6FA' }}
-                      onMouseLeave={e => { if (assigneeFilter !== u.id) e.currentTarget.style.background = 'transparent' }}
-                      onClick={() => {
-                        if (assigneeFilter === u.id) update({ assignee: undefined, assignee_name: undefined })
-                        else update({ assignee: u.id, assignee_name: u.name })
-                        close()
-                      }}>
-                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#EEF2FF', color: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, flexShrink: 0 }}>
-                        {getInitials(u.name)}
+                  ) : users.map(u => {
+                    const active = assigneeIds.includes(u.id)
+                    return (
+                      <div key={u.id} style={pillListItem(active)}
+                        onMouseEnter={e => { if (!active) e.currentTarget.style.background = '#F5F6FA' }}
+                        onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
+                        onClick={() => toggle(u.id)}>
+                        <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#EEF2FF', color: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, flexShrink: 0 }}>
+                          {getInitials(u.name)}
+                        </div>
+                        {u.name}
+                        {active && <svg style={{ marginLeft: 'auto' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>}
                       </div>
-                      {u.name}
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )
             }}

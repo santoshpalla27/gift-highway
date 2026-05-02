@@ -57,8 +57,7 @@ function fmtDateShort(iso: string) {
 interface FilterState {
   status: string
   priority: string
-  assigneeId: string
-  assigneeName: string
+  assigneeIds: string[]
   dueDateFrom: string
   dueDateTo: string
   overdueOnly: boolean
@@ -67,12 +66,12 @@ interface FilterState {
 }
 
 const emptyFilters: FilterState = {
-  status: '', priority: '', assigneeId: '', assigneeName: '',
+  status: '', priority: '', assigneeIds: [],
   dueDateFrom: '', dueDateTo: '', overdueOnly: false, dueTodayOnly: false, unreadOnly: false,
 }
 
 function activeCount(f: FilterState) {
-  return [f.status, f.priority, f.assigneeId, f.dueDateFrom || f.dueDateTo, f.overdueOnly, f.dueTodayOnly, f.unreadOnly].filter(Boolean).length
+  return [f.status, f.priority, f.assigneeIds.length > 0, f.dueDateFrom || f.dueDateTo, f.overdueOnly, f.dueTodayOnly, f.unreadOnly].filter(Boolean).length
 }
 
 function FilterSheet({
@@ -88,6 +87,7 @@ function FilterSheet({
   const [draft, setDraft] = useState<FilterState>(filters)
   const [users, setUsers] = useState<UserOption[]>([])
   const [usersLoaded, setUsersLoaded] = useState(false)
+  const [showAssigneeList, setShowAssigneeList] = useState(false)
   const [showFromPicker, setShowFromPicker] = useState(false)
   const [showToPicker, setShowToPicker] = useState(false)
   const fromPickerRef = useRef<any>(null)
@@ -168,23 +168,67 @@ function FilterSheet({
           {!myOrdersOnly && (
             <View style={FS.section}>
               <Text style={FS.sectionLabel}>ASSIGNEE</Text>
-              {users.length === 0 ? (
-                <Text style={FS.dimText}>Loading…</Text>
-              ) : (
-                <View style={FS.userList}>
-                  {users.map((u, i) => {
-                    const active = draft.assigneeId === u.id
+              {/* Trigger */}
+              <TouchableOpacity
+                style={FS.assigneeTrigger}
+                onPress={() => { setShowAssigneeList(o => !o); if (!usersLoaded) {} }}
+                activeOpacity={0.7}
+              >
+                <Text style={[FS.assigneeTriggerText, draft.assigneeIds.length === 0 && { color: '#94A3B8' }]} numberOfLines={1}>
+                  {draft.assigneeIds.length === 0
+                    ? 'Select assignees…'
+                    : (() => {
+                        const parts: string[] = []
+                        if (draft.assigneeIds.includes('unassigned')) parts.push('Unassigned')
+                        const userNames = draft.assigneeIds
+                          .filter(id => id !== 'unassigned')
+                          .map(id => users.find(u => u.id === id)?.name.split(' ')[0])
+                          .filter(Boolean) as string[]
+                        parts.push(...userNames)
+                        if (parts.length <= 2) return parts.join(', ')
+                        return `${parts[0]}, ${parts[1]} +${parts.length - 2}`
+                      })()
+                  }
+                </Text>
+                <Ionicons name={showAssigneeList ? 'chevron-up' : 'chevron-down'} size={18} color="#94A3B8" />
+              </TouchableOpacity>
+              {/* Dropdown list */}
+              {showAssigneeList && (
+                <View style={FS.assigneeList}>
+                  {/* Unassigned row */}
+                  {(() => {
+                    const active = draft.assigneeIds.includes('unassigned')
+                    const toggle = () => set({ assigneeIds: active ? draft.assigneeIds.filter(x => x !== 'unassigned') : ['unassigned', ...draft.assigneeIds] })
+                    return (
+                      <TouchableOpacity style={[FS.assigneeRow, active && FS.assigneeRowActive, FS.assigneeRowBorder]} onPress={toggle}>
+                        <View style={[FS.avatar, { backgroundColor: '#F3F4F6' }]}>
+                          <Text style={[FS.avatarText, { color: '#6B7280' }]}>—</Text>
+                        </View>
+                        <Text style={[FS.userRowText, active && { color: '#0F172A', fontWeight: '700' }]}>Unassigned</Text>
+                        {active
+                          ? <Ionicons name="checkbox" size={20} color="#6366F1" />
+                          : <Ionicons name="square-outline" size={20} color="#CBD5E1" />}
+                      </TouchableOpacity>
+                    )
+                  })()}
+                  {users.length === 0 ? (
+                    <Text style={[FS.dimText, { padding: 14 }]}>Loading…</Text>
+                  ) : users.map((u, i) => {
+                    const active = draft.assigneeIds.includes(u.id)
                     const initials = u.name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
+                    const toggle = () => set({ assigneeIds: active ? draft.assigneeIds.filter(x => x !== u.id) : [...draft.assigneeIds, u.id] })
                     return (
                       <TouchableOpacity key={u.id}
-                        style={[FS.userRow, active && FS.userRowActive, i < users.length - 1 && FS.userRowBorder]}
-                        onPress={() => set({ assigneeId: active ? '' : u.id, assigneeName: active ? '' : u.name })}
+                        style={[FS.assigneeRow, active && FS.assigneeRowActive, i < users.length - 1 && FS.assigneeRowBorder]}
+                        onPress={toggle}
                       >
                         <View style={FS.avatar}>
                           <Text style={FS.avatarText}>{initials}</Text>
                         </View>
                         <Text style={[FS.userRowText, active && { color: '#0F172A', fontWeight: '700' }]}>{u.name}</Text>
-                        {active && <Ionicons name="checkmark-circle" size={20} color="#6366F1" />}
+                        {active
+                          ? <Ionicons name="checkbox" size={20} color="#6366F1" />
+                          : <Ionicons name="square-outline" size={20} color="#CBD5E1" />}
                       </TouchableOpacity>
                     )
                   })}
@@ -656,7 +700,12 @@ function ActiveFilterPills({ filters, onClear }: { filters: FilterState; onClear
   const pills: { label: string; key: keyof FilterState }[] = []
   if (filters.status) pills.push({ label: STATUS_META[filters.status]?.label ?? filters.status, key: 'status' })
   if (filters.priority) pills.push({ label: PRIORITY_META[filters.priority]?.label ?? filters.priority, key: 'priority' })
-  if (filters.assigneeId) pills.push({ label: filters.assigneeName || 'Assignee', key: 'assigneeId' })
+  if (filters.assigneeIds.length > 0) {
+    const hasUnassigned = filters.assigneeIds.includes('unassigned')
+    const count = filters.assigneeIds.length
+    const label = count === 1 && hasUnassigned ? 'Unassigned' : count === 1 ? 'Assignee' : `${count} assignees`
+    pills.push({ label, key: 'assigneeIds' })
+  }
   if (filters.dueDateFrom || filters.dueDateTo) {
     const label = filters.dueDateFrom && filters.dueDateTo
       ? `${fmtDateShort(filters.dueDateFrom)} – ${fmtDateShort(filters.dueDateTo)}`
@@ -710,7 +759,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
         search: search || undefined,
         status: filters.status || undefined,
         priority: filters.priority || undefined,
-        assigned_to: myOrdersOnly && user ? user.id : (filters.assigneeId || undefined),
+        assigned_to: myOrdersOnly && user ? user.id : (filters.assigneeIds.length ? filters.assigneeIds.join(',') : undefined),
         due_from: filters.overdueOnly ? undefined : filters.dueTodayOnly ? today : (filters.dueDateFrom || undefined),
         due_to: filters.overdueOnly ? yesterday : filters.dueTodayOnly ? today : (filters.dueDateTo || undefined),
       })
@@ -744,8 +793,8 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
     setFilters(f => {
       const next = { ...f }
       if (key === 'dueDateFrom') { next.dueDateFrom = ''; next.dueDateTo = '' }
-      else if (key === 'assigneeId') { next.assigneeId = ''; next.assigneeName = '' }
-      else (next as Record<keyof FilterState, string | boolean>)[key] = typeof f[key] === 'boolean' ? false : ''
+      else if (key === 'assigneeIds') { next.assigneeIds = [] }
+      else (next as Record<keyof FilterState, string | boolean | string[]>)[key] = typeof f[key] === 'boolean' ? false : ''
       return next
     })
   }
@@ -962,6 +1011,20 @@ const FS = StyleSheet.create({
   userRowText: { flex: 1, fontSize: 15, color: '#374151', fontWeight: '500' },
   avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#E0E7FF', alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 11, fontWeight: '800', color: '#4F46E5' },
+
+  assigneeTrigger: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderWidth: 1.5, borderColor: '#F3F4F6', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 13, backgroundColor: '#FFFFFF',
+  },
+  assigneeTriggerText: { flex: 1, fontSize: 15, color: '#0F172A', marginRight: 8 },
+  assigneeList: {
+    marginTop: 6, borderWidth: 1, borderColor: '#F3F4F6', borderRadius: 12,
+    overflow: 'hidden', backgroundColor: '#FFFFFF', maxHeight: 260,
+  },
+  assigneeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 13 },
+  assigneeRowBorder: { borderBottomWidth: 1, borderBottomColor: '#F9FAFB' },
+  assigneeRowActive: { backgroundColor: '#EEF2FF' },
 
   dateLabel: { fontSize: 13, fontWeight: '700', color: '#4B5563', marginBottom: 8 },
   dateInput: {
