@@ -47,6 +47,9 @@
           "androidIntentFilters": [
             "*/*"
           ],
+          "androidMultiIntentFilters": [
+            "*/*"
+          ],
           "androidMainActivityAttributes": {
             "android:launchMode": "singleTask"
           }
