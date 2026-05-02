@@ -12,13 +12,13 @@ import { ProfileSettingsPage } from '../features/profile/pages/ProfileSettingsPa
 import { OrdersPage } from '../features/orders/pages/OrdersPage'
 import { OrderDetailPage } from '../features/orders/pages/OrderDetailPage'
 import { TrashPage } from '../features/orders/pages/TrashPage'
-import CustomerPortalPage from '../features/portal/pages/CustomerPortalPage'
+// PORTAL HIDDEN: import CustomerPortalPage from '../features/portal/pages/CustomerPortalPage' — see docs/portal-hidden.md to restore
 
 export default function App() {
   return (
     <Routes>
-      {/* Public portal route — no auth required */}
-      <Route path="/portal/:token" element={<CustomerPortalPage />} />
+      {/* PORTAL HIDDEN: public portal route removed — see docs/portal-hidden.md to restore */}
+      {/* <Route path="/portal/:token" element={<CustomerPortalPage />} /> */}
 
       <Route element={<PublicRoute />}>
         <Route path="/login" element={<LoginPage />} />

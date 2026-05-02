@@ -172,32 +172,7 @@ export default function OrderDetailScreen() {
               <Text style={[S.chipText, { color: '#64748B', marginLeft: 4 }]}>{formatDate(order.due_date)}</Text>
             </View>
           )}
-          {D.portal !== undefined && (
-            D.portal ? (
-              <TouchableOpacity
-                style={[S.chip, { backgroundColor: D.portal.enabled ? '#F0FDF4' : '#F9FAFB', borderWidth: 1, borderColor: D.portal.enabled ? '#A7F3D0' : '#E5E7EB' }]}
-                onPress={D.portal.enabled ? D.openPortalChat : undefined}
-                activeOpacity={D.portal.enabled ? 0.7 : 1}
-              >
-                <Ionicons name="chatbubbles-outline" size={13} color={D.portal.enabled ? '#059669' : '#9CA3AF'} />
-                <Text style={[S.chipText, { color: D.portal.enabled ? '#059669' : '#9CA3AF', marginLeft: 4 }]}>
-                  {D.portal.enabled ? 'Portal Chat' : 'Revoked'}
-                </Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={[S.chip, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }]}
-                onPress={D.createPortal}
-                activeOpacity={0.7}
-                disabled={D.portalCreating}
-              >
-                {D.portalCreating
-                  ? <ActivityIndicator size="small" color="#64748B" />
-                  : <><Ionicons name="add-outline" size={13} color="#64748B" /><Text style={[S.chipText, { color: '#64748B', marginLeft: 4 }]}>Create Portal</Text></>
-                }
-              </TouchableOpacity>
-            )
-          )}
+          {/* PORTAL HIDDEN: portal chip removed — see docs/portal-hidden.md to restore */}
         </View>
 
         {/* Timeline */}
@@ -382,17 +357,7 @@ export default function OrderDetailScreen() {
       {D.showEdit && (
         <EditOrderSheet order={order} onClose={() => D.setShowEdit(false)} onSaved={D.fetchOrder} />
       )}
-      {D.showPortalChat && D.portal && (
-        <PortalChatSheet
-          orderId={id!}
-          portal={D.portal}
-          portalAttachments={D.portalAttachments}
-          onClose={() => D.setShowPortalChat(false)}
-          onPortalChange={p => D.setPortal(p ?? null)}
-          onAttachmentsChange={D.setPortalAttachments}
-          refreshRef={D.portalChatRefreshRef}
-        />
-      )}
+      {/* PORTAL HIDDEN: PortalChatSheet removed — see docs/portal-hidden.md to restore */}
 
       {/* Delete confirm */}
       <Modal visible={!!D.deleteConfirmId} transparent animationType="fade" onRequestClose={() => D.setDeleteConfirmId(null)}>

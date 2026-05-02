@@ -577,14 +577,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
               })}
             </View>
           )}
-          {!isEdit && (
-            <TouchableOpacity style={F.portalRow} onPress={() => setCreatePortal(v => !v)} activeOpacity={0.7}>
-              <View style={[F.checkbox, createPortal && F.checkboxOn]}>
-                {createPortal && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
-              </View>
-              <Text style={F.portalLabel}>Generate customer portal link after creation</Text>
-            </TouchableOpacity>
-          )}
+          {/* PORTAL HIDDEN: "Generate customer portal link" checkbox removed — see docs/portal-hidden.md to restore */}
           <TouchableOpacity style={F.submitBtn} onPress={handleSubmit} disabled={loading}>
             {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={F.submitText}>{isEdit ? 'Save Changes' : 'Create Order'}</Text>}
           </TouchableOpacity>

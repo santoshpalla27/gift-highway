@@ -1624,51 +1624,7 @@ export function OrderDetailPage() {
         <div style={{ width: 1, height: 20, background: '#E4E6EF' }} />
         <span style={{ fontSize: 15, fontWeight: 700, color: '#111827', flex: 1 }}>{order.title}</span>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
-          {/* Customer portal button */}
-          {portal !== undefined && (
-            portal ? (
-              <button
-                onClick={() => { if (portal.enabled) setShowPortalChat(true) }}
-                title={portal.enabled ? 'Open customer portal chat' : 'Portal is revoked'}
-                style={{
-                  padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                  cursor: portal.enabled ? 'pointer' : 'default',
-                  border: `1.5px solid ${portal.enabled ? '#A7F3D0' : '#E5E7EB'}`,
-                  background: portal.enabled ? '#F0FDF4' : '#F9FAFB',
-                  color: portal.enabled ? '#059669' : '#9CA3AF',
-                  display: 'flex', alignItems: 'center', gap: 6,
-                }}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-                </svg>
-                {portal.enabled ? 'Portal Chat' : 'Portal (revoked)'}
-              </button>
-            ) : (
-              <button
-                onClick={async () => {
-                  setPortalLoading(true)
-                  try {
-                    const p = await staffPortalApi.createPortal(id!, order.customer_name)
-                    setPortal(p)
-                  } finally {
-                    setPortalLoading(false)
-                  }
-                }}
-                disabled={portalLoading}
-                title="Create customer portal link"
-                style={{
-                  padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                  cursor: portalLoading ? 'default' : 'pointer',
-                  border: '1.5px solid #A7F3D0', background: '#F0FDF4', color: '#059669',
-                  display: 'flex', alignItems: 'center', gap: 6,
-                }}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-                {portalLoading ? '…' : 'Create Portal'}
-              </button>
-            )
-          )}
+          {/* PORTAL HIDDEN: portal button removed — see docs/portal-hidden.md to restore */}
           {perms.canEditOrder && (
             <button
               onClick={() => setShowEdit(true)}
@@ -2128,105 +2084,7 @@ export function OrderDetailPage() {
             </PanelSection>
           )}
 
-          <PanelSection label="Customer Portal">
-            {portal === undefined ? (
-              <div style={{ fontSize: 12, color: '#9CA3AF' }}>Loading…</div>
-            ) : portal === null ? (
-              <button
-                disabled={portalLoading}
-                onClick={async () => {
-                  setPortalLoading(true)
-                  try {
-                    const p = await staffPortalApi.createPortal(id!, order.customer_name)
-                    setPortal(p)
-                  } finally {
-                    setPortalLoading(false)
-                  }
-                }}
-                style={{
-                  width: '100%', fontSize: 12, fontWeight: 600, padding: '7px 0', borderRadius: 6,
-                  background: '#F0FDF4', color: '#10B981', border: '1px solid #A7F3D0', cursor: portalLoading ? 'default' : 'pointer',
-                }}
-              >
-                {portalLoading ? '…' : '+ Create portal link'}
-              </button>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{
-                    width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                    background: portal.enabled ? '#10B981' : '#9CA3AF',
-                  }} />
-                  <span style={{ fontSize: 12, color: portal.enabled ? '#10B981' : '#9CA3AF', fontWeight: 600 }}>
-                    {portal.enabled ? 'Active' : 'Revoked'}
-                  </span>
-                </div>
-                {portal.enabled && (
-                  <button
-                    onClick={() => {
-                      const url = getPortalURL(portal.token)
-                      navigator.clipboard.writeText(url).then(() => {
-                        setPortalCopied(true)
-                        setTimeout(() => setPortalCopied(false), 2000)
-                      })
-                    }}
-                    style={{
-                      fontSize: 11.5, fontWeight: 600, padding: '6px 10px', borderRadius: 6,
-                      background: portalCopied ? '#ECFDF5' : '#F9FAFB',
-                      color: portalCopied ? '#10B981' : '#374151',
-                      border: `1px solid ${portalCopied ? '#A7F3D0' : '#E5E7EB'}`,
-                      cursor: 'pointer', width: '100%', textAlign: 'left' as const,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const,
-                    }}
-                  >
-                    {portalCopied ? '✓ Copied!' : '📋 Copy portal link'}
-                  </button>
-                )}
-<div style={{ display: 'flex', gap: 6 }}>
-                  <button
-                    disabled={portalLoading}
-                    onClick={async () => {
-                      setPortalLoading(true)
-                      try {
-                        const p = await staffPortalApi.regenerateToken(id!)
-                        setPortal(p)
-                      } finally {
-                        setPortalLoading(false)
-                      }
-                    }}
-                    style={{
-                      flex: 1, fontSize: 11, fontWeight: 600, padding: '5px 0', borderRadius: 6,
-                      background: '#EFF6FF', color: '#3B82F6', border: '1px solid #BFDBFE', cursor: 'pointer',
-                    }}
-                  >
-                    Regenerate
-                  </button>
-                  <button
-                    disabled={portalLoading}
-                    onClick={async () => {
-                      if (!portal.enabled) return
-                      setPortalLoading(true)
-                      try {
-                        await staffPortalApi.revokePortal(id!)
-                        setPortal(p => p ? { ...p, enabled: false } : p)
-                      } finally {
-                        setPortalLoading(false)
-                      }
-                    }}
-                    style={{
-                      flex: 1, fontSize: 11, fontWeight: 600, padding: '5px 0', borderRadius: 6,
-                      background: portal.enabled ? '#FEF2F2' : '#F3F4F6',
-                      color: portal.enabled ? '#EF4444' : '#9CA3AF',
-                      border: `1px solid ${portal.enabled ? '#FECACA' : '#E5E7EB'}`,
-                      cursor: portal.enabled ? 'pointer' : 'default',
-                    }}
-                  >
-                    {portal.enabled ? 'Revoke' : 'Revoked'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </PanelSection>
+          {/* PORTAL HIDDEN: Customer Portal sidebar panel removed — see docs/portal-hidden.md to restore */}
 
           {/* Archive */}
           {perms.canArchive && !order.is_archived && (
@@ -2253,13 +2111,7 @@ export function OrderDetailPage() {
         </div>
       </div>
 
-      {showPortalChat && portal && (
-        <StaffPortalChatModal
-          orderId={order.id}
-          portal={portal}
-          onClose={() => setShowPortalChat(false)}
-        />
-      )}
+      {/* PORTAL HIDDEN: StaffPortalChatModal removed — see docs/portal-hidden.md to restore */}
 
       {showEdit && (
         <OrderModal
