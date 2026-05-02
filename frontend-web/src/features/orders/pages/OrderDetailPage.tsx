@@ -1205,6 +1205,8 @@ export function OrderDetailPage() {
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
+  type PendingFile = { id: string; file: File; previewUrl: string }
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
 
   // ── Initial load ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1418,15 +1420,27 @@ export function OrderDetailPage() {
 
   const handleSend = (text?: string) => {
     const rawText = (text ?? commentText).trim()
-    if (!rawText || commenting) return
+    if (!rawText && pendingFiles.length === 0) return
+    if (commenting) return
     if (text !== undefined) {
       // Retry path — text already contains any reply prefix
       addComment(rawText)
       return
     }
-    const replyPrefix = replyToEvent ? `[reply:${replyToEvent.id}:${getEventPreview(replyToEvent)}]\n` : ''
-    setReplyToEvent(null)
-    addComment(replyPrefix + rawText)
+    if (pendingFiles.length > 0) {
+      const files = pendingFiles.map(p => p.file)
+      pendingFiles.forEach(p => URL.revokeObjectURL(p.previewUrl))
+      setPendingFiles([])
+      uploadFiles(files)
+    }
+    if (rawText) {
+      const replyPrefix = replyToEvent ? `[reply:${replyToEvent.id}:${getEventPreview(replyToEvent)}]\n` : ''
+      setReplyToEvent(null)
+      addComment(replyPrefix + rawText)
+      // commentText cleared by addComment's onMutate
+    } else {
+      setReplyToEvent(null)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1506,20 +1520,26 @@ export function OrderDetailPage() {
   }
 
   const handlePaste = (e: React.ClipboardEvent) => {
-    const imageFiles: File[] = []
     for (const item of Array.from(e.clipboardData.items)) {
       if (item.type.startsWith('image/')) {
         const file = item.getAsFile()
         if (file) {
+          e.preventDefault()
           const ext = item.type.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
-          imageFiles.push(new File([file], `paste-${Date.now()}.${ext}`, { type: item.type }))
+          const namedFile = new File([file], `paste-${Date.now()}.${ext}`, { type: item.type })
+          const previewUrl = URL.createObjectURL(namedFile)
+          setPendingFiles(prev => [...prev, { id: `pending-${Date.now()}-${Math.random()}`, file: namedFile, previewUrl }])
         }
       }
     }
-    if (imageFiles.length > 0) {
-      e.preventDefault()
-      uploadFiles(imageFiles)
-    }
+  }
+
+  const removePending = (id: string) => {
+    setPendingFiles(prev => {
+      const entry = prev.find(f => f.id === id)
+      if (entry) URL.revokeObjectURL(entry.previewUrl)
+      return prev.filter(f => f.id !== id)
+    })
   }
 
   const handleDrop = (e: React.DragEvent) => {
@@ -1980,6 +2000,25 @@ export function OrderDetailPage() {
             onFocusCapture={e => (e.currentTarget.style.borderColor = '#6366F1')}
             onBlurCapture={e => { if (!isDragging) e.currentTarget.style.borderColor = '#E4E6EF' }}
             >
+              {pendingFiles.length > 0 && (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingBottom: 8, borderBottom: '1px solid #E4E6EF', marginBottom: 6 }}>
+                  {pendingFiles.map(pf => (
+                    <div key={pf.id} style={{ position: 'relative', width: 64, height: 64, borderRadius: 8, overflow: 'hidden', border: '1.5px solid #E4E6EF', flexShrink: 0 }}>
+                      <img src={pf.previewUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <button
+                        onMouseDown={e => { e.preventDefault(); removePending(pf.id) }}
+                        style={{
+                          position: 'absolute', top: 2, right: 2,
+                          width: 18, height: 18, borderRadius: '50%',
+                          background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                          fontSize: 11, fontWeight: 700, lineHeight: 1,
+                        }}
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
               {isDragging
                 ? <div style={{ fontSize: 13, color: '#6366F1', fontWeight: 600, textAlign: 'center', padding: '4px 0' }}>Drop files here to upload</div>
                 : <textarea
@@ -1996,13 +2035,13 @@ export function OrderDetailPage() {
             </div>
             <button
               onClick={() => handleSend()}
-              disabled={!commentText.trim() || commenting}
+              disabled={(!commentText.trim() && pendingFiles.length === 0) || commenting}
               style={{
                 padding: '10px 18px', borderRadius: 10, border: 'none',
-                background: commentText.trim() && !commenting ? '#6366F1' : '#E4E6EF',
-                color: commentText.trim() && !commenting ? '#FFFFFF' : '#9CA3AF',
+                background: (commentText.trim() || pendingFiles.length > 0) && !commenting ? '#6366F1' : '#E4E6EF',
+                color: (commentText.trim() || pendingFiles.length > 0) && !commenting ? '#FFFFFF' : '#9CA3AF',
                 fontSize: 13, fontWeight: 600,
-                cursor: commentText.trim() && !commenting ? 'pointer' : 'default',
+                cursor: (commentText.trim() || pendingFiles.length > 0) && !commenting ? 'pointer' : 'default',
                 transition: 'all 0.15s', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
                 minWidth: 90,
               }}
