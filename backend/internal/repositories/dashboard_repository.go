@@ -195,6 +195,45 @@ func (r *DashboardRepository) GetMyOverdueOrders(ctx context.Context, userID, lo
 	return orders, err
 }
 
+// ─── Admin user metrics ───────────────────────────────────────────────────────
+
+type UserMetricRow struct {
+	ID              string `db:"id"                json:"id"`
+	Name            string `db:"name"              json:"name"`
+	Email           string `db:"email"             json:"email"`
+	Role            string `db:"role"              json:"role"`
+	IsActive        bool   `db:"is_active"         json:"is_active"`
+	TotalAssigned   int    `db:"total_assigned"    json:"total_assigned"`
+	NewCount        int    `db:"new_count"         json:"new_count"`
+	InProgressCount int    `db:"in_progress_count" json:"in_progress_count"`
+	CompletedCount  int    `db:"completed_count"   json:"completed_count"`
+}
+
+func (r *DashboardRepository) GetUserMetrics(ctx context.Context) ([]UserMetricRow, error) {
+	var rows []UserMetricRow
+	err := r.db.SelectContext(ctx, &rows, `
+		SELECT
+			u.id,
+			TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) AS name,
+			u.email,
+			u.role,
+			u.is_active,
+			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.is_archived = false)                               AS total_assigned,
+			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'new'         AND o.is_archived = false)  AS new_count,
+			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'in_progress' AND o.is_archived = false)  AS in_progress_count,
+			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'completed'   AND o.is_archived = false)  AS completed_count
+		FROM users u
+		LEFT JOIN order_assignees oa ON oa.user_id = u.id
+		LEFT JOIN orders o ON o.id = oa.order_id
+		GROUP BY u.id, u.first_name, u.last_name, u.email, u.role, u.is_active
+		ORDER BY total_assigned DESC, u.first_name
+	`)
+	if rows == nil {
+		rows = []UserMetricRow{}
+	}
+	return rows, err
+}
+
 func (r *DashboardRepository) GetMyUnreadCustomerOrders(ctx context.Context, userID string) ([]DashboardOrder, error) {
 	var orders []DashboardOrder
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`

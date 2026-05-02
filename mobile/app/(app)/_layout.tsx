@@ -152,6 +152,13 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
+        name="admin-metrics"
+        options={{
+          href: null,
+          title: 'User Metrics',
+        }}
+      />
+      <Tabs.Screen
         name="activity"
         options={{ href: null, title: 'Activity' }}
       />

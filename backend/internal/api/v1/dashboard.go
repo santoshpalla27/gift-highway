@@ -36,6 +36,15 @@ func (h *DashboardHandler) GetTeamDashboard(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
+func (h *DashboardHandler) GetUserMetrics(c *gin.Context) {
+	rows, err := h.svc.GetUserMetrics(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load user metrics"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"users": rows})
+}
+
 func (h *DashboardHandler) GetMyDashboard(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	uid, _ := userID.(string)

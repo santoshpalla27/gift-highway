@@ -116,6 +116,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				adminGroup.PATCH("/users/:id/disable", adminHandler.DisableUser)
 				adminGroup.PATCH("/users/:id/enable", adminHandler.EnableUser)
 				adminGroup.DELETE("/users/:id", adminHandler.DeleteUser)
+				adminGroup.GET("/metrics/users", dashboardHandler.GetUserMetrics)
 			}
 
 			// Profile routes

@@ -71,6 +71,10 @@ func (s *DashboardService) GetTeamDashboard(ctx context.Context, localDate strin
 	}, nil
 }
 
+func (s *DashboardService) GetUserMetrics(ctx context.Context) ([]repositories.UserMetricRow, error) {
+	return s.repo.GetUserMetrics(ctx)
+}
+
 func (s *DashboardService) GetMyDashboard(ctx context.Context, userID, localDate string) (*MyDashboard, error) {
 	stats, err := s.repo.GetMyStats(ctx, userID, localDate)
 	if err != nil {

@@ -322,6 +322,17 @@ export default function AdminScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Quick link to metrics */}
+      <TouchableOpacity
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#EEF2FF', borderBottomWidth: 1, borderBottomColor: '#C7D2FE' }}
+        onPress={() => router.push('/(app)/admin-metrics' as never)}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="bar-chart-outline" size={18} color="#6366F1" />
+        <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: '#4338CA' }}>View User Metrics Dashboard</Text>
+        <Ionicons name="chevron-forward" size={16} color="#6366F1" />
+      </TouchableOpacity>
+
       <View style={S.searchContainer}>
         <Ionicons name="search" size={20} color="#9CA3AF" />
         <TextInput
