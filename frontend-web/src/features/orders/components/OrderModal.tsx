@@ -38,7 +38,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
   const [dueTime, setDueTime] = useState('')
   const [assignOpen, setAssignOpen] = useState(false)
   const [error, setError] = useState('')
-  const [createPortal, setCreatePortal] = useState(false)
+  const [createPortal, _setCreatePortal] = useState(false)
 
   useEffect(() => {
     if (order) {

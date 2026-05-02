@@ -13,8 +13,9 @@ import { useOrderPermissions } from '../hooks/useOrderPermissions'
 import { Skeleton } from '../../../components/system/Skeleton'
 import { useSocketEvent } from '../../../providers/SocketProvider'
 import type { Order } from '../../../services/orderService'
-import { staffPortalApi, getPortalURL, type PortalStatus, type PortalAttachment, type PortalMessage } from '../../../services/portalService'
-import { StaffPortalChatModal } from '../components/StaffPortalChatModal'
+// PORTAL HIDDEN: getPortalURL removed — see docs/portal-hidden.md to restore
+// PORTAL HIDDEN: import { StaffPortalChatModal } from '../components/StaffPortalChatModal'
+import { staffPortalApi, type PortalStatus, type PortalAttachment, type PortalMessage } from '../../../services/portalService'
 import { AttachmentViewer } from '../../../components/system/AttachmentViewer'
 
 // ─── Meta maps ───────────────────────────────────────────────────────────────
@@ -1168,12 +1169,12 @@ export function OrderDetailPage() {
   const eventRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   // ── Portal management ───────────────────────────────────────────────────────
-  const [portal, setPortal] = useState<PortalStatus | null | undefined>(undefined)
+  const [_portal, setPortal] = useState<PortalStatus | null | undefined>(undefined)
   const [portalAttachments, setPortalAttachments] = useState<PortalAttachment[]>([])
   const [portalMessages, setPortalMessages] = useState<PortalMessage[]>([])
-  const [portalLoading, setPortalLoading] = useState(false)
-  const [portalCopied, setPortalCopied] = useState(false)
-  const [showPortalChat, setShowPortalChat] = useState(false)
+  const [_portalLoading, _setPortalLoading] = useState(false)
+  const [_portalCopied, _setPortalCopied] = useState(false)
+  const [_showPortalChat, _setShowPortalChat] = useState(false)
 
   const refreshPortalData = useCallback(async () => {
     if (!id) return
