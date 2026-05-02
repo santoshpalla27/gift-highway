@@ -7,7 +7,7 @@ import { OrderModal } from '../components/OrderModal'
 import { useAuthStore } from '../../../store/authStore'
 import { EmptyState } from '../../../components/system/EmptyState'
 import { TableSkeleton } from '../../../components/system/Skeleton'
-import { orderService, type Order, type UserOption } from '../../../services/orderService'
+import { orderService, type UserOption } from '../../../services/orderService'
 import { useNotifications } from '../../notifications/hooks/useNotifications'
 
 const STATUS_OPTIONS = ['new', 'in_progress', 'completed'] as const

@@ -106,7 +106,7 @@ export default function CustomerPortalPage() {
   const [sending, setSending] = useState(false)
   const sendingRef = useRef(false)
   const [viewer, setViewer] = useState<{ src: string; filename: string; attId: number; msg: PortalMessage } | null>(null)
-  const [deletingAttId, setDeletingAttId] = useState<number | null>(null)
+  const [, setDeletingAttId] = useState<number | null>(null)
 
   const [replyTo, setReplyTo] = useState<PortalMessage | null>(null)
   const [highlightedMsgId, setHighlightedMsgId] = useState<number | null>(null)
