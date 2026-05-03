@@ -88,6 +88,14 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
   const [imageSize, setImageSize] = useState<{ w: number; h: number } | null>(null)
   const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
 
+  // Zoom / pan state (visual transform only — does not affect capture)
+  const [scale, setScale] = useState(1)
+  const [offsetX, setOffsetX] = useState(0)
+  const [offsetY, setOffsetY] = useState(0)
+  const savedScale = useRef(1)
+  const savedOffsetX = useRef(0)
+  const savedOffsetY = useRef(0)
+
   // ── Image sizing ────────────────────────────────────────────────────────
 
   const onImageLoad = useCallback((e: any) => {
@@ -113,18 +121,28 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
     setCanvasSize({ w: Math.round(fitW), h: Math.round(fitH) })
   }, [insets.top, insets.bottom])
 
-  // ── Pan gesture for drawing ─────────────────────────────────────────────
+  // ── Convert touch point from viewport space to canvas space ─────────────
+  function toCanvasCoords(touchX: number, touchY: number) {
+    return {
+      x: (touchX - savedOffsetX.current) / savedScale.current,
+      y: (touchY - savedOffsetY.current) / savedScale.current,
+    }
+  }
 
-  const panGesture = Gesture.Pan()
+  // ── 1-finger Pan gesture for drawing ────────────────────────────────────
+
+  const drawGesture = Gesture.Pan()
     .runOnJS(true)
     .minPointers(1)
     .maxPointers(1)
     .onBegin((e) => {
-      setCurrentPoints([{ x: e.x, y: e.y }])
+      const pt = toCanvasCoords(e.x, e.y)
+      setCurrentPoints([pt])
       setRedoStack([])
     })
     .onUpdate((e) => {
-      setCurrentPoints(prev => [...prev, { x: e.x, y: e.y }])
+      const pt = toCanvasCoords(e.x, e.y)
+      setCurrentPoints(prev => [...prev, pt])
     })
     .onEnd(() => {
       setCurrentPoints(prev => {
@@ -138,6 +156,55 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
     .onFinalize(() => {
       setCurrentPoints([])
     })
+
+  // ── Pinch gesture for zooming ───────────────────────────────────────────
+
+  const pinchGesture = Gesture.Pinch()
+    .runOnJS(true)
+    .onStart(() => {
+      savedScale.current = scale
+    })
+    .onUpdate((e) => {
+      const newScale = Math.min(Math.max(savedScale.current * e.scale, 0.5), 5)
+      setScale(newScale)
+    })
+
+  // ── 2-finger Pan gesture for moving the canvas ──────────────────────────
+
+  const moveGesture = Gesture.Pan()
+    .runOnJS(true)
+    .minPointers(2)
+    .onStart(() => {
+      savedOffsetX.current = offsetX
+      savedOffsetY.current = offsetY
+    })
+    .onUpdate((e) => {
+      setOffsetX(savedOffsetX.current + e.translationX)
+      setOffsetY(savedOffsetY.current + e.translationY)
+    })
+    .onEnd(() => {
+      savedOffsetX.current = offsetX
+      savedOffsetY.current = offsetY
+    })
+
+  // ── Double tap to reset zoom ────────────────────────────────────────────
+
+  const doubleTap = Gesture.Tap()
+    .runOnJS(true)
+    .numberOfTaps(2)
+    .onEnd(() => {
+      setScale(1)
+      setOffsetX(0)
+      setOffsetY(0)
+      savedScale.current = 1
+      savedOffsetX.current = 0
+      savedOffsetY.current = 0
+    })
+
+  // Compose: 2-finger zoom+pan run simultaneously, then race with 1-finger draw
+  // DoubleTap is exclusive (wins over draw on quick double-tap)
+  const zoomPanGesture = Gesture.Simultaneous(pinchGesture, moveGesture)
+  const composedGesture = Gesture.Simultaneous(drawGesture, zoomPanGesture, doubleTap)
 
   // ── Actions ─────────────────────────────────────────────────────────────
 
@@ -162,6 +229,15 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
   function handleClear() {
     setRedoStack([...redoStack, ...strokes])
     setStrokes([])
+  }
+
+  function resetZoom() {
+    setScale(1)
+    setOffsetX(0)
+    setOffsetY(0)
+    savedScale.current = 1
+    savedOffsetX.current = 0
+    savedOffsetY.current = 0
   }
 
   async function handleSave() {
@@ -254,6 +330,16 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
               <Text style={S.cancelText}>Cancel</Text>
             </TouchableOpacity>
             <View style={{ flex: 1 }} />
+            {scale !== 1 && (
+              <TouchableOpacity
+                onPress={resetZoom}
+                style={[S.iconBtn, { flexDirection: 'row', width: 'auto' as any, paddingHorizontal: 8, gap: 4 }]}
+                hitSlop={6}
+              >
+                <Ionicons name="scan-outline" size={14} color="#6366F1" />
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#6366F1' }}>{scale.toFixed(1)}x</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               onPress={handleUndo}
               disabled={strokes.length === 0}
@@ -283,49 +369,63 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
           {/* ── Drawing area ─────────────────────────────────────────── */}
           <View style={S.canvasContainer}>
             {canvasSize.w > 0 ? (
-              <GestureDetector gesture={panGesture}>
-                <View
-                  ref={captureViewRef}
-                  collapsable={false}
-                  style={{
-                    width: canvasSize.w,
-                    height: canvasSize.h,
-                    position: 'relative',
-                  }}
-                >
-                  <Image
-                    source={{ uri: imageUrl }}
-                    style={{ width: canvasSize.w, height: canvasSize.h, position: 'absolute' }}
-                    resizeMode="contain"
-                    onLoad={onImageLoad}
-                  />
-                  <Svg
-                    width={canvasSize.w}
-                    height={canvasSize.h}
-                    style={{ position: 'absolute' }}
+              <GestureDetector gesture={composedGesture}>
+                <View style={{ width: canvasSize.w, height: canvasSize.h, overflow: 'visible' }}>
+                  <View
+                    style={{
+                      width: canvasSize.w,
+                      height: canvasSize.h,
+                      transform: [
+                        { translateX: offsetX },
+                        { translateY: offsetY },
+                        { scale },
+                      ],
+                    }}
                   >
-                    {strokes.map((s, i) => (
-                      <Path
-                        key={i}
-                        d={s.path}
-                        stroke={s.color}
-                        strokeWidth={s.width}
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+                    <View
+                      ref={captureViewRef}
+                      collapsable={false}
+                      style={{
+                        width: canvasSize.w,
+                        height: canvasSize.h,
+                        position: 'relative',
+                      }}
+                    >
+                      <Image
+                        source={{ uri: imageUrl }}
+                        style={{ width: canvasSize.w, height: canvasSize.h, position: 'absolute' }}
+                        resizeMode="contain"
+                        onLoad={onImageLoad}
                       />
-                    ))}
-                    {currentPath && (
-                      <Path
-                        d={currentPath}
-                        stroke={color}
-                        strokeWidth={strokeWidth}
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    )}
-                  </Svg>
+                      <Svg
+                        width={canvasSize.w}
+                        height={canvasSize.h}
+                        style={{ position: 'absolute' }}
+                      >
+                        {strokes.map((s, i) => (
+                          <Path
+                            key={i}
+                            d={s.path}
+                            stroke={s.color}
+                            strokeWidth={s.width}
+                            fill="none"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        ))}
+                        {currentPath && (
+                          <Path
+                            d={currentPath}
+                            stroke={color}
+                            strokeWidth={strokeWidth}
+                            fill="none"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        )}
+                      </Svg>
+                    </View>
+                  </View>
                 </View>
               </GestureDetector>
             ) : (
