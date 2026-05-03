@@ -9,6 +9,7 @@ import { OrderNotificationsPage } from '../features/notifications/pages/OrderNot
 import { NotFoundPage } from '../components/NotFoundPage'
 import { UsersPage } from '../features/admin/pages/UsersPage'
 import { MetricsDashboard } from '../features/admin/pages/MetricsDashboard'
+import { AuditPage } from '../features/admin/pages/AuditPage'
 import { ProfileSettingsPage } from '../features/profile/pages/ProfileSettingsPage'
 import { OrdersPage } from '../features/orders/pages/OrdersPage'
 import { OrderDetailPage } from '../features/orders/pages/OrderDetailPage'
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="/settings" element={<ProfileSettingsPage />} />
           <Route path="/admin/users" element={<UsersPage />} />
           <Route path="/admin/metrics" element={<MetricsDashboard />} />
+          <Route path="/admin/audit" element={<AuditPage />} />
           <Route path="/trash" element={<TrashPage />} />
         </Route>
       </Route>

@@ -22,9 +22,12 @@ import (
 
 const auditCSVKey = "audit/orders_all.csv"
 
+var ist = time.FixedZone("IST", 5*60*60+30*60) // UTC+5:30
+
+// order_id = user-visible title; UUID is intentionally excluded
 var csvHeader = []string{
-	"order_number", "order_id", "title", "customer_name", "contact_number",
-	"priority", "status", "assigned_to", "due_date", "created_by", "created_at", "archived",
+	"order_number", "order_id", "customer_name", "contact_number",
+	"priority", "status", "assigned_to", "due_date", "created_by", "created_at", "archived", "deleted",
 }
 
 type AuditService struct {
@@ -67,9 +70,9 @@ func (s *AuditService) AppendOrder(order *models.OrderWithNames) {
 	}
 }
 
-// UpdateArchived updates the archived column for an existing row.
-// Always called as a goroutine.
-func (s *AuditService) UpdateArchived(orderID string, archived bool) {
+// SyncOrder updates the full CSV row for an existing order.
+// Always called as a goroutine — never blocks the request path.
+func (s *AuditService) SyncOrder(order *models.OrderWithNames) {
 	if !s.enabled() {
 		return
 	}
@@ -78,15 +81,133 @@ func (s *AuditService) UpdateArchived(orderID string, archived bool) {
 
 	client, err := s.newR2Client(ctx)
 	if err != nil {
-		log.Error().Err(err).Msg("audit: R2 client error on archive update")
+		log.Error().Err(err).Msg("audit: R2 client error on sync")
 		return
 	}
 
 	existing := s.downloadCSV(ctx, client)
-	updated := s.setArchivedField(existing, orderID, archived)
+	updated := s.syncRow(existing, order)
 	if err := s.uploadCSV(ctx, client, updated); err != nil {
-		log.Error().Err(err).Msg("audit: upload failed on archive update")
+		log.Error().Err(err).Msg("audit: upload failed on sync")
+	} else {
+		log.Info().Int("order_number", order.OrderNumber).Msg("audit: order row synced")
 	}
+}
+
+// AuditStatus is returned by the status endpoint.
+type AuditStatus struct {
+	StorageConfigured bool    `json:"storage_configured"`
+	EmailConfigured   bool    `json:"email_configured"`
+	CSVExists         bool    `json:"csv_exists"`
+	CSVSizeBytes      int64   `json:"csv_size_bytes"`
+	CSVRowCount       int     `json:"csv_row_count"`
+	CSVLastModified   *string `json:"csv_last_modified"`
+	EmailTo           string  `json:"email_to"`
+	NextDailyReport   string  `json:"next_daily_report"`
+	NextMonthlyReport string  `json:"next_monthly_report"`
+}
+
+// Status returns live information about the audit system.
+func (s *AuditService) Status(ctx context.Context) AuditStatus {
+	st := AuditStatus{
+		StorageConfigured: s.enabled(),
+		EmailConfigured:   s.emailEnabled(),
+		EmailTo:           maskEmail(s.cfg.AuditEmailTo),
+		NextDailyReport:   nextDailyAt(23, 0).Format(time.RFC3339),
+		NextMonthlyReport: nextMonthlyAt().Format(time.RFC3339),
+	}
+	if !s.enabled() {
+		return st
+	}
+	client, err := s.newR2Client(ctx)
+	if err != nil {
+		return st
+	}
+	head, err := client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: aws.String(s.cfg.AuditR2Bucket),
+		Key:    aws.String(auditCSVKey),
+	})
+	if err != nil {
+		return st
+	}
+	st.CSVExists = true
+	if head.ContentLength != nil {
+		st.CSVSizeBytes = *head.ContentLength
+	}
+	if head.LastModified != nil {
+		t := head.LastModified.Format(time.RFC3339)
+		st.CSVLastModified = &t
+	}
+	// Count rows by downloading the file
+	out, err := client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.cfg.AuditR2Bucket),
+		Key:    aws.String(auditCSVKey),
+	})
+	if err == nil {
+		defer out.Body.Close()
+		data, _ := io.ReadAll(out.Body)
+		lines := bytes.Count(data, []byte("\n"))
+		if lines > 0 {
+			st.CSVRowCount = lines - 1 // subtract header
+		}
+	}
+	return st
+}
+
+// GetCSVBytes returns the full unfiltered CSV bytes from R2.
+func (s *AuditService) GetCSVBytes(ctx context.Context) ([]byte, error) {
+	if !s.enabled() {
+		return nil, fmt.Errorf("audit storage not configured")
+	}
+	client, err := s.newR2Client(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out, err := client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.cfg.AuditR2Bucket),
+		Key:    aws.String(auditCSVKey),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("CSV not found — no orders have been logged yet")
+	}
+	defer out.Body.Close()
+	return io.ReadAll(out.Body)
+}
+
+// GetCSVBytesFiltered returns CSV bytes filtered by range: "all", "today", or "month".
+// Returns the data and a suggested filename.
+func (s *AuditService) GetCSVBytesFiltered(ctx context.Context, rangeParam string) ([]byte, string, error) {
+	all, err := s.GetCSVBytes(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	nowIST := time.Now().In(ist)
+	switch rangeParam {
+	case "today":
+		from := time.Date(nowIST.Year(), nowIST.Month(), nowIST.Day(), 0, 0, 0, 0, ist)
+		to := from.Add(24 * time.Hour)
+		filtered := s.filterByDateRange(all, from, to)
+		return filtered, "orders_today_" + nowIST.Format("2006-01-02") + ".csv", nil
+	case "month":
+		from := time.Date(nowIST.Year(), nowIST.Month(), 1, 0, 0, 0, 0, ist)
+		to := time.Date(nowIST.Year(), nowIST.Month()+1, 1, 0, 0, 0, 0, ist)
+		filtered := s.filterByDateRange(all, from, to)
+		return filtered, "orders_" + nowIST.Format("2006-01") + ".csv", nil
+	default: // "all"
+		return all, "orders_all_" + nowIST.Format("2006-01-02") + ".csv", nil
+	}
+}
+
+// maskEmail hides part of an email for display: user@example.com → u***@example.com
+func maskEmail(email string) string {
+	if email == "" {
+		return ""
+	}
+	at := strings.Index(email, "@")
+	if at <= 1 {
+		return email
+	}
+	return string(email[0]) + "***" + email[at:]
 }
 
 // StartCron starts the daily (11 PM) and monthly (1st of month midnight) report goroutines.
@@ -114,30 +235,50 @@ func (s *AuditService) newR2Client(ctx context.Context) (*s3.Client, error) {
 	}), nil
 }
 
-// downloadCSV fetches the master CSV from R2. Returns a header-only CSV if the file doesn't exist yet.
+// downloadCSV fetches the master CSV from R2.
+// Returns a header-only CSV if the file doesn't exist or the schema doesn't match.
 func (s *AuditService) downloadCSV(ctx context.Context, client *s3.Client) []byte {
+	freshHeader := func() []byte {
+		var buf bytes.Buffer
+		w := csv.NewWriter(&buf)
+		_ = w.Write(csvHeader)
+		w.Flush()
+		return buf.Bytes()
+	}
+
 	out, err := client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.cfg.AuditR2Bucket),
 		Key:    aws.String(auditCSVKey),
 	})
 	if err != nil {
-		// File not created yet — seed with header row
-		var buf bytes.Buffer
-		w := csv.NewWriter(&buf)
-		_ = w.Write(csvHeader)
-		w.Flush()
-		return buf.Bytes()
+		return freshHeader()
 	}
 	defer out.Body.Close()
 	data, err := io.ReadAll(out.Body)
 	if err != nil {
-		var buf bytes.Buffer
-		w := csv.NewWriter(&buf)
-		_ = w.Write(csvHeader)
-		w.Flush()
-		return buf.Bytes()
+		return freshHeader()
+	}
+
+	// Reject files whose header doesn't match the current schema to avoid column mismatches.
+	r := csv.NewReader(bytes.NewReader(data))
+	header, err := r.Read()
+	if err != nil || !headersMatch(header, csvHeader) {
+		log.Warn().Msg("audit: CSV schema mismatch — resetting to current schema")
+		return freshHeader()
 	}
 	return data
+}
+
+func headersMatch(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *AuditService) uploadCSV(ctx context.Context, client *s3.Client, data []byte) error {
@@ -162,70 +303,93 @@ func (s *AuditService) appendRow(existing []byte, row []string) []byte {
 	return append(existing, rowBuf.Bytes()...)
 }
 
-// setArchivedField finds a row by order_id and flips its archived column.
-func (s *AuditService) setArchivedField(data []byte, orderID string, archived bool) []byte {
-	r := csv.NewReader(bytes.NewReader(data))
-	records, err := r.ReadAll()
-	if err != nil || len(records) < 2 {
-		return data
-	}
-
-	orderIDCol, archivedCol := -1, -1
-	for i, h := range records[0] {
-		switch h {
-		case "order_id":
-			orderIDCol = i
-		case "archived":
-			archivedCol = i
-		}
-	}
-	if orderIDCol == -1 || archivedCol == -1 {
-		return data
-	}
-
-	val := "no"
-	if archived {
-		val = "yes"
-	}
-	for i := 1; i < len(records); i++ {
-		if len(records[i]) > orderIDCol && records[i][orderIDCol] == orderID {
-			if len(records[i]) > archivedCol {
-				records[i][archivedCol] = val
-			}
-			break
-		}
-	}
-
-	var buf bytes.Buffer
-	w := csv.NewWriter(&buf)
-	_ = w.WriteAll(records)
-	w.Flush()
-	return buf.Bytes()
-}
 
 func (s *AuditService) orderToRow(o *models.OrderWithNames) []string {
-	dueDate := ""
+	dueDateTime := ""
 	if o.DueDate != nil {
-		dueDate = o.DueDate.Format("2006-01-02")
+		dueDateTime = o.DueDate.In(ist).Format("2006-01-02")
+		if o.DueTime != nil && *o.DueTime != "" {
+			dueDateTime += " " + to12h(*o.DueTime)
+		}
 	}
-	archived := "no"
+	archived := "—"
 	if o.IsArchived {
-		archived = "yes"
+		if o.ArchivedAt != nil {
+			archived = o.ArchivedAt.In(ist).Format("2006-01-02 3:04 PM")
+		} else {
+			archived = "yes"
+		}
 	}
 	return []string{
 		fmt.Sprintf("%d", o.OrderNumber),
-		o.ID,
 		o.Title,
 		o.CustomerName,
 		o.ContactNumber,
 		o.Priority,
 		o.Status,
 		strings.Join(o.AssignedNames, "; "),
-		dueDate,
+		dueDateTime,
 		o.CreatedByName,
-		o.CreatedAt.UTC().Format(time.RFC3339),
+		o.CreatedAt.In(ist).Format("2006-01-02"),
 		archived,
+		"—",
 	}
+}
+
+// to12h converts a "15:04" 24-hour time string to "3:04 PM" 12-hour format.
+func to12h(t string) string {
+	pt, err := time.Parse("15:04", t)
+	if err != nil {
+		return t
+	}
+	return pt.Format("3:04 PM")
+}
+
+// MarkDeleted records the deletion timestamp on the row for the given order number.
+// Always called as a goroutine after permanent deletion from the DB.
+func (s *AuditService) MarkDeleted(orderNumber int) {
+	if !s.enabled() {
+		return
+	}
+	deletedAt := time.Now().In(ist).Format("2006-01-02 3:04 PM")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	client, err := s.newR2Client(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("audit: R2 client error on mark-deleted")
+		return
+	}
+
+	existing := s.downloadCSV(ctx, client)
+	updated := s.markDeletedRow(existing, orderNumber, deletedAt)
+	if err := s.uploadCSV(ctx, client, updated); err != nil {
+		log.Error().Err(err).Msg("audit: upload failed on mark-deleted")
+	} else {
+		log.Info().Int("order_number", orderNumber).Msg("audit: order marked deleted in CSV")
+	}
+}
+
+// syncRow finds the row matching order.OrderNumber and replaces it entirely.
+func (s *AuditService) syncRow(data []byte, order *models.OrderWithNames) []byte {
+	r := csv.NewReader(bytes.NewReader(data))
+	records, err := r.ReadAll()
+	if err != nil || len(records) < 2 {
+		return data
+	}
+	target := fmt.Sprintf("%d", order.OrderNumber)
+	for i := 1; i < len(records); i++ {
+		if len(records[i]) > 0 && records[i][0] == target {
+			records[i] = s.orderToRow(order)
+			break
+		}
+	}
+	var buf bytes.Buffer
+	w := csv.NewWriter(&buf)
+	_ = w.WriteAll(records)
+	w.Flush()
+	return buf.Bytes()
 }
 
 // filterByDateRange reads the master CSV and returns only rows whose created_at falls within [from, to).
@@ -252,8 +416,22 @@ func (s *AuditService) filterByDateRange(data []byte, from, to time.Time) []byte
 		if len(row) <= createdAtCol {
 			continue
 		}
-		t, err := time.Parse(time.RFC3339, row[createdAtCol])
-		if err != nil {
+		var t time.Time
+		parsed := false
+		// Try IST date first (current format), then legacy formats
+		if pt, err := time.ParseInLocation("2006-01-02", row[createdAtCol], ist); err == nil {
+			t = pt
+			parsed = true
+		} else {
+			for _, layout := range []string{"2006-01-02 15:04 UTC", time.RFC3339} {
+				if pt, err := time.Parse(layout, row[createdAtCol]); err == nil {
+					t = pt
+					parsed = true
+					break
+				}
+			}
+		}
+		if !parsed {
 			continue
 		}
 		if !t.Before(from) && t.Before(to) {
@@ -264,6 +442,43 @@ func (s *AuditService) filterByDateRange(data []byte, from, to time.Time) []byte
 	var buf bytes.Buffer
 	w := csv.NewWriter(&buf)
 	_ = w.WriteAll(filtered)
+	w.Flush()
+	return buf.Bytes()
+}
+
+// markDeletedRow sets the deleted column to "yes" for the matching order_number row.
+func (s *AuditService) markDeletedRow(data []byte, orderNumber int, deletedAt string) []byte {
+	r := csv.NewReader(bytes.NewReader(data))
+	records, err := r.ReadAll()
+	if err != nil || len(records) < 2 {
+		return data
+	}
+
+	deletedCol := -1
+	for i, h := range records[0] {
+		if h == "deleted" {
+			deletedCol = i
+			break
+		}
+	}
+	if deletedCol == -1 {
+		return data
+	}
+
+	target := fmt.Sprintf("%d", orderNumber)
+	for i := 1; i < len(records); i++ {
+		if len(records[i]) > 0 && records[i][0] == target {
+			for len(records[i]) <= deletedCol {
+				records[i] = append(records[i], "")
+			}
+			records[i][deletedCol] = deletedAt
+			break
+		}
+	}
+
+	var buf bytes.Buffer
+	w := csv.NewWriter(&buf)
+	_ = w.WriteAll(records)
 	w.Flush()
 	return buf.Bytes()
 }
@@ -321,8 +536,8 @@ func (s *AuditService) sendDailyReport() {
 		return
 	}
 
-	now := time.Now()
-	from := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	nowIST := time.Now().In(ist)
+	from := time.Date(nowIST.Year(), nowIST.Month(), nowIST.Day(), 0, 0, 0, 0, ist)
 	to := from.Add(24 * time.Hour)
 
 	all := s.downloadCSV(ctx, client)
@@ -334,11 +549,11 @@ func (s *AuditService) sendDailyReport() {
 		rowCount = 0
 	}
 
-	dateStr := now.Format("2006-01-02")
+	dateStr := nowIST.Format("2006-01-02")
 	subject := fmt.Sprintf("Gift Highway — Daily Orders Report %s", dateStr)
 	body := fmt.Sprintf(
 		"Daily orders report for %s\n\nTotal orders created today: %d\n\nSee attached CSV for full details.",
-		now.Format("January 2, 2006"), rowCount,
+		nowIST.Format("January 2, 2006"), rowCount,
 	)
 	filename := fmt.Sprintf("daily_%s.csv", dateStr)
 
@@ -362,9 +577,9 @@ func (s *AuditService) sendMonthlyReport() {
 		return
 	}
 
-	now := time.Now()
+	nowIST := time.Now().In(ist)
 	// Report covers the previous month
-	firstOfThisMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	firstOfThisMonth := time.Date(nowIST.Year(), nowIST.Month(), 1, 0, 0, 0, 0, ist)
 	to := firstOfThisMonth
 	from := firstOfThisMonth.AddDate(0, -1, 0)
 

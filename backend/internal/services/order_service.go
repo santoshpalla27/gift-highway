@@ -130,11 +130,37 @@ func (s *OrderService) UpdateOrder(ctx context.Context, id string, req UpdateOrd
 	req.Description = utils.Strip(req.Description)
 	req.CustomerName = utils.Strip(req.CustomerName)
 	req.ContactNumber = utils.Strip(req.ContactNumber)
-	return s.orderRepo.Update(ctx, id, req.Title, req.Description, req.CustomerName, req.ContactNumber, req.Priority, req.AssignedTo, req.DueDate, req.DueTime)
+	if err := s.orderRepo.Update(ctx, id, req.Title, req.Description, req.CustomerName, req.ContactNumber, req.Priority, req.AssignedTo, req.DueDate, req.DueTime); err != nil {
+		return err
+	}
+	if s.auditSvc != nil {
+		orderID := id
+		go func() {
+			ctx2, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if o, err := s.orderRepo.GetByID(ctx2, orderID); err == nil {
+				s.auditSvc.SyncOrder(o)
+			}
+		}()
+	}
+	return nil
 }
 
 func (s *OrderService) UpdateStatus(ctx context.Context, id string, req UpdateOrderStatusRequest) error {
-	return s.orderRepo.UpdateStatus(ctx, id, req.Status)
+	if err := s.orderRepo.UpdateStatus(ctx, id, req.Status); err != nil {
+		return err
+	}
+	if s.auditSvc != nil {
+		orderID := id
+		go func() {
+			ctx2, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if o, err := s.orderRepo.GetByID(ctx2, orderID); err == nil {
+				s.auditSvc.SyncOrder(o)
+			}
+		}()
+	}
+	return nil
 }
 
 func (s *OrderService) ArchiveOrder(ctx context.Context, id, archivedBy string) error {
@@ -142,7 +168,14 @@ func (s *OrderService) ArchiveOrder(ctx context.Context, id, archivedBy string) 
 		return err
 	}
 	if s.auditSvc != nil {
-		go s.auditSvc.UpdateArchived(id, true)
+		orderID := id
+		go func() {
+			ctx2, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if o, err := s.orderRepo.GetByID(ctx2, orderID); err == nil {
+				s.auditSvc.SyncOrder(o)
+			}
+		}()
 	}
 	return nil
 }
@@ -152,7 +185,14 @@ func (s *OrderService) RestoreOrder(ctx context.Context, id string) error {
 		return err
 	}
 	if s.auditSvc != nil {
-		go s.auditSvc.UpdateArchived(id, false)
+		orderID := id
+		go func() {
+			ctx2, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if o, err := s.orderRepo.GetByID(ctx2, orderID); err == nil {
+				s.auditSvc.SyncOrder(o)
+			}
+		}()
 	}
 	return nil
 }
@@ -162,12 +202,24 @@ func (s *OrderService) ListTrash(ctx context.Context) ([]*repositories.TrashOrde
 }
 
 func (s *OrderService) PermanentDeleteOrder(ctx context.Context, id string) error {
+	// Fetch before deletion so we have the order_number for the audit row.
+	var orderNumber int
+	if s.auditSvc != nil {
+		if o, err := s.orderRepo.GetByID(ctx, id); err == nil {
+			orderNumber = o.OrderNumber
+		}
+	}
+
 	r2Keys, err := s.orderRepo.PermanentDelete(ctx, id)
 	if err != nil {
 		return err
 	}
 	if len(r2Keys) > 0 && s.cfg != nil && s.cfg.R2AccountID != "" {
 		_ = s.deleteR2Objects(ctx, r2Keys)
+	}
+	if s.auditSvc != nil && orderNumber > 0 {
+		n := orderNumber
+		go s.auditSvc.MarkDeleted(n)
 	}
 	return nil
 }
