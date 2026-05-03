@@ -102,16 +102,6 @@ export function MetricsDashboard() {
       return sortDir === 'asc' ? (av as number) - (bv as number) : (bv as number) - (av as number)
     })
 
-  const totals = users.reduce(
-    (acc, u) => ({
-      total: acc.total + u.total_assigned,
-      new: acc.new + u.new_count,
-      in_progress: acc.in_progress + u.in_progress_count,
-      completed: acc.completed + u.completed_count,
-    }),
-    { total: 0, new: 0, in_progress: 0, completed: 0 }
-  )
-
   const SortIcon = ({ col }: { col: SortKey }) => (
     <span style={{ marginLeft: 4, opacity: sortKey === col ? 1 : 0.3, fontSize: 10 }}>
       {sortKey === col ? (sortDir === 'asc' ? '▲' : '▼') : '▼'}
@@ -132,27 +122,6 @@ export function MetricsDashboard() {
         <p style={{ margin: '4px 0 0', fontSize: 13.5, color: '#6B7280' }}>
           Order workload breakdown per team member
         </p>
-      </div>
-
-      {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
-        {([
-          { metaKey: 'total' as const,       value: totals.total       },
-          { metaKey: 'new' as const,         value: totals.new         },
-          { metaKey: 'in_progress' as const, value: totals.in_progress },
-          { metaKey: 'completed' as const,   value: totals.completed   },
-        ]).map(card => {
-          const m = STATUS_META[card.metaKey]
-          return (
-            <div key={card.metaKey} style={{ background: m.bg, border: `1px solid ${m.color}33`, borderRadius: 12, padding: '16px 20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: m.color, display: 'inline-block' }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: m.color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{m.label}</span>
-              </div>
-              <div style={{ fontSize: 32, fontWeight: 800, color: m.color }}>{card.value}</div>
-            </div>
-          )
-        })}
       </div>
 
       {/* Filters row */}

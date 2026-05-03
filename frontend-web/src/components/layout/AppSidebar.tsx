@@ -92,14 +92,6 @@ export function AppSidebar({ isOpen, setIsOpen }: AppSidebarProps) {
               </div>
               <span className="nav-label">Users</span>
             </NavLink>
-            <NavLink to="/admin/metrics" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }}>
-              <div className="nav-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="2" y="3" width="6" height="18" rx="1"/><rect x="9" y="8" width="6" height="13" rx="1"/><rect x="16" y="13" width="6" height="8" rx="1"/>
-                </svg>
-              </div>
-              <span className="nav-label">Metrics</span>
-            </NavLink>
             <NavLink to="/trash" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }}>
               <div className="nav-icon">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

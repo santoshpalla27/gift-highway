@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAdminUsers, useDisableUser, useEnableUser, useDeleteUser } from '../hooks/useAdminUsers'
 import { CreateUserModal } from '../components/CreateUserModal'
 import { EditUserModal } from '../components/EditUserModal'
@@ -129,6 +130,7 @@ function getInitials(name: string) {
 }
 
 export function UsersPage() {
+  const navigate = useNavigate()
   const { data: users = [], isLoading } = useAdminUsers()
   const { mutate: disableUser } = useDisableUser()
   const { mutate: enableUser } = useEnableUser()
@@ -452,7 +454,16 @@ export function UsersPage() {
           <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>Users</h1>
           <p style={{ fontSize: '14px', color: '#6B7280', margin: '4px 0 0 0' }}>Manage access and team accounts.</p>
         </div>
-        <div>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button
+            onClick={() => navigate('/admin/metrics')}
+            style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '14px', border: '1px solid #E5E7EB', background: '#FFFFFF', color: '#374151', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="2" y="3" width="6" height="18" rx="1"/><rect x="9" y="8" width="6" height="13" rx="1"/><rect x="16" y="13" width="6" height="8" rx="1"/>
+            </svg>
+            Metrics
+          </button>
           <button className="btn btn-primary" onClick={() => setShowCreate(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '8px', fontWeight: 600, boxShadow: '0 2px 4px rgba(99, 102, 241, 0.2)' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add User
