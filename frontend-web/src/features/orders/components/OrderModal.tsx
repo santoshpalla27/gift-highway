@@ -195,11 +195,11 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
                 ))}
               </select>
             </div>
-            <div>
+            <div style={{ gridColumn: '1 / -1' }}>
               <label className="modal-label">Due Date</label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <DateInput value={dueDate} onChange={setDueDate} className="modal-input" style={{ flex: 1 }} />
-                <input className="modal-input" type="time" value={dueTime} onChange={e => setDueTime(e.target.value)} style={{ width: '120px' }} />
+                <input className="modal-input" type="time" value={dueTime} onChange={e => setDueTime(e.target.value)} style={{ width: '140px', flexShrink: 0 }} />
               </div>
             </div>
             {canReassign && <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
