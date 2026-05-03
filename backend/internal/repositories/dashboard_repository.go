@@ -17,6 +17,7 @@ func NewDashboardRepository(db *sqlx.DB) *DashboardRepository {
 }
 
 type TeamStats struct {
+	TotalOrders    int `db:"total_orders"    json:"total_orders"`
 	NewOrders      int `db:"new_orders"      json:"new_orders"`
 	WorkingOrders  int `db:"working_orders"  json:"working_orders"`
 	CompletedToday int `db:"completed_today" json:"completed_today"`
@@ -27,11 +28,13 @@ type TeamStats struct {
 }
 
 type MyStats struct {
-	AssignedToMe     int `db:"assigned_to_me"      json:"assigned_to_me"`
-	DueToday         int `db:"due_today"            json:"due_today"`
-	Overdue          int `db:"overdue"              json:"overdue"`
+	TotalOrders       int `db:"total_orders"       json:"total_orders"`
+	NewOrders         int `db:"new_orders"         json:"new_orders"`
+	AssignedToMe      int `db:"assigned_to_me"     json:"assigned_to_me"`
+	DueToday          int `db:"due_today"          json:"due_today"`
+	Overdue           int `db:"overdue"            json:"overdue"`
 	CompletedThisWeek int `db:"completed_this_week" json:"completed_this_week"`
-	UnreadCustomer   int `db:"unread_customer"      json:"unread_customer"`
+	UnreadCustomer    int `db:"unread_customer"    json:"unread_customer"`
 }
 
 type DashboardOrder struct {
@@ -74,6 +77,7 @@ func (r *DashboardRepository) GetTeamStats(ctx context.Context, localDate string
 	var s TeamStats
 	err := r.db.GetContext(ctx, &s, `
 		SELECT
+			COUNT(*) AS total_orders,
 			COUNT(*) FILTER (WHERE status = 'new') AS new_orders,
 			COUNT(*) FILTER (WHERE status = 'in_progress') AS working_orders,
 			COUNT(*) FILTER (WHERE status = 'completed') AS completed_today,
@@ -99,6 +103,9 @@ func (r *DashboardRepository) GetMyStats(ctx context.Context, userID, localDate 
 	var s MyStats
 	err := r.db.GetContext(ctx, &s, `
 		SELECT
+			(SELECT COUNT(*) FROM order_assignees oa JOIN orders o ON o.id = oa.order_id WHERE oa.user_id = $1 AND o.is_archived = false) AS total_orders,
+			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
+			 WHERE oa.user_id = $1 AND o.status = 'new' AND o.is_archived = false) AS new_orders,
 			(SELECT COUNT(*) FROM order_assignees oa JOIN orders o ON o.id = oa.order_id WHERE oa.user_id = $1 AND o.is_archived = false) AS assigned_to_me,
 			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
 			 WHERE oa.user_id = $1 AND o.due_date = $2::date AND o.status != 'completed' AND o.is_archived = false) AS due_today,
