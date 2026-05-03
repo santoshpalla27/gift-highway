@@ -25,6 +25,11 @@ type Config struct {
 	R2SecretKey    string
 	R2Bucket       string
 	R2PublicURL    string
+	// Audit / backup
+	AuditR2Bucket  string
+	SMTPUser       string
+	SMTPPass       string
+	AuditEmailTo   string
 }
 
 func Load() *Config {
@@ -50,6 +55,10 @@ func Load() *Config {
 		R2SecretKey:    getEnv("R2_SECRET_KEY", ""),
 		R2Bucket:       getEnv("R2_BUCKET", "user-assets"),
 		R2PublicURL:    getEnv("R2_PUBLIC_URL", ""),
+		AuditR2Bucket:  getEnv("AUDIT_R2_BUCKET", ""),
+		SMTPUser:       getEnv("SMTP_USER", ""),
+		SMTPPass:       getEnv("SMTP_PASS", ""),
+		AuditEmailTo:   getEnv("AUDIT_EMAIL_TO", ""),
 	}
 
 	if cfg.AppEnv == "production" && cfg.JWTSecret == "change-me-in-production-use-32-chars-min" {

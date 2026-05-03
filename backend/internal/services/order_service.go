@@ -19,10 +19,11 @@ import (
 type OrderService struct {
 	orderRepo *repositories.OrderRepository
 	cfg       *config.Config
+	auditSvc  *AuditService
 }
 
-func NewOrderService(orderRepo *repositories.OrderRepository, cfg *config.Config) *OrderService {
-	return &OrderService{orderRepo: orderRepo, cfg: cfg}
+func NewOrderService(orderRepo *repositories.OrderRepository, cfg *config.Config, auditSvc *AuditService) *OrderService {
+	return &OrderService{orderRepo: orderRepo, cfg: cfg, auditSvc: auditSvc}
 }
 
 type CreateOrderRequest struct {
@@ -114,7 +115,14 @@ func (s *OrderService) CreateOrder(ctx context.Context, createdBy string, req Cr
 		DueDate:       dueDate,
 		DueTime:       req.DueTime,
 	}
-	return s.orderRepo.Create(ctx, o, req.AssignedTo)
+	created, err := s.orderRepo.Create(ctx, o, req.AssignedTo)
+	if err != nil {
+		return nil, err
+	}
+	if s.auditSvc != nil {
+		go s.auditSvc.AppendOrder(created)
+	}
+	return created, nil
 }
 
 func (s *OrderService) UpdateOrder(ctx context.Context, id string, req UpdateOrderRequest) error {
@@ -130,11 +138,23 @@ func (s *OrderService) UpdateStatus(ctx context.Context, id string, req UpdateOr
 }
 
 func (s *OrderService) ArchiveOrder(ctx context.Context, id, archivedBy string) error {
-	return s.orderRepo.Archive(ctx, id, archivedBy)
+	if err := s.orderRepo.Archive(ctx, id, archivedBy); err != nil {
+		return err
+	}
+	if s.auditSvc != nil {
+		go s.auditSvc.UpdateArchived(id, true)
+	}
+	return nil
 }
 
 func (s *OrderService) RestoreOrder(ctx context.Context, id string) error {
-	return s.orderRepo.Restore(ctx, id)
+	if err := s.orderRepo.Restore(ctx, id); err != nil {
+		return err
+	}
+	if s.auditSvc != nil {
+		go s.auditSvc.UpdateArchived(id, false)
+	}
+	return nil
 }
 
 func (s *OrderService) ListTrash(ctx context.Context) ([]*repositories.TrashOrder, error) {
