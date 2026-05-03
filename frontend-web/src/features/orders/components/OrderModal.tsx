@@ -116,7 +116,6 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
           outline: none; transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
         .modal-input:focus { border-color: #94A3B8; box-shadow: 0 0 0 2px rgba(226,232,240,0.5); }
-        .modal-input::placeholder { color: #94A3B8; }
         .modal-label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
         .assign-row {
           display: flex; align-items: center; justify-content: space-between;
@@ -169,15 +168,15 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="modal-label">Order ID *</label>
-              <input className="modal-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. ORD-2024-001" />
+              <input className="modal-input" value={title} onChange={e => setTitle(e.target.value)} />
             </div>
             <div>
               <label className="modal-label">Customer Name *</label>
-              <input className="modal-input" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="e.g. Acme Corp" />
+              <input className="modal-input" value={customerName} onChange={e => setCustomerName(e.target.value)} />
             </div>
             <div>
               <label className="modal-label">Contact Number</label>
-              <input className="modal-input" value={contactNumber} onChange={e => setContactNumber(e.target.value)} placeholder="e.g. +91 98765 43210" type="tel" />
+              <input className="modal-input" value={contactNumber} onChange={e => setContactNumber(e.target.value)} type="tel" />
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="modal-label">Description</label>
@@ -186,7 +185,6 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
                 style={{ minHeight: '80px', resize: 'vertical' }}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                placeholder="Include any specific operational requirements..."
               />
             </div>
             <div>

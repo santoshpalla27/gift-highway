@@ -530,13 +530,13 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
         <ScrollView style={F.body} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40) }} keyboardShouldPersistTaps="handled">
           {error ? <View style={F.errorBox}><Text style={F.errorText}>{error}</Text></View> : null}
           <Text style={F.label}>Order ID *</Text>
-          <TextInput style={F.input} value={title} onChangeText={setTitle} placeholder="e.g. ORD-2024-001" autoCapitalize="characters" />
+          <TextInput style={F.input} value={title} onChangeText={setTitle} autoCapitalize="characters" />
           <Text style={F.label}>Customer Name *</Text>
-          <TextInput style={F.input} value={customerName} onChangeText={setCustomerName} placeholder="e.g. Rahul Sharma" autoCapitalize="words" />
+          <TextInput style={F.input} value={customerName} onChangeText={setCustomerName} autoCapitalize="words" />
           <Text style={F.label}>Contact Number</Text>
-          <TextInput style={F.input} value={contactNumber} onChangeText={setContactNumber} placeholder="e.g. +91 98765 43210" keyboardType="phone-pad" />
+          <TextInput style={F.input} value={contactNumber} onChangeText={setContactNumber} keyboardType="phone-pad" />
           <Text style={F.label}>Description</Text>
-          <TextInput style={[F.input, { minHeight: 80 }]} value={description} onChangeText={setDescription} placeholder="Include operational details..." multiline textAlignVertical="top" />
+          <TextInput style={[F.input, { minHeight: 80 }]} value={description} onChangeText={setDescription} multiline textAlignVertical="top" />
           <Text style={F.label}>Priority</Text>
           <View style={F.chipRow}>
             {PRIORITY_OPTIONS.map(p => (
