@@ -203,8 +203,7 @@ function MyTab({ data, refreshing, onRefresh }: {
   const kpis: { label: string; value: number; color: string; icon: keyof typeof Ionicons.glyphMap; onPress?: () => void }[] = [
     { label: 'Total Orders',   value: stats.total_orders,        color: '#6366F1', icon: 'layers-outline',         onPress: () => router.push('/(app)/my-orders' as any) },
     { label: 'New Orders',     value: stats.new_orders,           color: '#6B7280', icon: 'add-circle-outline',     onPress: () => router.push({ pathname: '/(app)/my-orders', params: { status: 'new' } } as any) },
-    { label: 'Assigned to Me', value: stats.assigned_to_me,      color: '#6366F1', icon: 'person-outline',         onPress: () => router.push('/(app)/my-orders' as any) },
-    { label: 'Due Today',      value: stats.due_today,            color: '#F59E0B', icon: 'time-outline',           onPress: () => router.push({ pathname: '/(app)/my-orders', params: { today: '1' } } as any) },
+{ label: 'Due Today',      value: stats.due_today,            color: '#F59E0B', icon: 'time-outline',           onPress: () => router.push({ pathname: '/(app)/my-orders', params: { today: '1' } } as any) },
     { label: 'Overdue',        value: stats.overdue,              color: '#EF4444', icon: 'alert-circle-outline',   onPress: () => router.push({ pathname: '/(app)/my-orders', params: { overdue: '1' } } as any) },
     { label: 'Done',           value: stats.completed_this_week,  color: '#10B981', icon: 'checkmark-done-outline', onPress: () => router.push({ pathname: '/(app)/my-orders', params: { status: 'completed' } } as any) },
   ]
