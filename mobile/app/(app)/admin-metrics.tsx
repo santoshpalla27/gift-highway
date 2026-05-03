@@ -85,16 +85,6 @@ export default function AdminMetricsScreen() {
     return true
   })
 
-  const totals = users.reduce(
-    (acc, u) => ({
-      total: acc.total + u.total_assigned,
-      new: acc.new + u.new_count,
-      in_progress: acc.in_progress + u.in_progress_count,
-      completed: acc.completed + u.completed_count,
-    }),
-    { total: 0, new: 0, in_progress: 0, completed: 0 }
-  )
-
   return (
     <View style={[M.screen, { paddingTop: insets.top }]}>
       {/* Header */}
@@ -108,25 +98,6 @@ export default function AdminMetricsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Summary strip */}
-      {!loading && !error && (
-        <View style={M.summaryStrip}>
-          {[
-            { label: 'Total',    value: totals.total,       color: '#6366F1', bg: '#EEF2FF' },
-            { label: 'New',      value: totals.new,         color: '#6B7280', bg: '#F3F4F6' },
-            { label: 'In Prog.', value: totals.in_progress, color: '#3B82F6', bg: '#EFF6FF' },
-            { label: 'Done',     value: totals.completed,   color: '#10B981', bg: '#ECFDF5' },
-          ].map(s => (
-            <View key={s.label} style={[M.summaryItem, { backgroundColor: s.bg }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: s.color }} />
-                <Text style={[M.summaryLabel, { color: s.color }]}>{s.label}</Text>
-              </View>
-              <Text style={[M.summaryValue, { color: s.color }]}>{s.value}</Text>
-            </View>
-          ))}
-        </View>
-      )}
 
       {/* Search */}
       <View style={M.searchRow}>
@@ -266,14 +237,6 @@ const M = StyleSheet.create({
     backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
   },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
-
-  summaryStrip: {
-    flexDirection: 'row', backgroundColor: '#FFFFFF', borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9', gap: 0,
-  },
-  summaryItem: { flex: 1, alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4 },
-  summaryValue: { fontSize: 24, fontWeight: '800' },
-  summaryLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
 
   searchRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

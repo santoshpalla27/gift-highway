@@ -2,6 +2,7 @@ import { apiClient } from './apiClient'
 import { localDateStr } from '../utils/date'
 
 export interface TeamStats {
+  total_orders: number
   new_orders: number
   working_orders: number
   completed_today: number
@@ -12,6 +13,8 @@ export interface TeamStats {
 }
 
 export interface MyStats {
+  total_orders: number
+  new_orders: number
   assigned_to_me: number
   due_today: number
   overdue: number

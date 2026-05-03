@@ -151,14 +151,14 @@ function TeamTab({ data, refreshing, onRefresh }: {
 
   const go = (id: string) => router.push(`/order/${id}` as any)
 
-  const kpis: { label: string; value: number; color: string; icon: keyof typeof Ionicons.glyphMap; route?: string }[] = [
-    { label: 'New Orders',      value: stats.new_orders,       color: '#6B7280', icon: 'add-circle-outline' },
-    { label: 'Working',         value: stats.working_orders,   color: '#3B82F6', icon: 'hammer-outline' },
-    { label: 'Completed',       value: stats.completed_today,  color: '#10B981', icon: 'checkmark-done-outline' },
-    { label: 'Due Today',       value: stats.due_today,        color: '#F59E0B', icon: 'time-outline' },
-    { label: 'Overdue',         value: stats.overdue,          color: '#EF4444', icon: 'alert-circle-outline' },
-    { label: 'Unread Customer', value: stats.unread_customer,  color: '#8B5CF6', icon: 'chatbubble-outline' },
-    { label: 'Stale (7+ days)', value: stats.stale_orders,     color: '#F97316', icon: 'hourglass-outline' },
+  const kpis: { label: string; value: number; color: string; icon: keyof typeof Ionicons.glyphMap; onPress?: () => void }[] = [
+    { label: 'Total Orders',    value: stats.total_orders,     color: '#6366F1', icon: 'layers-outline',         onPress: () => router.push('/(app)/all-orders' as any) },
+    { label: 'New Orders',      value: stats.new_orders,       color: '#6B7280', icon: 'add-circle-outline',     onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'new' } } as any) },
+    { label: 'Working',         value: stats.working_orders,   color: '#3B82F6', icon: 'hammer-outline',         onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'in_progress' } } as any) },
+    { label: 'Completed',       value: stats.completed_today,  color: '#10B981', icon: 'checkmark-done-outline', onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'completed' } } as any) },
+    { label: 'Due Today',       value: stats.due_today,        color: '#F59E0B', icon: 'time-outline',           onPress: () => router.push({ pathname: '/(app)/all-orders', params: { today: '1' } } as any) },
+    { label: 'Overdue',         value: stats.overdue,          color: '#EF4444', icon: 'alert-circle-outline',   onPress: () => router.push({ pathname: '/(app)/all-orders', params: { overdue: '1' } } as any) },
+    { label: 'Stale (7+ days)', value: stats.stale_orders,     color: '#F97316', icon: 'hourglass-outline',      onPress: () => router.push({ pathname: '/(app)/all-orders', params: { stale: '1' } } as any) },
   ]
 
   return (
@@ -172,22 +172,18 @@ function TeamTab({ data, refreshing, onRefresh }: {
       </View>
 
       <SectionCard title="Due Today" count={(data.due_today_list ?? []).length} emptyText="No orders due today"
-        onViewAll={() => router.push('/(app)/all-orders' as any)}>
+        onViewAll={() => router.push({ pathname: '/(app)/all-orders', params: { today: '1' } } as any)}>
         {(data.due_today_list ?? []).map(o => <OrderRow key={o.id} order={o} onPress={() => go(o.id)} />)}
       </SectionCard>
 
       <SectionCard title="Overdue" count={(data.overdue_orders ?? []).length} emptyText="No overdue orders"
-        onViewAll={() => router.push('/(app)/all-orders' as any)}>
+        onViewAll={() => router.push({ pathname: '/(app)/all-orders', params: { overdue: '1' } } as any)}>
         {(data.overdue_orders ?? []).map(o => <OrderRow key={o.id} order={o} onPress={() => go(o.id)} />)}
       </SectionCard>
 
-      <SectionCard title="Stale Orders" count={(data.stale_orders ?? []).length} emptyText="No stale orders">
+      <SectionCard title="Stale Orders" count={(data.stale_orders ?? []).length} emptyText="No stale orders"
+        onViewAll={() => router.push({ pathname: '/(app)/all-orders', params: { stale: '1' } } as any)}>
         {(data.stale_orders ?? []).map(o => <OrderRow key={o.id} order={o} onPress={() => go(o.id)} />)}
-      </SectionCard>
-
-      <SectionCard title="Unread Customer Messages" count={(data.unread_customer_orders ?? []).length} emptyText="No unread customer messages"
-        onViewAll={() => router.push('/(app)/all-orders' as any)}>
-        {(data.unread_customer_orders ?? []).map(o => <OrderRow key={o.id} order={o} onPress={() => go(o.id)} />)}
       </SectionCard>
     </ScrollView>
   )
@@ -204,12 +200,13 @@ function MyTab({ data, refreshing, onRefresh }: {
 
   const go = (id: string) => router.push(`/order/${id}` as any)
 
-  const kpis: { label: string; value: number; color: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-    { label: 'Assigned to Me',  value: stats.assigned_to_me,      color: '#6366F1', icon: 'person-outline' },
-    { label: 'Due Today',       value: stats.due_today,            color: '#F59E0B', icon: 'time-outline' },
-    { label: 'Overdue',         value: stats.overdue,              color: '#EF4444', icon: 'alert-circle-outline' },
-    { label: 'Done',            value: stats.completed_this_week,  color: '#10B981', icon: 'checkmark-done-outline' },
-    { label: 'Unread Customer', value: stats.unread_customer,      color: '#8B5CF6', icon: 'chatbubble-outline' },
+  const kpis: { label: string; value: number; color: string; icon: keyof typeof Ionicons.glyphMap; onPress?: () => void }[] = [
+    { label: 'Total Orders',   value: stats.total_orders,        color: '#6366F1', icon: 'layers-outline',         onPress: () => router.push('/(app)/my-orders' as any) },
+    { label: 'New Orders',     value: stats.new_orders,           color: '#6B7280', icon: 'add-circle-outline',     onPress: () => router.push({ pathname: '/(app)/my-orders', params: { status: 'new' } } as any) },
+    { label: 'Assigned to Me', value: stats.assigned_to_me,      color: '#6366F1', icon: 'person-outline',         onPress: () => router.push('/(app)/my-orders' as any) },
+    { label: 'Due Today',      value: stats.due_today,            color: '#F59E0B', icon: 'time-outline',           onPress: () => router.push({ pathname: '/(app)/my-orders', params: { today: '1' } } as any) },
+    { label: 'Overdue',        value: stats.overdue,              color: '#EF4444', icon: 'alert-circle-outline',   onPress: () => router.push({ pathname: '/(app)/my-orders', params: { overdue: '1' } } as any) },
+    { label: 'Done',           value: stats.completed_this_week,  color: '#10B981', icon: 'checkmark-done-outline', onPress: () => router.push({ pathname: '/(app)/my-orders', params: { status: 'completed' } } as any) },
   ]
 
   return (
@@ -223,18 +220,13 @@ function MyTab({ data, refreshing, onRefresh }: {
       </View>
 
       <SectionCard title="Due Today" count={(data.due_today_list ?? []).length} emptyText="No orders due today"
-        onViewAll={() => router.push('/(app)/my-orders' as any)}>
+        onViewAll={() => router.push({ pathname: '/(app)/my-orders', params: { today: '1' } } as any)}>
         {(data.due_today_list ?? []).map(o => <OrderRow key={o.id} order={o} onPress={() => go(o.id)} />)}
       </SectionCard>
 
       <SectionCard title="Overdue" count={(data.overdue_orders ?? []).length} emptyText="No overdue orders"
-        onViewAll={() => router.push('/(app)/my-orders' as any)}>
+        onViewAll={() => router.push({ pathname: '/(app)/my-orders', params: { overdue: '1' } } as any)}>
         {(data.overdue_orders ?? []).map(o => <OrderRow key={o.id} order={o} onPress={() => go(o.id)} />)}
-      </SectionCard>
-
-      <SectionCard title="Unread Customer Messages" count={(data.unread_customer_orders ?? []).length} emptyText="No unread customer messages"
-        onViewAll={() => router.push('/(app)/my-orders' as any)}>
-        {(data.unread_customer_orders ?? []).map(o => <OrderRow key={o.id} order={o} onPress={() => go(o.id)} />)}
       </SectionCard>
     </ScrollView>
   )
