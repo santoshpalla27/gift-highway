@@ -5,24 +5,21 @@ const GROUPS: { label: string; types: { key: string; label: string }[] }[] = [
   {
     label: 'Important Updates',
     types: [
-      { key: 'customer_message',    label: 'Customer Messages' },
-      { key: 'customer_attachment', label: 'Customer Attachments' },
-      { key: 'assignees_changed',   label: 'Assignment Changes' },
+      { key: 'assignees_changed', label: 'Assignment Changes' },
     ],
   },
   {
     label: 'Workflow Updates',
     types: [
-      { key: 'status_changed',    label: 'Status Changes' },
-      { key: 'due_date_changed',  label: 'Due Date Changes' },
+      { key: 'status_changed',   label: 'Status Changes' },
+      { key: 'due_date_changed', label: 'Due Date Changes' },
     ],
   },
   {
     label: 'Team Activity',
     types: [
-      { key: 'comment_added',      label: 'Staff Comments' },
-      { key: 'attachment_added',   label: 'Staff Attachments' },
-      { key: 'staff_portal_reply', label: 'Portal Replies' },
+      { key: 'comment_added',    label: 'Staff Comments' },
+      { key: 'attachment_added', label: 'Staff Attachments' },
     ],
   },
   {

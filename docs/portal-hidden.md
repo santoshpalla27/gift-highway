@@ -486,7 +486,7 @@ All portal code is still in the repo at these paths:
 | Mobile | `mobile/app/order/_hooks/usePortalChat.ts` | Chat state hook |
 | Tests | `tests/api/test_portal.py` | API tests |
 
-The 7 files actually edited:
+The 9 files actually edited:
 
 | File | What was changed |
 |---|---|
@@ -496,8 +496,25 @@ The 7 files actually edited:
 | `mobile/app/order/[id].tsx` | Commented out: portal chip, sheet mount |
 | `mobile/app/order/_sheets/OrderInfoSheet.tsx` | Commented out: "CUSTOMER PORTAL" section in the ⓘ info sheet |
 | `mobile/app/(app)/all-orders.tsx` | Commented out: "Generate portal link" checkbox in Create Order sheet |
+| `frontend-web/src/features/notifications/components/NotificationPreferencesCard.tsx` | Removed portal notification types: `customer_message`, `customer_attachment`, `staff_portal_reply` |
+| `mobile/app/(app)/notification-preferences.tsx` | Removed portal notification types: `customer_message`, `customer_attachment`, `staff_portal_reply` |
 
 To find all hidden spots in one search, run: `grep -r "PORTAL HIDDEN" --include="*.tsx" --include="*.ts" .`
+
+### Notification types removed
+
+When restoring the portal, add these back to the `GROUPS` array in both notification preference files:
+
+**"Important Updates" group** — restore alongside `assignees_changed`:
+```ts
+{ key: 'customer_message',    label: 'Customer Messages' },
+{ key: 'customer_attachment', label: 'Customer Attachments' },
+```
+
+**"Team Activity" group** — restore alongside `comment_added` and `attachment_added`:
+```ts
+{ key: 'staff_portal_reply', label: 'Portal Replies' },
+```
 
 ---
 
