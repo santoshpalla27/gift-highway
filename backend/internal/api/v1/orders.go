@@ -112,6 +112,7 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 		Unassigned: unassigned,
 		DueFrom:    c.Query("due_from"),
 		DueTo:      c.Query("due_to"),
+		StaleOnly:  c.Query("stale") == "1",
 		Page:       page,
 		Limit:      limit,
 		SortBy:     c.DefaultQuery("sort_by", "created_at"),

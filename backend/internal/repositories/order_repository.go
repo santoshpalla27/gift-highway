@@ -19,6 +19,7 @@ type OrderFilter struct {
 	Unassigned bool     // include orders with no assignees
 	DueFrom    string
 	DueTo      string
+	StaleOnly  bool     // updated_at < NOW()-7d AND status != completed
 	Page       int
 	Limit      int
 	SortBy     string // created_at | updated_at | due_date | order_number
@@ -124,6 +125,9 @@ func (r *OrderRepository) buildWhere(f OrderFilter) (string, []interface{}) {
 		conditions = append(conditions, fmt.Sprintf("o.due_date <= $%d", idx))
 		args = append(args, f.DueTo)
 		idx++
+	}
+	if f.StaleOnly {
+		conditions = append(conditions, "o.updated_at < NOW() - INTERVAL '7 days' AND o.status != 'completed'")
 	}
 	_ = idx
 
