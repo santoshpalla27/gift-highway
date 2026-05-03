@@ -51,6 +51,7 @@ export interface ListOrdersParams {
   assigned_to?: string
   due_from?: string
   due_to?: string
+  stale?: string
   page?: number
   limit?: number
 }

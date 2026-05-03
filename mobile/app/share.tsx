@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import {
-  View, Text, TextInput, FlatList, TouchableOpacity,
+  View, Text, TextInput, FlatList, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -229,40 +229,46 @@ export default function ShareScreen() {
         <View style={{ width: 38 }} />
       </View>
 
-      {/* Files preview */}
+      {/* Files preview — capped so order list always has room */}
       <View style={S.filesSection}>
         <Text style={S.sectionLabel}>
           {sharedFiles.length === 1 ? '1 FILE' : `${sharedFiles.length} FILES`}
         </Text>
-        <View style={S.filesList}>
-          {sharedFiles.map((file, i) => {
-            const prog = fileProgress[i]
-            const icon = mimeIcon(file.mimeType ?? '')
-            return (
-              <View key={i} style={S.fileRow}>
-                <View style={[S.fileIconWrap, { backgroundColor: icon.color + '18' }]}>
-                  <Ionicons name={icon.name as any} size={20} color={icon.color} />
-                </View>
-                <View style={S.fileInfo}>
-                  <Text style={S.fileName} numberOfLines={1}>{file.fileName ?? 'file'}</Text>
-                  <Text style={S.fileSize}>{file.size ? formatBytes(file.size) : ''}</Text>
-                  {prog && !prog.done && !prog.error && (
-                    <View style={S.progressBar}>
-                      <View style={[S.progressFill, { width: `${prog.progress}%` as any }]} />
-                    </View>
+        <ScrollView
+          style={S.filesScroll}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={sharedFiles.length > 3}
+        >
+          <View style={S.filesList}>
+            {sharedFiles.map((file, i) => {
+              const prog = fileProgress[i]
+              const icon = mimeIcon(file.mimeType ?? '')
+              return (
+                <View key={i} style={S.fileRow}>
+                  <View style={[S.fileIconWrap, { backgroundColor: icon.color + '18' }]}>
+                    <Ionicons name={icon.name as any} size={20} color={icon.color} />
+                  </View>
+                  <View style={S.fileInfo}>
+                    <Text style={S.fileName} numberOfLines={1}>{file.fileName ?? 'file'}</Text>
+                    <Text style={S.fileSize}>{file.size ? formatBytes(file.size) : ''}</Text>
+                    {prog && !prog.done && !prog.error && (
+                      <View style={S.progressBar}>
+                        <View style={[S.progressFill, { width: `${prog.progress}%` as any }]} />
+                      </View>
+                    )}
+                    {prog?.error && <Text style={S.fileError}>{prog.error}</Text>}
+                  </View>
+                  {prog?.done && (
+                    <Ionicons name="checkmark-circle" size={20} color="#10B981" />
                   )}
-                  {prog?.error && <Text style={S.fileError}>{prog.error}</Text>}
+                  {uploading && !prog?.done && !prog?.error && (
+                    <ActivityIndicator size="small" color="#6366F1" />
+                  )}
                 </View>
-                {prog?.done && (
-                  <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-                )}
-                {uploading && !prog?.done && !prog?.error && (
-                  <ActivityIndicator size="small" color="#6366F1" />
-                )}
-              </View>
-            )
-          })}
-        </View>
+              )
+            })}
+          </View>
+        </ScrollView>
       </View>
 
       <View style={S.divider} />
@@ -383,6 +389,7 @@ const S = StyleSheet.create({
   // Files section
   filesSection: { backgroundColor: '#fff', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12 },
   sectionLabel: { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 0.5, marginBottom: 10 },
+  filesScroll: { maxHeight: 210 },
   filesList: { gap: 8 },
   fileRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

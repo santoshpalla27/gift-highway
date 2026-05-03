@@ -4,7 +4,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { formatDate, fmt12hrStr } from '../../utils/date'
@@ -63,15 +63,16 @@ interface FilterState {
   overdueOnly: boolean
   dueTodayOnly: boolean
   unreadOnly: boolean
+  staleOnly: boolean
 }
 
 const emptyFilters: FilterState = {
   status: '', priority: '', assigneeIds: [],
-  dueDateFrom: '', dueDateTo: '', overdueOnly: false, dueTodayOnly: false, unreadOnly: false,
+  dueDateFrom: '', dueDateTo: '', overdueOnly: false, dueTodayOnly: false, unreadOnly: false, staleOnly: false,
 }
 
 function activeCount(f: FilterState) {
-  return [f.status, f.priority, f.assigneeIds.length > 0, f.dueDateFrom || f.dueDateTo, f.overdueOnly, f.dueTodayOnly, f.unreadOnly].filter(Boolean).length
+  return [f.status, f.priority, f.assigneeIds.length > 0, f.dueDateFrom || f.dueDateTo, f.overdueOnly, f.dueTodayOnly, f.unreadOnly, f.staleOnly].filter(Boolean).length
 }
 
 function FilterSheet({
@@ -408,6 +409,18 @@ function FilterSheet({
                 </View>
                 <View style={[FS.toggle, draft.unreadOnly && { backgroundColor: '#6366F1' }]}>
                   <View style={[FS.toggleThumb, draft.unreadOnly && FS.toggleThumbOn]} />
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[FS.toggleRow, draft.staleOnly && { backgroundColor: '#FFF7ED' }]}
+                onPress={() => set({ staleOnly: !draft.staleOnly })}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[FS.toggleLabel, draft.staleOnly && { color: '#EA580C' }]}>Stale (7+ days)</Text>
+                  <Text style={FS.toggleSub}>No activity in over 7 days</Text>
+                </View>
+                <View style={[FS.toggle, draft.staleOnly && { backgroundColor: '#F97316' }]}>
+                  <View style={[FS.toggleThumb, draft.staleOnly && FS.toggleThumbOn]} />
                 </View>
               </TouchableOpacity>
             </View>
@@ -789,6 +802,7 @@ function ActiveFilterPills({ filters, onClear }: { filters: FilterState; onClear
   if (filters.overdueOnly) pills.push({ label: 'Overdue', key: 'overdueOnly' })
   if (filters.dueTodayOnly) pills.push({ label: 'Today', key: 'dueTodayOnly' })
   if (filters.unreadOnly) pills.push({ label: 'Unread', key: 'unreadOnly' })
+  if (filters.staleOnly) pills.push({ label: 'Stale', key: 'staleOnly' })
 
   if (pills.length === 0) return null
   return (
@@ -810,6 +824,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
   const { user } = useAuthStore()
   const { isOnline } = useNetworkStatus()
   const { unreadByOrder } = useNotifications(myOrdersOnly ? { mineOnly: true } : {})
+  const params = useLocalSearchParams<{ status?: string; today?: string; overdue?: string; stale?: string; assignee?: string }>()
   const [orders, setOrders] = useState<Order[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -818,6 +833,23 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState<FilterState>(emptyFilters)
+
+  // Apply navigation params whenever they change (dashboard KPI taps).
+  // The ref prevents re-applying the same params after the user manually clears a filter.
+  const lastParamsKey = useRef('')
+  useEffect(() => {
+    const key = `${params.status ?? ''}|${params.overdue ?? ''}|${params.today ?? ''}|${params.stale ?? ''}|${params.assignee ?? ''}`
+    if (key === lastParamsKey.current) return
+    lastParamsKey.current = key
+    setFilters({
+      ...emptyFilters,
+      status:       params.status ?? '',
+      overdueOnly:  params.overdue === '1',
+      dueTodayOnly: params.today === '1',
+      staleOnly:    params.stale === '1',
+      assigneeIds:  params.assignee ? [params.assignee] : [],
+    })
+  }, [params.status, params.overdue, params.today, params.stale, params.assignee])
   const [showCreate, setShowCreate] = useState(false)
   const [editOrder, setEditOrder] = useState<Order | null>(null)
 
@@ -836,6 +868,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
         assigned_to: myOrdersOnly && user ? user.id : (filters.assigneeIds.length ? filters.assigneeIds.join(',') : undefined),
         due_from: filters.overdueOnly ? undefined : filters.dueTodayOnly ? today : (filters.dueDateFrom || undefined),
         due_to: filters.overdueOnly ? yesterday : filters.dueTodayOnly ? today : (filters.dueDateTo || undefined),
+        stale: filters.staleOnly ? '1' : undefined,
       })
       setOrders(data.orders)
       setTotal(data.total)
