@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import {
   View, Text, TextInput, FlatList, ScrollView, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Alert, Platform,
+  StyleSheet, ActivityIndicator, Alert, Platform, Image,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -245,9 +245,17 @@ export default function ShareScreen() {
               const icon = mimeIcon(file.mimeType ?? '')
               return (
                 <View key={i} style={S.fileRow}>
-                  <View style={[S.fileIconWrap, { backgroundColor: icon.color + '18' }]}>
-                    <Ionicons name={icon.name as any} size={20} color={icon.color} />
-                  </View>
+                  {(file.mimeType ?? '').startsWith('image/') ? (
+                    <Image
+                      source={{ uri: file.path.startsWith('file://') ? file.path : `file://${file.path}` }}
+                      style={S.fileThumbnail}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={[S.fileIconWrap, { backgroundColor: icon.color + '18' }]}>
+                      <Ionicons name={icon.name as any} size={20} color={icon.color} />
+                    </View>
+                  )}
                   <View style={S.fileInfo}>
                     <Text style={S.fileName} numberOfLines={1}>{file.fileName ?? 'file'}</Text>
                     <Text style={S.fileSize}>{file.size ? formatBytes(file.size) : ''}</Text>
@@ -394,6 +402,7 @@ const S = StyleSheet.create({
     padding: 10, borderWidth: 1, borderColor: '#F3F4F6',
   },
   fileIconWrap: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  fileThumbnail: { width: 38, height: 38, borderRadius: 8, backgroundColor: '#F3F4F6' },
   fileInfo: { flex: 1, gap: 2 },
   fileName: { fontSize: 13, fontWeight: '600', color: '#111827' },
   fileSize: { fontSize: 11, color: '#9CA3AF' },
