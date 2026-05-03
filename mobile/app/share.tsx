@@ -319,9 +319,6 @@ export default function ShareScreen() {
                 activeOpacity={0.7}
               >
                 <View style={S.orderLeft}>
-                  <View style={S.orderNumBadge}>
-                    <Text style={S.orderNumText}>#{item.order_number}</Text>
-                  </View>
                   <View style={S.orderMeta}>
                     <Text style={[S.orderTitle, selected && S.orderTitleSelected]} numberOfLines={1}>
                       {item.title}
@@ -356,9 +353,9 @@ export default function ShareScreen() {
           ) : (
             <>
               <Ionicons name="cloud-upload-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={S.uploadBtnText}>
+              <Text style={S.uploadBtnText} numberOfLines={1} ellipsizeMode="tail">
                 {selectedOrder
-                  ? `Upload to Order #${selectedOrder.order_number}`
+                  ? `Upload to ${selectedOrder.title}`
                   : 'Select an order above'}
               </Text>
             </>
@@ -430,13 +427,7 @@ const S = StyleSheet.create({
     padding: 12, borderWidth: 1, borderColor: '#E5E7EB',
   },
   orderRowSelected: { borderColor: '#6366F1', backgroundColor: '#EEF2FF' },
-  orderLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 },
-  orderNumBadge: {
-    backgroundColor: '#F3F4F6', borderRadius: 6,
-    paddingHorizontal: 7, paddingVertical: 3,
-    minWidth: 36, alignItems: 'center',
-  },
-  orderNumText: { fontSize: 11, fontWeight: '700', color: '#374151' },
+  orderLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   orderMeta: { flex: 1 },
   orderTitle: { fontSize: 14, fontWeight: '600', color: '#111827' },
   orderTitleSelected: { color: '#4F46E5' },
@@ -454,7 +445,7 @@ const S = StyleSheet.create({
   },
   doneBtnFull: { alignSelf: 'stretch', marginTop: 28, paddingVertical: 18 },
   uploadBtnDisabled: { backgroundColor: '#C7D2FE' },
-  uploadBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  uploadBtnText: { fontSize: 15, fontWeight: '700', color: '#fff', flexShrink: 1 },
 
   // Empty / auth screens
   emptyTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginTop: 16, marginBottom: 6 },
