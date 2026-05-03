@@ -359,34 +359,7 @@ export default function SettingsScreen() {
         )}
       </SectionCard>
 
-      {/* ── Section 2: Preferences ───────────────────────────────────────── */}
-      <SectionCard label="PREFERENCES">
-        <SettingsRow
-          icon="notifications-outline"
-          iconBg="#A78BFA"
-          label="Notifications"
-          subtitle="Alerts, sounds & badges"
-          disabled
-        />
-        <View style={S.rowSep} />
-        <SettingsRow
-          icon="color-palette-outline"
-          iconBg="#60A5FA"
-          label="Appearance"
-          subtitle="Theme & display"
-          disabled
-        />
-        <View style={S.rowSep} />
-        <SettingsRow
-          icon="shield-checkmark-outline"
-          iconBg="#34D399"
-          label="Privacy"
-          subtitle="Data & permissions"
-          disabled
-        />
-      </SectionCard>
-
-      {/* ── Section 3: Tools ────────────────────────────────────────────── */}
+      {/* ── Section 2: Tools ────────────────────────────────────────────── */}
       <SectionCard label="TOOLS">
         <SettingsRow
           icon="pulse-outline"
