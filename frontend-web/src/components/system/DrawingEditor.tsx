@@ -316,7 +316,7 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
   }
 
   async function handleSave() {
-    if (!imgNatural || strokes.length === 0) return
+    if (!imgNatural || !blobUrl || strokes.length === 0) return
     setSaving(true)
     try {
       // Draw image + strokes at native resolution
@@ -330,7 +330,7 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve()
         img.onerror = () => reject(new Error('Failed to load image'))
-        img.src = blobUrl ?? src
+        img.src = blobUrl
       })
       ctx.drawImage(img, 0, 0, imgNatural.w, imgNatural.h)
 
