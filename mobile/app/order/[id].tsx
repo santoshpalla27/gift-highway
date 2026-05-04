@@ -140,9 +140,11 @@ export default function OrderDetailScreen() {
           <TouchableOpacity onPress={() => D.setShowInfo(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="information-circle-outline" size={22} color="#0F172A" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => D.setShowEdit(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="create-outline" size={22} color="#0F172A" />
-          </TouchableOpacity>
+          {D.isAdmin && (
+            <TouchableOpacity onPress={() => D.setShowEdit(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="create-outline" size={22} color="#0F172A" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Chip row */}

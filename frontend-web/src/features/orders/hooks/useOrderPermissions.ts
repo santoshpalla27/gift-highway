@@ -22,10 +22,10 @@ export function useOrderPermissions(order: Order | null): OrderPermissions {
 
   return {
     canChangeStatus: isAdmin || isAssigned,
-    canEditOrder: isAdmin || isAssigned,
+    canEditOrder: isAdmin,
     canReassign: isAdmin,
     canDeleteComment: isAdmin || isAssigned,
-    canArchive: isAdmin || isAssigned,
+    canArchive: isAdmin,
     isAdmin,
   }
 }

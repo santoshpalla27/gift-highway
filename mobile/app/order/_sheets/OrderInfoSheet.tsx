@@ -10,6 +10,7 @@ import { orderService, type Order, type UserOption } from '../../../services/ord
 import { staffPortalApi, getPortalURL, type PortalStatus } from '../../../services/portalService'
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus'
 import { formatDate, fmt12hrStr } from '../../../utils/date'
+import { useAuthStore } from '../../../store/authStore'
 
 function getInitials(name: string) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
@@ -38,6 +39,8 @@ export function InfoSheet({ order, portal, onClose, onPortalChange, onArchived }
   onArchived?: () => void
 }) {
   const insets = useSafeAreaInsets()
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'admin'
   const sm = STATUS_META[order.status] ?? STATUS_META.new
   const pm = PRIORITY_META[order.priority] ?? PRIORITY_META.low
   const due = order.due_date ? new Date(order.due_date + 'T00:00:00') : null
@@ -136,7 +139,7 @@ export function InfoSheet({ order, portal, onClose, onPortalChange, onArchived }
 
           {/* PORTAL HIDDEN: CUSTOMER PORTAL section removed — see docs/portal-hidden.md to restore */}
 
-          <View style={IN.archiveSection}>
+          {isAdmin && <View style={IN.archiveSection}>
             <TouchableOpacity
               style={IN.archiveBtn}
               disabled={archiveLoading}
@@ -165,7 +168,7 @@ export function InfoSheet({ order, portal, onClose, onPortalChange, onArchived }
                   </>
               }
             </TouchableOpacity>
-          </View>
+          </View>}
         </ScrollView>
       </View>
     </Modal>

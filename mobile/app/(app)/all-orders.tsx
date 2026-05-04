@@ -982,7 +982,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
           <View style={S.emptyIconWrap}><Ionicons name="albums-outline" size={32} color="#94A3B8" /></View>
           <Text style={S.emptyTitle}>No orders found</Text>
           <Text style={S.emptySub}>{hasAnyFilter ? 'Try adjusting your filters.' : 'Create your first operation to get started.'}</Text>
-          {!hasAnyFilter && (
+          {!hasAnyFilter && user?.role === 'admin' && (
             <TouchableOpacity style={S.emptyBtn} onPress={() => { setEditOrder(null); setShowCreate(true) }}>
               <Text style={S.emptyBtnText}>Create Order</Text>
             </TouchableOpacity>
@@ -1000,9 +1000,11 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
         </ScrollView>
       )}
 
-      <TouchableOpacity style={S.fab} onPress={() => { setEditOrder(null); setShowCreate(true) }}>
-        <Ionicons name="add" size={28} color="#FFFFFF" />
-      </TouchableOpacity>
+      {user?.role === 'admin' && (
+        <TouchableOpacity style={S.fab} onPress={() => { setEditOrder(null); setShowCreate(true) }}>
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
 
       <FilterSheet
         visible={showFilters}

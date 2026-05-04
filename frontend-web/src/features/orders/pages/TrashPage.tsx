@@ -4,6 +4,7 @@ import { orderService, type TrashOrder } from '../../../services/orderService'
 import { purgeNotificationOrder } from '../../notifications/hooks/useNotifications'
 import { useNavigate } from 'react-router-dom'
 import { DateInput } from '../../../components/system/DateInput'
+import { useAuthStore } from '../../../store/authStore'
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
   new:         { label: 'Yet to Start', color: '#6B7280', bg: '#F3F4F6' },
@@ -112,6 +113,8 @@ function ConfirmDeleteModal({ order, onClose, onConfirm }: {
 export function TrashPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'admin'
   const [deleteTarget, setDeleteTarget] = useState<TrashOrder | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -355,28 +358,32 @@ export function TrashPage() {
                       <td style={{ color: '#6B7280', whiteSpace: 'nowrap' }}>{order.archived_at ?? '—'}</td>
                       <td>
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                          <button
-                            disabled={busy}
-                            onClick={() => handleRestore(order)}
-                            style={{
-                              padding: '5px 12px', borderRadius: 7, fontSize: 12, fontWeight: 600,
-                              border: '1px solid #A7F3D0', background: '#ECFDF5', color: '#059669',
-                              cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
-                            }}
-                          >
-                            Restore
-                          </button>
-                          <button
-                            disabled={busy}
-                            onClick={() => setDeleteTarget(order)}
-                            style={{
-                              padding: '5px 12px', borderRadius: 7, fontSize: 12, fontWeight: 600,
-                              border: '1px solid #FECACA', background: '#FEF2F2', color: '#EF4444',
-                              cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
-                            }}
-                          >
-                            Delete
-                          </button>
+                          {isAdmin && (
+                            <button
+                              disabled={busy}
+                              onClick={() => handleRestore(order)}
+                              style={{
+                                padding: '5px 12px', borderRadius: 7, fontSize: 12, fontWeight: 600,
+                                border: '1px solid #A7F3D0', background: '#ECFDF5', color: '#059669',
+                                cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
+                              }}
+                            >
+                              Restore
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button
+                              disabled={busy}
+                              onClick={() => setDeleteTarget(order)}
+                              style={{
+                                padding: '5px 12px', borderRadius: 7, fontSize: 12, fontWeight: 600,
+                                border: '1px solid #FECACA', background: '#FEF2F2', color: '#EF4444',
+                                cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
+                              }}
+                            >
+                              Delete
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

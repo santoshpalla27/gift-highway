@@ -674,7 +674,7 @@ export function useOrderDetail(orderId: string | undefined) {
     // uploads
     uploadingFiles, setUploadingFiles, retryUpload, handlePickImage, handlePickDocument,
     // permissions
-    canEdit, user,
+    isAdmin, canEdit, user,
     // utils
     getEventPreview, getEventSenderName, getEventThumb,
   }

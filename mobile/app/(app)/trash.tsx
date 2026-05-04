@@ -10,6 +10,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 import { orderService, type TrashOrder } from '../../services/orderService'
 import { purgeNotificationOrder } from '../../hooks/useNotifications'
 import { formatRelative, formatDate } from '../../utils/date'
+import { useAuthStore } from '../../store/authStore'
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
 
@@ -248,9 +249,10 @@ function DeleteModal({ order, onClose, onConfirm }: {
 
 // ── Order card ────────────────────────────────────────────────────────────────
 
-function TrashCard({ order, busy, onRestore, onDelete }: {
+function TrashCard({ order, busy, isAdmin, onRestore, onDelete }: {
   order: TrashOrder
   busy: boolean
+  isAdmin: boolean
   onRestore: () => void
   onDelete: () => void
 }) {
@@ -273,24 +275,26 @@ function TrashCard({ order, busy, onRestore, onDelete }: {
           <Text style={C.metaText}>{formatRelative(order.archived_at)}</Text>
         )}
       </View>
-      <View style={C.actions}>
-        <TouchableOpacity
-          style={[C.restoreBtn, busy && { opacity: 0.5 }]}
-          disabled={busy}
-          onPress={onRestore}
-        >
-          <Ionicons name="refresh-outline" size={14} color="#059669" />
-          <Text style={C.restoreText}>Restore</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[C.deleteBtn, busy && { opacity: 0.5 }]}
-          disabled={busy}
-          onPress={onDelete}
-        >
-          <Ionicons name="trash-outline" size={14} color="#EF4444" />
-          <Text style={C.deleteBtnText}>Delete</Text>
-        </TouchableOpacity>
-      </View>
+      {isAdmin && (
+        <View style={C.actions}>
+          <TouchableOpacity
+            style={[C.restoreBtn, busy && { opacity: 0.5 }]}
+            disabled={busy}
+            onPress={onRestore}
+          >
+            <Ionicons name="refresh-outline" size={14} color="#059669" />
+            <Text style={C.restoreText}>Restore</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[C.deleteBtn, busy && { opacity: 0.5 }]}
+            disabled={busy}
+            onPress={onDelete}
+          >
+            <Ionicons name="trash-outline" size={14} color="#EF4444" />
+            <Text style={C.deleteBtnText}>Delete</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   )
 }
@@ -323,6 +327,8 @@ function ActiveFilterPills({ filters, onClear }: {
 export default function TrashScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'admin'
 
   const [orders, setOrders] = useState<TrashOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -503,6 +509,7 @@ export default function TrashScreen() {
             <TrashCard
               order={item}
               busy={actionLoading === item.id}
+              isAdmin={isAdmin}
               onRestore={() => handleRestore(item)}
               onDelete={() => setDeleteTarget(item)}
             />

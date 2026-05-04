@@ -363,22 +363,24 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
           </h1>
           <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>{subheader}</p>
         </div>
-        <button
-          onClick={() => { setModalKey(k => k + 1); setShowModal(true) }}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '7px 14px', borderRadius: 10, border: '1.5px solid transparent',
-            background: '#6366F1', color: '#FFFFFF', fontSize: 13, fontWeight: 600,
-            cursor: 'pointer', boxShadow: '0 2px 8px rgba(99,102,241,.15)', whiteSpace: 'nowrap',
-          }}
-          onMouseOver={e => { e.currentTarget.style.background = '#4F46E5' }}
-          onMouseOut={e => { e.currentTarget.style.background = '#6366F1' }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          Create Order
-        </button>
+        {user?.role === 'admin' && (
+          <button
+            onClick={() => { setModalKey(k => k + 1); setShowModal(true) }}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '7px 14px', borderRadius: 10, border: '1.5px solid transparent',
+              background: '#6366F1', color: '#FFFFFF', fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', boxShadow: '0 2px 8px rgba(99,102,241,.15)', whiteSpace: 'nowrap',
+            }}
+            onMouseOver={e => { e.currentTarget.style.background = '#4F46E5' }}
+            onMouseOut={e => { e.currentTarget.style.background = '#6366F1' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Create Order
+          </button>
+        )}
       </div>
 
       {/* ── Filter Toolbar ─────────────────────────────────────────────────── */}
@@ -661,7 +663,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                     <EmptyState
                       title={hasFilters || search ? 'No matching orders' : myOrdersOnly ? 'No orders assigned to you' : 'No orders yet'}
                       description={hasFilters || search ? 'Try adjusting your filters.' : 'Create the first order to get started.'}
-                      action={!hasFilters && !search ? { label: 'Create Order', onClick: () => { setModalKey(k => k + 1); setShowModal(true) } } : undefined}
+                      action={!hasFilters && !search && user?.role === 'admin' ? { label: 'Create Order', onClick: () => { setModalKey(k => k + 1); setShowModal(true) } } : undefined}
                       icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>}
                     />
                   </td>
