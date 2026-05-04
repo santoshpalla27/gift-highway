@@ -976,7 +976,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
 
 // ─── Status dropdown for right panel ─────────────────────────────────────────
 
-function StatusDropdown({ order, onUpdate }: { order: Order; onUpdate: (status: string) => void }) {
+function StatusDropdown({ order, onUpdate, allowedStatuses }: { order: Order; onUpdate: (status: string) => void; allowedStatuses: readonly string[] }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const sm = STATUS_META[order.status] ?? STATUS_META.new
@@ -1011,7 +1011,7 @@ function StatusDropdown({ order, onUpdate }: { order: Order; onUpdate: (status: 
           background: '#FFFFFF', border: '1px solid #E4E6EF', borderRadius: 10,
           boxShadow: '0 4px 16px rgba(0,0,0,.08)', padding: 4,
         }}>
-          {STATUS_OPTIONS.map(s => {
+          {STATUS_OPTIONS.filter(s => allowedStatuses.includes(s)).map(s => {
             const m = STATUS_META[s]
             const active = order.status === s
             return (
@@ -2050,7 +2050,7 @@ export function OrderDetailPage() {
 
           <PanelSection label="Status">
             {perms.canChangeStatus
-              ? <StatusDropdown order={order} onUpdate={s => updateStatus({ id: order.id, status: s })} />
+              ? <StatusDropdown order={order} onUpdate={s => updateStatus({ id: order.id, status: s })} allowedStatuses={perms.allowedStatuses} />
               : <span style={chip(sm)}>{sm.label}</span>
             }
           </PanelSection>
