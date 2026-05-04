@@ -9,6 +9,7 @@ import (
 
 	"github.com/company/app/backend/internal/models"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 )
 
 type OrderFilter struct {
@@ -212,6 +213,9 @@ func (r *OrderRepository) Create(ctx context.Context, o *models.Order, assignedT
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`, o.ID, o.Title, o.Description, o.CustomerName, o.ContactNumber, o.Status, o.Priority, o.CreatedBy, o.DueDate, o.DueTime)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
+			return nil, ErrDuplicateTitle
+		}
 		return nil, err
 	}
 
@@ -250,6 +254,9 @@ func (r *OrderRepository) Update(ctx context.Context, id, title, description, cu
 		WHERE id=$8
 	`, title, description, customerName, contactNumber, priority, dd, dt, id)
 	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
+			return ErrDuplicateTitle
+		}
 		return err
 	}
 

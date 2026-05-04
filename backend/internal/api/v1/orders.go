@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -153,6 +154,10 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	o, err := h.orderService.CreateOrder(c.Request.Context(), userID.(string), req)
 	if err != nil {
+		if errors.Is(err, repositories.ErrDuplicateTitle) {
+			c.JSON(http.StatusConflict, gin.H{"error": "An order with this ID already exists. Use a different ID or permanently delete the existing one."})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create order"})
 		return
 	}
@@ -214,6 +219,10 @@ func (h *OrderHandler) UpdateOrder(c *gin.Context) {
 	}
 
 	if err := h.orderService.UpdateOrder(ctx, id, req); err != nil {
+		if errors.Is(err, repositories.ErrDuplicateTitle) {
+			c.JSON(http.StatusConflict, gin.H{"error": "An order with this ID already exists. Use a different ID or permanently delete the existing one."})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update order"})
 		return
 	}

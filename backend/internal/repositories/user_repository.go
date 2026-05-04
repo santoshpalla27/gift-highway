@@ -17,6 +17,7 @@ type UserMention struct {
 }
 
 var ErrNotFound = errors.New("not found")
+var ErrDuplicateTitle = errors.New("an order with this ID already exists")
 
 type UserRepository struct {
 	db *sqlx.DB
