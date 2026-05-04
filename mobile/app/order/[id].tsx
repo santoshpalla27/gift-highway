@@ -347,7 +347,7 @@ export default function OrderDetailScreen() {
 
       {/* Sheets */}
       {D.showStatus && (
-        <StatusSheet order={order} onClose={() => D.setShowStatus(false)} onChanged={D.fetchOrder} />
+        <StatusSheet order={order} onClose={() => D.setShowStatus(false)} onChanged={D.fetchOrder} isAdmin={D.isAdmin} />
       )}
       {D.showInfo && (
         <InfoSheet

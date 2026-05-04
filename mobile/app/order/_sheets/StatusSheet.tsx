@@ -11,12 +11,14 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
   completed:   { label: 'Done',    color: '#10B981', bg: '#ECFDF5' },
 }
 
-export function StatusSheet({ order, onClose, onChanged }: {
+export function StatusSheet({ order, onClose, onChanged, isAdmin }: {
   order: Order
   onClose: () => void
   onChanged: () => void
+  isAdmin: boolean
 }) {
   const insets = useSafeAreaInsets()
+  const visibleOptions = isAdmin ? STATUS_OPTIONS : STATUS_OPTIONS.filter(s => s !== 'completed')
 
   const handlePick = async (status: string) => {
     try {
@@ -33,7 +35,7 @@ export function StatusSheet({ order, onClose, onChanged }: {
       <TouchableOpacity style={S.overlay} activeOpacity={1} onPress={onClose}>
         <View style={[S.sheet, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
           <Text style={S.title}>Change Status</Text>
-          {STATUS_OPTIONS.map(s => (
+          {visibleOptions.map(s => (
             <TouchableOpacity
               key={s}
               style={[S.row, order.status === s && S.rowActive]}
