@@ -331,7 +331,7 @@ func (s *AuditService) appendRow(existing []byte, row []string) []byte {
 func (s *AuditService) orderToRow(o *models.OrderWithNames) []string {
 	dueDateTime := ""
 	if o.DueDate != nil {
-		dueDateTime = o.DueDate.In(ist).Format("2006-01-02")
+		dueDateTime = o.DueDate.In(ist).Format("02/01/2006")
 		if o.DueTime != nil && *o.DueTime != "" {
 			dueDateTime += " " + to12h(*o.DueTime)
 		}
@@ -339,7 +339,7 @@ func (s *AuditService) orderToRow(o *models.OrderWithNames) []string {
 	archived := "—"
 	if o.IsArchived {
 		if o.ArchivedAt != nil {
-			archived = o.ArchivedAt.In(ist).Format("2006-01-02 3:04 PM")
+			archived = o.ArchivedAt.In(ist).Format("02/01/2006 3:04 PM")
 		} else {
 			archived = "yes"
 		}
@@ -354,7 +354,7 @@ func (s *AuditService) orderToRow(o *models.OrderWithNames) []string {
 		strings.Join(o.AssignedNames, "; "),
 		dueDateTime,
 		o.CreatedByName,
-		o.CreatedAt.In(ist).Format("2006-01-02"),
+		o.CreatedAt.In(ist).Format("02/01/2006 3:04 PM"),
 		archived,
 		"—",
 	}
@@ -375,7 +375,7 @@ func (s *AuditService) MarkDeleted(orderNumber int) {
 	if !s.enabled() {
 		return
 	}
-	deletedAt := time.Now().In(ist).Format("2006-01-02 3:04 PM")
+	deletedAt := time.Now().In(ist).Format("02/01/2006 3:04 PM")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -444,22 +444,8 @@ func (s *AuditService) filterByDateRange(data []byte, from, to time.Time) []byte
 		if len(row) <= createdAtCol {
 			continue
 		}
-		var t time.Time
-		parsed := false
-		// Try IST date first (current format), then legacy formats
-		if pt, err := time.ParseInLocation("2006-01-02", row[createdAtCol], ist); err == nil {
-			t = pt
-			parsed = true
-		} else {
-			for _, layout := range []string{"2006-01-02 15:04 UTC", time.RFC3339} {
-				if pt, err := time.Parse(layout, row[createdAtCol]); err == nil {
-					t = pt
-					parsed = true
-					break
-				}
-			}
-		}
-		if !parsed {
+		t, err := time.ParseInLocation("02/01/2006 3:04 PM", row[createdAtCol], ist)
+		if err != nil {
 			continue
 		}
 		if !t.Before(from) && t.Before(to) {
