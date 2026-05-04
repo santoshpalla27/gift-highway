@@ -368,14 +368,18 @@ export default function SettingsScreen() {
           subtitle="All order events"
           onPress={() => router.push('/(app)/activity' as never)}
         />
-        <View style={S.rowSep} />
-        <SettingsRow
-          icon="trash-outline"
-          iconBg="#9CA3AF"
-          label="Trash"
-          subtitle="Archived orders"
-          onPress={() => router.push('/(app)/trash' as never)}
-        />
+        {isAdmin && (
+          <>
+            <View style={S.rowSep} />
+            <SettingsRow
+              icon="trash-outline"
+              iconBg="#9CA3AF"
+              label="Trash"
+              subtitle="Archived orders"
+              onPress={() => router.push('/(app)/trash' as never)}
+            />
+          </>
+        )}
       </SectionCard>
 
       {/* ── Section 4: Admin Panel (conditional) ─────────────────────────── */}
