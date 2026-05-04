@@ -8,7 +8,8 @@ import (
 	"time"
 )
 
-const backupLogPath = "/var/log/app-backup.log"
+const backupLogPath   = "/var/log/app-backup.log"
+const s3BackupLogPath = "/var/log/app-backup-s3.log"
 
 var logTsRe = regexp.MustCompile(`^\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)\]`)
 
@@ -18,9 +19,8 @@ type BackupStatus struct {
 	LastOK  int64  `json:"last_ok"`  // unix ts of last successful completion (0 = never)
 }
 
-// collectBackupLogs returns the last n lines of the backup log file.
-func collectBackupLogs(n int) ([]string, error) {
-	f, err := os.Open(backupLogPath)
+func collectBackupLogs(logPath string, n int) ([]string, error) {
+	f, err := os.Open(logPath)
 	if os.IsNotExist(err) {
 		return []string{"(backup log not found — no backup has run yet)"}, nil
 	}
@@ -43,8 +43,8 @@ func collectBackupLogs(n int) ([]string, error) {
 	return lines, nil
 }
 
-func collectBackupStatus() (*BackupStatus, error) {
-	f, err := os.Open(backupLogPath)
+func collectBackupStatus(logPath string) (*BackupStatus, error) {
+	f, err := os.Open(logPath)
 	if os.IsNotExist(err) {
 		return &BackupStatus{Status: "never"}, nil
 	}
@@ -67,7 +67,7 @@ func collectBackupStatus() (*BackupStatus, error) {
 			continue
 		}
 		unix := t.Unix()
-		if strings.Contains(line, "Starting backup") {
+		if strings.Contains(line, "Starting backup") || strings.Contains(line, "Starting S3 backup") {
 			lastStart = unix
 		}
 		if strings.Contains(line, "Done.") {

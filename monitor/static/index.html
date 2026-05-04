@@ -158,11 +158,18 @@ tbody tr:hover td { background: rgba(255,255,255,.025); }
       </div>
     </div>
     <div class="card">
-      <div class="card-label">Last Backup</div>
+      <div class="card-label">Last R2 Backup</div>
       <div class="card-value" id="backup-val">—</div>
       <div class="card-sub" id="backup-sub">&nbsp;</div>
       <div class="bar"><div class="bar-fill ok" id="backup-bar" style="width:0%"></div></div>
       <div style="margin-top:12px"><button class="log-btn" onclick="openBackupLogs()" style="font-size:11px;padding:3px 10px">View Log</button></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Last S3 Backup</div>
+      <div class="card-value" id="s3backup-val">—</div>
+      <div class="card-sub" id="s3backup-sub">&nbsp;</div>
+      <div class="bar"><div class="bar-fill ok" id="s3backup-bar" style="width:0%"></div></div>
+      <div style="margin-top:12px"><button class="log-btn" onclick="openS3BackupLogs()" style="font-size:11px;padding:3px 10px">View Log</button></div>
     </div>
   </div>
 
@@ -512,11 +519,58 @@ async function fetchBackup() {
   barEl.className = 'bar-fill ' + (hours < 25 ? 'ok' : hours < 49 ? 'warn' : 'crit');
 }
 
+// ── S3 Backup status ───────────────────────────────────────────────────────
+async function fetchS3Backup() {
+  const d = await fetch('/api/backup/s3').then(r => r.json());
+  const valEl = document.getElementById('s3backup-val');
+  const subEl = document.getElementById('s3backup-sub');
+  const barEl = document.getElementById('s3backup-bar');
+
+  if (d.status === 'never') {
+    valEl.textContent = 'Never';
+    valEl.style.color = 'var(--muted)';
+    subEl.textContent = 'No backups run yet';
+    barEl.style.width = '0%';
+    barEl.className = 'bar-fill ok';
+    return;
+  }
+
+  if (d.status === 'running') {
+    valEl.textContent = 'Running…';
+    valEl.style.color = 'var(--yellow)';
+    subEl.textContent = 'Backup in progress';
+    barEl.style.width = '50%';
+    barEl.className = 'bar-fill warn';
+    return;
+  }
+
+  if (d.status === 'failed') {
+    valEl.textContent = 'Failed';
+    valEl.style.color = 'var(--red)';
+    const ago = d.last_run ? timeAgo(Math.floor(Date.now() / 1000) - d.last_run) : '—';
+    subEl.textContent = 'Last attempt: ' + ago;
+    barEl.style.width = '100%';
+    barEl.className = 'bar-fill crit';
+    return;
+  }
+
+  // ok — runs hourly so warn threshold is 2h, crit at 4h
+  const now = Math.floor(Date.now() / 1000);
+  const secs = now - d.last_ok;
+  const hours = secs / 3600;
+  valEl.textContent = timeAgo(secs);
+  valEl.style.color = hours < 2 ? 'var(--green)' : hours < 4 ? 'var(--yellow)' : 'var(--red)';
+  subEl.textContent = new Date(d.last_ok * 1000).toLocaleString();
+  const freshness = Math.min((secs / (4 * 3600)) * 100, 100);
+  barEl.style.width = freshness + '%';
+  barEl.className = 'bar-fill ' + (hours < 2 ? 'ok' : hours < 4 ? 'warn' : 'crit');
+}
+
 // ── Refresh loop ───────────────────────────────────────────────────────────
 async function refresh() {
   document.getElementById('dot').classList.add('loading');
   try {
-    await Promise.all([fetchSystem(), fetchContainers(), fetchVolumes(), fetchBackup()]);
+    await Promise.all([fetchSystem(), fetchContainers(), fetchVolumes(), fetchBackup(), fetchS3Backup()]);
     await fetchErrors(); // after fetchContainers so allContainers is populated
     document.getElementById('updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
   } catch (e) {
@@ -572,6 +626,10 @@ async function reloadLogs() {
     await loadBackupLogs();
     return;
   }
+  if (currentLogId === '__backup_s3__') {
+    await loadS3BackupLogs();
+    return;
+  }
   await loadLogs(currentLogId);
 }
 
@@ -589,11 +647,32 @@ async function loadBackupLogs() {
 
 async function openBackupLogs() {
   currentLogId = '__backup__';
-  document.getElementById('modal-title').textContent = 'Backup Log — last 200 lines';
+  document.getElementById('modal-title').textContent = 'R2 Backup Log — last 200 lines';
   document.getElementById('log-pre').textContent = 'Loading…';
   document.getElementById('log-search').value = '';
   document.getElementById('overlay').classList.add('open');
   await loadBackupLogs();
+}
+
+async function loadS3BackupLogs() {
+  try {
+    const d = await fetch('/api/backup/s3/logs').then(r => r.json());
+    currentLogLines = d.logs || [];
+    filterLogs();
+    document.getElementById('log-pre').parentElement.scrollTop =
+      document.getElementById('log-pre').parentElement.scrollHeight;
+  } catch (e) {
+    document.getElementById('log-pre').textContent = 'Error fetching S3 backup log: ' + e.message;
+  }
+}
+
+async function openS3BackupLogs() {
+  currentLogId = '__backup_s3__';
+  document.getElementById('modal-title').textContent = 'S3 Backup Log — last 200 lines';
+  document.getElementById('log-pre').textContent = 'Loading…';
+  document.getElementById('log-search').value = '';
+  document.getElementById('overlay').classList.add('open');
+  await loadS3BackupLogs();
 }
 
 function closeModal() {

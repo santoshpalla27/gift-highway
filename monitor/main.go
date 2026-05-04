@@ -33,6 +33,8 @@ func main() {
 	mux.HandleFunc("/api/errors", handleErrors)
 	mux.HandleFunc("/api/backup", handleBackup)
 	mux.HandleFunc("/api/backup/logs", handleBackupLogs)
+	mux.HandleFunc("/api/backup/s3", handleS3Backup)
+	mux.HandleFunc("/api/backup/s3/logs", handleS3BackupLogs)
 
 	log.Printf("monitor listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
@@ -91,7 +93,7 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleBackup(w http.ResponseWriter, r *http.Request) {
-	status, err := collectBackupStatus()
+	status, err := collectBackupStatus(backupLogPath)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -100,7 +102,25 @@ func handleBackup(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleBackupLogs(w http.ResponseWriter, r *http.Request) {
-	lines, err := collectBackupLogs(200)
+	lines, err := collectBackupLogs(backupLogPath, 200)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	respond(w, map[string]any{"logs": lines})
+}
+
+func handleS3Backup(w http.ResponseWriter, r *http.Request) {
+	status, err := collectBackupStatus(s3BackupLogPath)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	respond(w, status)
+}
+
+func handleS3BackupLogs(w http.ResponseWriter, r *http.Request) {
+	lines, err := collectBackupLogs(s3BackupLogPath, 200)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
