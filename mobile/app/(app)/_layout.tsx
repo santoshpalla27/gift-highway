@@ -167,6 +167,10 @@ export default function AppLayout() {
         options={{ href: null, title: 'Trash' }}
       />
       <Tabs.Screen
+        name="audit"
+        options={{ href: null, title: 'Audit Log' }}
+      />
+      <Tabs.Screen
         name="index"
         options={{
           href: null,

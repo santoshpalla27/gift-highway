@@ -392,6 +392,14 @@ export default function SettingsScreen() {
             subtitle="Manage users and access"
             onPress={() => router.push('/(app)/settings-admin' as never)}
           />
+          <View style={S.rowSep} />
+          <SettingsRow
+            icon="document-text-outline"
+            iconBg="#16A34A"
+            label="Audit Log"
+            subtitle="CSV export & R2 status"
+            onPress={() => router.push('/(app)/audit' as never)}
+          />
         </SectionCard>
       )}
 
