@@ -81,6 +81,8 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
   // Image dimensions
   const [imgNatural, setImgNatural] = useState<{ w: number; h: number } | null>(null)
   const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
+  const [blobUrl, setBlobUrl] = useState<string | null>(null)
+  const blobUrlRef = useRef<string | null>(null)
 
   // Drawing state
   const [strokes, setStrokes] = useState<Stroke[]>([])
@@ -91,28 +93,62 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
   const [saving, setSaving] = useState(false)
   const drawingRef = useRef(false)
 
-  // ── Load image to get natural dimensions ────────────────────────────────
+  // Zoom / pan state
+  const [scale, setScale] = useState(1)
+  const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const scaleRef = useRef(1)
+  const offsetRef = useRef({ x: 0, y: 0 })
+
+  // Pan mode (Space held)
+  const [spaceHeld, setSpaceHeld] = useState(false)
+  const spaceHeldRef = useRef(false)
+  const panningRef = useRef(false)
+  const panStartRef = useRef({ x: 0, y: 0 })
+  const panOffsetStartRef = useRef({ x: 0, y: 0 })
+
+  // ── Fetch image as blob URL to avoid CORS issues with canvas ────────────
 
   useEffect(() => {
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => setImgNatural({ w: img.naturalWidth, h: img.naturalHeight })
-    img.onerror = () => setImgNatural({ w: 800, h: 600 })
-    img.src = src
+    let cancelled = false
+    fetch(src)
+      .then(r => r.blob())
+      .then(blob => {
+        if (cancelled) return
+        const url = URL.createObjectURL(blob)
+        blobUrlRef.current = url
+        setBlobUrl(url)
+        const img = new Image()
+        img.onload = () => { if (!cancelled) setImgNatural({ w: img.naturalWidth, h: img.naturalHeight }) }
+        img.onerror = () => { if (!cancelled) setImgNatural({ w: 800, h: 600 }) }
+        img.src = url
+      })
+      .catch(() => {
+        if (!cancelled) setImgNatural({ w: 800, h: 600 })
+      })
+    return () => {
+      cancelled = true
+      if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null }
+    }
   }, [src])
 
   // ── Size canvas to fit container while keeping aspect ratio ─────────────
+  // Use rAF so the container has had a chance to paint at full size
 
   useEffect(() => {
-    if (!imgNatural || !containerRef.current) return
-    const container = containerRef.current
-    const maxW = container.clientWidth - 40
-    const maxH = container.clientHeight - 40
-    const ratio = imgNatural.w / imgNatural.h
-    let w = maxW
-    let h = w / ratio
-    if (h > maxH) { h = maxH; w = h * ratio }
-    setCanvasSize({ w: Math.round(w), h: Math.round(h) })
+    if (!imgNatural) return
+    const raf = requestAnimationFrame(() => {
+      if (!containerRef.current) return
+      const container = containerRef.current
+      const maxW = container.clientWidth - 40
+      const maxH = container.clientHeight - 40
+      if (maxW <= 0 || maxH <= 0) return
+      const ratio = imgNatural.w / imgNatural.h
+      let w = maxW
+      let h = w / ratio
+      if (h > maxH) { h = maxH; w = h * ratio }
+      setCanvasSize({ w: Math.round(w), h: Math.round(h) })
+    })
+    return () => cancelAnimationFrame(raf)
   }, [imgNatural])
 
   // ── Redraw all strokes whenever they change ─────────────────────────────
@@ -133,8 +169,13 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
   // ── Keyboard shortcuts ──────────────────────────────────────────────────
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
+    const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { onCancel(); return }
+      if (e.key === ' ' && !spaceHeldRef.current) {
+        e.preventDefault()
+        spaceHeldRef.current = true
+        setSpaceHeld(true)
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault()
         handleUndo()
@@ -144,37 +185,105 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
         handleRedo()
       }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ') {
+        spaceHeldRef.current = false
+        setSpaceHeld(false)
+        panningRef.current = false
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+    }
   }, [strokes, redoStack]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Pointer events for drawing ──────────────────────────────────────────
+  // ── Wheel zoom (non-passive so we can preventDefault) ──────────────────
 
-  function getCanvasPoint(e: React.PointerEvent<HTMLCanvasElement>): { x: number; y: number } {
-    const rect = canvasRef.current!.getBoundingClientRect()
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const delta = e.deltaY < 0 ? 1.1 : 0.9
+      const newScale = Math.min(Math.max(scaleRef.current * delta, 0.5), 8)
+      const rect = el.getBoundingClientRect()
+      // cursor position relative to container center
+      const cx = e.clientX - rect.left - rect.width / 2
+      const cy = e.clientY - rect.top - rect.height / 2
+      const ratio = newScale / scaleRef.current
+      const newOffset = {
+        x: cx - (cx - offsetRef.current.x) * ratio,
+        y: cy - (cy - offsetRef.current.y) * ratio,
+      }
+      scaleRef.current = newScale
+      offsetRef.current = newOffset
+      setScale(newScale)
+      setOffset(newOffset)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [canvasSize])
+
+  function resetZoom() {
+    scaleRef.current = 1
+    offsetRef.current = { x: 0, y: 0 }
+    setScale(1)
+    setOffset({ x: 0, y: 0 })
   }
 
-  function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
+  // ── Pointer events (on container so they work across the full zoomed area) ─
+
+  // Converts container-relative client coords → canvas pixel coords
+  function getCanvasPoint(clientX: number, clientY: number): { x: number; y: number } {
+    const rect = containerRef.current!.getBoundingClientRect()
+    // position relative to container center
+    const px = clientX - rect.left - rect.width / 2
+    const py = clientY - rect.top - rect.height / 2
+    // undo offset and scale to get inner-div local coords (origin = div center)
+    const lx = (px - offsetRef.current.x) / scaleRef.current
+    const ly = (py - offsetRef.current.y) / scaleRef.current
+    // shift origin from div center to canvas top-left
+    return { x: lx + canvasSize.w / 2, y: ly + canvasSize.h / 2 }
+  }
+
+  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
     e.preventDefault()
+    containerRef.current?.setPointerCapture(e.pointerId)
+    if (spaceHeldRef.current) {
+      panningRef.current = true
+      panStartRef.current = { x: e.clientX, y: e.clientY }
+      panOffsetStartRef.current = { ...offsetRef.current }
+      return
+    }
     drawingRef.current = true
-    canvasRef.current?.setPointerCapture(e.pointerId)
-    const pt = getCanvasPoint(e)
+    const pt = getCanvasPoint(e.clientX, e.clientY)
     setCurrentStroke({ points: [pt], color, width: strokeWidth })
     setRedoStack([])
   }
 
-  function handlePointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (!drawingRef.current || !currentStroke) return
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
     e.preventDefault()
-    const pt = getCanvasPoint(e)
+    if (panningRef.current) {
+      const dx = e.clientX - panStartRef.current.x
+      const dy = e.clientY - panStartRef.current.y
+      const newOffset = { x: panOffsetStartRef.current.x + dx, y: panOffsetStartRef.current.y + dy }
+      offsetRef.current = newOffset
+      setOffset(newOffset)
+      return
+    }
+    if (!drawingRef.current) return
+    const pt = getCanvasPoint(e.clientX, e.clientY)
     setCurrentStroke(prev => prev ? { ...prev, points: [...prev.points, pt] } : null)
   }
 
-  function handlePointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+  function handlePointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    containerRef.current?.releasePointerCapture(e.pointerId)
+    if (panningRef.current) { panningRef.current = false; return }
     if (!drawingRef.current) return
     drawingRef.current = false
-    canvasRef.current?.releasePointerCapture(e.pointerId)
     if (currentStroke && currentStroke.points.length >= 2) {
       setStrokes(prev => [...prev, currentStroke])
     }
@@ -216,13 +325,12 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
       offscreen.height = imgNatural.h
       const ctx = offscreen.getContext('2d')!
 
-      // Draw original image
+      // Draw original image using blob URL (avoids CORS tainting the canvas)
       const img = new Image()
-      img.crossOrigin = 'anonymous'
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve()
         img.onerror = () => reject(new Error('Failed to load image'))
-        img.src = src
+        img.src = blobUrl ?? src
       })
       ctx.drawImage(img, 0, 0, imgNatural.w, imgNatural.h)
 
@@ -251,17 +359,9 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
     }
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────
+  const loading = !imgNatural || canvasSize.w === 0
 
-  if (!imgNatural) {
-    return (
-      <div style={S.overlay}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-          <div style={{ width: 24, height: 24, border: '2.5px solid #6366F1', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-        </div>
-      </div>
-    )
-  }
+  // ── Render ──────────────────────────────────────────────────────────────
 
   return (
     <div ref={overlayRef} style={S.overlay}>
@@ -307,6 +407,12 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
           </div>
 
           <div style={S.actionRow}>
+            {scale !== 1 && (
+              <button onClick={resetZoom} style={{ ...S.actionBtn, color: '#6366F1', border: '1px solid #C7D2FE', background: '#EEF2FF', fontSize: 11, fontWeight: 700, width: 'auto', padding: '0 8px', gap: 4, display: 'flex', alignItems: 'center' }} title="Reset zoom">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"/></svg>
+                {scale.toFixed(1)}x
+              </button>
+            )}
             <button onClick={handleUndo} disabled={strokes.length === 0} style={{ ...S.actionBtn, opacity: strokes.length === 0 ? 0.35 : 1 }} title="Undo (Ctrl+Z)">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
             </button>
@@ -336,24 +442,37 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
         </div>
 
         {/* ── Drawing canvas ──────────────────────────────────────────── */}
-        <div ref={containerRef} style={S.canvasContainer}>
-          <div style={{ position: 'relative', width: canvasSize.w, height: canvasSize.h }}>
+        <div
+          ref={containerRef}
+          style={{ ...S.canvasContainer, cursor: loading ? 'default' : spaceHeld ? 'grab' : 'crosshair', touchAction: 'none', position: 'relative' }}
+          onPointerDown={loading ? undefined : handlePointerDown}
+          onPointerMove={loading ? undefined : handlePointerMove}
+          onPointerUp={loading ? undefined : handlePointerUp}
+          onPointerLeave={loading ? undefined : handlePointerUp}
+        >
+          {loading && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
+              <div style={{ width: 24, height: 24, border: '2.5px solid #6366F1', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            </div>
+          )}
+          <div style={{
+            position: 'relative', width: canvasSize.w, height: canvasSize.h,
+            transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+            transformOrigin: 'center center',
+            pointerEvents: 'none',
+            visibility: loading ? 'hidden' : 'visible',
+          }}>
             <img
-              src={src}
+              src={blobUrl ?? src}
               alt={filename}
-              crossOrigin="anonymous"
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', borderRadius: 6, pointerEvents: 'none', userSelect: 'none' }}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', borderRadius: 6, userSelect: 'none' }}
               draggable={false}
             />
             <canvas
               ref={canvasRef}
               width={canvasSize.w}
               height={canvasSize.h}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerLeave={handlePointerUp}
-              style={{ position: 'absolute', inset: 0, cursor: 'crosshair', touchAction: 'none', borderRadius: 6 }}
+              style={{ position: 'absolute', inset: 0, borderRadius: 6 }}
             />
           </div>
         </div>
@@ -369,11 +488,11 @@ const S: Record<string, React.CSSProperties> = {
     position: 'fixed', inset: 0, zIndex: 950,
     background: 'rgba(15,23,42,0.75)', backdropFilter: 'blur(8px)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: 16,
+    padding: 20,
   },
   modal: {
     background: '#FFFFFF', borderRadius: 20,
-    width: '100%', maxWidth: 1020, maxHeight: '96vh',
+    width: '100%', maxWidth: 860, height: '92vh',
     display: 'flex', flexDirection: 'column',
     overflow: 'hidden', boxShadow: '0 25px 60px rgba(0,0,0,0.25)',
   },
