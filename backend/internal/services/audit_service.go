@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/smtp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -32,6 +33,7 @@ var csvHeader = []string{
 
 type AuditService struct {
 	cfg *config.Config
+	mu  sync.Mutex // guards all R2 read-modify-write operations
 }
 
 func NewAuditService(cfg *config.Config) *AuditService {
@@ -61,10 +63,18 @@ func (s *AuditService) AppendOrder(order *models.OrderWithNames) {
 		return
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	existing := s.downloadCSV(ctx, client)
+	if s.rowExists(existing, order.OrderNumber) {
+		log.Warn().Int("order_number", order.OrderNumber).Msg("audit: duplicate append skipped")
+		return
+	}
 	updated := s.appendRow(existing, s.orderToRow(order))
 	if err := s.uploadCSV(ctx, client, updated); err != nil {
 		log.Error().Err(err).Msg("audit: upload failed on append")
+		s.sendWriteFailureAlert(err, "append")
 	} else {
 		log.Info().Int("order_number", order.OrderNumber).Msg("audit: order appended to CSV")
 	}
@@ -85,10 +95,14 @@ func (s *AuditService) SyncOrder(order *models.OrderWithNames) {
 		return
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	existing := s.downloadCSV(ctx, client)
 	updated := s.syncRow(existing, order)
 	if err := s.uploadCSV(ctx, client, updated); err != nil {
 		log.Error().Err(err).Msg("audit: upload failed on sync")
+		s.sendWriteFailureAlert(err, "sync")
 	} else {
 		log.Info().Int("order_number", order.OrderNumber).Msg("audit: order row synced")
 	}
@@ -176,7 +190,7 @@ func (s *AuditService) GetCSVBytes(ctx context.Context) ([]byte, error) {
 
 // GetCSVBytesFiltered returns CSV bytes filtered by range: "all", "today", or "month".
 // Returns the data and a suggested filename.
-func (s *AuditService) GetCSVBytesFiltered(ctx context.Context, rangeParam string) ([]byte, string, error) {
+func (s *AuditService) GetCSVBytesFiltered(ctx context.Context, rangeParam, fromDate, toDate string) ([]byte, string, error) {
 	all, err := s.GetCSVBytes(ctx)
 	if err != nil {
 		return nil, "", err
@@ -193,6 +207,16 @@ func (s *AuditService) GetCSVBytesFiltered(ctx context.Context, rangeParam strin
 		to := time.Date(nowIST.Year(), nowIST.Month()+1, 1, 0, 0, 0, 0, ist)
 		filtered := s.filterByDateRange(all, from, to)
 		return filtered, "orders_" + nowIST.Format("2006-01") + ".csv", nil
+	case "custom":
+		from, err1 := time.ParseInLocation("2006-01-02", fromDate, ist)
+		to, err2 := time.ParseInLocation("2006-01-02", toDate, ist)
+		if err1 != nil || err2 != nil {
+			return nil, "", fmt.Errorf("invalid date format — use YYYY-MM-DD")
+		}
+		to = to.Add(24 * time.Hour) // make to inclusive
+		filtered := s.filterByDateRange(all, from, to)
+		filename := fmt.Sprintf("orders_%s_to_%s.csv", fromDate, toDate)
+		return filtered, filename, nil
 	default: // "all"
 		return all, "orders_all_" + nowIST.Format("2006-01-02") + ".csv", nil
 	}
@@ -362,10 +386,14 @@ func (s *AuditService) MarkDeleted(orderNumber int) {
 		return
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	existing := s.downloadCSV(ctx, client)
 	updated := s.markDeletedRow(existing, orderNumber, deletedAt)
 	if err := s.uploadCSV(ctx, client, updated); err != nil {
 		log.Error().Err(err).Msg("audit: upload failed on mark-deleted")
+		s.sendWriteFailureAlert(err, "mark-deleted")
 	} else {
 		log.Info().Int("order_number", orderNumber).Msg("audit: order marked deleted in CSV")
 	}
@@ -483,39 +511,108 @@ func (s *AuditService) markDeletedRow(data []byte, orderNumber int, deletedAt st
 	return buf.Bytes()
 }
 
+// rowExists returns true if a row with the given order_number is already in the CSV.
+func (s *AuditService) rowExists(data []byte, orderNumber int) bool {
+	target := fmt.Sprintf("%d", orderNumber)
+	r := csv.NewReader(bytes.NewReader(data))
+	records, err := r.ReadAll()
+	if err != nil {
+		return false
+	}
+	for _, row := range records[1:] {
+		if len(row) > 0 && row[0] == target {
+			return true
+		}
+	}
+	return false
+}
+
+// sendWriteFailureAlert sends an email alert when an R2 write operation fails.
+func (s *AuditService) sendWriteFailureAlert(writeErr error, operation string) {
+	if !s.emailEnabled() {
+		return
+	}
+	subject := "Gift Highway — Audit Write Failure"
+	body := fmt.Sprintf(
+		"An audit CSV write failed during the '%s' operation.\n\nError: %v\n\nOrders may not be fully logged. Please check R2 storage and server logs.",
+		operation, writeErr,
+	)
+	if err := s.sendEmail(subject, body, "", nil); err != nil {
+		log.Error().Err(err).Msg("audit: failed to send write-failure alert")
+	}
+}
+
+// TestWrite writes a canary object to R2 and reads it back to verify full read/write access.
+func (s *AuditService) TestWrite(ctx context.Context) error {
+	if !s.enabled() {
+		return fmt.Errorf("audit storage not configured")
+	}
+	client, err := s.newR2Client(ctx)
+	if err != nil {
+		return fmt.Errorf("R2 client: %w", err)
+	}
+	const testKey = "audit/.canary"
+	payload := []byte("gift-highway-audit-canary")
+	if _, err = client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(s.cfg.AuditR2Bucket),
+		Key:         aws.String(testKey),
+		Body:        bytes.NewReader(payload),
+		ContentType: aws.String("text/plain"),
+	}); err != nil {
+		return fmt.Errorf("PutObject failed: %w", err)
+	}
+	out, err := client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.cfg.AuditR2Bucket),
+		Key:    aws.String(testKey),
+	})
+	if err != nil {
+		return fmt.Errorf("GetObject failed: %w", err)
+	}
+	out.Body.Close()
+	_, _ = client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(s.cfg.AuditR2Bucket),
+		Key:    aws.String(testKey),
+	})
+	return nil
+}
+
 // ── Email ─────────────────────────────────────────────────────────────────────
 
 func (s *AuditService) sendEmail(subject, body, filename string, attachment []byte) error {
 	auth := smtp.PlainAuth("", s.cfg.SMTPUser, s.cfg.SMTPPass, "smtp.gmail.com")
-	boundary := "GiftHighwayAuditBoundary42"
-
-	encoded := base64.StdEncoding.EncodeToString(attachment)
 
 	var msg strings.Builder
 	msg.WriteString("From: " + s.cfg.SMTPUser + "\r\n")
 	msg.WriteString("To: " + s.cfg.AuditEmailTo + "\r\n")
 	msg.WriteString("Subject: " + subject + "\r\n")
 	msg.WriteString("MIME-Version: 1.0\r\n")
-	msg.WriteString(`Content-Type: multipart/mixed; boundary="` + boundary + `"` + "\r\n\r\n")
 
-	// Plain text body part
-	msg.WriteString("--" + boundary + "\r\n")
-	msg.WriteString("Content-Type: text/plain; charset=utf-8\r\n\r\n")
-	msg.WriteString(body + "\r\n\r\n")
+	if len(attachment) == 0 {
+		// Plain text only — no attachment
+		msg.WriteString("Content-Type: text/plain; charset=utf-8\r\n\r\n")
+		msg.WriteString(body + "\r\n")
+	} else {
+		boundary := "GiftHighwayAuditBoundary42"
+		msg.WriteString(`Content-Type: multipart/mixed; boundary="` + boundary + `"` + "\r\n\r\n")
 
-	// CSV attachment part
-	msg.WriteString("--" + boundary + "\r\n")
-	msg.WriteString(`Content-Type: text/csv; name="` + filename + `"` + "\r\n")
-	msg.WriteString(`Content-Disposition: attachment; filename="` + filename + `"` + "\r\n")
-	msg.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
-	for i := 0; i < len(encoded); i += 76 {
-		end := i + 76
-		if end > len(encoded) {
-			end = len(encoded)
+		msg.WriteString("--" + boundary + "\r\n")
+		msg.WriteString("Content-Type: text/plain; charset=utf-8\r\n\r\n")
+		msg.WriteString(body + "\r\n\r\n")
+
+		encoded := base64.StdEncoding.EncodeToString(attachment)
+		msg.WriteString("--" + boundary + "\r\n")
+		msg.WriteString(`Content-Type: text/csv; name="` + filename + `"` + "\r\n")
+		msg.WriteString(`Content-Disposition: attachment; filename="` + filename + `"` + "\r\n")
+		msg.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
+		for i := 0; i < len(encoded); i += 76 {
+			end := i + 76
+			if end > len(encoded) {
+				end = len(encoded)
+			}
+			msg.WriteString(encoded[i:end] + "\r\n")
 		}
-		msg.WriteString(encoded[i:end] + "\r\n")
+		msg.WriteString("--" + boundary + "--\r\n")
 	}
-	msg.WriteString("--" + boundary + "--\r\n")
 
 	return smtp.SendMail("smtp.gmail.com:587", auth, s.cfg.SMTPUser,
 		[]string{s.cfg.AuditEmailTo}, []byte(msg.String()))

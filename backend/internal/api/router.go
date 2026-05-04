@@ -122,6 +122,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				adminGroup.GET("/metrics/users", dashboardHandler.GetUserMetrics)
 				adminGroup.GET("/audit/status", auditHandler.GetStatus)
 				adminGroup.GET("/audit/download", auditHandler.DownloadCSV)
+				adminGroup.POST("/audit/test", auditHandler.TestWrite)
 			}
 
 			// Profile routes

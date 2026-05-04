@@ -51,6 +51,10 @@ export function AuditPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [downloading, setDownloading] = useState<string | null>(null)
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
 
   const fetchStatus = () => {
     setLoading(true); setError(false)
@@ -62,10 +66,26 @@ export function AuditPage() {
 
   useEffect(() => { fetchStatus() }, [])
 
-  const handleDownload = async (range: 'all' | 'today' | 'month') => {
+  const handleTest = async () => {
+    setTesting(true); setTestResult(null)
+    try {
+      const res = await apiClient.post<{ ok: boolean; message: string }>('/admin/audit/test')
+      setTestResult({ ok: true, message: res.data.message })
+    } catch {
+      setTestResult({ ok: false, message: 'R2 write test failed — check server logs.' })
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  const handleDownload = async (range: 'all' | 'today' | 'month' | 'custom') => {
+    if (range === 'custom' && (!fromDate || !toDate)) return
     setDownloading(range)
     try {
-      const res = await apiClient.get(`/admin/audit/download?range=${range}`, { responseType: 'blob' })
+      const params = range === 'custom'
+        ? `range=custom&from=${fromDate}&to=${toDate}`
+        : `range=${range}`
+      const res = await apiClient.get(`/admin/audit/download?${params}`, { responseType: 'blob' })
       const disposition = res.headers['content-disposition'] ?? ''
       const match = disposition.match(/filename="?([^"]+)"?/)
       const filename = match ? match[1] : `orders_${range}_${new Date().toISOString().slice(0, 10)}.csv`
@@ -206,7 +226,51 @@ export function AuditPage() {
                     )
                   })}
                 </div>
+
+                {/* Custom date range */}
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #F1F5F9' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', marginBottom: 10 }}>Custom Range</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
+                      style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid #E5E7EB', fontSize: 13, color: '#374151', background: '#fff' }} />
+                    <span style={{ fontSize: 13, color: '#9CA3AF' }}>to</span>
+                    <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
+                      style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid #E5E7EB', fontSize: 13, color: '#374151', background: '#fff' }} />
+                    <button
+                      onClick={() => handleDownload('custom')}
+                      disabled={!status.csv_exists || !fromDate || !toDate || downloading !== null}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 7,
+                        border: '1px solid #E5E7EB', background: '#fff', fontSize: 13, fontWeight: 600,
+                        color: (!fromDate || !toDate || !status.csv_exists) ? '#9CA3AF' : '#374151',
+                        cursor: (!fromDate || !toDate || !status.csv_exists) ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      {downloading === 'custom' ? 'Downloading…' : 'Download'}
+                    </button>
+                  </div>
+                </div>
               </>
+            )}
+
+            {/* R2 connection test */}
+            {status.storage_configured && (
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <button
+                  onClick={handleTest}
+                  disabled={testing}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 7, border: '1px solid #E5E7EB', background: '#fff', fontSize: 13, fontWeight: 600, color: '#374151', cursor: testing ? 'not-allowed' : 'pointer' }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                  {testing ? 'Testing…' : 'Test R2 Connection'}
+                </button>
+                {testResult && (
+                  <span style={{ fontSize: 13, fontWeight: 600, color: testResult.ok ? '#059669' : '#DC2626' }}>
+                    {testResult.ok ? '✓ ' : '✗ '}{testResult.message}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </>
