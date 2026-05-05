@@ -113,7 +113,7 @@ function FilterSheet({
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={FS.container}>
         {/* Header */}
-        <View style={FS.header}>
+        <View style={[FS.header, { paddingTop: insets.top + 16 }]}>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="close" size={24} color="#0F172A" />
           </TouchableOpacity>
@@ -520,7 +520,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={F.container}>
-        <View style={F.header}>
+        <View style={[F.header, { paddingTop: insets.top + 16 }]}>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="close" size={24} color="#0F172A" />
           </TouchableOpacity>
@@ -941,7 +941,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
       )}
 
       {/* Search bar + filter icon */}
-      <View style={S.headerSurface}>
+      <View style={[S.headerSurface, { paddingTop: insets.top + 10 }]}>
         <View style={S.searchRow}>
           <View style={[S.searchBox, isSearchFocused && S.searchFocused]}>
             <Ionicons name="search" size={16} color={isSearchFocused ? '#0F172A' : '#94A3B8'} />
@@ -1049,7 +1049,6 @@ const S = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F9FAFB' },
   headerSurface: {
     backgroundColor: '#FFFFFF',
-    paddingTop: Platform.OS === 'ios' ? 48 : 20,
     paddingBottom: 10,
     borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
     zIndex: 10,
@@ -1118,7 +1117,6 @@ const FS = StyleSheet.create({
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 24, paddingVertical: 20,
-    paddingTop: Platform.OS === 'ios' ? 24 : 20,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
@@ -1228,7 +1226,7 @@ const C = StyleSheet.create({
 
 const F = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 20, paddingTop: Platform.OS === 'ios' ? 24 : 20, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 20, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   title: { fontSize: 20, fontWeight: '800', color: '#111827' },
   body: { padding: 24 },
   errorBox: { backgroundColor: '#FEF2F2', borderRadius: 12, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#FECACA' },
