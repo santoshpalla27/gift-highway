@@ -941,7 +941,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
       )}
 
       {/* Search bar + filter icon */}
-      <View style={[S.headerSurface, { paddingTop: insets.top + 10 }]}>
+      <View style={S.headerSurface}>
         <View style={S.searchRow}>
           <View style={[S.searchBox, isSearchFocused && S.searchFocused]}>
             <Ionicons name="search" size={16} color={isSearchFocused ? '#0F172A' : '#94A3B8'} />
