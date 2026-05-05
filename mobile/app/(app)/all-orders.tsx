@@ -1049,6 +1049,7 @@ const S = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F9FAFB' },
   headerSurface: {
     backgroundColor: '#FFFFFF',
+    paddingTop: 10,
     paddingBottom: 10,
     borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
     zIndex: 10,
