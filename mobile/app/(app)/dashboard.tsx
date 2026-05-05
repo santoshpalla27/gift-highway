@@ -266,7 +266,6 @@ function useDashboardData<T>(fetcher: () => Promise<T>) {
 type TabKey = 'my' | 'team'
 
 export default function DashboardScreen() {
-  const insets = useSafeAreaInsets()
   const { user } = useAuthStore()
   const [activeTab, setActiveTab] = useState<TabKey>('my')
 
@@ -286,7 +285,7 @@ export default function DashboardScreen() {
   const active = activeTab === 'team' ? team : my
 
   return (
-    <View style={[S.container, { paddingTop: insets.top }]}>
+    <View style={S.container}>
       {/* Header & Tabs */}
       <View style={S.header}>
         <View style={S.headerTop}>
