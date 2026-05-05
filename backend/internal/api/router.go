@@ -157,6 +157,8 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				notifGroup.POST("/read-all", notificationHandler.MarkAllRead)
 			}
 
+			protected.GET("/attachments/proxy", attachmentHandler.ProxyImage)
+
 			// Orders routes
 			ordersGroup := protected.Group("/orders")
 			{

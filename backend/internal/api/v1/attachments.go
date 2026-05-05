@@ -2,7 +2,10 @@ package v1
 
 import (
 	"errors"
+	"io"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/company/app/backend/internal/models"
 	"github.com/company/app/backend/internal/realtime"
@@ -116,6 +119,44 @@ func (h *AttachmentHandler) GetSignedURL(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"url": url})
+}
+
+// ProxyImage fetches an R2 image server-side and streams it back to the browser,
+// bypassing the CORS restriction that prevents direct fetch() from the frontend.
+func (h *AttachmentHandler) ProxyImage(c *gin.Context) {
+	rawURL := c.Query("url")
+	if rawURL == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing url"})
+		return
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid url"})
+		return
+	}
+	host := parsed.Hostname()
+	if !strings.HasSuffix(host, ".r2.cloudflarestorage.com") && !strings.HasSuffix(host, ".r2.dev") {
+		c.JSON(http.StatusForbidden, gin.H{"error": "url not allowed"})
+		return
+	}
+	resp, err := http.Get(rawURL) //nolint:gosec
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to fetch image"})
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		c.Status(resp.StatusCode)
+		return
+	}
+	ct := resp.Header.Get("Content-Type")
+	if ct == "" {
+		ct = "application/octet-stream"
+	}
+	c.Header("Content-Type", ct)
+	c.Header("Cache-Control", "private, max-age=3600")
+	c.Status(http.StatusOK)
+	io.Copy(c.Writer, resp.Body) //nolint:errcheck
 }
 
 func (h *AttachmentHandler) DeleteAttachment(c *gin.Context) {

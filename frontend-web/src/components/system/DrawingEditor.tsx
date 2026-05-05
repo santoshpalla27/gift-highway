@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useAuthStore } from '../../store/authStore'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -91,6 +92,7 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
   const [color, setColor] = useState(COLORS[1].value) // Red default
   const [strokeWidth, setStrokeWidth] = useState(WIDTHS[1].value) // Medium default
   const [saving, setSaving] = useState(false)
+  const [blobFetchFailed, setBlobFetchFailed] = useState(false)
   const drawingRef = useRef(false)
 
   // Zoom / pan state
@@ -110,8 +112,15 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
 
   useEffect(() => {
     let cancelled = false
-    fetch(src)
-      .then(r => r.blob())
+    const token = useAuthStore.getState().accessToken
+    const proxyUrl = `/api/v1/attachments/proxy?url=${encodeURIComponent(src)}`
+    fetch(proxyUrl, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.blob()
+      })
       .then(blob => {
         if (cancelled) return
         const url = URL.createObjectURL(blob)
@@ -123,7 +132,10 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
         img.src = url
       })
       .catch(() => {
-        if (!cancelled) setImgNatural({ w: 800, h: 600 })
+        if (!cancelled) {
+          setImgNatural({ w: 800, h: 600 })
+          setBlobFetchFailed(true)
+        }
       })
     return () => {
       cancelled = true
@@ -426,10 +438,12 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
 
           <button
             onClick={handleSave}
-            disabled={saving || strokes.length === 0}
+            disabled={saving || strokes.length === 0 || blobFetchFailed}
+            title={blobFetchFailed ? 'Image failed to load — close and reopen to retry' : undefined}
             style={{
               ...S.saveBtn,
-              opacity: (saving || strokes.length === 0) ? 0.5 : 1,
+              opacity: (saving || strokes.length === 0 || blobFetchFailed) ? 0.5 : 1,
+              cursor: (saving || strokes.length === 0 || blobFetchFailed) ? 'not-allowed' : 'pointer',
             }}
           >
             {saving ? (
@@ -450,9 +464,17 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
           onPointerUp={loading ? undefined : handlePointerUp}
           onPointerLeave={loading ? undefined : handlePointerUp}
         >
-          {loading && (
+          {loading && !blobFetchFailed && (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
               <div style={{ width: 24, height: 24, border: '2.5px solid #6366F1', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            </div>
+          )}
+          {blobFetchFailed && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, flexDirection: 'column', gap: 8 }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span style={{ fontSize: 13, color: '#64748B', textAlign: 'center', maxWidth: 260 }}>
+                Image could not be loaded for annotation.<br />Close and reopen the editor to retry.
+              </span>
             </div>
           )}
           <div style={{
