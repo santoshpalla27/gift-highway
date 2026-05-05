@@ -61,7 +61,7 @@ const S = StyleSheet.create({
     padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24,
   },
   title: { fontSize: 18, fontWeight: '800', color: '#0F172A', marginBottom: 16 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 10, marginBottom: 4 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 18, paddingHorizontal: 16, borderRadius: 12, marginBottom: 6 },
   rowActive: { backgroundColor: '#F8FAFC' },
   dot: { width: 10, height: 10, borderRadius: 5 },
   rowText: { flex: 1, fontSize: 16, color: '#334155', fontWeight: '500' },

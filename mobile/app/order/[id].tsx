@@ -147,33 +147,39 @@ export default function OrderDetailScreen() {
           )}
         </View>
 
-        {/* Chip row */}
-        <View style={S.chipRow}>
-          <TouchableOpacity
-            style={[S.chip, { backgroundColor: sm.bg }]}
-            onPress={() => D.setShowStatus(true)}
-            activeOpacity={0.7}
-          >
-            <Text style={[S.chipText, { color: sm.color }]}>{sm.label}</Text>
-            <Ionicons name="chevron-down" size={13} color={sm.color} style={{ marginLeft: 2 }} />
-          </TouchableOpacity>
-          <View style={[S.chip, { backgroundColor: pm.bg }]}>
-            <Text style={[S.chipText, { color: pm.color }]}>{pm.label}</Text>
-          </View>
-          <View style={[S.chip, { backgroundColor: '#F8FAFC' }]}>
-            <Ionicons name="person-outline" size={13} color="#64748B" />
-            <Text style={[S.chipText, { color: '#64748B', marginLeft: 4 }]}>
-              {order.assigned_names?.length > 0
-                ? order.assigned_names[0].split(' ')[0] + (order.assigned_names.length > 1 ? ` +${order.assigned_names.length - 1}` : '')
-                : 'Unassigned'}
-            </Text>
-          </View>
-          {order.due_date && (
-            <View style={[S.chip, { backgroundColor: '#F8FAFC' }]}>
-              <Ionicons name="calendar-outline" size={13} color="#64748B" />
+        {/* Chip rows */}
+        <View style={S.chipSection}>
+          {/* Row 1: status · priority · assignee */}
+          <View style={S.chipRow}>
+            <TouchableOpacity
+              style={[S.chip, S.chipFlex, { backgroundColor: sm.bg }]}
+              onPress={() => D.setShowStatus(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={[S.chipText, { color: sm.color }]}>{sm.label}</Text>
+              <Ionicons name="chevron-down" size={13} color={sm.color} style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+            <View style={[S.chip, S.chipFlex, { backgroundColor: pm.bg }]}>
+              <Text style={[S.chipText, { color: pm.color }]}>{pm.label}</Text>
+            </View>
+            <View style={[S.chip, S.chipFlex, { backgroundColor: '#F8FAFC' }]}>
+              <Ionicons name="person-outline" size={13} color="#64748B" />
               <Text style={[S.chipText, { color: '#64748B', marginLeft: 4 }]}>
-                {formatDate(order.due_date)}{order.due_time ? ` · ${fmt12hrStr(order.due_time)}` : ''}
+                {order.assigned_names?.length > 0
+                  ? order.assigned_names[0].split(' ')[0] + (order.assigned_names.length > 1 ? ` +${order.assigned_names.length - 1}` : '')
+                  : 'Unassigned'}
               </Text>
+            </View>
+          </View>
+          {/* Row 2: due date (only when set) */}
+          {order.due_date && (
+            <View style={S.chipRow}>
+              <View style={[S.chip, { backgroundColor: '#F8FAFC' }]}>
+                <Ionicons name="calendar-outline" size={13} color="#64748B" />
+                <Text style={[S.chipText, { color: '#64748B', marginLeft: 4 }]}>
+                  {formatDate(order.due_date)}{order.due_time ? ` · ${fmt12hrStr(order.due_time)}` : ''}
+                </Text>
+              </View>
             </View>
           )}
           {/* PORTAL HIDDEN: portal chip removed — see docs/portal-hidden.md to restore */}
@@ -441,9 +447,11 @@ const S = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingBottom: 12, paddingHorizontal: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', gap: 12 },
   headerCenter: { flex: 1 },
   headerTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#F8FAFC', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  chip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
-  chipText: { fontSize: 12, fontWeight: '600' },
+  chipSection: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, backgroundColor: '#F8FAFC', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  chipRow: { flexDirection: 'row', gap: 8 },
+  chip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999 },
+  chipFlex: { flex: 1 },
+  chipText: { fontSize: 13, fontWeight: '600' },
   timeline: { flex: 1, backgroundColor: '#F8FAFC' },
   timelineContent: { padding: 16, paddingBottom: 8 },
   emptyTimeline: { alignItems: 'center', paddingVertical: 48, gap: 12 },

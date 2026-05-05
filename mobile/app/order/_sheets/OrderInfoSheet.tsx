@@ -63,7 +63,7 @@ export function InfoSheet({ order, portal, onClose, onPortalChange, onArchived }
   return (
     <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-        <View style={E.header}>
+        <View style={[E.header, { paddingTop: insets.top + 16 }]}>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="close" size={24} color="#0F172A" />
           </TouchableOpacity>
@@ -231,7 +231,7 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
   return (
     <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-        <View style={E.header}>
+        <View style={[E.header, { paddingTop: insets.top + 16 }]}>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="close" size={24} color="#0F172A" />
           </TouchableOpacity>
@@ -416,7 +416,7 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const E = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, paddingTop: Platform.OS === 'ios' ? 54 : 16, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
   headerTitle: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
   errorBox: { backgroundColor: '#FEF2F2', borderRadius: 8, padding: 12, marginBottom: 20, borderWidth: 1, borderColor: '#FEE2E2' },
   errorText: { fontSize: 13, color: '#DC2626', fontWeight: '500' },
