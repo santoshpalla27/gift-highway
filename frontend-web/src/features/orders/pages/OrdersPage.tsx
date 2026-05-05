@@ -252,6 +252,9 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
     orderService.listUsersForAssignment().then(u => { setUsers(u); setUsersLoaded(true) }).catch(() => {})
   }, [usersLoaded])
 
+  // Eagerly load users when arriving with a pre-set assignee filter (e.g. from User Metrics)
+  useEffect(() => { if (assigneeRaw) loadUsers() }, [assigneeRaw, loadUsers])
+
   const [showModal, setShowModal] = useState(false)
   const [modalKey, setModalKey] = useState(0)
   const [toast, setToast] = useState<string | null>(null)

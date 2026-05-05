@@ -115,6 +115,7 @@ export function MetricsDashboard() {
   }
 
   return (
+    <div style={{ width: '100%', height: '100%', overflowY: 'auto' }}>
     <div style={{ padding: '28px 32px', maxWidth: 1100, margin: '0 auto' }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
@@ -271,6 +272,7 @@ export function MetricsDashboard() {
           </table>
         )}
       </div>
+    </div>
     </div>
   )
 }
