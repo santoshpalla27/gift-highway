@@ -197,7 +197,7 @@ function FilterSheet({
               </TouchableOpacity>
               {/* Dropdown list */}
               {showAssigneeList && (
-                <View style={FS.assigneeList}>
+                <ScrollView style={FS.assigneeList} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
                   {/* Unassigned row */}
                   {(() => {
                     const active = draft.assigneeIds.includes('unassigned')
@@ -235,7 +235,7 @@ function FilterSheet({
                       </TouchableOpacity>
                     )
                   })}
-                </View>
+                </ScrollView>
               )}
             </View>
           )}
@@ -783,14 +783,25 @@ function OrderCard({ order, onOpen, unreadCount = 0 }: {
 
 // ─── Active Filter Pills ──────────────────────────────────────────────────────
 
-function ActiveFilterPills({ filters, onClear }: { filters: FilterState; onClear: (key: keyof FilterState) => void }) {
+function ActiveFilterPills({ filters, onClear, userNameMap = {} }: {
+  filters: FilterState
+  onClear: (key: keyof FilterState) => void
+  userNameMap?: Record<string, string>
+}) {
   const pills: { label: string; key: keyof FilterState }[] = []
   if (filters.status) pills.push({ label: STATUS_META[filters.status]?.label ?? filters.status, key: 'status' })
   if (filters.priority) pills.push({ label: PRIORITY_META[filters.priority]?.label ?? filters.priority, key: 'priority' })
   if (filters.assigneeIds.length > 0) {
     const hasUnassigned = filters.assigneeIds.includes('unassigned')
-    const count = filters.assigneeIds.length
-    const label = count === 1 && hasUnassigned ? 'Unassigned' : count === 1 ? 'Assignee' : `${count} assignees`
+    const parts: string[] = []
+    if (hasUnassigned) parts.push('Unassigned')
+    filters.assigneeIds.filter(id => id !== 'unassigned').forEach(id => {
+      const name = userNameMap[id]
+      if (name) parts.push(name.split(' ')[0])
+    })
+    const label = parts.length > 0
+      ? (parts.length <= 2 ? parts.join(', ') : `${parts[0]} +${parts.length - 1}`)
+      : filters.assigneeIds.length === 1 ? 'Assignee' : `${filters.assigneeIds.length} assignees`
     pills.push({ label, key: 'assigneeIds' })
   }
   if (filters.dueDateFrom || filters.dueDateTo) {
@@ -852,6 +863,20 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
   }, [params.status, params.overdue, params.today, params.stale, params.assignee])
   const [showCreate, setShowCreate] = useState(false)
   const [editOrder, setEditOrder] = useState<Order | null>(null)
+  const [userNameMap, setUserNameMap] = useState<Record<string, string>>({})
+
+  // Eagerly resolve user names when assignee filter is set (e.g. arriving from admin metrics)
+  useEffect(() => {
+    const ids = filters.assigneeIds.filter(id => id !== 'unassigned' && !userNameMap[id])
+    if (ids.length === 0) return
+    orderService.listUsersForAssignment()
+      .then(users => setUserNameMap(m => {
+        const next = { ...m }
+        users.forEach(u => { next[u.id] = u.name })
+        return next
+      }))
+      .catch(() => {})
+  }, [filters.assigneeIds])
 
   const d0 = new Date()
   const today = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
@@ -950,7 +975,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
         </View>
 
         {/* Active filter pills */}
-        <ActiveFilterPills filters={filters} onClear={clearFilterKey} />
+        <ActiveFilterPills filters={filters} onClear={clearFilterKey} userNameMap={userNameMap} />
       </View>
 
       <View style={S.countBar}>
