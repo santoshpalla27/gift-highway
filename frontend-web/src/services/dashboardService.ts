@@ -15,6 +15,7 @@ export interface TeamStats {
 export interface MyStats {
   total_orders: number
   new_orders: number
+  working_orders: number
   assigned_to_me: number
   due_today: number
   overdue: number
