@@ -2,13 +2,13 @@
 
 ## How it works
 
-| Step | What happens | RAM cost |
-| ---- | ------------ | -------- |
-| `docker exec app-postgres pg_dump` | Runs inside the **existing** postgres container | 0 extra MB on host |
-| `\| gzip -6` | Streams through host gzip | ~2 MB |
-| Save to `/var/backups/app/` | Compressed SQL file | disk only |
-| Upload to Cloudflare R2 | Off-site copy via `rclone` | ~20 MB while uploading |
-| Rotate files > 7 days | `find -mtime +7 -delete` | 0 MB |
+| Step                               | What happens                                    | RAM cost               |
+| ---------------------------------- | ----------------------------------------------- | ---------------------- |
+| `docker exec app-postgres pg_dump` | Runs inside the **existing** postgres container | 0 extra MB on host     |
+| `\| gzip -6`                       | Streams through host gzip                       | ~2 MB                  |
+| Save to `/var/backups/app/`        | Compressed SQL file                             | disk only              |
+| Upload to Cloudflare R2            | Off-site copy via `rclone`                      | ~20 MB while uploading |
+| Rotate files > 7 days              | `find -mtime +7 -delete`                        | 0 MB                   |
 
 Total extra RAM during backup: **~22 MB** peak.
 
@@ -44,11 +44,11 @@ tail /var/log/app-backup.log
 
 ## Which recovery script to use?
 
-| Situation | Script |
-| --------- | ------ |
-| App is misbehaving, want to roll back to an earlier backup | `restore-db.sh` |
-| Postgres container crashed, stopped, or volume corrupted | `disaster-recovery.sh` |
-| Entire server is gone, starting fresh on a new machine | `disaster-recovery.sh` |
+| Situation                                                  | Script                 |
+| ---------------------------------------------------------- | ---------------------- |
+| App is misbehaving, want to roll back to an earlier backup | `restore-db.sh`        |
+| Postgres container crashed, stopped, or volume corrupted   | `disaster-recovery.sh` |
+| Entire server is gone, starting fresh on a new machine     | `disaster-recovery.sh` |
 
 ---
 
@@ -78,6 +78,7 @@ sudo bash scripts/disaster-recovery.sh
 ```
 
 It will:
+
 1. Stop all app services
 2. Start (or recreate) the postgres container and wait for it to be ready
 3. Download the latest backup from R2 if no local backup exists
@@ -121,3 +122,7 @@ ls -lh /var/backups/app/
 # Check cron is installed
 crontab -l
 ```
+
+COMPOSE_FILE=../docker-compose.staging.yml ./disaster-recovery.sh
+
+COMPOSE_FILE=../docker-compose.staging.yml ./restore-db.sh

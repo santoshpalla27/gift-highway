@@ -38,10 +38,12 @@ elif [ -f "$SCRIPT_DIR/../.env.prod" ]; then set -a; source "$SCRIPT_DIR/../.env
 elif [ -f "$SCRIPT_DIR/../.env" ];      then set -a; source "$SCRIPT_DIR/../.env";        set +a
 fi
 
-# Resolve docker-compose.yml: same directory first, then parent (repo layout)
-if   [ -f "$SCRIPT_DIR/docker-compose.yml" ];     then COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
-elif [ -f "$SCRIPT_DIR/../docker-compose.yml" ];  then COMPOSE_FILE="$(cd "$SCRIPT_DIR/.." && pwd)/docker-compose.yml"
-else COMPOSE_FILE="$SCRIPT_DIR/../docker-compose.yml"  # will fail below with a clear error
+# Resolve compose file — COMPOSE_FILE env var overrides auto-detection
+if [ -z "${COMPOSE_FILE:-}" ]; then
+  if   [ -f "$SCRIPT_DIR/docker-compose.yml" ];     then COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
+  elif [ -f "$SCRIPT_DIR/../docker-compose.yml" ];  then COMPOSE_FILE="$(cd "$SCRIPT_DIR/.." && pwd)/docker-compose.yml"
+  else COMPOSE_FILE="$SCRIPT_DIR/../docker-compose.yml"  # will fail below with a clear error
+  fi
 fi
 POSTGRES_USER="${POSTGRES_USER:-app}"
 POSTGRES_DB="${POSTGRES_DB:-appdb}"

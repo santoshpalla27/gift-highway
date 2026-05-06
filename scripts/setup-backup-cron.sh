@@ -12,7 +12,11 @@ S3_LOG=/var/log/app-backup-s3.log
 # Install rclone if not present (used for R2 and S3 uploads)
 if ! command -v rclone &>/dev/null; then
   echo "Installing rclone..."
-  apt-get install -y rclone
+  if command -v apt-get &>/dev/null; then
+    apt-get install -y rclone
+  else
+    curl https://rclone.org/install.sh | bash
+  fi
 fi
 
 # Verify backup scripts exist

@@ -74,8 +74,15 @@ SIZE=$(du -h "$DUMP_FILE" | cut -f1)
 log "Dump complete: $FILENAME ($SIZE)"
 
 # ── Upload to AWS S3 (requires rclone + S3 creds in .env) ────────────────────
-# Install once on the host:  sudo apt install rclone
-# rclone is configured entirely via env vars — no config file needed.
+# Auto-install rclone if missing
+if ! command -v rclone &>/dev/null; then
+  log "rclone not found — installing..."
+  if command -v apt-get &>/dev/null; then
+    apt-get install -y rclone >> "$LOG" 2>&1
+  else
+    curl -s https://rclone.org/install.sh | bash >> "$LOG" 2>&1
+  fi
+fi
 if command -v rclone &>/dev/null \
    && [ -n "${S3_ACCESS_KEY:-}" ] \
    && [ -n "${S3_SECRET_KEY:-}" ] \

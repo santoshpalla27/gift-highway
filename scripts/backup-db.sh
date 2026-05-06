@@ -84,8 +84,15 @@ SIZE=$(du -h "$DUMP_FILE" | cut -f1)
 log "Dump complete: $FILENAME ($SIZE)"
 
 # ── Upload to Cloudflare R2 (optional — requires rclone) ─────────────────────
-# Install once on the host:  sudo apt install rclone
-# rclone is configured entirely via env vars below — no config file needed.
+# Auto-install rclone if missing
+if ! command -v rclone &>/dev/null; then
+  log "rclone not found — installing..."
+  if command -v apt-get &>/dev/null; then
+    apt-get install -y rclone >> "$LOG" 2>&1
+  else
+    curl -s https://rclone.org/install.sh | bash >> "$LOG" 2>&1
+  fi
+fi
 if command -v rclone &>/dev/null \
    && [ -n "${R2_ACCESS_KEY:-}" ] \
    && [ -n "${R2_SECRET_KEY:-}" ] \
