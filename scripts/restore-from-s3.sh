@@ -69,7 +69,7 @@ else
     [ -n "${S3_BUCKET:-}" ]       || die "S3_BUCKET not set in .env"
 
     LATEST_S3=$(s3_env lsf "s3:${S3_BUCKET}/db-backups/" --include "app_s3_*.sql.gz" \
-                  2>/dev/null | sort | tail -1)
+                  --files-only 2>/dev/null | sort | tail -1)
     [ -n "$LATEST_S3" ] || die "No backups found in S3 (s3://${S3_BUCKET}/db-backups/)"
 
     mkdir -p "$BACKUP_DIR"

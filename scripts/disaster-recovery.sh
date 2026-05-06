@@ -93,7 +93,7 @@ else
     [ -n "${R2_BUCKET:-}" ]       || die "R2_BUCKET not set in .env.prod"
 
     LATEST_R2=$(r2_env lsf "r2:${R2_BUCKET}/db-backups/" --include "app_*.sql.gz" \
-                  2>/dev/null | sort | tail -1)
+                  --files-only 2>/dev/null | sort | tail -1)
     [ -n "$LATEST_R2" ] || die "No backups found in R2 bucket '${R2_BUCKET}'"
 
     mkdir -p "$BACKUP_DIR"
