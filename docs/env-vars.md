@@ -111,11 +111,12 @@ ADMIN_AUTH — format is username:bcrypt_hash. Run:
 Ubuntu:
 
 sudo apt update && sudo apt install -y apache2-utils
-htpasswd -nbB admin yourpassword
+htpasswd -nbB admin yourpassword | sed 's/\$/\$\$/g'
+
 Amazon Linux:
 
 sudo yum install -y httpd-tools
-htpasswd -nbB admin yourpassword
+htpasswd -nbB admin yourpassword | sed 's/\$/\$\$/g'
 
 Output looks like:
 admin:$2y$05$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
