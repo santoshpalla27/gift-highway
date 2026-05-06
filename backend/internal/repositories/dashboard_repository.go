@@ -30,6 +30,7 @@ type TeamStats struct {
 type MyStats struct {
 	TotalOrders       int `db:"total_orders"       json:"total_orders"`
 	NewOrders         int `db:"new_orders"         json:"new_orders"`
+	WorkingOrders     int `db:"working_orders"     json:"working_orders"`
 	AssignedToMe      int `db:"assigned_to_me"     json:"assigned_to_me"`
 	DueToday          int `db:"due_today"          json:"due_today"`
 	Overdue           int `db:"overdue"            json:"overdue"`
@@ -106,6 +107,8 @@ func (r *DashboardRepository) GetMyStats(ctx context.Context, userID, localDate 
 			(SELECT COUNT(*) FROM order_assignees oa JOIN orders o ON o.id = oa.order_id WHERE oa.user_id = $1 AND o.is_archived = false) AS total_orders,
 			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
 			 WHERE oa.user_id = $1 AND o.status = 'new' AND o.is_archived = false) AS new_orders,
+			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
+			 WHERE oa.user_id = $1 AND o.status = 'in_progress' AND o.is_archived = false) AS working_orders,
 			(SELECT COUNT(*) FROM order_assignees oa JOIN orders o ON o.id = oa.order_id WHERE oa.user_id = $1 AND o.is_archived = false) AS assigned_to_me,
 			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
 			 WHERE oa.user_id = $1 AND o.due_date = $2::date AND o.status != 'completed' AND o.is_archived = false) AS due_today,
