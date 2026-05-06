@@ -45,6 +45,11 @@ trap 'rm -f "$LOCK_FILE"' EXIT INT TERM
 touch "$LOCK_FILE"
 
 # ── Start ─────────────────────────────────────────────────────────────────────
+if [ ! -d "$BACKUP_DIR" ] || [ ! -w "$BACKUP_DIR" ]; then
+  sudo mkdir -p "$BACKUP_DIR"
+  sudo chown "$(id -u):$(id -g)" "$BACKUP_DIR"
+  sudo chmod 755 "$BACKUP_DIR"
+fi
 mkdir -p "$BACKUP_DIR"
 touch "$LOG"
 

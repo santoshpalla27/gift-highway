@@ -4,7 +4,7 @@ sudo apt-get update -y && sudo apt-get upgrade -y
 
 2. Install dependencies
 
-sudo apt-get install -y curl wget gnupg2 lsb-release ca-certificates ufw fail2ban unattended-upgrades htop net-tools logrotate chrony
+sudo apt-get install -y rclone curl wget gnupg2 lsb-release ca-certificates ufw fail2ban unattended-upgrades htop net-tools logrotate chrony
 
 3. Create 2GB swap
 

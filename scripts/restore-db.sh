@@ -20,6 +20,13 @@ set -euo pipefail
 BACKUP_DIR=/var/backups/app
 CONTAINER=app-postgres
 
+# Ensure backup directory exists and is writable
+if [ ! -d "$BACKUP_DIR" ] || [ ! -w "$BACKUP_DIR" ]; then
+  sudo mkdir -p "$BACKUP_DIR"
+  sudo chown "$(id -u):$(id -g)" "$BACKUP_DIR"
+  sudo chmod 755 "$BACKUP_DIR"
+fi
+
 # ── Load .env ─────────────────────────────────────────────────────────────────
 # Checks same directory first (standalone deployment), then parent directory
 # (repo deployment where scripts live in gift-highway/scripts/).
