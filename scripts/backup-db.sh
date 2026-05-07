@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# PostgreSQL backup for GiftHighway (2 GB server, Ubuntu)
+# PostgreSQL backup for GiftHighway — secondary R2 backup, runs every hour.
 # Runs pg_dump inside the existing postgres container — zero extra RAM cost.
 # Off-site upload uses rclone (apt install rclone) — no AWS CLI needed.
+# S3 is the primary backup (every 5 min). R2 is secondary (every hour).
 set -euo pipefail
 
 # ── Config ────────────────────────────────────────────────────────────────────
 LOG=/var/log/app-backup.log
 BACKUP_DIR=/var/backups/app
-KEEP_DAYS=7
+KEEP_DAYS=1
 CONTAINER=app-postgres
 LOCK_FILE=/tmp/app-backup.lock
 
@@ -117,7 +118,7 @@ else
 fi
 
 # ── Rotate local backups ──────────────────────────────────────────────────────
-DELETED=$(find "$BACKUP_DIR" -name "app_*.sql.gz" -mtime "+${KEEP_DAYS}" -print -delete | wc -l)
+DELETED=$(find "$BACKUP_DIR" -maxdepth 1 -name "app_*.sql.gz" -not -name "app_s3_*.sql.gz" -mtime "+${KEEP_DAYS}" -print -delete | wc -l)
 [ "$DELETED" -gt 0 ] && log "Rotated $DELETED local backup(s) older than ${KEEP_DAYS} day(s)"
 
 log "Done."

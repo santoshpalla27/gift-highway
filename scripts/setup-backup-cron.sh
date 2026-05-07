@@ -31,7 +31,7 @@ fi
 chmod +x "$BACKUP_SCRIPT"
 chmod +x "$S3_BACKUP_SCRIPT"
 chmod +x "$SCRIPT_DIR/restore-db.sh"
-chmod +x "$SCRIPT_DIR/disaster-recovery.sh"
+chmod +x "$SCRIPT_DIR/restore-from-s3.sh"
 chmod +x "$SCRIPT_DIR/setup-backup-cron.sh"
 
 # Create log files
@@ -61,10 +61,10 @@ EOF
 echo "Log rotation: /etc/logrotate.d/app-backup (weekly, 4 weeks)"
 
 # ── Cron jobs ─────────────────────────────────────────────────────────────────
-# R2 backup: every 5 hours
-CRON_R2="0 */5 * * * $BACKUP_SCRIPT"
-# S3 backup: every hour
-CRON_S3="0 * * * * $S3_BACKUP_SCRIPT"
+# R2 backup: every hour (secondary)
+CRON_R2="0 * * * * $BACKUP_SCRIPT"
+# S3 backup: every 5 minutes (primary — 5-min RPO)
+CRON_S3="*/5 * * * * $S3_BACKUP_SCRIPT"
 
 CURRENT_CRON=$(crontab -l 2>/dev/null || true)
 
@@ -72,14 +72,14 @@ if echo "$CURRENT_CRON" | grep -qF "$BACKUP_SCRIPT"; then
   echo "R2 cron job already installed — no changes made."
 else
   (echo "$CURRENT_CRON"; echo "$CRON_R2") | crontab -
-  echo "R2 cron job installed: every 5 hours"
+  echo "R2 cron job installed: every hour"
 fi
 
 if echo "$CURRENT_CRON" | grep -qF "$S3_BACKUP_SCRIPT"; then
   echo "S3 cron job already installed — no changes made."
 else
   (crontab -l 2>/dev/null; echo "$CRON_S3") | crontab -
-  echo "S3 cron job installed: every hour"
+  echo "S3 cron job installed: every 5 minutes (primary backup)"
 fi
 
 echo ""

@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# PostgreSQL backup for GiftHighway — secondary off-site copy to AWS S3.
+# PostgreSQL backup for GiftHighway — primary off-site backup to AWS S3, runs every 5 minutes.
 # Runs pg_dump inside the existing postgres container — zero extra RAM cost.
 # Upload uses rclone (apt install rclone) — no AWS CLI needed.
-# Intended as a second backup in a separate AWS account from the primary R2 backup.
+# R2 is the secondary hourly backup. S3 is primary (5-min cadence = 5-min RPO).
 set -euo pipefail
 
 # ── Config ────────────────────────────────────────────────────────────────────
 LOG=/var/log/app-backup-s3.log
 BACKUP_DIR=/var/backups/app
-KEEP_DAYS=14          # keep S3 local copies 14 days (longer than R2 rotation)
+KEEP_DAYS=1           # keep 1 day of local S3 backups (288 files/day at 5-min cadence)
 CONTAINER=app-postgres
 LOCK_FILE=/tmp/app-backup-s3.lock
 
@@ -107,7 +107,7 @@ else
 fi
 
 # ── Rotate local backups ──────────────────────────────────────────────────────
-DELETED=$(find "$BACKUP_DIR" -name "app_s3_*.sql.gz" -mtime "+${KEEP_DAYS}" -print -delete | wc -l)
+DELETED=$(find "$BACKUP_DIR" -maxdepth 1 -name "app_s3_*.sql.gz" -mtime "+${KEEP_DAYS}" -print -delete | wc -l)
 [ "$DELETED" -gt 0 ] && log "Rotated $DELETED local S3 backup(s) older than ${KEEP_DAYS} day(s)"
 
 log "Done."

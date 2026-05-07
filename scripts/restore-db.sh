@@ -70,34 +70,41 @@ r2_env() {
 if [ $# -ge 1 ]; then
   BACKUP_FILE="$1"
   [ -f "$BACKUP_FILE" ] || die "File not found: $BACKUP_FILE"
+  log "Using specified file: $BACKUP_FILE"
 else
-  BACKUP_FILE=$(find "$BACKUP_DIR" -name "app_*.sql.gz" 2>/dev/null | sort | tail -1)
+  # Only look for R2 backup files (app_YYYY-*.sql.gz), not S3 files (app_s3_*)
+  BACKUP_FILE=$(find "$BACKUP_DIR" -maxdepth 1 -name "app_*.sql.gz" \
+                  -not -name "app_s3_*.sql.gz" 2>/dev/null | sort | tail -1)
 
-  if [ -z "$BACKUP_FILE" ]; then
-    log "No local backup found — fetching latest from R2..."
-    command -v rclone &>/dev/null   || die "rclone not installed (apt install rclone)"
-    [ -n "${R2_ACCESS_KEY:-}" ]     || die "R2_ACCESS_KEY not set in .env.prod"
-    [ -n "${R2_SECRET_KEY:-}" ]     || die "R2_SECRET_KEY not set in .env.prod"
-    [ -n "${R2_ENDPOINT:-}" ]       || die "R2_ENDPOINT or R2_ACCOUNT_ID not set in .env.prod"
-    [ -n "${R2_BUCKET:-}" ]         || die "R2_BUCKET not set in .env.prod"
+  if [ -n "$BACKUP_FILE" ]; then
+    log "Found local R2 backup: $BACKUP_FILE"
+  else
+    log "No local R2 backup found — fetching latest from Cloudflare R2..."
+    command -v rclone &>/dev/null || die "rclone not installed (apt install rclone)"
+    [ -n "${R2_ACCESS_KEY:-}" ]   || die "R2_ACCESS_KEY not set in .env"
+    [ -n "${R2_SECRET_KEY:-}" ]   || die "R2_SECRET_KEY not set in .env"
+    [ -n "${R2_ENDPOINT:-}" ]     || die "R2_ENDPOINT or R2_ACCOUNT_ID not set in .env"
+    [ -n "${R2_BUCKET:-}" ]       || die "R2_BUCKET not set in .env"
 
     LATEST_R2=$(r2_env lsf "r2:${R2_BUCKET}/db-backups/" --include "app_*.sql.gz" \
-                  --files-only 2>/dev/null | sort | tail -1)
-    [ -n "$LATEST_R2" ] || die "No backups found in R2 (r2:${R2_BUCKET}/db-backups/)"
+                  --files-only 2>/dev/null | grep -v "^app_s3_" | sort | tail -1)
+    [ -n "$LATEST_R2" ] || die "No R2 backups found in r2://${R2_BUCKET}/db-backups/"
 
     mkdir -p "$BACKUP_DIR"
-    log "Downloading $LATEST_R2 from R2..."
+    log "Downloading from Cloudflare R2: r2://${R2_BUCKET}/db-backups/${LATEST_R2}"
     r2_env copy "r2:${R2_BUCKET}/db-backups/${LATEST_R2}" "$BACKUP_DIR/" \
       --no-traverse --log-level ERROR
     BACKUP_FILE="$BACKUP_DIR/$LATEST_R2"
+    log "Downloaded: $BACKUP_FILE"
   fi
 fi
 
-log "Backup file: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
+BACKUP_AGE=$(( ($(date +%s) - $(stat -c%Y "$BACKUP_FILE" 2>/dev/null || echo 0)) / 60 ))
+log "Backup file: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1), ${BACKUP_AGE} min old)"
 
 # ── Check postgres container is running ───────────────────────────────────────
 docker inspect --format='{{.State.Status}}' "$CONTAINER" 2>/dev/null | grep -q "^running$" \
-  || die "Container '$CONTAINER' is not running. If the DB has crashed, use: sudo bash scripts/disaster-recovery.sh"
+  || die "Container '$CONTAINER' is not running. Start it with: docker compose up -d postgres"
 log "Postgres container: running"
 
 # ── Show current tables ───────────────────────────────────────────────────────
@@ -134,8 +141,11 @@ docker exec "$CONTAINER" psql -U "$POSTGRES_USER" -d postgres -c \
 
 # ── Restore ───────────────────────────────────────────────────────────────────
 log "Restoring from backup (errors will be shown)..."
+set +e
 gunzip -c "$BACKUP_FILE" \
-  | docker exec -i "$CONTAINER" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+  | docker exec -i "$CONTAINER" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+    --set ON_ERROR_STOP=off 2>&1 | grep -v "^SET$\|^--\|already exists\|^$" || true
+set -e
 
 # ── Verify ────────────────────────────────────────────────────────────────────
 log "Tables after restore:"
