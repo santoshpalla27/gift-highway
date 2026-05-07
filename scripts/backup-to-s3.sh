@@ -24,6 +24,11 @@ fi
 POSTGRES_USER="${POSTGRES_USER:-app}"
 POSTGRES_DB="${POSTGRES_DB:-appdb}"
 
+# ── Fix log path if it was accidentally created as a directory ────────────────
+if [ -d "$LOG" ]; then sudo rm -rf "$LOG"; fi
+sudo touch "$LOG" 2>/dev/null || LOG=/tmp/app-backup-s3.log && touch "$LOG"
+sudo chmod 644 "$LOG" 2>/dev/null || true
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*" | tee -a "$LOG"; }
 exec 2>> "$LOG"

@@ -31,6 +31,11 @@ if [ -z "${R2_ENDPOINT:-}" ] && [ -n "${R2_ACCOUNT_ID:-}" ]; then
   R2_ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 fi
 
+# ── Fix log path if it was accidentally created as a directory ────────────────
+if [ -d "$LOG" ]; then sudo rm -rf "$LOG"; fi
+sudo touch "$LOG" 2>/dev/null || LOG=/tmp/app-backup.log && touch "$LOG"
+sudo chmod 644 "$LOG" 2>/dev/null || true
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*" | tee -a "$LOG"; }
 
