@@ -1,0 +1,80 @@
+# DB test compose — postgres + backend + frontend only, exposed on host ports.
+# No traefik, no monitoring, no push service.
+# Usage:
+#   docker compose -f docker-compose.db-test.yml up -d --build
+#   Backend API: http://<server-ip>:8080
+#   Frontend:    http://<server-ip>:3000
+#   Postgres:    <server-ip>:5432
+#   Tear down:   docker compose -f docker-compose.db-test.yml down
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dbtest-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-appdb}
+      - POSTGRES_USER=${POSTGRES_USER:-app}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - dbtest-postgres-data:/var/lib/postgresql/data
+    networks:
+      - dbtest-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app} -d ${POSTGRES_DB:-appdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dbtest-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_ENV=production
+      - PORT=8080
+      - DATABASE_URL=postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-appdb}?sslmode=disable
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRY=${JWT_EXPIRY:-15m}
+      - REFRESH_EXPIRY=${REFRESH_EXPIRY:-720h}
+      - ALLOWED_ORIGINS=*
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
+      - R2_ACCESS_KEY=${R2_ACCESS_KEY}
+      - R2_SECRET_KEY=${R2_SECRET_KEY}
+      - R2_BUCKET=${R2_BUCKET}
+      - R2_PUBLIC_URL=${R2_PUBLIC_URL}
+      - AUDIT_R2_BUCKET=${AUDIT_R2_BUCKET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dbtest-net
+
+  frontend:
+    build:
+      context: ./frontend-web
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://${DOMAIN:-localhost}:8080/api/v1
+    container_name: dbtest-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - dbtest-net
+
+volumes:
+  dbtest-postgres-data:
+
+networks:
+  dbtest-net:
+    driver: bridge
