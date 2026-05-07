@@ -1,128 +1,109 @@
-# Database Backup & Recovery — GiftHighway
+we have two backup scripts
 
-## How it works
+1. backup-db.sh - this script will backup the database to R2
+2. backup-to-s3.sh - this script will backup the database to S3
 
-| Step                               | What happens                                    | RAM cost               |
-| ---------------------------------- | ----------------------------------------------- | ---------------------- |
-| `docker exec app-postgres pg_dump` | Runs inside the **existing** postgres container | 0 extra MB on host     |
-| `\| gzip -6`                       | Streams through host gzip                       | ~2 MB                  |
-| Save to `/var/backups/app/`        | Compressed SQL file                             | disk only              |
-| Upload to Cloudflare R2            | Off-site copy via `rclone`                      | ~20 MB while uploading |
-| Rotate files > 7 days              | `find -mtime +7 -delete`                        | 0 MB                   |
+we have two restore scripts
 
-Total extra RAM during backup: **~22 MB** peak.
+1. restore-db.sh - this script will restore the database from R2
+2. restore-from-s3.sh - this script will restore the database from S3
 
----
+====
 
-## One-time setup (Ubuntu server)
+commands
 
-```bash
-# 1. Copy scripts to the server
-scp -r scripts/ user@your-server:~/gift-highway/scripts/
+# Backup (R2)
 
-# 2. Run setup (auto-installs rclone, sets up cron + log rotation)
-cd ~/gift-highway
-sudo bash scripts/setup-backup-cron.sh
+sudo ./backup-db.sh
 
-# 3. Test immediately
-sudo bash scripts/backup-db.sh
+# Backup (S3)
 
-# 4. Verify
-ls -lh /var/backups/app/
-tail /var/log/app-backup.log
-```
+sudo ./backup-to-s3.sh
 
----
+for testing use compose_file if using in prod use default
 
-## Schedule
+# Restore from R2
 
-- **Every 5 hours** — cron: `0 */5 * * *`
-- Local retention: **7 days**
-- R2 retention: unlimited (set an R2 lifecycle rule to auto-expire if desired)
+sudo ./restore-db.sh
 
----
+# Restore from S3
 
-## Which recovery script to use?
+sudo ./restore-from-s3.sh
 
-| Situation                                                  | Script                 |
-| ---------------------------------------------------------- | ---------------------- |
-| App is misbehaving, want to roll back to an earlier backup | `restore-db.sh`        |
-| Postgres container crashed, stopped, or volume corrupted   | `disaster-recovery.sh` |
-| Entire server is gone, starting fresh on a new machine     | `disaster-recovery.sh` |
+# Restore from R2 (for testing)
 
----
+sudo COMPOSE_FILE=../docker-compose.staging.yml ./restore-db.sh
 
-## restore-db.sh — normal rollback
+# Restore from S3
 
-Use when the postgres container is **running** and you want to roll back data.
+sudo COMPOSE_FILE=../docker-compose.staging.yml ./restore-from-s3.sh
 
-```bash
-# Latest backup (auto-selects local or downloads from R2)
-sudo bash scripts/restore-db.sh
+=====
 
-# Specific backup file
-sudo bash scripts/restore-db.sh /var/backups/app/app_2025-01-15_02-00-01.sql.gz
-```
+restore a spefific file first download and then use this command
 
-What it does: stops backend + push-service → drops DB → restores → restarts services.
+# Restore a specific file (R2 script)
 
----
+sudo ./restore-db.sh /var/backups/app/app_2026-05-07_10-00-00.sql.gz
 
-## disaster-recovery.sh — container down or full server loss
+# Restore a specific file (S3 script)
 
-Use when the postgres container is **not running**, the volume is lost/corrupted,
-or you are on a brand-new server.
+sudo ./restore-from-s3.sh /var/backups/app/app_s3_2026-05-07_10-05-00.sql.gz
 
-```bash
-sudo bash scripts/disaster-recovery.sh
-```
+# Specific file + staging compose
 
-It will:
+sudo COMPOSE_FILE=../docker-compose.staging.yml ./restore-db.sh /var/backups/app/app_2026-05-07_10-00-00.sql.gz
+sudo COMPOSE_FILE=../docker-compose.staging.yml ./restore-from-s3.sh /var/backups/app/app_s3_2026-05-07_10-05-00.sql.gz
 
-1. Stop all app services
-2. Start (or recreate) the postgres container and wait for it to be ready
-3. Download the latest backup from R2 if no local backup exists
-4. Drop + recreate the database
-5. Restore and verify (fails loudly if no tables found after restore)
-6. Start all services with `docker compose up -d`
+# List available backups to find the filename
 
-### Full server loss — new machine from scratch
+ls -lht /var/backups/app/\*.sql.gz | head -20
 
-```bash
-# 1. Install Docker
-curl -fsSL https://get.docker.com | sh
-apt-get install -y docker-compose-plugin rclone
+If you want to restore a specific file from S3 or R2 that isn't downloaded yet, you'd download it first then pass it:
 
-# 2. Get the app files
-git clone <your-repo> ~/gift-highway
-cd ~/gift-highway
+# Download a specific file from S3
 
-# 3. Create .env.prod (DB creds, R2 creds, domain, etc.)
-cp .env.prod.example .env.prod
-nano .env.prod
+rclone copy s3:your-bucket/db-backups/app_s3_2026-05-07_10-05-00.sql.gz /var/backups/app/
 
-# 4. Run disaster recovery — starts postgres, downloads backup from R2, restores
-sudo bash scripts/disaster-recovery.sh
+# Then restore it
 
-# That's it. All services come up at the end automatically.
-```
+sudo ./restore-from-s3.sh /var/backups/app/app_s3_2026-05-07_10-05-00.sql.gz
 
----
+# Same for R2
 
-## Verify backups are working
+rclone copy r2:your-bucket/db-backups/app_2026-05-07_10-00-00.sql.gz /var/backups/app/
 
-```bash
-# Check last backup ran successfully
-tail /var/log/app-backup.log
-# Should end with: [2025-01-15T02:00:05Z] Done.
+# Then restore it
 
-# List local backups
-ls -lh /var/backups/app/
+sudo ./restore-db.sh /var/backups/app/app_2026-05-07_10-00-00.sql.gz
 
-# Check cron is installed
+==================================
+
+cronjobs check in root user for cronjobs
+
+# View current cron jobs first
+
 crontab -l
-```
 
-COMPOSE_FILE=../docker-compose.staging.yml ./disaster-recovery.sh
+# Remove all cron jobs
 
-COMPOSE_FILE=../docker-compose.staging.yml ./restore-db.sh
+crontab -r
+
+sudo ./setup-backup-cron.sh
+
+ubuntu@ip-172-26-9-55:~/gift-highway/scripts$ sudo ./setup-backup-cron.sh
+Log file: /var/log/app-backup.log
+Log file: /var/log/app-backup-s3.log
+Backup dir: /var/backups/app
+Log rotation: /etc/logrotate.d/app-backup (weekly, 4 weeks)
+R2 cron job installed: every hour
+S3 cron job installed: every 5 minutes (primary backup)
+
+Done. Useful commands:
+Test R2 backup: sudo /home/ubuntu/gift-highway/scripts/backup-db.sh
+Test S3 backup: sudo /home/ubuntu/gift-highway/scripts/backup-to-s3.sh
+Watch R2 log: tail -f /var/log/app-backup.log
+Watch S3 log: tail -f /var/log/app-backup-s3.log
+List backups: ls -lh /var/backups/app/
+View cron: crontab -l
+ubuntu@ip-172-26-9-55:~/gift-highway/scripts$
