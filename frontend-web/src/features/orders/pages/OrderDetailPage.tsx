@@ -1262,14 +1262,33 @@ export function OrderDetailPage() {
   useEffect(() => {
     const tl = timelineRef.current
     if (!tl) return
-    const observer = new ResizeObserver(() => {
-      if (atBottomRef.current) {
-        tl.scrollTop = tl.scrollHeight
+
+    const scrollIfAtBottom = () => {
+      if (atBottomRef.current) tl.scrollTop = tl.scrollHeight
+    }
+
+    const attachImageListeners = (root: Element) => {
+      const imgs = root.tagName === 'IMG'
+        ? [root as HTMLImageElement]
+        : Array.from(root.querySelectorAll<HTMLImageElement>('img'))
+      imgs.forEach(img => {
+        if (!img.complete) img.addEventListener('load', scrollIfAtBottom, { once: true })
+      })
+    }
+
+    const mo = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node instanceof Element) attachImageListeners(node)
+        }
       }
+      scrollIfAtBottom()
     })
-    // Observe the inner content div (first child of the scroll container)
-    if (tl.firstElementChild) observer.observe(tl.firstElementChild)
-    return () => observer.disconnect()
+
+    mo.observe(tl, { childList: true, subtree: true })
+    attachImageListeners(tl)
+
+    return () => mo.disconnect()
   }, [])
 
   // ── Load older ──────────────────────────────────────────────────────────────
