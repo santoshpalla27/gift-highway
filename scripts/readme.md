@@ -107,3 +107,10 @@ Watch S3 log: tail -f /var/log/app-backup-s3.log
 List backups: ls -lh /var/backups/app/
 View cron: crontab -l
 ubuntu@ip-172-26-9-55:~/gift-highway/scripts$
+
+The only real disaster scenarios for your setup are:
+
+Entire server dies → spin up new server, run docker compose up -d + restore-from-s3.sh → back in 15 min
+Data corruption → run restore-from-s3.sh → back in 5 min, max 5 min data loss
+Container crashes → Docker auto-restarts it, you don't even notice
+Everything else (code bugs, bad deploys, network blips) is handled at the app level, not infrastructure. You're well covered.
