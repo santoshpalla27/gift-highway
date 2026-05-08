@@ -195,10 +195,18 @@ export default function OrderDetailScreen() {
             style={S.timeline}
             contentContainerStyle={S.timelineContent}
             refreshControl={<RefreshControl refreshing={D.refreshing} onRefresh={D.onRefresh} tintColor="#0F172A" />}
+            onContentSizeChange={() => {
+              if (!D.initialScrolledRef.current && !D.loadingEvents) {
+                D.initialScrolledRef.current = true
+                D.scrollRef.current?.scrollToEnd({ animated: false })
+              }
+            }}
             onScroll={e => {
               const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent
-              D.atBottomRef.current = contentOffset.y + layoutMeasurement.height >= contentSize.height - 40
-              if (D.atBottomRef.current && D.newCount > 0) D.setNewCount(0)
+              const atBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 60
+              D.atBottomRef.current = atBottom
+              D.setIsAtBottom(atBottom)
+              if (atBottom && D.newCount > 0) D.setNewCount(0)
             }}
             scrollEventThrottle={100}
             keyboardShouldPersistTaps="handled"
@@ -279,12 +287,12 @@ export default function OrderDetailScreen() {
             })()}
           </ScrollView>
 
-          {D.newCount > 0 && (
-            <TouchableOpacity
-              style={S.newBadge}
-              onPress={() => { D.scrollRef.current?.scrollToEnd({ animated: true }); D.setNewCount(0) }}
-            >
-              <Text style={S.newBadgeText}>{D.newCount} new update{D.newCount > 1 ? 's' : ''} ↓</Text>
+          {!D.isAtBottom && (
+            <TouchableOpacity style={[S.newBadge, D.newCount > 0 && { backgroundColor: '#6366F1' }]} onPress={D.scrollToBottom}>
+              <Ionicons name="chevron-down" size={13} color="#FFFFFF" />
+              <Text style={S.newBadgeText}>
+                {D.newCount > 0 ? `${D.newCount} new message${D.newCount > 1 ? 's' : ''}` : 'Scroll to latest'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -461,7 +469,7 @@ const S = StyleSheet.create({
   emptyTimelineText: { fontSize: 14, color: '#94A3B8', textAlign: 'center' },
   loadOlderBtn: { alignItems: 'center', paddingVertical: 12 },
   loadOlderText: { fontSize: 13, color: '#64748B', fontWeight: '600' },
-  newBadge: { position: 'absolute', bottom: 10, alignSelf: 'center', backgroundColor: '#0F172A', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4 },
+  newBadge: { position: 'absolute', bottom: 10, alignSelf: 'center', backgroundColor: '#0F172A', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 5, flexDirection: 'row', alignItems: 'center', gap: 5 },
   newBadgeText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   backBtn: { marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' },
   backBtnText: { color: '#0F172A', fontWeight: '700' },

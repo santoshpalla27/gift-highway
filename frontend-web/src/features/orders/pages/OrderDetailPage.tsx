@@ -1171,9 +1171,11 @@ export function OrderDetailPage() {
 
   // ── Scroll / new-events badge ───────────────────────────────────────────────
   const [newCount, setNewCount] = useState(0)
+  const [isAtBottom, setIsAtBottom] = useState(true)
   const atBottomRef = useRef(true)
   const timelineRef = useRef<HTMLDivElement>(null)
   const feedEndRef = useRef<HTMLDivElement>(null)
+  const initialScrolledRef = useRef(false)
 
   const [showEdit, setShowEdit] = useState(false)
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
@@ -1232,15 +1234,29 @@ export function OrderDetailPage() {
   useEffect(() => {
     if (!id) return
     setEventsLoading(true)
+    initialScrolledRef.current = false
     orderService.listEvents(id, 1, LIMIT, 'desc').then(data => {
       setEvList([...data.events].reverse())
       setTotalEvents(data.total)
       setHasOlder(data.total > LIMIT)
       olderPageRef.current = 2
       setEventsLoading(false)
-      setTimeout(() => feedEndRef.current?.scrollIntoView({ behavior: 'auto' }), 50)
     })
   }, [id])
+
+  // Scroll to bottom once after initial events render
+  useEffect(() => {
+    if (eventsLoading || initialScrolledRef.current) return
+    if (evList.length === 0) return
+    initialScrolledRef.current = true
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        feedEndRef.current?.scrollIntoView({ behavior: 'auto' })
+        setIsAtBottom(true)
+        atBottomRef.current = true
+      })
+    })
+  }, [eventsLoading, evList.length])
 
   // ── Load older ──────────────────────────────────────────────────────────────
   const loadOlder = async () => {
@@ -1327,11 +1343,13 @@ export function OrderDetailPage() {
     const el = e.currentTarget
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80
     atBottomRef.current = atBottom
+    setIsAtBottom(atBottom)
     if (atBottom && newCount > 0) setNewCount(0)
   }
   const scrollToBottom = () => {
     feedEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     setNewCount(0)
+    setIsAtBottom(true)
     atBottomRef.current = true
   }
 
@@ -1796,23 +1814,23 @@ export function OrderDetailPage() {
             <div ref={feedEndRef} style={{ height: 16 }} />
           </div>
 
-          {/* New updates badge */}
-          {newCount > 0 && (
+          {/* Scroll-to-bottom FAB */}
+          {!isAtBottom && (
             <div style={{ position: 'relative', height: 0, overflow: 'visible' }}>
               <button
                 onClick={scrollToBottom}
                 style={{
                   position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
-                  background: '#6366F1', color: '#FFFFFF', border: 'none', borderRadius: 20,
+                  background: newCount > 0 ? '#6366F1' : '#374151', color: '#FFFFFF', border: 'none', borderRadius: 20,
                   padding: '7px 16px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: 6,
-                  boxShadow: '0 4px 12px rgba(99,102,241,.35)',
-                  animation: 'fadeSlideIn 0.2s ease',
-                  zIndex: 10,
+                  boxShadow: '0 4px 14px rgba(0,0,0,.25)',
+                  animation: 'fadeSlideIn 0.15s ease',
+                  zIndex: 10, whiteSpace: 'nowrap',
                 }}
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                {newCount} new update{newCount !== 1 ? 's' : ''}
+                {newCount > 0 ? `${newCount} new message${newCount !== 1 ? 's' : ''}` : 'Scroll to latest'}
               </button>
             </div>
           )}

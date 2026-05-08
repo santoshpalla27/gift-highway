@@ -229,10 +229,12 @@ export function useOrderDetail(orderId: string | undefined) {
 
   // ── Scroll ────────────────────────────────────────────────────────────────
   const [newCount, setNewCount] = useState(0)
+  const [isAtBottom, setIsAtBottom] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const atBottomRef = useRef(true)
   const scrollRef = useRef<ScrollView>(null)
   const eventYPos = useRef<Record<string, number>>({})
+  const initialScrolledRef = useRef(false)
 
   useEffect(() => {
     const sub = Keyboard.addListener('keyboardDidShow', () => {
@@ -294,6 +296,7 @@ export function useOrderDetail(orderId: string | undefined) {
   const loadInitialEvents = useCallback(async () => {
     if (!orderId) return
     setLoadingEvents(true)
+    initialScrolledRef.current = false
     try {
       const data = await orderService.listEvents(orderId, 1, LIMIT, 'desc')
       const sorted = [...data.events].reverse()
@@ -301,7 +304,6 @@ export function useOrderDetail(orderId: string | undefined) {
       setTotalEvents(data.total)
       setHasOlder(data.total > LIMIT)
       olderPageRef.current = 2
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 120)
     } catch { /* ignore */ } finally {
       setLoadingEvents(false)
     }
@@ -645,6 +647,13 @@ export function useOrderDetail(orderId: string | undefined) {
     }
   }, [portalCreating, order])
 
+  const scrollToBottom = useCallback(() => {
+    scrollRef.current?.scrollToEnd({ animated: true })
+    atBottomRef.current = true
+    setIsAtBottom(true)
+    setNewCount(0)
+  }, [])
+
   const onRefresh = useCallback(() => {
     setRefreshing(true)
     Promise.all([fetchOrder(), loadInitialEvents()]).finally(() => setRefreshing(false))
@@ -656,7 +665,8 @@ export function useOrderDetail(orderId: string | undefined) {
     // events
     allEvents, loadingEvents, hasOlder, loadingOlder, loadOlderEvents, totalEvents, refreshing, onRefresh,
     // scroll
-    scrollRef, atBottomRef, newCount, setNewCount, eventYPos,
+    scrollRef, atBottomRef, isAtBottom, setIsAtBottom, newCount, setNewCount, eventYPos,
+    scrollToBottom, initialScrolledRef,
     // new-updates divider
     newSinceAt, pageEnteredAt,
     // portal
