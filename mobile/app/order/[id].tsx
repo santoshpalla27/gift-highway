@@ -199,6 +199,9 @@ export default function OrderDetailScreen() {
               if (!D.initialScrolledRef.current && !D.loadingEvents) {
                 D.initialScrolledRef.current = true
                 D.scrollRef.current?.scrollToEnd({ animated: false })
+              } else if (D.initialScrolledRef.current && D.atBottomRef.current) {
+                // Content grew (attachments/images loaded) while user was at bottom — stay at bottom
+                D.scrollRef.current?.scrollToEnd({ animated: false })
               }
             }}
             onScroll={e => {

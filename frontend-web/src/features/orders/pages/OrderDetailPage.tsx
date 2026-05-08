@@ -1258,6 +1258,20 @@ export function OrderDetailPage() {
     })
   }, [eventsLoading, evList.length])
 
+  // Keep scrolled to bottom when content grows (images/attachments loading)
+  useEffect(() => {
+    const tl = timelineRef.current
+    if (!tl) return
+    const observer = new ResizeObserver(() => {
+      if (atBottomRef.current) {
+        tl.scrollTop = tl.scrollHeight
+      }
+    })
+    // Observe the inner content div (first child of the scroll container)
+    if (tl.firstElementChild) observer.observe(tl.firstElementChild)
+    return () => observer.disconnect()
+  }, [])
+
   // ── Load older ──────────────────────────────────────────────────────────────
   const loadOlder = async () => {
     if (loadingOlder || !id) return
