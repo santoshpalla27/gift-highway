@@ -3,7 +3,7 @@ import {
   TextInput, ActivityIndicator, Modal, Platform, Alert, RefreshControl,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker from '@react-native-community/datetimepicker'
@@ -907,6 +907,11 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
     }
   }, [search, filters, myOrdersOnly, user])
 
+  const displayedOrders = useMemo(
+    () => filters.unreadOnly ? orders.filter(o => (unreadByOrder.get(o.id) ?? 0) > 0) : orders,
+    [orders, filters.unreadOnly, unreadByOrder],
+  )
+
   useEffect(() => {
     const t = setTimeout(() => fetchOrders(false), search ? 300 : 0)
     return () => clearTimeout(t)
@@ -988,10 +993,10 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
             {loading
               ? 'Loading…'
               : filters.unreadOnly
-                ? `${orders.length} unread`
+                ? `${displayedOrders.length} unread`
                 : total === 0
                   ? (myOrdersOnly ? '0 orders assigned to you' : '0 orders')
-                  : `${orders.length}${total > orders.length ? ` of ${total}` : ''} ${myOrdersOnly ? 'assigned ' : ''}order${orders.length !== 1 ? 's' : ''}${hasAnyFilter ? ' · filtered' : ''}`
+                  : `${displayedOrders.length}${total > orders.length ? ` of ${total}` : ''} ${myOrdersOnly ? 'assigned ' : ''}order${displayedOrders.length !== 1 ? 's' : ''}${hasAnyFilter ? ' · filtered' : ''}`
             }
           </Text>
         </View>
@@ -1005,7 +1010,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
       {/* List */}
       {loading && orders.length === 0 ? (
         <CardSkeleton count={6} />
-      ) : orders.length === 0 ? (
+      ) : displayedOrders.length === 0 ? (
         <ScrollView contentContainerStyle={S.centerList} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F172A" />}>
           <View style={S.emptyIconWrap}><Ionicons name="albums-outline" size={32} color="#94A3B8" /></View>
           <Text style={S.emptyTitle}>No orders found</Text>
@@ -1022,7 +1027,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
           contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40), padding: 12, backgroundColor: '#F8FAFC' }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F172A" />}
         >
-          {orders.map(o => (
+          {displayedOrders.map(o => (
             <OrderCard key={o.id} order={o} onOpen={() => router.push(`/order/${o.id}`)} unreadCount={unreadByOrder.get(o.id) ?? 0} />
           ))}
         </ScrollView>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { apiClient } from '../../../services/apiClient'
 import { formatRelative } from '../../../utils/date'
 
@@ -77,6 +78,7 @@ const LIMIT = 50
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function ActivityLogPage() {
+  const navigate = useNavigate()
   const [events, setEvents] = useState<ActivityEvent[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -187,10 +189,14 @@ export function ActivityLogPage() {
                 return (
                   <div
                     key={ev.id}
+                    onClick={() => navigate(`/orders/${ev.order_id}`)}
                     style={{
                       display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 16px',
                       borderBottom: i < events.length - 1 ? '1px solid #F3F4F6' : 'none',
+                      cursor: 'pointer',
                     }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '')}
                   >
                     {/* Icon */}
                     <div style={{
