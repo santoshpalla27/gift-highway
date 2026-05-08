@@ -22,9 +22,12 @@ import { AttachmentViewer } from '../../../components/system/AttachmentViewer'
 // ─── Meta maps ───────────────────────────────────────────────────────────────
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  new:         { label: 'New',          color: '#6B7280', bg: '#F3F4F6' },
-  in_progress: { label: 'Working',      color: '#3B82F6', bg: '#EFF6FF' },
-  completed:   { label: 'Done',         color: '#10B981', bg: '#ECFDF5' },
+  yet_to_start:       { label: 'Yet to Start',             color: '#6B7280', bg: '#F3F4F6' },
+  working:            { label: 'Working',                   color: '#3B82F6', bg: '#EFF6FF' },
+  waiting_for_client: { label: 'Waiting for Client Review', color: '#F59E0B', bg: '#FFFBEB' },
+  making:             { label: 'Making',                    color: '#8B5CF6', bg: '#F3E8FF' },
+  done:               { label: 'Done',                      color: '#10B981', bg: '#ECFDF5' },
+  delivered:          { label: 'Delivered',                 color: '#0D9488', bg: '#F0FDFA' },
 }
 const PRIORITY_META: Record<string, { label: string; color: string; bg: string }> = {
   low:    { label: 'Low',    color: '#6B7280', bg: '#F3F4F6' },
@@ -32,7 +35,7 @@ const PRIORITY_META: Record<string, { label: string; color: string; bg: string }
   high:   { label: 'High',   color: '#8B5CF6', bg: '#F3E8FF' },
   urgent: { label: 'Urgent', color: '#EF4444', bg: '#FEF2F2' },
 }
-const STATUS_OPTIONS = ['new', 'in_progress', 'completed'] as const
+const STATUS_OPTIONS = ['yet_to_start', 'working', 'waiting_for_client', 'making', 'done', 'delivered'] as const
 
 function chip(meta: { label: string; color: string; bg: string }) {
   return {
@@ -979,7 +982,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
 function StatusDropdown({ order, onUpdate, allowedStatuses }: { order: Order; onUpdate: (status: string) => void; allowedStatuses: readonly string[] }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
-  const sm = STATUS_META[order.status] ?? STATUS_META.new
+  const sm = STATUS_META[order.status] ?? STATUS_META.yet_to_start
 
   useEffect(() => {
     if (!open) return
@@ -1602,7 +1605,7 @@ export function OrderDetailPage() {
 
   if (!order) return null
 
-  const sm = STATUS_META[order.status] ?? STATUS_META.new
+  const sm = STATUS_META[order.status] ?? STATUS_META.yet_to_start
   const pm = PRIORITY_META[order.priority] ?? PRIORITY_META.medium
   const due = order.due_date ? new Date(order.due_date + 'T00:00:00') : null
   const today = new Date(); today.setHours(0, 0, 0, 0)

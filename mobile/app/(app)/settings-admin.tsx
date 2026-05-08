@@ -322,7 +322,7 @@ export default function AdminScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Quick link to metrics */}
+      {/* Quick links */}
       <TouchableOpacity
         style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#EEF2FF', borderBottomWidth: 1, borderBottomColor: '#C7D2FE' }}
         onPress={() => router.push('/(app)/admin-metrics' as never)}
@@ -331,6 +331,15 @@ export default function AdminScreen() {
         <Ionicons name="bar-chart-outline" size={18} color="#6366F1" />
         <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: '#4338CA' }}>View User Metrics Dashboard</Text>
         <Ionicons name="chevron-forward" size={16} color="#6366F1" />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#F0FDF4', borderBottomWidth: 1, borderBottomColor: '#BBF7D0' }}
+        onPress={() => router.push('/(app)/activity-log' as never)}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="document-text-outline" size={18} color="#10B981" />
+        <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: '#065F46' }}>View Activity Log</Text>
+        <Ionicons name="chevron-forward" size={16} color="#10B981" />
       </TouchableOpacity>
 
       <View style={S.searchContainer}>

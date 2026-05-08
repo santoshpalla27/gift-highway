@@ -17,17 +17,23 @@ interface UserMetric {
   is_active: boolean
   total_assigned: number
   new_count: number
-  in_progress_count: number
-  completed_count: number
+  working_count: number
+  waiting_for_client_count: number
+  making_count: number
+  done_count: number
+  delivered_count: number
 }
 
-type StatusFilter = 'all' | 'new' | 'in_progress' | 'completed'
+type StatusFilter = 'all' | 'yet_to_start' | 'working' | 'waiting_for_client' | 'making' | 'done' | 'delivered'
 
 const FILTERS: { key: StatusFilter; label: string; color: string; bg: string }[] = [
-  { key: 'all',         label: 'All',         color: '#6B7280', bg: '#F3F4F6' },
-  { key: 'new',         label: 'New',         color: '#6B7280', bg: '#F3F4F6' },
-  { key: 'in_progress', label: 'In Progress', color: '#3B82F6', bg: '#EFF6FF' },
-  { key: 'completed',   label: 'Completed',   color: '#10B981', bg: '#ECFDF5' },
+  { key: 'all',                label: 'All',               color: '#6B7280', bg: '#F3F4F6' },
+  { key: 'yet_to_start',       label: 'Yet to Start',      color: '#6B7280', bg: '#F3F4F6' },
+  { key: 'working',            label: 'Working',           color: '#3B82F6', bg: '#EFF6FF' },
+  { key: 'waiting_for_client', label: 'Waiting for Client',color: '#F59E0B', bg: '#FFFBEB' },
+  { key: 'making',             label: 'Making',            color: '#8B5CF6', bg: '#F3E8FF' },
+  { key: 'done',               label: 'Done',              color: '#10B981', bg: '#ECFDF5' },
+  { key: 'delivered',          label: 'Delivered',         color: '#0D9488', bg: '#F0FDFA' },
 ]
 
 function getInitials(name: string) {
@@ -79,9 +85,12 @@ export default function AdminMetricsScreen() {
   const filtered = users.filter(u => {
     if (search && !u.name.toLowerCase().includes(search.toLowerCase()) &&
         !u.email.toLowerCase().includes(search.toLowerCase())) return false
-    if (statusFilter === 'new') return u.new_count > 0
-    if (statusFilter === 'in_progress') return u.in_progress_count > 0
-    if (statusFilter === 'completed') return u.completed_count > 0
+    if (statusFilter === 'yet_to_start')       return u.new_count > 0
+    if (statusFilter === 'working')            return u.working_count > 0
+    if (statusFilter === 'waiting_for_client') return u.waiting_for_client_count > 0
+    if (statusFilter === 'making')             return u.making_count > 0
+    if (statusFilter === 'done')               return u.done_count > 0
+    if (statusFilter === 'delivered')          return u.delivered_count > 0
     return true
   })
 
@@ -200,15 +209,18 @@ export default function AdminMetricsScreen() {
                   </TouchableOpacity>
                 </View>
 
-                {/* Counts row — always colored like status chips */}
-                <View style={M.countsRow}>
+                {/* Counts row — horizontally scrollable so all 7 statuses are visible */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={M.countsScroll} contentContainerStyle={M.countsRow}>
                   {[
-                    { label: 'Total',    value: u.total_assigned,    color: '#6366F1', bg: '#EEF2FF', status: undefined },
-                    { label: 'New',      value: u.new_count,         color: '#6B7280', bg: '#F3F4F6', status: 'new' },
-                    { label: 'In Prog.', value: u.in_progress_count, color: '#3B82F6', bg: '#EFF6FF', status: 'in_progress' },
-                    { label: 'Done',     value: u.completed_count,   color: '#10B981', bg: '#ECFDF5', status: 'completed' },
+                    { label: 'Total',     value: u.total_assigned,           color: '#6366F1', bg: '#EEF2FF', status: undefined },
+                    { label: 'New',       value: u.new_count,                color: '#6B7280', bg: '#F3F4F6', status: 'yet_to_start' },
+                    { label: 'Working',   value: u.working_count,            color: '#3B82F6', bg: '#EFF6FF', status: 'working' },
+                    { label: 'Waiting',   value: u.waiting_for_client_count, color: '#F59E0B', bg: '#FFFBEB', status: 'waiting_for_client' },
+                    { label: 'Making',    value: u.making_count,             color: '#8B5CF6', bg: '#F3E8FF', status: 'making' },
+                    { label: 'Done',      value: u.done_count,               color: '#10B981', bg: '#ECFDF5', status: 'done' },
+                    { label: 'Delivered', value: u.delivered_count,          color: '#0D9488', bg: '#F0FDFA', status: 'delivered' },
                   ].map((col, idx, arr) => (
-                    <View key={col.label} style={{ flexDirection: 'row', flex: 1 }}>
+                    <View key={col.label} style={{ flexDirection: 'row' }}>
                       <View style={M.countCol}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 4 }}>
                           <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: col.color }} />
@@ -219,7 +231,7 @@ export default function AdminMetricsScreen() {
                       {idx < arr.length - 1 && <View style={M.countDivider} />}
                     </View>
                   ))}
-                </View>
+                </ScrollView>
               </View>
             ))
           )}
@@ -280,11 +292,9 @@ const M = StyleSheet.create({
   viewBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' },
   viewBtnText: { fontSize: 12.5, fontWeight: '600', color: '#6366F1' },
 
-  countsRow: {
-    flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#F1F5F9',
-    backgroundColor: '#FAFAFA',
-  },
-  countCol: { flex: 1, alignItems: 'center', paddingVertical: 10 },
+  countsScroll: { borderTopWidth: 1, borderTopColor: '#F1F5F9', backgroundColor: '#FAFAFA' },
+  countsRow: { flexDirection: 'row', paddingHorizontal: 4 },
+  countCol: { alignItems: 'center', paddingVertical: 10, paddingHorizontal: 10, minWidth: 72 },
   countLabel: { fontSize: 10, fontWeight: '600', color: '#9CA3AF', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   countDivider: { width: 1, backgroundColor: '#F1F5F9' },
   countBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20, minWidth: 34, alignItems: 'center', flexDirection: 'row', gap: 4, justifyContent: 'center' },

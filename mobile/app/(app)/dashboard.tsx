@@ -37,9 +37,12 @@ function fmtDue(iso: string | null): { label: string; color: string } | null {
 }
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  new:         { label: 'New',     color: '#6B7280', bg: '#F3F4F6' },
-  in_progress: { label: 'Working', color: '#3B82F6', bg: '#EFF6FF' },
-  completed:   { label: 'Done',    color: '#10B981', bg: '#ECFDF5' },
+  yet_to_start:       { label: 'Yet to Start',             color: '#6B7280', bg: '#F3F4F6' },
+  working:            { label: 'Working',                   color: '#3B82F6', bg: '#EFF6FF' },
+  waiting_for_client: { label: 'Waiting for Client Review', color: '#F59E0B', bg: '#FFFBEB' },
+  making:             { label: 'Making',                    color: '#8B5CF6', bg: '#F3E8FF' },
+  done:               { label: 'Done',                      color: '#10B981', bg: '#ECFDF5' },
+  delivered:          { label: 'Delivered',                 color: '#0D9488', bg: '#F0FDFA' },
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -152,13 +155,16 @@ function TeamTab({ data, refreshing, onRefresh }: {
   const go = (id: string) => router.push(`/order/${id}` as any)
 
   const kpis: { label: string; value: number; color: string; icon: keyof typeof Ionicons.glyphMap; onPress?: () => void }[] = [
-    { label: 'Total Orders',    value: stats.total_orders,     color: '#6366F1', icon: 'layers-outline',         onPress: () => router.push('/(app)/all-orders' as any) },
-    { label: 'New Orders',      value: stats.new_orders,       color: '#6B7280', icon: 'add-circle-outline',     onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'new' } } as any) },
-    { label: 'Working',         value: stats.working_orders,   color: '#3B82F6', icon: 'hammer-outline',         onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'in_progress' } } as any) },
-    { label: 'Completed',       value: stats.completed_today,  color: '#10B981', icon: 'checkmark-done-outline', onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'completed' } } as any) },
-    { label: 'Due Today',       value: stats.due_today,        color: '#F59E0B', icon: 'time-outline',           onPress: () => router.push({ pathname: '/(app)/all-orders', params: { today: '1' } } as any) },
-    { label: 'Overdue',         value: stats.overdue,          color: '#EF4444', icon: 'alert-circle-outline',   onPress: () => router.push({ pathname: '/(app)/all-orders', params: { overdue: '1' } } as any) },
-    { label: 'Stale (7+ days)', value: stats.stale_orders,     color: '#F97316', icon: 'hourglass-outline',      onPress: () => router.push({ pathname: '/(app)/all-orders', params: { stale: '1' } } as any) },
+    { label: 'Total Orders',       value: stats.total_orders,              color: '#6366F1', icon: 'layers-outline',         onPress: () => router.push('/(app)/all-orders' as any) },
+    { label: 'Yet to Start',       value: stats.new_orders,                color: '#6B7280', icon: 'add-circle-outline',     onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'yet_to_start' } } as any) },
+    { label: 'Working',            value: stats.working_orders,            color: '#3B82F6', icon: 'hammer-outline',         onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'working' } } as any) },
+    { label: 'Waiting for Client', value: stats.waiting_for_client_orders, color: '#F59E0B', icon: 'people-outline',         onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'waiting_for_client' } } as any) },
+    { label: 'Making',             value: stats.making_orders,             color: '#8B5CF6', icon: 'construct-outline',      onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'making' } } as any) },
+    { label: 'Done',               value: stats.done_orders,               color: '#10B981', icon: 'checkmark-done-outline', onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'done' } } as any) },
+    { label: 'Delivered',          value: stats.delivered_orders,          color: '#0D9488', icon: 'car-outline',            onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'delivered' } } as any) },
+    { label: 'Due Today',          value: stats.due_today,                 color: '#F59E0B', icon: 'time-outline',           onPress: () => router.push({ pathname: '/(app)/all-orders', params: { today: '1' } } as any) },
+    { label: 'Overdue',            value: stats.overdue,                   color: '#EF4444', icon: 'alert-circle-outline',   onPress: () => router.push({ pathname: '/(app)/all-orders', params: { overdue: '1' } } as any) },
+    { label: 'Stale (7+ days)',    value: stats.stale_orders,              color: '#F97316', icon: 'hourglass-outline',      onPress: () => router.push({ pathname: '/(app)/all-orders', params: { stale: '1' } } as any) },
   ]
 
   return (
@@ -201,12 +207,14 @@ function MyTab({ data, refreshing, onRefresh }: {
   const go = (id: string) => router.push(`/order/${id}` as any)
 
   const kpis: { label: string; value: number; color: string; icon: keyof typeof Ionicons.glyphMap; onPress?: () => void }[] = [
-    { label: 'Total Orders',   value: stats.total_orders,        color: '#6366F1', icon: 'layers-outline',         onPress: () => router.push('/(app)/my-orders' as any) },
-    { label: 'New Orders',     value: stats.new_orders,           color: '#6B7280', icon: 'add-circle-outline',     onPress: () => router.push({ pathname: '/(app)/my-orders', params: { status: 'new' } } as any) },
-    { label: 'Working',        value: stats.working_orders,       color: '#3B82F6', icon: 'hammer-outline',         onPress: () => router.push({ pathname: '/(app)/my-orders', params: { status: 'in_progress' } } as any) },
-    { label: 'Done',           value: stats.completed_this_week,  color: '#10B981', icon: 'checkmark-done-outline', onPress: () => router.push({ pathname: '/(app)/my-orders', params: { status: 'completed' } } as any) },
-    { label: 'Due Today',      value: stats.due_today,            color: '#F59E0B', icon: 'time-outline',           onPress: () => router.push({ pathname: '/(app)/my-orders', params: { today: '1' } } as any) },
-    { label: 'Overdue',        value: stats.overdue,              color: '#EF4444', icon: 'alert-circle-outline',   onPress: () => router.push({ pathname: '/(app)/my-orders', params: { overdue: '1' } } as any) },
+    { label: 'Total Orders',       value: stats.total_orders,              color: '#6366F1', icon: 'layers-outline',         onPress: () => router.push('/(app)/my-orders' as any) },
+    { label: 'Yet to Start',       value: stats.new_orders,                color: '#6B7280', icon: 'add-circle-outline',     onPress: () => router.push({ pathname: '/(app)/my-orders', params: { status: 'yet_to_start' } } as any) },
+    { label: 'Working',            value: stats.working_orders,            color: '#3B82F6', icon: 'hammer-outline',         onPress: () => router.push({ pathname: '/(app)/my-orders', params: { status: 'working' } } as any) },
+    { label: 'Waiting for Client', value: stats.waiting_for_client_orders, color: '#F59E0B', icon: 'people-outline',         onPress: () => router.push({ pathname: '/(app)/my-orders', params: { status: 'waiting_for_client' } } as any) },
+    { label: 'Making',             value: stats.making_orders,             color: '#8B5CF6', icon: 'construct-outline',      onPress: () => router.push({ pathname: '/(app)/my-orders', params: { status: 'making' } } as any) },
+    { label: 'Done',               value: stats.done_orders,               color: '#10B981', icon: 'checkmark-done-outline', onPress: () => router.push({ pathname: '/(app)/my-orders', params: { status: 'done' } } as any) },
+    { label: 'Due Today',          value: stats.due_today,                 color: '#F59E0B', icon: 'time-outline',           onPress: () => router.push({ pathname: '/(app)/my-orders', params: { today: '1' } } as any) },
+    { label: 'Overdue',            value: stats.overdue,                   color: '#EF4444', icon: 'alert-circle-outline',   onPress: () => router.push({ pathname: '/(app)/my-orders', params: { overdue: '1' } } as any) },
   ]
 
   return (

@@ -40,6 +40,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 	auditSvc.StartCron()
 	orderSvc := services.NewOrderService(orderRepo, cfg, auditSvc)
 	auditHandler := v1.NewAuditHandler(auditSvc)
+	activityHandler := v1.NewActivityHandler(eventRepo)
 	eventSvc := services.NewEventService(eventRepo, userRepo)
 	attachmentSvc := services.NewAttachmentService(attachmentRepo, eventRepo, cfg)
 	portalSvc := services.NewPortalService(portalRepo, orderRepo, eventRepo, cfg)
@@ -123,6 +124,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				adminGroup.GET("/audit/status", auditHandler.GetStatus)
 				adminGroup.GET("/audit/download", auditHandler.DownloadCSV)
 				adminGroup.POST("/audit/test", auditHandler.TestWrite)
+				adminGroup.GET("/activity", activityHandler.GetActivityLog)
 			}
 
 			// Profile routes

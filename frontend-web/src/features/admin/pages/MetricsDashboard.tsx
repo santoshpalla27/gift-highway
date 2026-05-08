@@ -11,26 +11,34 @@ interface UserMetric {
   is_active: boolean
   total_assigned: number
   new_count: number
-  in_progress_count: number
-  completed_count: number
+  working_count: number
+  waiting_for_client_count: number
+  making_count: number
+  done_count: number
+  delivered_count: number
 }
 
-type StatusFilter = 'all' | 'new' | 'in_progress' | 'completed'
-type SortKey = 'name' | 'total_assigned' | 'new_count' | 'in_progress_count' | 'completed_count'
+type StatusFilter = 'all' | 'yet_to_start' | 'working' | 'waiting_for_client' | 'making' | 'done' | 'delivered'
+type SortKey = 'name' | 'total_assigned' | 'new_count' | 'working_count' | 'waiting_for_client_count' | 'making_count' | 'done_count' | 'delivered_count'
 
-// Exactly the same colors as STATUS_META in OrdersPage
 const STATUS_META = {
-  new:         { label: 'New',         color: '#6B7280', bg: '#F3F4F6' },
-  in_progress: { label: 'In Progress', color: '#3B82F6', bg: '#EFF6FF' },
-  completed:   { label: 'Completed',   color: '#10B981', bg: '#ECFDF5' },
-  total:       { label: 'Total',       color: '#6366F1', bg: '#EEF2FF' },
+  yet_to_start:       { label: 'Yet to Start',             color: '#6B7280', bg: '#F3F4F6' },
+  working:            { label: 'Working',                   color: '#3B82F6', bg: '#EFF6FF' },
+  waiting_for_client: { label: 'Waiting for Client Review', color: '#F59E0B', bg: '#FFFBEB' },
+  making:             { label: 'Making',                    color: '#8B5CF6', bg: '#F3E8FF' },
+  done:               { label: 'Done',                      color: '#10B981', bg: '#ECFDF5' },
+  delivered:          { label: 'Delivered',                 color: '#0D9488', bg: '#F0FDFA' },
+  total:              { label: 'Total',                     color: '#6366F1', bg: '#EEF2FF' },
 }
 
 const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
-  { key: 'all',         label: 'All'         },
-  { key: 'new',         label: 'New'         },
-  { key: 'in_progress', label: 'In Progress' },
-  { key: 'completed',   label: 'Completed'   },
+  { key: 'all',                label: 'All'                      },
+  { key: 'yet_to_start',       label: 'Yet to Start'             },
+  { key: 'working',            label: 'Working'                   },
+  { key: 'waiting_for_client', label: 'Waiting for Client Review' },
+  { key: 'making',             label: 'Making'                    },
+  { key: 'done',               label: 'Done'                      },
+  { key: 'delivered',          label: 'Delivered'                 },
 ]
 
 function getInitials(name: string) {
@@ -40,7 +48,7 @@ function getInitials(name: string) {
 // Matches the StatusBadge pill style from OrdersPage exactly
 function StatusPill({ count, metaKey, onClick }: {
   count: number
-  metaKey: 'new' | 'in_progress' | 'completed' | 'total'
+  metaKey: keyof typeof STATUS_META
   onClick?: () => void
 }) {
   const m = STATUS_META[metaKey]
@@ -90,9 +98,12 @@ export function MetricsDashboard() {
     .filter(u => {
       if (search && !u.name.toLowerCase().includes(search.toLowerCase()) &&
           !u.email.toLowerCase().includes(search.toLowerCase())) return false
-      if (statusFilter === 'new') return u.new_count > 0
-      if (statusFilter === 'in_progress') return u.in_progress_count > 0
-      if (statusFilter === 'completed') return u.completed_count > 0
+      if (statusFilter === 'yet_to_start')       return u.new_count > 0
+      if (statusFilter === 'working')            return u.working_count > 0
+      if (statusFilter === 'waiting_for_client') return u.waiting_for_client_count > 0
+      if (statusFilter === 'making')             return u.making_count > 0
+      if (statusFilter === 'done')               return u.done_count > 0
+      if (statusFilter === 'delivered')          return u.delivered_count > 0
       return true
     })
     .sort((a, b) => {
@@ -168,7 +179,8 @@ export function MetricsDashboard() {
         ) : filtered.length === 0 ? (
           <div style={{ padding: 48, textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>No users found</div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
             <thead>
               <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
                 {/* User column */}
@@ -180,10 +192,13 @@ export function MetricsDashboard() {
                 </th>
                 {/* Status count columns — colored dot like StatusBadge */}
                 {([
-                  { key: 'total_assigned' as SortKey,    metaKey: 'total' as const      },
-                  { key: 'new_count' as SortKey,         metaKey: 'new' as const        },
-                  { key: 'in_progress_count' as SortKey, metaKey: 'in_progress' as const },
-                  { key: 'completed_count' as SortKey,   metaKey: 'completed' as const  },
+                  { key: 'total_assigned'          as SortKey, metaKey: 'total'              as const },
+                  { key: 'new_count'               as SortKey, metaKey: 'yet_to_start'       as const },
+                  { key: 'working_count'           as SortKey, metaKey: 'working'            as const },
+                  { key: 'waiting_for_client_count' as SortKey, metaKey: 'waiting_for_client' as const },
+                  { key: 'making_count'            as SortKey, metaKey: 'making'             as const },
+                  { key: 'done_count'              as SortKey, metaKey: 'done'               as const },
+                  { key: 'delivered_count'         as SortKey, metaKey: 'delivered'          as const },
                 ]).map(col => {
                   const m = STATUS_META[col.metaKey]
                   return (
@@ -245,13 +260,22 @@ export function MetricsDashboard() {
                     <StatusPill count={u.total_assigned} metaKey="total" onClick={() => openUserOrders(u.id)} />
                   </td>
                   <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                    <StatusPill count={u.new_count} metaKey="new" onClick={() => openUserOrders(u.id, 'new')} />
+                    <StatusPill count={u.new_count} metaKey="yet_to_start" onClick={() => openUserOrders(u.id, 'yet_to_start')} />
                   </td>
                   <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                    <StatusPill count={u.in_progress_count} metaKey="in_progress" onClick={() => openUserOrders(u.id, 'in_progress')} />
+                    <StatusPill count={u.working_count} metaKey="working" onClick={() => openUserOrders(u.id, 'working')} />
                   </td>
                   <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                    <StatusPill count={u.completed_count} metaKey="completed" onClick={() => openUserOrders(u.id, 'completed')} />
+                    <StatusPill count={u.waiting_for_client_count} metaKey="waiting_for_client" onClick={() => openUserOrders(u.id, 'waiting_for_client')} />
+                  </td>
+                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                    <StatusPill count={u.making_count} metaKey="making" onClick={() => openUserOrders(u.id, 'making')} />
+                  </td>
+                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                    <StatusPill count={u.done_count} metaKey="done" onClick={() => openUserOrders(u.id, 'done')} />
+                  </td>
+                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                    <StatusPill count={u.delivered_count} metaKey="delivered" onClick={() => openUserOrders(u.id, 'delivered')} />
                   </td>
 
                   {/* Actions */}
@@ -270,6 +294,7 @@ export function MetricsDashboard() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

@@ -7,16 +7,22 @@ import { DateInput } from '../../../components/system/DateInput'
 import { useAuthStore } from '../../../store/authStore'
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  new:         { label: 'Yet to Start', color: '#6B7280', bg: '#F3F4F6' },
-  in_progress: { label: 'Working',      color: '#3B82F6', bg: '#EFF6FF' },
-  completed:   { label: 'Done',         color: '#10B981', bg: '#ECFDF5' },
+  yet_to_start:       { label: 'Yet to Start',             color: '#6B7280', bg: '#F3F4F6' },
+  working:            { label: 'Working',                   color: '#3B82F6', bg: '#EFF6FF' },
+  waiting_for_client: { label: 'Waiting for Client Review', color: '#F59E0B', bg: '#FFFBEB' },
+  making:             { label: 'Making',                    color: '#8B5CF6', bg: '#F3E8FF' },
+  done:               { label: 'Done',                      color: '#10B981', bg: '#ECFDF5' },
+  delivered:          { label: 'Delivered',                 color: '#0D9488', bg: '#F0FDFA' },
 }
 
 const STATUS_OPTIONS = [
-  { key: 'all',         label: 'All statuses' },
-  { key: 'new',         label: 'Yet to Start' },
-  { key: 'in_progress', label: 'Working' },
-  { key: 'completed',   label: 'Done' },
+  { key: 'all',                label: 'All statuses'             },
+  { key: 'yet_to_start',       label: 'Yet to Start'             },
+  { key: 'working',            label: 'Working'                   },
+  { key: 'waiting_for_client', label: 'Waiting for Client Review' },
+  { key: 'making',             label: 'Making'                    },
+  { key: 'done',               label: 'Done'                      },
+  { key: 'delivered',          label: 'Delivered'                 },
 ]
 
 function ConfirmDeleteModal({ order, onClose, onConfirm }: {

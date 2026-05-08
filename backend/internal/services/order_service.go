@@ -49,7 +49,7 @@ type UpdateOrderRequest struct {
 }
 
 type UpdateOrderStatusRequest struct {
-	Status string `json:"status" binding:"required,oneof=new in_progress completed"`
+	Status string `json:"status" binding:"required,oneof=yet_to_start working waiting_for_client making done delivered"`
 }
 
 type ListOrdersParams struct {
@@ -109,7 +109,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, createdBy string, req Cr
 		Description:   req.Description,
 		CustomerName:  req.CustomerName,
 		ContactNumber: req.ContactNumber,
-		Status:        "new",
+		Status:        "yet_to_start",
 		Priority:      req.Priority,
 		CreatedBy:     createdBy,
 		DueDate:       dueDate,

@@ -7,7 +7,7 @@ export interface Order {
   description: string
   customer_name: string
   contact_number: string
-  status: 'new' | 'in_progress' | 'completed'
+  status: 'yet_to_start' | 'working' | 'waiting_for_client' | 'making' | 'done' | 'delivered'
   priority: 'low' | 'medium' | 'high' | 'urgent'
   assigned_to: string[]
   assigned_names: string[]

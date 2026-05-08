@@ -8,9 +8,12 @@ import type { DashboardOrder } from '../../../services/dashboardService'
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  new:         { label: 'New',     color: '#6B7280', bg: '#F3F4F6' },
-  in_progress: { label: 'Working', color: '#3B82F6', bg: '#EFF6FF' },
-  completed:   { label: 'Done',    color: '#10B981', bg: '#ECFDF5' },
+  yet_to_start:       { label: 'Yet to Start',             color: '#6B7280', bg: '#F3F4F6' },
+  working:            { label: 'Working',                   color: '#3B82F6', bg: '#EFF6FF' },
+  waiting_for_client: { label: 'Waiting for Client Review', color: '#F59E0B', bg: '#FFFBEB' },
+  making:             { label: 'Making',                    color: '#8B5CF6', bg: '#F3E8FF' },
+  done:               { label: 'Done',                      color: '#10B981', bg: '#ECFDF5' },
+  delivered:          { label: 'Delivered',                 color: '#0D9488', bg: '#F0FDFA' },
 }
 
 const PRIORITY_META: Record<string, { color: string }> = {
@@ -144,12 +147,18 @@ function TeamDashboardTab() {
   const kpis = [
     { label: 'Total Orders', value: s?.total_orders, color: '#6366F1', onClick: () => navigate('/orders'),
       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg> },
-    { label: 'New Orders', value: s?.new_orders, color: '#6B7280', onClick: () => navigate('/orders?status=new'),
+    { label: 'Yet to Start', value: s?.new_orders, color: '#6B7280', onClick: () => navigate('/orders?status=yet_to_start'),
       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
-    { label: 'Working', value: s?.working_orders, color: '#3B82F6', onClick: () => navigate('/orders?status=in_progress'),
+    { label: 'Working', value: s?.working_orders, color: '#3B82F6', onClick: () => navigate('/orders?status=working'),
       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> },
-    { label: 'Completed', value: s?.completed_today, color: '#10B981', onClick: () => navigate('/orders?status=completed'),
+    { label: 'Waiting for Client', value: s?.waiting_for_client_orders, color: '#F59E0B', onClick: () => navigate('/orders?status=waiting_for_client'),
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+    { label: 'Making', value: s?.making_orders, color: '#8B5CF6', onClick: () => navigate('/orders?status=making'),
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> },
+    { label: 'Done', value: s?.done_orders, color: '#10B981', onClick: () => navigate('/orders?status=done'),
       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg> },
+    { label: 'Delivered', value: s?.delivered_orders, color: '#0D9488', onClick: () => navigate('/orders?status=delivered'),
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> },
     { label: 'Due Today', value: s?.due_today, color: '#F59E0B', onClick: () => navigate('/orders?today=1'),
       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },
     { label: 'Overdue', value: s?.overdue, color: '#EF4444', onClick: () => navigate('/orders?overdue=1'),
@@ -209,11 +218,15 @@ function MyDashboardTab() {
   const kpis = [
     { label: 'Total Orders', value: s?.total_orders, color: '#6366F1', onClick: () => navigate('/my-orders'),
       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg> },
-    { label: 'New Orders', value: s?.new_orders, color: '#6B7280', onClick: () => navigate('/my-orders?status=new'),
+    { label: 'Yet to Start', value: s?.new_orders, color: '#6B7280', onClick: () => navigate('/my-orders?status=yet_to_start'),
       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
-    { label: 'Working', value: s?.working_orders, color: '#3B82F6', onClick: () => navigate('/my-orders?status=in_progress'),
+    { label: 'Working', value: s?.working_orders, color: '#3B82F6', onClick: () => navigate('/my-orders?status=working'),
       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> },
-    { label: 'Done', value: s?.completed_this_week, color: '#10B981', onClick: () => navigate('/my-orders?status=completed'),
+    { label: 'Waiting for Client', value: s?.waiting_for_client_orders, color: '#F59E0B', onClick: () => navigate('/my-orders?status=waiting_for_client'),
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+    { label: 'Making', value: s?.making_orders, color: '#8B5CF6', onClick: () => navigate('/my-orders?status=making'),
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> },
+    { label: 'Done', value: s?.done_orders, color: '#10B981', onClick: () => navigate('/my-orders?status=done'),
       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg> },
     { label: 'Due Today', value: s?.due_today, color: '#F59E0B', onClick: () => navigate('/my-orders?today=1'),
       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },

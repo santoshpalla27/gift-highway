@@ -24,14 +24,20 @@ function mimeIcon(mime: string): { name: string; color: string } {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  new:         '#6B7280',
-  in_progress: '#6366F1',
-  completed:   '#10B981',
+  yet_to_start:       '#6B7280',
+  working:            '#3B82F6',
+  waiting_for_client: '#F59E0B',
+  making:             '#8B5CF6',
+  done:               '#10B981',
+  delivered:          '#0D9488',
 }
 const STATUS_LABELS: Record<string, string> = {
-  new:         'New',
-  in_progress: 'In Progress',
-  completed:   'Completed',
+  yet_to_start:       'Yet to Start',
+  working:            'Working',
+  waiting_for_client: 'Waiting for Client Review',
+  making:             'Making',
+  done:               'Done',
+  delivered:          'Delivered',
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────

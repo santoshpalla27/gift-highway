@@ -5,7 +5,10 @@ export interface TeamStats {
   total_orders: number
   new_orders: number
   working_orders: number
-  completed_today: number
+  waiting_for_client_orders: number
+  making_orders: number
+  done_orders: number
+  delivered_orders: number
   overdue: number
   due_today: number
   unread_customer: number
@@ -16,10 +19,13 @@ export interface MyStats {
   total_orders: number
   new_orders: number
   working_orders: number
+  waiting_for_client_orders: number
+  making_orders: number
+  done_orders: number
+  delivered_orders: number
   assigned_to_me: number
   due_today: number
   overdue: number
-  completed_this_week: number
   unread_customer: number
 }
 

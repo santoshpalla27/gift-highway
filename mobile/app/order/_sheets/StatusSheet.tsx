@@ -3,12 +3,15 @@ import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { orderService, type Order } from '../../../services/orderService'
 
-const STATUS_OPTIONS = ['new', 'in_progress', 'completed'] as const
+const STATUS_OPTIONS = ['yet_to_start', 'working', 'waiting_for_client', 'making', 'done', 'delivered'] as const
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  new:         { label: 'New',     color: '#6B7280', bg: '#F3F4F6' },
-  in_progress: { label: 'Working', color: '#3B82F6', bg: '#EFF6FF' },
-  completed:   { label: 'Done',    color: '#10B981', bg: '#ECFDF5' },
+  yet_to_start:       { label: 'Yet to Start',             color: '#6B7280', bg: '#F3F4F6' },
+  working:            { label: 'Working',                   color: '#3B82F6', bg: '#EFF6FF' },
+  waiting_for_client: { label: 'Waiting for Client Review', color: '#F59E0B', bg: '#FFFBEB' },
+  making:             { label: 'Making',                    color: '#8B5CF6', bg: '#F3E8FF' },
+  done:               { label: 'Done',                      color: '#10B981', bg: '#ECFDF5' },
+  delivered:          { label: 'Delivered',                 color: '#0D9488', bg: '#F0FDFA' },
 }
 
 export function StatusSheet({ order, onClose, onChanged, isAdmin }: {
@@ -18,9 +21,10 @@ export function StatusSheet({ order, onClose, onChanged, isAdmin }: {
   isAdmin: boolean
 }) {
   const insets = useSafeAreaInsets()
-  const visibleOptions = isAdmin ? STATUS_OPTIONS : STATUS_OPTIONS.filter(s => s !== 'completed')
+  const visibleOptions = isAdmin ? STATUS_OPTIONS : STATUS_OPTIONS.filter(s => s !== 'delivered')
 
   const handlePick = async (status: string) => {
+    if (status === order.status) { onClose(); return }
     try {
       await orderService.updateStatus(order.id, status)
       onChanged()

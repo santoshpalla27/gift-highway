@@ -3,10 +3,22 @@ package repositories
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/company/app/backend/internal/models"
 	"github.com/jmoiron/sqlx"
 )
+
+type ActivityEvent struct {
+	ID          string          `db:"id"           json:"id"`
+	OrderID     string          `db:"order_id"     json:"order_id"`
+	OrderNumber int             `db:"order_number" json:"order_number"`
+	OrderTitle  string          `db:"order_title"  json:"order_title"`
+	Type        string          `db:"type"         json:"type"`
+	ActorName   string          `db:"actor_name"   json:"actor_name"`
+	Payload     json.RawMessage `db:"payload"      json:"payload"`
+	CreatedAt   time.Time       `db:"created_at"   json:"created_at"`
+}
 
 const eventSelectSQL = `
 	SELECT
@@ -79,6 +91,36 @@ func (r *EventRepository) UpdateTypeAndPayload(ctx context.Context, eventID, eve
 func (r *EventRepository) Delete(ctx context.Context, eventID string) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM order_events WHERE id = $1`, eventID)
 	return err
+}
+
+func (r *EventRepository) ListAllEvents(ctx context.Context, orderTitle string, limit, offset int) ([]*ActivityEvent, int, error) {
+	const baseCount = `SELECT COUNT(*) FROM order_events e JOIN orders o ON e.order_id = o.id`
+	const baseList = `
+		SELECT e.id, e.order_id, o.order_number, o.title AS order_title,
+		       e.type, e.payload, e.created_at,
+		       COALESCE(TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))), 'System') AS actor_name
+		FROM order_events e
+		JOIN orders o ON e.order_id = o.id
+		LEFT JOIN users u ON e.actor_id = u.id
+	`
+
+	var total int
+	var events []*ActivityEvent
+
+	if orderTitle != "" {
+		pattern := "%" + orderTitle + "%"
+		if err := r.db.GetContext(ctx, &total, baseCount+` WHERE o.title ILIKE $1`, pattern); err != nil {
+			return nil, 0, err
+		}
+		err := r.db.SelectContext(ctx, &events, baseList+` WHERE o.title ILIKE $1 ORDER BY e.created_at DESC LIMIT $2 OFFSET $3`, pattern, limit, offset)
+		return events, total, err
+	}
+
+	if err := r.db.GetContext(ctx, &total, baseCount); err != nil {
+		return nil, 0, err
+	}
+	err := r.db.SelectContext(ctx, &events, baseList+` ORDER BY e.created_at DESC LIMIT $1 OFFSET $2`, limit, offset)
+	return events, total, err
 }
 
 func (r *EventRepository) ListByOrder(ctx context.Context, orderID string, limit, offset int, sort string) ([]*models.OrderEvent, int, error) {

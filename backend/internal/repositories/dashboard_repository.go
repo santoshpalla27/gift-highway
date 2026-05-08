@@ -17,25 +17,31 @@ func NewDashboardRepository(db *sqlx.DB) *DashboardRepository {
 }
 
 type TeamStats struct {
-	TotalOrders    int `db:"total_orders"    json:"total_orders"`
-	NewOrders      int `db:"new_orders"      json:"new_orders"`
-	WorkingOrders  int `db:"working_orders"  json:"working_orders"`
-	CompletedToday int `db:"completed_today" json:"completed_today"`
-	Overdue        int `db:"overdue"         json:"overdue"`
-	DueToday       int `db:"due_today"       json:"due_today"`
-	UnreadCustomer int `db:"unread_customer" json:"unread_customer"`
-	StaleOrders    int `db:"stale_orders"    json:"stale_orders"`
+	TotalOrders            int `db:"total_orders"              json:"total_orders"`
+	NewOrders              int `db:"new_orders"                json:"new_orders"`
+	WorkingOrders          int `db:"working_orders"            json:"working_orders"`
+	WaitingForClientOrders int `db:"waiting_for_client_orders" json:"waiting_for_client_orders"`
+	MakingOrders           int `db:"making_orders"             json:"making_orders"`
+	DoneOrders             int `db:"done_orders"               json:"done_orders"`
+	DeliveredOrders        int `db:"delivered_orders"          json:"delivered_orders"`
+	Overdue                int `db:"overdue"                   json:"overdue"`
+	DueToday               int `db:"due_today"                 json:"due_today"`
+	UnreadCustomer         int `db:"unread_customer"           json:"unread_customer"`
+	StaleOrders            int `db:"stale_orders"              json:"stale_orders"`
 }
 
 type MyStats struct {
-	TotalOrders       int `db:"total_orders"       json:"total_orders"`
-	NewOrders         int `db:"new_orders"         json:"new_orders"`
-	WorkingOrders     int `db:"working_orders"     json:"working_orders"`
-	AssignedToMe      int `db:"assigned_to_me"     json:"assigned_to_me"`
-	DueToday          int `db:"due_today"          json:"due_today"`
-	Overdue           int `db:"overdue"            json:"overdue"`
-	CompletedThisWeek int `db:"completed_this_week" json:"completed_this_week"`
-	UnreadCustomer    int `db:"unread_customer"    json:"unread_customer"`
+	TotalOrders            int `db:"total_orders"              json:"total_orders"`
+	NewOrders              int `db:"new_orders"                json:"new_orders"`
+	WorkingOrders          int `db:"working_orders"            json:"working_orders"`
+	WaitingForClientOrders int `db:"waiting_for_client_orders" json:"waiting_for_client_orders"`
+	MakingOrders           int `db:"making_orders"             json:"making_orders"`
+	DoneOrders             int `db:"done_orders"               json:"done_orders"`
+	DeliveredOrders        int `db:"delivered_orders"          json:"delivered_orders"`
+	AssignedToMe           int `db:"assigned_to_me"            json:"assigned_to_me"`
+	DueToday               int `db:"due_today"                 json:"due_today"`
+	Overdue                int `db:"overdue"                   json:"overdue"`
+	UnreadCustomer         int `db:"unread_customer"           json:"unread_customer"`
 }
 
 type DashboardOrder struct {
@@ -79,11 +85,14 @@ func (r *DashboardRepository) GetTeamStats(ctx context.Context, localDate string
 	err := r.db.GetContext(ctx, &s, `
 		SELECT
 			COUNT(*) AS total_orders,
-			COUNT(*) FILTER (WHERE status = 'new') AS new_orders,
-			COUNT(*) FILTER (WHERE status = 'in_progress') AS working_orders,
-			COUNT(*) FILTER (WHERE status = 'completed') AS completed_today,
-			COUNT(*) FILTER (WHERE due_date < $1::date AND status != 'completed') AS overdue,
-			COUNT(*) FILTER (WHERE due_date = $1::date AND status != 'completed') AS due_today,
+			COUNT(*) FILTER (WHERE status = 'yet_to_start')       AS new_orders,
+			COUNT(*) FILTER (WHERE status = 'working')             AS working_orders,
+			COUNT(*) FILTER (WHERE status = 'waiting_for_client')  AS waiting_for_client_orders,
+			COUNT(*) FILTER (WHERE status = 'making')              AS making_orders,
+			COUNT(*) FILTER (WHERE status = 'done')                AS done_orders,
+			COUNT(*) FILTER (WHERE status = 'delivered')           AS delivered_orders,
+			COUNT(*) FILTER (WHERE due_date < $1::date AND status NOT IN ('done','delivered')) AS overdue,
+			COUNT(*) FILTER (WHERE due_date = $1::date AND status NOT IN ('done','delivered')) AS due_today,
 			(
 				SELECT COUNT(DISTINCT order_id)
 				FROM (
@@ -93,7 +102,7 @@ func (r *DashboardRepository) GetTeamStats(ctx context.Context, localDate string
 				) latest
 				WHERE sender_type = 'customer'
 			) AS unread_customer,
-			COUNT(*) FILTER (WHERE updated_at < NOW() - INTERVAL '7 days' AND status != 'completed') AS stale_orders
+			COUNT(*) FILTER (WHERE updated_at < NOW() - INTERVAL '7 days' AND status NOT IN ('done','delivered')) AS stale_orders
 		FROM orders
 		WHERE is_archived = false
 	`, localDate)
@@ -106,16 +115,22 @@ func (r *DashboardRepository) GetMyStats(ctx context.Context, userID, localDate 
 		SELECT
 			(SELECT COUNT(*) FROM order_assignees oa JOIN orders o ON o.id = oa.order_id WHERE oa.user_id = $1 AND o.is_archived = false) AS total_orders,
 			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
-			 WHERE oa.user_id = $1 AND o.status = 'new' AND o.is_archived = false) AS new_orders,
+			 WHERE oa.user_id = $1 AND o.status = 'yet_to_start' AND o.is_archived = false) AS new_orders,
 			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
-			 WHERE oa.user_id = $1 AND o.status = 'in_progress' AND o.is_archived = false) AS working_orders,
+			 WHERE oa.user_id = $1 AND o.status = 'working' AND o.is_archived = false) AS working_orders,
+			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
+			 WHERE oa.user_id = $1 AND o.status = 'waiting_for_client' AND o.is_archived = false) AS waiting_for_client_orders,
+			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
+			 WHERE oa.user_id = $1 AND o.status = 'making' AND o.is_archived = false) AS making_orders,
+			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
+			 WHERE oa.user_id = $1 AND o.status = 'done' AND o.is_archived = false) AS done_orders,
+			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
+			 WHERE oa.user_id = $1 AND o.status = 'delivered' AND o.is_archived = false) AS delivered_orders,
 			(SELECT COUNT(*) FROM order_assignees oa JOIN orders o ON o.id = oa.order_id WHERE oa.user_id = $1 AND o.is_archived = false) AS assigned_to_me,
 			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
-			 WHERE oa.user_id = $1 AND o.due_date = $2::date AND o.status != 'completed' AND o.is_archived = false) AS due_today,
+			 WHERE oa.user_id = $1 AND o.due_date = $2::date AND o.status NOT IN ('done','delivered') AND o.is_archived = false) AS due_today,
 			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
-			 WHERE oa.user_id = $1 AND o.due_date < $2::date AND o.status != 'completed' AND o.is_archived = false) AS overdue,
-			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
-			 WHERE oa.user_id = $1 AND o.status = 'completed' AND o.is_archived = false) AS completed_this_week,
+			 WHERE oa.user_id = $1 AND o.due_date < $2::date AND o.status NOT IN ('done','delivered') AND o.is_archived = false) AS overdue,
 			(
 				SELECT COUNT(DISTINCT pm.order_id)
 				FROM portal_messages pm
@@ -136,7 +151,7 @@ func (r *DashboardRepository) GetMyStats(ctx context.Context, userID, localDate 
 func (r *DashboardRepository) GetDueTodayOrders(ctx context.Context, localDate string) ([]DashboardOrder, error) {
 	var orders []DashboardOrder
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
-		WHERE o.due_date = $1::date AND o.status != 'completed' AND o.is_archived = false
+		WHERE o.due_date = $1::date AND o.status NOT IN ('done','delivered') AND o.is_archived = false
 		ORDER BY CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END, o.order_number
 		LIMIT 10
 	`, localDate)
@@ -146,7 +161,7 @@ func (r *DashboardRepository) GetDueTodayOrders(ctx context.Context, localDate s
 func (r *DashboardRepository) GetOverdueOrders(ctx context.Context, localDate string) ([]DashboardOrder, error) {
 	var orders []DashboardOrder
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
-		WHERE o.due_date < $1::date AND o.status != 'completed' AND o.is_archived = false
+		WHERE o.due_date < $1::date AND o.status NOT IN ('done','delivered') AND o.is_archived = false
 		ORDER BY o.due_date ASC,
 			CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END
 		LIMIT 15
@@ -157,7 +172,7 @@ func (r *DashboardRepository) GetOverdueOrders(ctx context.Context, localDate st
 func (r *DashboardRepository) GetStaleOrders(ctx context.Context) ([]DashboardOrder, error) {
 	var orders []DashboardOrder
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
-		WHERE o.updated_at < NOW() - INTERVAL '7 days' AND o.status != 'completed' AND o.is_archived = false
+		WHERE o.updated_at < NOW() - INTERVAL '7 days' AND o.status NOT IN ('done','delivered') AND o.is_archived = false
 		ORDER BY o.updated_at ASC
 		LIMIT 10
 	`)
@@ -175,7 +190,7 @@ func (r *DashboardRepository) GetUnreadCustomerOrders(ctx context.Context) ([]Da
 			) latest
 			WHERE sender_type = 'customer'
 		)
-		AND o.status != 'completed' AND o.is_archived = false
+		AND o.status NOT IN ('done','delivered') AND o.is_archived = false
 		ORDER BY o.updated_at DESC
 		LIMIT 15
 	`)
@@ -186,7 +201,7 @@ func (r *DashboardRepository) GetMyDueTodayOrders(ctx context.Context, userID, l
 	var orders []DashboardOrder
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
 		JOIN order_assignees oa ON o.id = oa.order_id
-		WHERE oa.user_id = $1 AND o.due_date = $2::date AND o.status != 'completed' AND o.is_archived = false
+		WHERE oa.user_id = $1 AND o.due_date = $2::date AND o.status NOT IN ('done','delivered') AND o.is_archived = false
 		ORDER BY CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END, o.order_number
 		LIMIT 15
 	`, userID, localDate)
@@ -197,7 +212,7 @@ func (r *DashboardRepository) GetMyOverdueOrders(ctx context.Context, userID, lo
 	var orders []DashboardOrder
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
 		JOIN order_assignees oa ON o.id = oa.order_id
-		WHERE oa.user_id = $1 AND o.due_date < $2::date AND o.status != 'completed' AND o.is_archived = false
+		WHERE oa.user_id = $1 AND o.due_date < $2::date AND o.status NOT IN ('done','delivered') AND o.is_archived = false
 		ORDER BY o.due_date ASC,
 			CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END
 		LIMIT 15
@@ -208,15 +223,18 @@ func (r *DashboardRepository) GetMyOverdueOrders(ctx context.Context, userID, lo
 // ─── Admin user metrics ───────────────────────────────────────────────────────
 
 type UserMetricRow struct {
-	ID              string `db:"id"                json:"id"`
-	Name            string `db:"name"              json:"name"`
-	Email           string `db:"email"             json:"email"`
-	Role            string `db:"role"              json:"role"`
-	IsActive        bool   `db:"is_active"         json:"is_active"`
-	TotalAssigned   int    `db:"total_assigned"    json:"total_assigned"`
-	NewCount        int    `db:"new_count"         json:"new_count"`
-	InProgressCount int    `db:"in_progress_count" json:"in_progress_count"`
-	CompletedCount  int    `db:"completed_count"   json:"completed_count"`
+	ID                     string `db:"id"                          json:"id"`
+	Name                   string `db:"name"                        json:"name"`
+	Email                  string `db:"email"                       json:"email"`
+	Role                   string `db:"role"                        json:"role"`
+	IsActive               bool   `db:"is_active"                   json:"is_active"`
+	TotalAssigned          int    `db:"total_assigned"              json:"total_assigned"`
+	NewCount               int    `db:"new_count"                   json:"new_count"`
+	WorkingCount           int    `db:"working_count"               json:"working_count"`
+	WaitingForClientCount  int    `db:"waiting_for_client_count"    json:"waiting_for_client_count"`
+	MakingCount            int    `db:"making_count"                json:"making_count"`
+	DoneCount              int    `db:"done_count"                  json:"done_count"`
+	DeliveredCount         int    `db:"delivered_count"             json:"delivered_count"`
 }
 
 func (r *DashboardRepository) GetUserMetrics(ctx context.Context) ([]UserMetricRow, error) {
@@ -228,10 +246,13 @@ func (r *DashboardRepository) GetUserMetrics(ctx context.Context) ([]UserMetricR
 			u.email,
 			u.role,
 			u.is_active,
-			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.is_archived = false)                               AS total_assigned,
-			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'new'         AND o.is_archived = false)  AS new_count,
-			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'in_progress' AND o.is_archived = false)  AS in_progress_count,
-			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'completed'   AND o.is_archived = false)  AS completed_count
+			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.is_archived = false)                                                 AS total_assigned,
+			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'yet_to_start'       AND o.is_archived = false)             AS new_count,
+			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'working'             AND o.is_archived = false)             AS working_count,
+			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'waiting_for_client'  AND o.is_archived = false)             AS waiting_for_client_count,
+			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'making'              AND o.is_archived = false)             AS making_count,
+			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'done'                AND o.is_archived = false)             AS done_count,
+			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'delivered'           AND o.is_archived = false)             AS delivered_count
 		FROM users u
 		LEFT JOIN order_assignees oa ON oa.user_id = u.id
 		LEFT JOIN orders o ON o.id = oa.order_id
@@ -257,7 +278,7 @@ func (r *DashboardRepository) GetMyUnreadCustomerOrders(ctx context.Context, use
 			) latest
 			WHERE sender_type = 'customer'
 		)
-		AND o.status != 'completed' AND o.is_archived = false
+		AND o.status NOT IN ('done','delivered') AND o.is_archived = false
 		ORDER BY o.updated_at DESC
 		LIMIT 15
 	`, userID)
