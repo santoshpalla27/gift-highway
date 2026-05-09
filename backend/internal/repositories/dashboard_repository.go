@@ -156,7 +156,7 @@ func (r *DashboardRepository) GetMyStats(ctx context.Context, userID, localDate 
 func (r *DashboardRepository) GetDueTodayOrders(ctx context.Context, localDate string) ([]DashboardOrder, error) {
 	var orders []DashboardOrder
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
-		WHERE o.due_date = $1::date AND o.status NOT IN ('done','delivered') AND o.is_archived = false
+		WHERE o.due_date = $1::date AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
 		ORDER BY CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END, o.order_number
 		LIMIT 10
 	`, localDate)
@@ -166,7 +166,7 @@ func (r *DashboardRepository) GetDueTodayOrders(ctx context.Context, localDate s
 func (r *DashboardRepository) GetOverdueOrders(ctx context.Context, localDate string) ([]DashboardOrder, error) {
 	var orders []DashboardOrder
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
-		WHERE o.due_date < $1::date AND o.status NOT IN ('done','delivered') AND o.is_archived = false
+		WHERE o.due_date < $1::date AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
 		ORDER BY o.due_date ASC,
 			CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END
 		LIMIT 15
@@ -177,7 +177,7 @@ func (r *DashboardRepository) GetOverdueOrders(ctx context.Context, localDate st
 func (r *DashboardRepository) GetStaleOrders(ctx context.Context) ([]DashboardOrder, error) {
 	var orders []DashboardOrder
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
-		WHERE o.updated_at < NOW() - INTERVAL '7 days' AND o.status NOT IN ('done','delivered') AND o.is_archived = false
+		WHERE o.updated_at < NOW() - INTERVAL '7 days' AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
 		ORDER BY o.updated_at ASC
 		LIMIT 10
 	`)
@@ -195,7 +195,7 @@ func (r *DashboardRepository) GetUnreadCustomerOrders(ctx context.Context) ([]Da
 			) latest
 			WHERE sender_type = 'customer'
 		)
-		AND o.status NOT IN ('done','delivered') AND o.is_archived = false
+		AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
 		ORDER BY o.updated_at DESC
 		LIMIT 15
 	`)
@@ -206,7 +206,7 @@ func (r *DashboardRepository) GetMyDueTodayOrders(ctx context.Context, userID, l
 	var orders []DashboardOrder
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
 		JOIN order_assignees oa ON o.id = oa.order_id
-		WHERE oa.user_id = $1 AND o.due_date = $2::date AND o.status NOT IN ('done','delivered') AND o.is_archived = false
+		WHERE oa.user_id = $1 AND o.due_date = $2::date AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
 		ORDER BY CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END, o.order_number
 		LIMIT 15
 	`, userID, localDate)
@@ -217,7 +217,7 @@ func (r *DashboardRepository) GetMyOverdueOrders(ctx context.Context, userID, lo
 	var orders []DashboardOrder
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
 		JOIN order_assignees oa ON o.id = oa.order_id
-		WHERE oa.user_id = $1 AND o.due_date < $2::date AND o.status NOT IN ('done','delivered') AND o.is_archived = false
+		WHERE oa.user_id = $1 AND o.due_date < $2::date AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
 		ORDER BY o.due_date ASC,
 			CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END
 		LIMIT 15
@@ -285,7 +285,7 @@ func (r *DashboardRepository) GetMyUnreadCustomerOrders(ctx context.Context, use
 			) latest
 			WHERE sender_type = 'customer'
 		)
-		AND o.status NOT IN ('done','delivered') AND o.is_archived = false
+		AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
 		ORDER BY o.updated_at DESC
 		LIMIT 15
 	`, userID)

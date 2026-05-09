@@ -58,9 +58,10 @@ type ListOrdersParams struct {
 	Priority   string
 	AssignedTo []string
 	Unassigned bool
-	DueFrom    string
-	DueTo      string
-	StaleOnly  bool
+	DueFrom     string
+	DueTo       string
+	OverdueOnly bool
+	StaleOnly   bool
 	Page       int
 	Limit      int
 	SortBy     string
@@ -74,9 +75,10 @@ func (s *OrderService) ListOrders(ctx context.Context, p ListOrdersParams) ([]*m
 		Priority:   p.Priority,
 		AssignedTo: p.AssignedTo,
 		Unassigned: p.Unassigned,
-		DueFrom:    p.DueFrom,
-		DueTo:      p.DueTo,
-		StaleOnly:  p.StaleOnly,
+		DueFrom:     p.DueFrom,
+		DueTo:       p.DueTo,
+		OverdueOnly: p.OverdueOnly,
+		StaleOnly:   p.StaleOnly,
 		Page:       p.Page,
 		Limit:      p.Limit,
 		SortBy:     p.SortBy,

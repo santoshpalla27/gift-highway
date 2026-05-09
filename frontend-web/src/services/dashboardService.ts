@@ -9,6 +9,7 @@ export interface TeamStats {
   making_orders: number
   done_orders: number
   delivered_orders: number
+  cancelled_orders: number
   overdue: number
   due_today: number
   unread_customer: number
@@ -23,6 +24,7 @@ export interface MyStats {
   making_orders: number
   done_orders: number
   delivered_orders: number
+  cancelled_orders: number
   assigned_to_me: number
   due_today: number
   overdue: number

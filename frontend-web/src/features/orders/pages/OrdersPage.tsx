@@ -271,16 +271,15 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
 
   const d0 = new Date()
   const today = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
-  const d1 = new Date(d0); d1.setDate(d1.getDate() - 1)
-  const yesterday = `${d1.getFullYear()}-${String(d1.getMonth() + 1).padStart(2, '0')}-${String(d1.getDate()).padStart(2, '0')}`
 
   const params = {
     search: search || undefined,
     status: statusFilter || undefined,
     priority: priorityFilter || undefined,
     assigned_to: myOrdersOnly && user ? user.id : (assigneeRaw || undefined),
+    overdue: overdueOnly ? '1' : undefined,
     due_from: overdueOnly ? undefined : dueTodayOnly ? today : (dueDateFrom || undefined),
-    due_to: overdueOnly ? yesterday : dueTodayOnly ? today : (dueDateTo || undefined),
+    due_to: overdueOnly ? undefined : dueTodayOnly ? today : (dueDateTo || undefined),
     stale: staleOnly ? '1' : undefined,
     page,
     limit,

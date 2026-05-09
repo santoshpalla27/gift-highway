@@ -20,7 +20,8 @@ type OrderFilter struct {
 	Unassigned bool     // include orders with no assignees
 	DueFrom    string
 	DueTo      string
-	StaleOnly  bool     // updated_at < NOW()-7d AND status != completed
+	OverdueOnly bool    // due_date < today AND status NOT IN done/delivered/cancelled
+	StaleOnly  bool     // updated_at < NOW()-7d AND status NOT IN done/delivered/cancelled
 	Page       int
 	Limit      int
 	SortBy     string // created_at | updated_at | due_date | order_number
@@ -127,8 +128,11 @@ func (r *OrderRepository) buildWhere(f OrderFilter) (string, []interface{}) {
 		args = append(args, f.DueTo)
 		idx++
 	}
+	if f.OverdueOnly {
+		conditions = append(conditions, "o.due_date < CURRENT_DATE AND o.status NOT IN ('done','delivered','cancelled')")
+	}
 	if f.StaleOnly {
-		conditions = append(conditions, "o.updated_at < NOW() - INTERVAL '7 days' AND o.status != 'completed'")
+		conditions = append(conditions, "o.updated_at < NOW() - INTERVAL '7 days' AND o.status NOT IN ('done','delivered','cancelled')")
 	}
 	_ = idx
 
