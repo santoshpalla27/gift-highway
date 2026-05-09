@@ -15,7 +15,7 @@ import (
 type OrderFilter struct {
 	Search     string
 	Statuses   []string
-	Priority   string
+	Priorities []string
 	AssignedTo []string // user IDs to filter by (OR logic)
 	Unassigned bool     // include orders with no assignees
 	DueFrom    string
@@ -89,10 +89,14 @@ func (r *OrderRepository) buildWhere(f OrderFilter) (string, []interface{}) {
 		conditions = append(conditions, fmt.Sprintf("o.status IN (%s)", strings.Join(placeholders, ", ")))
 		idx += len(f.Statuses)
 	}
-	if f.Priority != "" {
-		conditions = append(conditions, fmt.Sprintf("o.priority = $%d", idx))
-		args = append(args, f.Priority)
-		idx++
+	if len(f.Priorities) > 0 {
+		placeholders := make([]string, len(f.Priorities))
+		for i, p := range f.Priorities {
+			placeholders[i] = fmt.Sprintf("$%d", idx+i)
+			args = append(args, p)
+		}
+		conditions = append(conditions, fmt.Sprintf("o.priority IN (%s)", strings.Join(placeholders, ", ")))
+		idx += len(f.Priorities)
 	}
 	if len(f.AssignedTo) > 0 || f.Unassigned {
 		noAssignee := "NOT EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = o.id)"

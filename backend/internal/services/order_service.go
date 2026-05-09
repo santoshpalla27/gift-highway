@@ -55,7 +55,7 @@ type UpdateOrderStatusRequest struct {
 type ListOrdersParams struct {
 	Search     string
 	Statuses   []string
-	Priority   string
+	Priorities []string
 	AssignedTo []string
 	Unassigned bool
 	DueFrom     string
@@ -72,7 +72,7 @@ func (s *OrderService) ListOrders(ctx context.Context, p ListOrdersParams) ([]*m
 	return s.orderRepo.List(ctx, repositories.OrderFilter{
 		Search:     p.Search,
 		Statuses:   p.Statuses,
-		Priority:   p.Priority,
+		Priorities: p.Priorities,
 		AssignedTo: p.AssignedTo,
 		Unassigned: p.Unassigned,
 		DueFrom:     p.DueFrom,

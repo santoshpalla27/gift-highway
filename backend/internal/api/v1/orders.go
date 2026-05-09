@@ -105,19 +105,20 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 		}
 	}
 
-	var statuses []string
-	if raw := c.Query("status"); raw != "" {
-		for _, s := range strings.Split(raw, ",") {
-			if s = strings.TrimSpace(s); s != "" {
-				statuses = append(statuses, s)
+	parseCommaList := func(raw string) []string {
+		var out []string
+		for _, v := range strings.Split(raw, ",") {
+			if v = strings.TrimSpace(v); v != "" {
+				out = append(out, v)
 			}
 		}
+		return out
 	}
 
 	orders, total, err := h.orderService.ListOrders(c.Request.Context(), services.ListOrdersParams{
 		Search:     c.Query("search"),
-		Statuses:   statuses,
-		Priority:   c.Query("priority"),
+		Statuses:   parseCommaList(c.Query("status")),
+		Priorities: parseCommaList(c.Query("priority")),
 		AssignedTo: assignedTo,
 		Unassigned: unassigned,
 		DueFrom:     c.Query("due_from"),

@@ -203,6 +203,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
   const statusFilter = searchParams.get('status') ?? ''
   const statusFilters = statusFilter ? statusFilter.split(',').filter(Boolean) : []
   const priorityFilter = searchParams.get('priority') ?? ''
+  const priorityFilters = priorityFilter ? priorityFilter.split(',').filter(Boolean) : []
   const assigneeRaw    = searchParams.get('assignee') ?? ''
   const assigneeIds    = assigneeRaw ? assigneeRaw.split(',').filter(Boolean) : []
   const dueDateFrom    = searchParams.get('due_from') ?? ''
@@ -464,16 +465,40 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
         </FilterPill>
 
         {/* Priority */}
-        <FilterPill label="Priority" value={priorityFilter ? PRIORITY_META[priorityFilter]?.label : undefined} onClear={() => update({ priority: undefined })}>
-          {close => (
+        <FilterPill
+          label="Priority"
+          value={priorityFilters.length === 1 ? PRIORITY_META[priorityFilters[0]]?.label : priorityFilters.length > 1 ? `${priorityFilters.length} priorities` : undefined}
+          onClear={() => update({ priority: undefined })}
+        >
+          {() => (
             <div style={{ padding: 4 }}>
-              {PRIORITY_OPTIONS.map(p => (
-                <div key={p} style={pillListItem(priorityFilter === p)} onMouseEnter={e => { if (priorityFilter !== p) e.currentTarget.style.background = '#F5F6FA' }} onMouseLeave={e => { if (priorityFilter !== p) e.currentTarget.style.background = 'transparent' }}
-                  onClick={() => { update({ priority: p === priorityFilter ? undefined : p }); close() }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: PRIORITY_META[p].color, flexShrink: 0 }} />
-                  {PRIORITY_META[p].label}
-                </div>
-              ))}
+              {PRIORITY_OPTIONS.map(p => {
+                const active = priorityFilters.includes(p)
+                return (
+                  <div key={p}
+                    style={{ ...pillListItem(active), justifyContent: 'space-between' }}
+                    onMouseEnter={e => { if (!active) e.currentTarget.style.background = '#F5F6FA' }}
+                    onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
+                    onClick={() => {
+                      setSearchParams(prev => {
+                        const cur = prev.get('priority')?.split(',').filter(Boolean) ?? []
+                        const next = cur.includes(p) ? cur.filter(x => x !== p) : [...cur, p]
+                        const params = new URLSearchParams(prev)
+                        if (next.length) params.set('priority', next.join(','))
+                        else params.delete('priority')
+                        params.delete('page')
+                        return params
+                      }, { replace: true })
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: PRIORITY_META[p].color, flexShrink: 0 }} />
+                      {PRIORITY_META[p].label}
+                    </span>
+                    {active && <span style={{ fontSize: 13, color: PRIORITY_META[p].color, fontWeight: 700 }}>✓</span>}
+                  </div>
+                )
+              })}
             </div>
           )}
         </FilterPill>

@@ -60,7 +60,7 @@ function fmtDateShort(iso: string) {
 
 interface FilterState {
   statuses: string[]
-  priority: string
+  priorities: string[]
   assigneeIds: string[]
   dueDateFrom: string
   dueDateTo: string
@@ -71,12 +71,12 @@ interface FilterState {
 }
 
 const emptyFilters: FilterState = {
-  statuses: [], priority: '', assigneeIds: [],
+  statuses: [], priorities: [], assigneeIds: [],
   dueDateFrom: '', dueDateTo: '', overdueOnly: false, dueTodayOnly: false, unreadOnly: false, staleOnly: false,
 }
 
 function activeCount(f: FilterState) {
-  return [f.statuses.length > 0, f.priority, f.assigneeIds.length > 0, f.dueDateFrom || f.dueDateTo, f.overdueOnly, f.dueTodayOnly, f.unreadOnly, f.staleOnly].filter(Boolean).length
+  return [f.statuses.length > 0, f.priorities.length > 0, f.assigneeIds.length > 0, f.dueDateFrom || f.dueDateTo, f.overdueOnly, f.dueTodayOnly, f.unreadOnly, f.staleOnly].filter(Boolean).length
 }
 
 function FilterSheet({
@@ -158,11 +158,14 @@ function FilterSheet({
             <Text style={FS.sectionLabel}>PRIORITY</Text>
             <View style={FS.optionRow}>
               {PRIORITY_OPTIONS.map(p => {
-                const active = draft.priority === p
+                const active = draft.priorities.includes(p)
                 return (
                   <TouchableOpacity key={p}
                     style={[FS.optionChip, active && { backgroundColor: PRIORITY_META[p].bg, borderColor: PRIORITY_META[p].color }]}
-                    onPress={() => set({ priority: active ? '' : p })}
+                    onPress={() => setDraft(d => {
+                      const next = d.priorities.includes(p) ? d.priorities.filter(x => x !== p) : [...d.priorities, p]
+                      return { ...d, priorities: next }
+                    })}
                   >
                     <View style={[FS.dot, { backgroundColor: PRIORITY_META[p].color }]} />
                     <Text style={[FS.optionText, active && { color: PRIORITY_META[p].color, fontWeight: '700' }]}>
@@ -802,7 +805,12 @@ function ActiveFilterPills({ filters, onClear, userNameMap = {} }: {
       : `${filters.statuses.length} statuses`
     pills.push({ label, key: 'statuses' })
   }
-  if (filters.priority) pills.push({ label: PRIORITY_META[filters.priority]?.label ?? filters.priority, key: 'priority' })
+  if (filters.priorities.length > 0) {
+    const label = filters.priorities.length === 1
+      ? (PRIORITY_META[filters.priorities[0]]?.label ?? filters.priorities[0])
+      : `${filters.priorities.length} priorities`
+    pills.push({ label, key: 'priorities' })
+  }
   if (filters.assigneeIds.length > 0) {
     const hasUnassigned = filters.assigneeIds.includes('unassigned')
     const parts: string[] = []
@@ -847,7 +855,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
   const { user } = useAuthStore()
   const { isOnline } = useNetworkStatus()
   const { unreadByOrder } = useNotifications(myOrdersOnly ? { mineOnly: true } : {})
-  const params = useLocalSearchParams<{ status?: string; today?: string; overdue?: string; stale?: string; assignee?: string }>()
+  const params = useLocalSearchParams<{ status?: string; priority?: string; today?: string; overdue?: string; stale?: string; assignee?: string }>()
   const [orders, setOrders] = useState<Order[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -866,7 +874,8 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
     lastParamsKey.current = key
     setFilters({
       ...emptyFilters,
-      statuses:     params.status ? params.status.split(',').filter(Boolean) : [],
+      statuses:     params.status   ? params.status.split(',').filter(Boolean)   : [],
+      priorities:   params.priority ? params.priority.split(',').filter(Boolean) : [],
       overdueOnly:  params.overdue === '1',
       dueTodayOnly: params.today === '1',
       staleOnly:    params.stale === '1',
@@ -899,7 +908,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
       const data = await orderService.listOrders({
         search: search || undefined,
         status: filters.statuses.length ? filters.statuses.join(',') : undefined,
-        priority: filters.priority || undefined,
+        priority: filters.priorities.length ? filters.priorities.join(',') : undefined,
         assigned_to: myOrdersOnly && user ? user.id : (filters.assigneeIds.length ? filters.assigneeIds.join(',') : undefined),
         overdue: filters.overdueOnly ? '1' : undefined,
         due_from: filters.overdueOnly ? undefined : filters.dueTodayOnly ? today : (filters.dueDateFrom || undefined),
@@ -943,6 +952,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
       if (key === 'dueDateFrom') { next.dueDateFrom = ''; next.dueDateTo = '' }
       else if (key === 'assigneeIds') { next.assigneeIds = [] }
       else if (key === 'statuses') { next.statuses = [] }
+      else if (key === 'priorities') { next.priorities = [] }
       else (next as Record<keyof FilterState, string | boolean | string[]>)[key] = typeof f[key] === 'boolean' ? false : ''
       return next
     })
