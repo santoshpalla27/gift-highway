@@ -24,6 +24,7 @@ type TeamStats struct {
 	MakingOrders           int `db:"making_orders"             json:"making_orders"`
 	DoneOrders             int `db:"done_orders"               json:"done_orders"`
 	DeliveredOrders        int `db:"delivered_orders"          json:"delivered_orders"`
+	CancelledOrders        int `db:"cancelled_orders"          json:"cancelled_orders"`
 	Overdue                int `db:"overdue"                   json:"overdue"`
 	DueToday               int `db:"due_today"                 json:"due_today"`
 	UnreadCustomer         int `db:"unread_customer"           json:"unread_customer"`
@@ -38,6 +39,7 @@ type MyStats struct {
 	MakingOrders           int `db:"making_orders"             json:"making_orders"`
 	DoneOrders             int `db:"done_orders"               json:"done_orders"`
 	DeliveredOrders        int `db:"delivered_orders"          json:"delivered_orders"`
+	CancelledOrders        int `db:"cancelled_orders"          json:"cancelled_orders"`
 	AssignedToMe           int `db:"assigned_to_me"            json:"assigned_to_me"`
 	DueToday               int `db:"due_today"                 json:"due_today"`
 	Overdue                int `db:"overdue"                   json:"overdue"`
@@ -91,8 +93,9 @@ func (r *DashboardRepository) GetTeamStats(ctx context.Context, localDate string
 			COUNT(*) FILTER (WHERE status = 'making')              AS making_orders,
 			COUNT(*) FILTER (WHERE status = 'done')                AS done_orders,
 			COUNT(*) FILTER (WHERE status = 'delivered')           AS delivered_orders,
-			COUNT(*) FILTER (WHERE due_date < $1::date AND status NOT IN ('done','delivered')) AS overdue,
-			COUNT(*) FILTER (WHERE due_date = $1::date AND status NOT IN ('done','delivered')) AS due_today,
+			COUNT(*) FILTER (WHERE status = 'cancelled')           AS cancelled_orders,
+			COUNT(*) FILTER (WHERE due_date < $1::date AND status NOT IN ('done','delivered','cancelled')) AS overdue,
+			COUNT(*) FILTER (WHERE due_date = $1::date AND status NOT IN ('done','delivered','cancelled')) AS due_today,
 			(
 				SELECT COUNT(DISTINCT order_id)
 				FROM (
@@ -102,7 +105,7 @@ func (r *DashboardRepository) GetTeamStats(ctx context.Context, localDate string
 				) latest
 				WHERE sender_type = 'customer'
 			) AS unread_customer,
-			COUNT(*) FILTER (WHERE updated_at < NOW() - INTERVAL '7 days' AND status NOT IN ('done','delivered')) AS stale_orders
+			COUNT(*) FILTER (WHERE updated_at < NOW() - INTERVAL '7 days' AND status NOT IN ('done','delivered','cancelled')) AS stale_orders
 		FROM orders
 		WHERE is_archived = false
 	`, localDate)
@@ -126,11 +129,13 @@ func (r *DashboardRepository) GetMyStats(ctx context.Context, userID, localDate 
 			 WHERE oa.user_id = $1 AND o.status = 'done' AND o.is_archived = false) AS done_orders,
 			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
 			 WHERE oa.user_id = $1 AND o.status = 'delivered' AND o.is_archived = false) AS delivered_orders,
+			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
+			 WHERE oa.user_id = $1 AND o.status = 'cancelled' AND o.is_archived = false) AS cancelled_orders,
 			(SELECT COUNT(*) FROM order_assignees oa JOIN orders o ON o.id = oa.order_id WHERE oa.user_id = $1 AND o.is_archived = false) AS assigned_to_me,
 			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
-			 WHERE oa.user_id = $1 AND o.due_date = $2::date AND o.status NOT IN ('done','delivered') AND o.is_archived = false) AS due_today,
+			 WHERE oa.user_id = $1 AND o.due_date = $2::date AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false) AS due_today,
 			(SELECT COUNT(*) FROM orders o JOIN order_assignees oa ON o.id = oa.order_id
-			 WHERE oa.user_id = $1 AND o.due_date < $2::date AND o.status NOT IN ('done','delivered') AND o.is_archived = false) AS overdue,
+			 WHERE oa.user_id = $1 AND o.due_date < $2::date AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false) AS overdue,
 			(
 				SELECT COUNT(DISTINCT pm.order_id)
 				FROM portal_messages pm
@@ -235,6 +240,7 @@ type UserMetricRow struct {
 	MakingCount            int    `db:"making_count"                json:"making_count"`
 	DoneCount              int    `db:"done_count"                  json:"done_count"`
 	DeliveredCount         int    `db:"delivered_count"             json:"delivered_count"`
+	CancelledCount         int    `db:"cancelled_count"             json:"cancelled_count"`
 }
 
 func (r *DashboardRepository) GetUserMetrics(ctx context.Context) ([]UserMetricRow, error) {
@@ -252,7 +258,8 @@ func (r *DashboardRepository) GetUserMetrics(ctx context.Context) ([]UserMetricR
 			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'waiting_for_client'  AND o.is_archived = false)             AS waiting_for_client_count,
 			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'making'              AND o.is_archived = false)             AS making_count,
 			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'done'                AND o.is_archived = false)             AS done_count,
-			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'delivered'           AND o.is_archived = false)             AS delivered_count
+			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'delivered'           AND o.is_archived = false)             AS delivered_count,
+			COUNT(DISTINCT oa.order_id) FILTER (WHERE o.status = 'cancelled'           AND o.is_archived = false)             AS cancelled_count
 		FROM users u
 		LEFT JOIN order_assignees oa ON oa.user_id = u.id
 		LEFT JOIN orders o ON o.id = oa.order_id

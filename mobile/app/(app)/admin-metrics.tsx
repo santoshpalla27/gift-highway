@@ -22,9 +22,10 @@ interface UserMetric {
   making_count: number
   done_count: number
   delivered_count: number
+  cancelled_count: number
 }
 
-type StatusFilter = 'all' | 'yet_to_start' | 'working' | 'waiting_for_client' | 'making' | 'done' | 'delivered'
+type StatusFilter = 'all' | 'yet_to_start' | 'working' | 'waiting_for_client' | 'making' | 'done' | 'delivered' | 'cancelled'
 
 const FILTERS: { key: StatusFilter; label: string; color: string; bg: string }[] = [
   { key: 'all',                label: 'All',               color: '#6B7280', bg: '#F3F4F6' },
@@ -34,6 +35,7 @@ const FILTERS: { key: StatusFilter; label: string; color: string; bg: string }[]
   { key: 'making',             label: 'Making',            color: '#8B5CF6', bg: '#F3E8FF' },
   { key: 'done',               label: 'Done',              color: '#10B981', bg: '#ECFDF5' },
   { key: 'delivered',          label: 'Delivered',         color: '#0D9488', bg: '#F0FDFA' },
+  { key: 'cancelled',          label: 'Cancelled',         color: '#EF4444', bg: '#FEF2F2' },
 ]
 
 function getInitials(name: string) {
@@ -91,6 +93,7 @@ export default function AdminMetricsScreen() {
     if (statusFilter === 'making')             return u.making_count > 0
     if (statusFilter === 'done')               return u.done_count > 0
     if (statusFilter === 'delivered')          return u.delivered_count > 0
+    if (statusFilter === 'cancelled')          return u.cancelled_count > 0
     return true
   })
 
@@ -219,6 +222,7 @@ export default function AdminMetricsScreen() {
                     { label: 'Making',    value: u.making_count,             color: '#8B5CF6', bg: '#F3E8FF', status: 'making' },
                     { label: 'Done',      value: u.done_count,               color: '#10B981', bg: '#ECFDF5', status: 'done' },
                     { label: 'Delivered', value: u.delivered_count,          color: '#0D9488', bg: '#F0FDFA', status: 'delivered' },
+                    { label: 'Cancelled', value: u.cancelled_count,          color: '#EF4444', bg: '#FEF2F2', status: 'cancelled' },
                   ].map((col, idx, arr) => (
                     <View key={col.label} style={{ flexDirection: 'row' }}>
                       <View style={M.countCol}>

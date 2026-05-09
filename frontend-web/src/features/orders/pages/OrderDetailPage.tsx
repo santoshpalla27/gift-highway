@@ -28,6 +28,7 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
   making:             { label: 'Making',                    color: '#8B5CF6', bg: '#F3E8FF' },
   done:               { label: 'Done',                      color: '#10B981', bg: '#ECFDF5' },
   delivered:          { label: 'Delivered',                 color: '#0D9488', bg: '#F0FDFA' },
+  cancelled:          { label: 'Cancelled',                 color: '#EF4444', bg: '#FEF2F2' },
 }
 const PRIORITY_META: Record<string, { label: string; color: string; bg: string }> = {
   low:    { label: 'Low',    color: '#6B7280', bg: '#F3F4F6' },
@@ -35,7 +36,7 @@ const PRIORITY_META: Record<string, { label: string; color: string; bg: string }
   high:   { label: 'High',   color: '#8B5CF6', bg: '#F3E8FF' },
   urgent: { label: 'Urgent', color: '#EF4444', bg: '#FEF2F2' },
 }
-const STATUS_OPTIONS = ['yet_to_start', 'working', 'waiting_for_client', 'making', 'done', 'delivered'] as const
+const STATUS_OPTIONS = ['yet_to_start', 'working', 'waiting_for_client', 'making', 'done', 'delivered', 'cancelled'] as const
 
 function chip(meta: { label: string; color: string; bg: string }) {
   return {

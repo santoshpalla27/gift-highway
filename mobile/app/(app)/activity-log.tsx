@@ -27,7 +27,7 @@ interface ActivityEvent {
 const STATUS_LABEL: Record<string, string> = {
   yet_to_start: 'Yet to Start', working: 'Working',
   waiting_for_client: 'Waiting for Client', making: 'Making',
-  done: 'Done', delivered: 'Delivered',
+  done: 'Done', delivered: 'Delivered', cancelled: 'Cancelled',
 }
 
 function describeEvent(type: string, payload: Record<string, any>): string {

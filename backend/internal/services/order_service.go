@@ -49,7 +49,7 @@ type UpdateOrderRequest struct {
 }
 
 type UpdateOrderStatusRequest struct {
-	Status string `json:"status" binding:"required,oneof=yet_to_start working waiting_for_client making done delivered"`
+	Status string `json:"status" binding:"required,oneof=yet_to_start working waiting_for_client making done delivered cancelled"`
 }
 
 type ListOrdersParams struct {

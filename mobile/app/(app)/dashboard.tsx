@@ -43,6 +43,7 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
   making:             { label: 'Making',                    color: '#8B5CF6', bg: '#F3E8FF' },
   done:               { label: 'Done',                      color: '#10B981', bg: '#ECFDF5' },
   delivered:          { label: 'Delivered',                 color: '#0D9488', bg: '#F0FDFA' },
+  cancelled:          { label: 'Cancelled',                 color: '#EF4444', bg: '#FEF2F2' },
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -162,6 +163,7 @@ function TeamTab({ data, refreshing, onRefresh }: {
     { label: 'Making',             value: stats.making_orders,             color: '#8B5CF6', icon: 'construct-outline',      onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'making' } } as any) },
     { label: 'Done',               value: stats.done_orders,               color: '#10B981', icon: 'checkmark-done-outline', onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'done' } } as any) },
     { label: 'Delivered',          value: stats.delivered_orders,          color: '#0D9488', icon: 'car-outline',            onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'delivered' } } as any) },
+    { label: 'Cancelled',          value: stats.cancelled_orders,          color: '#EF4444', icon: 'close-circle-outline',    onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'cancelled' } } as any) },
     { label: 'Due Today',          value: stats.due_today,                 color: '#F59E0B', icon: 'time-outline',           onPress: () => router.push({ pathname: '/(app)/all-orders', params: { today: '1' } } as any) },
     { label: 'Overdue',            value: stats.overdue,                   color: '#EF4444', icon: 'alert-circle-outline',   onPress: () => router.push({ pathname: '/(app)/all-orders', params: { overdue: '1' } } as any) },
     { label: 'Stale (7+ days)',    value: stats.stale_orders,              color: '#F97316', icon: 'hourglass-outline',      onPress: () => router.push({ pathname: '/(app)/all-orders', params: { stale: '1' } } as any) },

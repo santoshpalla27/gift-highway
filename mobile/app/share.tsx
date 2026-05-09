@@ -30,6 +30,7 @@ const STATUS_COLORS: Record<string, string> = {
   making:             '#8B5CF6',
   done:               '#10B981',
   delivered:          '#0D9488',
+  cancelled:          '#EF4444',
 }
 const STATUS_LABELS: Record<string, string> = {
   yet_to_start:       'Yet to Start',
@@ -38,6 +39,7 @@ const STATUS_LABELS: Record<string, string> = {
   making:             'Making',
   done:               'Done',
   delivered:          'Delivered',
+  cancelled:          'Cancelled',
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────

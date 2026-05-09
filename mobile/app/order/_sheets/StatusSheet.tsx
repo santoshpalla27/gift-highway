@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { orderService, type Order } from '../../../services/orderService'
 
-const STATUS_OPTIONS = ['yet_to_start', 'working', 'waiting_for_client', 'making', 'done', 'delivered'] as const
+const STATUS_OPTIONS = ['yet_to_start', 'working', 'waiting_for_client', 'making', 'done', 'delivered', 'cancelled'] as const
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
   yet_to_start:       { label: 'Yet to Start',             color: '#6B7280', bg: '#F3F4F6' },
@@ -12,6 +12,7 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
   making:             { label: 'Making',                    color: '#8B5CF6', bg: '#F3E8FF' },
   done:               { label: 'Done',                      color: '#10B981', bg: '#ECFDF5' },
   delivered:          { label: 'Delivered',                 color: '#0D9488', bg: '#F0FDFA' },
+  cancelled:          { label: 'Cancelled',                 color: '#EF4444', bg: '#FEF2F2' },
 }
 
 export function StatusSheet({ order, onClose, onChanged, isAdmin }: {
@@ -21,7 +22,7 @@ export function StatusSheet({ order, onClose, onChanged, isAdmin }: {
   isAdmin: boolean
 }) {
   const insets = useSafeAreaInsets()
-  const visibleOptions = isAdmin ? STATUS_OPTIONS : STATUS_OPTIONS.filter(s => s !== 'delivered')
+  const visibleOptions = isAdmin ? STATUS_OPTIONS : STATUS_OPTIONS.filter(s => s !== 'delivered' && s !== 'cancelled')
 
   const handlePick = async (status: string) => {
     if (status === order.status) { onClose(); return }

@@ -4,9 +4,13 @@ import type { OrderEvent } from '../../../services/orderService'
 import { formatRelative } from '../../../utils/date'
 
 const STATUS_META: Record<string, { label: string }> = {
-  new:         { label: 'New' },
-  in_progress: { label: 'Working' },
-  completed:   { label: 'Done' },
+  yet_to_start:       { label: 'Yet to Start' },
+  working:            { label: 'Working' },
+  waiting_for_client: { label: 'Waiting for Client' },
+  making:             { label: 'Making' },
+  done:               { label: 'Done' },
+  delivered:          { label: 'Delivered' },
+  cancelled:          { label: 'Cancelled' },
 }
 
 const PRIORITY_META: Record<string, { label: string }> = {

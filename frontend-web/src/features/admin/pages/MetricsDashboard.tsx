@@ -16,10 +16,11 @@ interface UserMetric {
   making_count: number
   done_count: number
   delivered_count: number
+  cancelled_count: number
 }
 
-type StatusFilter = 'all' | 'yet_to_start' | 'working' | 'waiting_for_client' | 'making' | 'done' | 'delivered'
-type SortKey = 'name' | 'total_assigned' | 'new_count' | 'working_count' | 'waiting_for_client_count' | 'making_count' | 'done_count' | 'delivered_count'
+type StatusFilter = 'all' | 'yet_to_start' | 'working' | 'waiting_for_client' | 'making' | 'done' | 'delivered' | 'cancelled'
+type SortKey = 'name' | 'total_assigned' | 'new_count' | 'working_count' | 'waiting_for_client_count' | 'making_count' | 'done_count' | 'delivered_count' | 'cancelled_count'
 
 const STATUS_META = {
   yet_to_start:       { label: 'Yet to Start',             color: '#6B7280', bg: '#F3F4F6' },
@@ -28,6 +29,7 @@ const STATUS_META = {
   making:             { label: 'Making',                    color: '#8B5CF6', bg: '#F3E8FF' },
   done:               { label: 'Done',                      color: '#10B981', bg: '#ECFDF5' },
   delivered:          { label: 'Delivered',                 color: '#0D9488', bg: '#F0FDFA' },
+  cancelled:          { label: 'Cancelled',                 color: '#EF4444', bg: '#FEF2F2' },
   total:              { label: 'Total',                     color: '#6366F1', bg: '#EEF2FF' },
 }
 
@@ -39,6 +41,7 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: 'making',             label: 'Making'                    },
   { key: 'done',               label: 'Done'                      },
   { key: 'delivered',          label: 'Delivered'                 },
+  { key: 'cancelled',          label: 'Cancelled'                 },
 ]
 
 function getInitials(name: string) {
@@ -104,6 +107,7 @@ export function MetricsDashboard() {
       if (statusFilter === 'making')             return u.making_count > 0
       if (statusFilter === 'done')               return u.done_count > 0
       if (statusFilter === 'delivered')          return u.delivered_count > 0
+      if (statusFilter === 'cancelled')          return u.cancelled_count > 0
       return true
     })
     .sort((a, b) => {
@@ -199,6 +203,7 @@ export function MetricsDashboard() {
                   { key: 'making_count'            as SortKey, metaKey: 'making'             as const },
                   { key: 'done_count'              as SortKey, metaKey: 'done'               as const },
                   { key: 'delivered_count'         as SortKey, metaKey: 'delivered'          as const },
+                  { key: 'cancelled_count'         as SortKey, metaKey: 'cancelled'          as const },
                 ]).map(col => {
                   const m = STATUS_META[col.metaKey]
                   return (
@@ -276,6 +281,9 @@ export function MetricsDashboard() {
                   </td>
                   <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                     <StatusPill count={u.delivered_count} metaKey="delivered" onClick={() => openUserOrders(u.id, 'delivered')} />
+                  </td>
+                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                    <StatusPill count={u.cancelled_count} metaKey="cancelled" onClick={() => openUserOrders(u.id, 'cancelled')} />
                   </td>
 
                   {/* Actions */}

@@ -24,7 +24,7 @@ export function useOrderPermissions(order: Order | null): OrderPermissions {
   return {
     canChangeStatus: isAdmin || isAssigned,
     allowedStatuses: isAdmin
-      ? ['yet_to_start', 'working', 'waiting_for_client', 'making', 'done', 'delivered']
+      ? ['yet_to_start', 'working', 'waiting_for_client', 'making', 'done', 'delivered', 'cancelled']
       : ['yet_to_start', 'working', 'waiting_for_client', 'making', 'done'],
     canEditOrder: isAdmin,
     canReassign: isAdmin,
