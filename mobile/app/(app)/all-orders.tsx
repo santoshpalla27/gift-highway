@@ -59,7 +59,7 @@ function fmtDateShort(iso: string) {
 // ─── Filter Sheet ─────────────────────────────────────────────────────────────
 
 interface FilterState {
-  status: string
+  statuses: string[]
   priority: string
   assigneeIds: string[]
   dueDateFrom: string
@@ -71,12 +71,12 @@ interface FilterState {
 }
 
 const emptyFilters: FilterState = {
-  status: '', priority: '', assigneeIds: [],
+  statuses: [], priority: '', assigneeIds: [],
   dueDateFrom: '', dueDateTo: '', overdueOnly: false, dueTodayOnly: false, unreadOnly: false, staleOnly: false,
 }
 
 function activeCount(f: FilterState) {
-  return [f.status, f.priority, f.assigneeIds.length > 0, f.dueDateFrom || f.dueDateTo, f.overdueOnly, f.dueTodayOnly, f.unreadOnly, f.staleOnly].filter(Boolean).length
+  return [f.statuses.length > 0, f.priority, f.assigneeIds.length > 0, f.dueDateFrom || f.dueDateTo, f.overdueOnly, f.dueTodayOnly, f.unreadOnly, f.staleOnly].filter(Boolean).length
 }
 
 function FilterSheet({
@@ -134,11 +134,14 @@ function FilterSheet({
             <Text style={FS.sectionLabel}>STATUS</Text>
             <View style={FS.optionRow}>
               {STATUS_OPTIONS.map(s => {
-                const active = draft.status === s
+                const active = draft.statuses.includes(s)
                 return (
                   <TouchableOpacity key={s}
                     style={[FS.optionChip, active && { backgroundColor: STATUS_META[s].bg, borderColor: STATUS_META[s].color }]}
-                    onPress={() => set({ status: active ? '' : s })}
+                    onPress={() => setDraft(d => {
+                      const next = d.statuses.includes(s) ? d.statuses.filter(x => x !== s) : [...d.statuses, s]
+                      return { ...d, statuses: next }
+                    })}
                   >
                     <View style={[FS.dot, { backgroundColor: STATUS_META[s].color }]} />
                     <Text style={[FS.optionText, active && { color: STATUS_META[s].color, fontWeight: '700' }]}>
@@ -793,7 +796,12 @@ function ActiveFilterPills({ filters, onClear, userNameMap = {} }: {
   userNameMap?: Record<string, string>
 }) {
   const pills: { label: string; key: keyof FilterState }[] = []
-  if (filters.status) pills.push({ label: STATUS_META[filters.status]?.label ?? filters.status, key: 'status' })
+  if (filters.statuses.length > 0) {
+    const label = filters.statuses.length === 1
+      ? (STATUS_META[filters.statuses[0]]?.label ?? filters.statuses[0])
+      : `${filters.statuses.length} statuses`
+    pills.push({ label, key: 'statuses' })
+  }
   if (filters.priority) pills.push({ label: PRIORITY_META[filters.priority]?.label ?? filters.priority, key: 'priority' })
   if (filters.assigneeIds.length > 0) {
     const hasUnassigned = filters.assigneeIds.includes('unassigned')
@@ -858,7 +866,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
     lastParamsKey.current = key
     setFilters({
       ...emptyFilters,
-      status:       params.status ?? '',
+      statuses:     params.status ? params.status.split(',').filter(Boolean) : [],
       overdueOnly:  params.overdue === '1',
       dueTodayOnly: params.today === '1',
       staleOnly:    params.stale === '1',
@@ -890,7 +898,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
     try {
       const data = await orderService.listOrders({
         search: search || undefined,
-        status: filters.status || undefined,
+        status: filters.statuses.length ? filters.statuses.join(',') : undefined,
         priority: filters.priority || undefined,
         assigned_to: myOrdersOnly && user ? user.id : (filters.assigneeIds.length ? filters.assigneeIds.join(',') : undefined),
         overdue: filters.overdueOnly ? '1' : undefined,
@@ -934,6 +942,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
       const next = { ...f }
       if (key === 'dueDateFrom') { next.dueDateFrom = ''; next.dueDateTo = '' }
       else if (key === 'assigneeIds') { next.assigneeIds = [] }
+      else if (key === 'statuses') { next.statuses = [] }
       else (next as Record<keyof FilterState, string | boolean | string[]>)[key] = typeof f[key] === 'boolean' ? false : ''
       return next
     })

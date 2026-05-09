@@ -14,7 +14,7 @@ import (
 
 type OrderFilter struct {
 	Search     string
-	Status     string
+	Statuses   []string
 	Priority   string
 	AssignedTo []string // user IDs to filter by (OR logic)
 	Unassigned bool     // include orders with no assignees
@@ -80,10 +80,14 @@ func (r *OrderRepository) buildWhere(f OrderFilter) (string, []interface{}) {
 		args = append(args, "%"+f.Search+"%", "%"+f.Search+"%", "%"+numSearch+"%")
 		idx += 3
 	}
-	if f.Status != "" {
-		conditions = append(conditions, fmt.Sprintf("o.status = $%d", idx))
-		args = append(args, f.Status)
-		idx++
+	if len(f.Statuses) > 0 {
+		placeholders := make([]string, len(f.Statuses))
+		for i, s := range f.Statuses {
+			placeholders[i] = fmt.Sprintf("$%d", idx+i)
+			args = append(args, s)
+		}
+		conditions = append(conditions, fmt.Sprintf("o.status IN (%s)", strings.Join(placeholders, ", ")))
+		idx += len(f.Statuses)
 	}
 	if f.Priority != "" {
 		conditions = append(conditions, fmt.Sprintf("o.priority = $%d", idx))

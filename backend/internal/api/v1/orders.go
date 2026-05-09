@@ -105,9 +105,18 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 		}
 	}
 
+	var statuses []string
+	if raw := c.Query("status"); raw != "" {
+		for _, s := range strings.Split(raw, ",") {
+			if s = strings.TrimSpace(s); s != "" {
+				statuses = append(statuses, s)
+			}
+		}
+	}
+
 	orders, total, err := h.orderService.ListOrders(c.Request.Context(), services.ListOrdersParams{
 		Search:     c.Query("search"),
-		Status:     c.Query("status"),
+		Statuses:   statuses,
 		Priority:   c.Query("priority"),
 		AssignedTo: assignedTo,
 		Unassigned: unassigned,
