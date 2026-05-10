@@ -327,11 +327,15 @@ export default function OrderDetailScreen() {
                       <Text style={{ fontSize: 11, color: '#10B981', fontWeight: '600' }}>Done</Text>
                     </View>
                   ) : f.error ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ fontSize: 11, color: '#EF4444' }}>Failed</Text>
-                      <TouchableOpacity onPress={() => D.retryUpload(f.id)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-                        <Text style={{ fontSize: 11, color: '#6366F1', fontWeight: '600' }}>Retry</Text>
-                      </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+                      <Text style={{ fontSize: 11, color: '#EF4444', flexShrink: 1 }} numberOfLines={1}>
+                        {f.error.length > 40 ? f.error.slice(0, 40) + '…' : f.error}
+                      </Text>
+                      {!f.error.toLowerCase().includes('exceeds') && !f.error.toLowerCase().includes('too large') && (
+                        <TouchableOpacity onPress={() => D.retryUpload(f.id)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                          <Text style={{ fontSize: 11, color: '#6366F1', fontWeight: '600' }}>Retry</Text>
+                        </TouchableOpacity>
+                      )}
                       <TouchableOpacity onPress={() => D.setUploadingFiles(prev => prev.filter(x => x.id !== f.id))} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                         <Ionicons name="close" size={13} color="#9CA3AF" />
                       </TouchableOpacity>

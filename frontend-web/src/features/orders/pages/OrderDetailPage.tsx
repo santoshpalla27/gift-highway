@@ -1909,8 +1909,10 @@ export function OrderDetailPage() {
                       </span>
                     ) : f.error ? (
                       <>
-                        <span style={{ fontSize: 11, color: '#EF4444', flexShrink: 0 }}>Failed</span>
-                        <button onClick={() => retryUpload(f.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#6366F1', fontWeight: 600, padding: '0 2px', flexShrink: 0 }}>Retry</button>
+                        <span style={{ fontSize: 11, color: '#EF4444', flexShrink: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }} title={f.error}>{f.error}</span>
+                        {!f.error.toLowerCase().includes('exceeds') && !f.error.toLowerCase().includes('too large') && (
+                          <button onClick={() => retryUpload(f.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#6366F1', fontWeight: 600, padding: '0 2px', flexShrink: 0 }}>Retry</button>
+                        )}
                         <button onClick={() => setUploadingFiles(prev => prev.filter(x => x.id !== f.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
                       </>
                     ) : (

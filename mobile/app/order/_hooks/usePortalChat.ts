@@ -108,7 +108,7 @@ export function usePortalChat(orderId: string, initialAttachments: PortalAttachm
   const uploadPortalFile = useCallback(async (uri: string, name: string, rawMime: string, size: number) => {
     const mimeType = resolveFileMime(name, rawMime)
     if (!ALLOWED_MIME_TYPES.includes(mimeType)) { Alert.alert('Error', `"${name}" has an unsupported file type.`); return }
-    if (size > MAX_FILE_SIZE) { Alert.alert('Error', `"${name}" exceeds the 100 MB limit.`); return }
+    if (size > MAX_FILE_SIZE) { Alert.alert('File too large', `"${name}" exceeds the 100 MB limit. Please choose a smaller file.`); return }
     const uid = `portal-${Date.now()}`
     setUploadingFiles(prev => [...prev, { id: uid, name, mime: mimeType, progress: 0, previewUri: isImage(mimeType) ? uri : undefined }])
     runPortalUpload(uid, uri, name, mimeType, size)
