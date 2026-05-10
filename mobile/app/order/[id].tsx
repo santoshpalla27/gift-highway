@@ -208,11 +208,9 @@ export default function OrderDetailScreen() {
             contentContainerStyle={S.timelineContent}
             refreshControl={<RefreshControl refreshing={D.refreshing} onRefresh={D.onRefresh} tintColor="#0F172A" />}
             onContentSizeChange={() => {
-              if (!D.initialScrolledRef.current && !D.loadingEvents) {
-                D.initialScrolledRef.current = true
-                D.scrollRef.current?.scrollToEnd({ animated: false })
-              } else if (D.initialScrolledRef.current && D.atBottomRef.current) {
-                // Content grew (attachments/images loaded) while user was at bottom — stay at bottom
+              // Keep user pinned to bottom when content grows (images load, new messages arrive)
+              // Initial scroll is handled in the hook's useEffect to avoid timing races
+              if (D.initialScrolledRef.current && D.atBottomRef.current) {
                 D.scrollRef.current?.scrollToEnd({ animated: false })
               }
             }}

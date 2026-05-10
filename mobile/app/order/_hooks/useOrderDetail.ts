@@ -387,6 +387,19 @@ export function useOrderDetail(orderId: string | undefined) {
     }
   }, [orderId])
 
+  // ── Initial scroll to bottom ──────────────────────────────────────────────
+  // Fires once after the first event batch renders. Using useEffect (not
+  // onContentSizeChange) avoids the race where loadingEvents flips false on a
+  // separate render from setEvList, causing onContentSizeChange to miss the window.
+  useEffect(() => {
+    if (loadingEvents || evList.length === 0 || initialScrolledRef.current) return
+    initialScrolledRef.current = true
+    // requestAnimationFrame gives RN time to commit layout before scrolling
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollToEnd({ animated: false })
+    })
+  }, [loadingEvents, evList.length])
+
   // ── Socket ────────────────────────────────────────────────────────────────
 
   useOrderSocket(
