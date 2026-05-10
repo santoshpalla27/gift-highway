@@ -66,7 +66,7 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
             activeOpacity={0.85}
           >
             {viewUrl
-              ? <Image source={{ uri: viewUrl }} style={{ width: '100%', height: 180 }} resizeMode="cover" />
+              ? <Image source={{ uri: viewUrl }} style={{ width: '100%', height: 180 }} resizeMode="cover" resizeMethod="resize" />
               : <View style={{ width: '100%', height: 60, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' }}>
                   <ActivityIndicator size="small" color="#94A3B8" />
                 </View>

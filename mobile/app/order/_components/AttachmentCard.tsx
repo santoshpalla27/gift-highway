@@ -83,6 +83,7 @@ export function AttachmentCard({ orderId, payload, isOwn, onReply }: {
                   source={{ uri: imgUri }}
                   style={{ width: '100%', height: 180 }}
                   resizeMode="cover"
+                  resizeMethod="resize"
                   onError={handleImgError}
                 />
               )}

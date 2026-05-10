@@ -171,6 +171,7 @@ export function AttachmentViewer({
                 source={{ uri: url }}
                 style={{ width: SW, flex: 1 }}
                 resizeMode="contain"
+                resizeMethod="resize"
                 onLoad={() => setImgLoading(false)}
                 onError={() => { setImgLoading(false); setImgError(true) }}
               />
