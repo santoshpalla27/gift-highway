@@ -1273,6 +1273,25 @@ export function OrderDetailPage() {
     })
   }, [allEvents.length])
 
+  // Edge case: when the initial content is shorter than the viewport, the scroll
+  // container is not yet scrollable so overflow-anchor has nothing to anchor.
+  // If images then load and push feedEndRef off-screen, IntersectionObserver
+  // catches the exit and snaps to bottom. Depends on orderLoading (not [])
+  // because the early-return skeleton renders before the real layout mounts.
+  useEffect(() => {
+    const sentinel = feedEndRef.current
+    const tl = timelineRef.current
+    if (!sentinel || !tl) return
+    const io = new IntersectionObserver(([entry]) => {
+      if (!initialScrolledRef.current) return
+      if (!entry.isIntersecting && atBottomRef.current) {
+        tl.scrollTop = tl.scrollHeight
+      }
+    }, { root: tl, threshold: 0 })
+    io.observe(sentinel)
+    return () => io.disconnect()
+  }, [orderLoading])
+
   // ── Load older ──────────────────────────────────────────────────────────────
   const loadOlder = async () => {
     if (loadingOlder || !id) return
