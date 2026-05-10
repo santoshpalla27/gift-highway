@@ -247,9 +247,11 @@ export default function AdminScreen() {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [confirmModal, setConfirmModal] = useState<Omit<ConfirmModalProps, 'visible'> | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true)
+  const fetchUsers = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true)
+    else setLoading(true)
     setError(false)
     try {
       const data = await adminService.listUsers()
@@ -258,6 +260,7 @@ export default function AdminScreen() {
       setError(true)
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }, [])
 
@@ -316,10 +319,17 @@ export default function AdminScreen() {
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <Text style={S.headerTitle}>Users</Text>
-        <TouchableOpacity style={S.addBtn} onPress={() => setShowCreate(true)}>
-          <Ionicons name="add" size={20} color="#FFFFFF" />
-          <Text style={S.addBtnText}>Add User</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity onPress={() => fetchUsers(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            {refreshing
+              ? <ActivityIndicator size="small" color="#4F46E5" />
+              : <Ionicons name="refresh-outline" size={22} color="#6B7280" />}
+          </TouchableOpacity>
+          <TouchableOpacity style={S.addBtn} onPress={() => setShowCreate(true)}>
+            <Ionicons name="add" size={20} color="#FFFFFF" />
+            <Text style={S.addBtnText}>Add User</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Quick links */}

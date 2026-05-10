@@ -178,6 +178,16 @@ export default function ActivityScreen() {
           {!loading && <Text style={S.headerSub}>{total} event{total !== 1 ? 's' : ''}{hasFilters && filtered.length !== events.length ? ` · ${filtered.length} shown` : ''}</Text>}
         </View>
         <TouchableOpacity
+          onPress={() => fetchPage(1, true)}
+          disabled={loading}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ marginRight: 8 }}
+        >
+          {loading
+            ? <ActivityIndicator size="small" color="#6366F1" />
+            : <Ionicons name="refresh-outline" size={20} color="#6B7280" />}
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[S.filterBtn, eventType && S.filterBtnActive]}
           onPress={() => setShowFilter(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
