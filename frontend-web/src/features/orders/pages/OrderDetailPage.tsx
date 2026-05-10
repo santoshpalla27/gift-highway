@@ -243,7 +243,7 @@ function AttachmentImage({ orderId, fileKey, fileName, fileUrl, onOpen }: {
         alt={fileName}
         loading="lazy"
         onLoad={() => setLoading(false)}
-        onError={(e) => { setLoading(false); handleError() }}
+        onError={() => { setLoading(false); handleError() }}
         onClick={() => onOpen?.(src)}
         style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block', cursor: onOpen ? 'pointer' : 'default', opacity: loading ? 0 : 1, transition: 'opacity 0.2s' }}
       />
