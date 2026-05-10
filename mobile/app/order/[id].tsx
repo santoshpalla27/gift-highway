@@ -152,6 +152,12 @@ export default function OrderDetailScreen() {
           <View style={S.headerCenter}>
             <Text style={S.headerTitle} numberOfLines={1}>#{order.title}</Text>
           </View>
+          <TouchableOpacity onPress={D.onRefresh} disabled={D.refreshing} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            {D.refreshing
+              ? <ActivityIndicator size="small" color="#0F172A" />
+              : <Ionicons name="refresh-outline" size={22} color="#0F172A" />
+            }
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => D.setShowInfo(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="information-circle-outline" size={22} color="#0F172A" />
           </TouchableOpacity>
