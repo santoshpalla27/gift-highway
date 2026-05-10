@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { notificationService } from '../../../services/notificationService'
 import { useNotifications } from '../../notifications/hooks/useNotifications'
@@ -1127,7 +1127,7 @@ export function OrderDetailPage() {
 
   // ── Optimistic / failed comments ────────────────────────────────────────────
   const [optimisticEvents, setOptimisticEvents] = useState<LocalOrderEvent[]>([])
-  const allEvents = (() => {
+  const allEvents = useMemo(() => {
     const raw = [...evList, ...optimisticEvents]
 
     // Collect msg_ids of deleted portal messages
@@ -1168,15 +1168,17 @@ export function OrderDetailPage() {
         }
         return e
       })
-  })()
+  }, [evList, optimisticEvents])
 
   // ── Scroll / new-events badge ───────────────────────────────────────────────
   const [newCount, setNewCount] = useState(0)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const atBottomRef = useRef(true)
   const timelineRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const feedEndRef = useRef<HTMLDivElement>(null)
   const initialScrolledRef = useRef(false)
+  const prevAllEventsLenRef = useRef(0)
 
   const [showEdit, setShowEdit] = useState(false)
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
@@ -1250,47 +1252,64 @@ export function OrderDetailPage() {
     if (eventsLoading || initialScrolledRef.current) return
     if (evList.length === 0) return
     initialScrolledRef.current = true
+    prevAllEventsLenRef.current = allEvents.length
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        feedEndRef.current?.scrollIntoView({ behavior: 'auto' })
+        const tl = timelineRef.current
+        if (tl) tl.scrollTop = tl.scrollHeight
         setIsAtBottom(true)
         atBottomRef.current = true
       })
     })
-  }, [eventsLoading, evList.length])
+  }, [eventsLoading, evList.length, allEvents.length])
 
-  // Keep scrolled to bottom when content grows (images/attachments loading)
+  // Keep scrolled to bottom when content grows (images loading, layout shifts).
+  // ResizeObserver fires whenever the inner content div changes height — covering
+  // new nodes AND images loading without separate image-load listeners.
+  //
+  // Two cases handled here because scrollHeight can change without a scroll event:
+  //   • At bottom: snap to new bottom so images don't push user off-screen.
+  //   • Scrolled up: recompute badge state so the badge appears correctly.
+  //
+  // Depends on orderLoading (not []) because the early return at the top of the
+  // component renders a skeleton when orderLoading=true, so refs are null on the
+  // first render. The effect must re-run once the real layout is mounted.
   useEffect(() => {
+    const content = contentRef.current
+    if (!content) return
     const tl = timelineRef.current
     if (!tl) return
+    const observer = new ResizeObserver(() => {
+      if (!initialScrolledRef.current) return
+      const gap = tl.scrollHeight - tl.scrollTop - tl.clientHeight
+      if (atBottomRef.current || gap < 80) {
+        // At bottom (or close enough) — snap to new bottom as content grows.
+        tl.scrollTop = tl.scrollHeight
+        atBottomRef.current = true
+        setIsAtBottom(true)
+      } else {
+        // User scrolled up intentionally — don't force-scroll, but update
+        // the badge state since scrollHeight changed without a scroll event.
+        setIsAtBottom(false)
+      }
+    })
+    observer.observe(content)
+    return () => observer.disconnect()
+  }, [orderLoading])
 
-    const scrollIfAtBottom = () => {
-      if (atBottomRef.current) tl.scrollTop = tl.scrollHeight
-    }
-
-    const attachImageListeners = (root: Element) => {
-      const imgs = root.tagName === 'IMG'
-        ? [root as HTMLImageElement]
-        : Array.from(root.querySelectorAll<HTMLImageElement>('img'))
-      imgs.forEach(img => {
-        if (!img.complete) img.addEventListener('load', scrollIfAtBottom, { once: true })
+  // Auto-scroll to bottom when new events arrive (real-time or optimistic),
+  // after React has committed the render. The ResizeObserver above handles
+  // the subsequent image-load growth; this effect handles text-only events.
+  useEffect(() => {
+    const curr = allEvents.length
+    if (curr > prevAllEventsLenRef.current && atBottomRef.current && initialScrolledRef.current) {
+      requestAnimationFrame(() => {
+        const tl = timelineRef.current
+        if (tl) tl.scrollTop = tl.scrollHeight
       })
     }
-
-    const mo = new MutationObserver((mutations) => {
-      for (const m of mutations) {
-        for (const node of m.addedNodes) {
-          if (node instanceof Element) attachImageListeners(node)
-        }
-      }
-      scrollIfAtBottom()
-    })
-
-    mo.observe(tl, { childList: true, subtree: true })
-    attachImageListeners(tl)
-
-    return () => mo.disconnect()
-  }, [])
+    prevAllEventsLenRef.current = curr
+  }, [allEvents.length])
 
   // ── Load older ──────────────────────────────────────────────────────────────
   const loadOlder = async () => {
@@ -1318,17 +1337,15 @@ export function OrderDetailPage() {
     if (!id) return
     const data = await orderService.listEvents(id, 1, LIMIT, 'desc')
     const latest = [...data.events].reverse()
-    setEvList(prev => {
-      const existingIds = new Set(prev.map(e => e.id))
-      const newEvs = latest.filter(e => !existingIds.has(e.id))
-      if (newEvs.length === 0) return prev
-      if (atBottomRef.current) {
-        setTimeout(() => feedEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
-      } else {
-        setNewCount(n => n + newEvs.length)
-      }
-      return [...prev, ...newEvs]
-    })
+    // Compute new events against the ref (always current) so we can
+    // update newCount outside the state updater (pure function requirement).
+    const existingIds = new Set(evListRef.current.map(e => e.id))
+    const newEvs = latest.filter(e => !existingIds.has(e.id))
+    if (newEvs.length > 0) {
+      setEvList(prev => [...prev, ...newEvs])
+      if (!atBottomRef.current) setNewCount(n => n + newEvs.length)
+      // Scroll is handled by the allEvents.length useEffect above.
+    }
     setOptimisticEvents(prev => prev.filter(e => e.failed))
     setTotalEvents(data.total)
   }, [id])
@@ -1408,8 +1425,9 @@ export function OrderDetailPage() {
       setOptimisticEvents(prev => [...prev, optimistic])
       setCommentText('')
       setTimeout(() => textareaRef.current?.focus(), 0)
+      // Force atBottom so the allEvents.length effect scrolls down after render.
       atBottomRef.current = true
-      setTimeout(() => feedEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+      setIsAtBottom(true)
       return { optId }
     },
     onSuccess: () => {
@@ -1435,11 +1453,11 @@ export function OrderDetailPage() {
 
   const handleSelectReplyEvent = useCallback((ev: LocalOrderEvent) => {
     setReplyToEvent(ev)
-    const el = eventRefs.current[ev.id]
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      setTimeout(() => feedEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 600)
-    }
+    // Scroll to bottom so the reply bar and composer are visible.
+    requestAnimationFrame(() => {
+      const tl = timelineRef.current
+      if (tl) tl.scrollTop = tl.scrollHeight
+    })
   }, [])
 
   // Find the timeline event that corresponds to a portal message, matched by timestamp proximity
@@ -1723,6 +1741,7 @@ export function OrderDetailPage() {
             onScroll={handleTimelineScroll}
             style={{ flex: 1, overflowY: 'auto', padding: '16px 28px 8px', position: 'relative' }}
           >
+            <div ref={contentRef}>
             {/* Load older button */}
             {!eventsLoading && hasOlder && (
               <div style={{ textAlign: 'center', marginBottom: 16 }}>
@@ -1846,6 +1865,7 @@ export function OrderDetailPage() {
               ))
             })()}
             <div ref={feedEndRef} style={{ height: 16 }} />
+            </div>{/* end contentRef */}
           </div>
 
           {/* Scroll-to-bottom FAB */}
