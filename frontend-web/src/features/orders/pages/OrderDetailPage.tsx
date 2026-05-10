@@ -212,6 +212,7 @@ function AttachmentImage({ orderId, fileKey, fileName, fileUrl, onOpen }: {
 }) {
   const [src, setSrc] = useState(fileUrl)
   const [failed, setFailed] = useState(false)
+  const [loading, setLoading] = useState(true)
   const refreshing = useRef(false)
 
   const handleError = async () => {
@@ -231,14 +232,22 @@ function AttachmentImage({ orderId, fileKey, fileName, fileUrl, onOpen }: {
     return <div style={{ padding: '10px 14px', fontSize: 12, color: '#9CA3AF' }}>Image unavailable</div>
   }
   return (
-    <img
-      src={src}
-      alt={fileName}
-      loading="lazy"
-      onError={handleError}
-      onClick={() => onOpen?.(src)}
-      style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block', cursor: onOpen ? 'pointer' : 'default' }}
-    />
+    <div style={{ position: 'relative', width: '100%' }}>
+      {loading && (
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F3F4F6' }}>
+          <div style={{ width: 16, height: 16, border: '2px solid #94A3B8', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        </div>
+      )}
+      <img
+        src={src}
+        alt={fileName}
+        loading="lazy"
+        onLoad={() => setLoading(false)}
+        onError={(e) => { setLoading(false); handleError() }}
+        onClick={() => onOpen?.(src)}
+        style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block', cursor: onOpen ? 'pointer' : 'default', opacity: loading ? 0 : 1, transition: 'opacity 0.2s' }}
+      />
+    </div>
   )
 }
 
@@ -256,6 +265,7 @@ function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isSta
   onOpen?: (url: string) => void
 }) {
   const [viewUrl, setViewUrl] = useState<string | null>(null)
+  const [imgLoading, setImgLoading] = useState(true)
   const ext = ('.' + (fileName.split('.').pop() ?? '')).toLowerCase()
   const isImg = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic'].includes(ext) ||
                 ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic'].includes((fileType ?? '').toLowerCase())
@@ -293,10 +303,17 @@ function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isSta
       }}>
         <div
           onClick={() => { if (viewUrl && onOpen) onOpen(viewUrl); else handleDownload() }}
-          style={{ cursor: 'pointer', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          style={{ cursor: 'pointer', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
         >
           {viewUrl ? (
-            <img src={viewUrl} alt={fileName} loading="lazy" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
+            <>
+              {imgLoading && (
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F3F4F6' }}>
+                  <div style={{ width: 16, height: 16, border: '2px solid #94A3B8', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                </div>
+              )}
+              <img src={viewUrl} alt={fileName} loading="lazy" onLoad={() => setImgLoading(false)} onError={() => setImgLoading(false)} style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block', opacity: imgLoading ? 0 : 1, transition: 'opacity 0.2s' }} />
+            </>
           ) : (
             <div style={{ width: '100%', height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                <div style={{ width: 16, height: 16, border: '2px solid #94A3B8', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
