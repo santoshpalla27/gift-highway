@@ -199,10 +199,9 @@ func (s *PortalService) GetUploadURL(ctx context.Context, orderID, fileName stri
 	}
 	presignClient := s3.NewPresignClient(client)
 	putReq, err := presignClient.PresignPutObject(ctx, &s3.PutObjectInput{
-		Bucket:       aws.String(s.cfg.R2Bucket),
-		Key:          aws.String(fileKey),
-		ContentType:  aws.String(mime),
-		CacheControl: aws.String("private, max-age=86400, immutable"),
+		Bucket:      aws.String(s.cfg.R2Bucket),
+		Key:         aws.String(fileKey),
+		ContentType: aws.String(mime),
 	}, s3.WithPresignExpires(10*time.Minute))
 	if err != nil {
 		return nil, err

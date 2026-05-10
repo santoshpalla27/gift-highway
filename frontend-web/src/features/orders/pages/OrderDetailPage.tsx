@@ -1555,8 +1555,9 @@ export function OrderDetailPage() {
           return prev.filter(f => f.id !== uid)
         })
       }, 1500)
-    } catch {
-      setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, error: 'Upload failed' } : f))
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Upload failed'
+      setUploadingFiles(prev => prev.map(f => f.id === uid ? { ...f, error: msg } : f))
     }
   }
 
