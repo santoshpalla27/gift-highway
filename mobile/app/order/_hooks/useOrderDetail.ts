@@ -566,7 +566,7 @@ export function useOrderDetail(orderId: string | undefined) {
     if (!orderId) return
     const mimeType = resolveFileMime(name, rawMime)
     if (!ALLOWED_MIME_TYPES.includes(mimeType)) { Alert.alert('Error', `"${name}" has an unsupported file type.`); return }
-    if (size > MAX_FILE_SIZE) { Alert.alert('Error', `"${name}" exceeds the 50 MB limit.`); return }
+    if (size > MAX_FILE_SIZE) { Alert.alert('Error', `"${name}" exceeds the 100 MB limit.`); return }
     const uid = `upload-${Date.now()}`
     setUploadingFiles(prev => [...prev, { id: uid, name, mime: mimeType, progress: 0, previewUri: isImage(mimeType) ? uri : undefined, retryArgs: { uri, mimeType, size } }])
     runUpload(uid, uri, name, mimeType, size)

@@ -35,7 +35,7 @@ func (h *AttachmentHandler) GetUploadURL(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrFileTooLarge):
-			c.JSON(http.StatusBadRequest, gin.H{"error": "file exceeds 50 MB limit"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "file exceeds 100 MB limit"})
 		case errors.Is(err, services.ErrInvalidMIMEType):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "file type not allowed"})
 		case errors.Is(err, services.ErrStorageNotConfigured):

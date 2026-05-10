@@ -1568,7 +1568,7 @@ export function OrderDetailPage() {
         continue
       }
       if (file.size > MAX_FILE_SIZE) {
-        alert(`"${file.name}" exceeds the 50 MB limit.`)
+        alert(`"${file.name}" exceeds the 100 MB limit.`)
         continue
       }
       const uid = `upload-${Date.now()}-${Math.random()}`

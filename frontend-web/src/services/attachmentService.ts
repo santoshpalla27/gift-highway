@@ -26,7 +26,7 @@ export const ALLOWED_MIME_TYPES = [
   'text/plain',
 ]
 
-export const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
+export const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB
 
 const BROWSER_RENDERABLE_IMAGE_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/webp', 'image/gif',

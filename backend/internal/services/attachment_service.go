@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	ErrFileTooLarge    = errors.New("file exceeds 50 MB limit")
+	ErrFileTooLarge    = errors.New("file exceeds 100 MB limit")
 	ErrInvalidMIMEType = errors.New("file type not allowed")
 	ErrForbidden       = errors.New("forbidden")
 )
@@ -49,7 +49,7 @@ var allowedMIMETypes = map[string]bool{
 	"text/plain":               true,
 }
 
-const maxFileSizeBytes = 50 * 1024 * 1024 // 50 MB
+const maxFileSizeBytes = 100 * 1024 * 1024 // 100 MB
 
 type AttachmentService struct {
 	repo      *repositories.AttachmentRepository
