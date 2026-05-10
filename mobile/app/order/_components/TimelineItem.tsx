@@ -261,7 +261,7 @@ export function TimelineItem({
           <MenuSheet visible={menuOpen} onClose={() => setMenuOpen(false)} onReply={onReply} forAttachment />
           <NameRow name={isOwn ? 'You' : senderName} color={nameColor} />
           <BubbleRow avatarBg={avatarBg} avatarTextColor={avatarColor} senderInitials={getInitials(senderName)} canMenu={canMenu} forAttachment>
-            <PortalAttachmentCard orderId={orderId} attId={attIdRaw} fileName={fileName} fileType={p.file_type} isOwn={isOwn} isStaff={false} caption={attCaption} sizeBytes={attIdRaw != null ? (portalAttachments?.find(a => a.id === attIdRaw)?.file_size ?? undefined) : undefined} onReply={onReply} />
+            <PortalAttachmentCard orderId={orderId} attId={attIdRaw} fileName={fileName} fileType={p.file_type} isOwn={isOwn} isStaff={false} caption={attCaption} viewUrl={attIdRaw != null ? (portalAttachments?.find(a => a.id === attIdRaw)?.view_url ?? undefined) : undefined} sizeBytes={attIdRaw != null ? (portalAttachments?.find(a => a.id === attIdRaw)?.file_size ?? undefined) : undefined} onReply={onReply} />
           </BubbleRow>
           <TimeRow time={formatTimestamp(event.created_at)} />
         </View>
@@ -303,7 +303,7 @@ export function TimelineItem({
             })()}
             {parsed.text !== '' && <Text style={T.commentText}>{parsed.text}</Text>}
             {event.type === 'staff_portal_reply' && parsed.tokens.map(tok =>
-              <PortalAttachmentCard key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={isOwn} isStaff sizeBytes={portalAttachments?.find(a => a.id === tok.id)?.file_size ?? undefined} onReply={onReply} />
+              <PortalAttachmentCard key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={isOwn} isStaff viewUrl={portalAttachments?.find(a => a.id === tok.id)?.view_url ?? undefined} sizeBytes={portalAttachments?.find(a => a.id === tok.id)?.file_size ?? undefined} onReply={onReply} />
             )}
           </View>
         </BubbleRow>

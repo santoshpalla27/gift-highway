@@ -1,8 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import {
-  Modal, View, Text, TouchableOpacity, Image,
+  Modal, View, Text, TouchableOpacity,
   StyleSheet, Dimensions, ActivityIndicator, Platform,
+  Image as RNImage,
 } from 'react-native'
+import { Image } from 'expo-image'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import Svg, { Path } from 'react-native-svg'
@@ -124,9 +126,9 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
       img.onerror = () => applyDimensions(800, 600)
       img.src = imageUrl
     } else {
-      Image.getSize(
+      RNImage.getSize(
         imageUrl,
-        (w, h) => applyDimensions(w, h),
+        (w: number, h: number) => applyDimensions(w, h),
         () => applyDimensions(800, 600),
       )
     }
@@ -405,7 +407,7 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
                       <Image
                         source={{ uri: imageUrl }}
                         style={{ width: canvasSize.w, height: canvasSize.h, position: 'absolute' }}
-                        resizeMode="contain"
+                        contentFit="contain"
                       />
                       <Svg
                         width={canvasSize.w}

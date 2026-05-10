@@ -4,12 +4,12 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Image,
   StyleSheet,
   Dimensions,
   ActivityIndicator,
   Platform,
 } from 'react-native'
+import { Image } from 'expo-image'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { formatBytes, downloadAttachment, shareAttachment, attachmentService } from '../services/attachmentService'
@@ -170,8 +170,7 @@ export function AttachmentViewer({
               <Image
                 source={{ uri: url }}
                 style={{ width: SW, flex: 1 }}
-                resizeMode="contain"
-                resizeMethod="resize"
+                contentFit="contain"
                 onLoad={() => setImgLoading(false)}
                 onError={() => { setImgLoading(false); setImgError(true) }}
               />

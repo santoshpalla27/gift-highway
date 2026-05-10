@@ -1,6 +1,7 @@
-import { View, Text, Image, TouchableOpacity, ActivityIndicator, Dimensions, Linking } from 'react-native'
+import { View, Text, TouchableOpacity, ActivityIndicator, Dimensions, Linking } from 'react-native'
+import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { staffPortalApi } from '../../../services/portalService'
 import { formatBytes } from '../../../services/attachmentService'
 import { AttachmentViewer } from '../../../components/AttachmentViewer'
@@ -9,13 +10,12 @@ const ATTACH_MAX_W = Math.round(Dimensions.get('window').width * 0.6)
 
 const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic']
 
-const _urlCache = new Map<string, string>()
-
-export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff, caption, sizeBytes, onReply }: {
+export function PortalAttachmentCard({ orderId, attId, fileName, viewUrl, isOwn, isStaff, caption, sizeBytes, onReply }: {
   orderId: string
   attId: number | null
   fileName: string
   fileType?: string
+  viewUrl?: string
   isOwn?: boolean
   isStaff?: boolean
   caption?: string
@@ -24,22 +24,8 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
 }) {
   const ext = ('.' + (fileName.split('.').pop() ?? '')).toLowerCase()
   const isImg = IMG_EXTS.includes(ext)
-  const cacheKey = attId != null ? `${orderId}:${attId}` : null
-
-  const [viewUrl, setViewUrl] = useState<string | null>(() =>
-    cacheKey ? _urlCache.get(cacheKey) ?? null : null
-  )
   const [viewerVisible, setViewerVisible] = useState(false)
-
-  useEffect(() => {
-    if (attId == null || viewUrl != null) return
-    staffPortalApi.getAttachmentDownloadURL(orderId, attId, fileName)
-      .then(url => {
-        if (cacheKey) _urlCache.set(cacheKey, url)
-        setViewUrl(url)
-      })
-      .catch(() => {})
-  }, [orderId, attId, fileName])
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
 
   const hasBubble = isStaff !== undefined
   const bubbleBg     = isStaff ? '#EFF6FF' : '#F0FDF4'
@@ -48,8 +34,12 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
   const tlr = isOwn ? 14 : 4
 
   const handleDownload = async () => {
-    if (!viewUrl) return
-    await Linking.openURL(viewUrl)
+    if (attId == null) return
+    try {
+      const url = downloadUrl ?? await staffPortalApi.getAttachmentDownloadURL(orderId, attId, fileName)
+      setDownloadUrl(url)
+      await Linking.openURL(url)
+    } catch { /* ignore */ }
   }
 
   if (isImg) {
@@ -66,7 +56,7 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
             activeOpacity={0.85}
           >
             {viewUrl
-              ? <Image source={{ uri: viewUrl }} style={{ width: '100%', height: 180 }} resizeMode="cover" resizeMethod="resize" />
+              ? <Image source={{ uri: viewUrl }} style={{ width: '100%', height: 180 }} contentFit="cover" />
               : <View style={{ width: '100%', height: 60, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' }}>
                   <ActivityIndicator size="small" color="#94A3B8" />
                 </View>
@@ -116,7 +106,7 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <TouchableOpacity
             onPress={() => { if (viewUrl) setViewerVisible(true) }}
-            activeOpacity={0.85}
+            activeOpacity={viewUrl ? 0.85 : 1}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}
           >
             <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }}>
@@ -129,12 +119,9 @@ export function PortalAttachmentCard({ orderId, attId, fileName, isOwn, isStaff,
               )}
             </View>
           </TouchableOpacity>
-          {viewUrl
-            ? <TouchableOpacity onPress={handleDownload} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="arrow-down-circle-outline" size={20} color="#6366F1" />
-              </TouchableOpacity>
-            : <ActivityIndicator size="small" color="#94A3B8" />
-          }
+          <TouchableOpacity onPress={handleDownload} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="arrow-down-circle-outline" size={20} color="#6366F1" />
+          </TouchableOpacity>
         </View>
         {caption ? <Text style={{ fontSize: 13, color: '#374151', lineHeight: 18 }}>{caption}</Text> : null}
       </View>

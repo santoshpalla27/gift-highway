@@ -1,4 +1,5 @@
-import { View, Text, Image, TouchableOpacity, Dimensions, ActivityIndicator, Linking } from 'react-native'
+import { View, Text, TouchableOpacity, Dimensions, ActivityIndicator, Linking } from 'react-native'
+import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 import { useState, useRef } from 'react'
 import { attachmentService, isImage, formatBytes } from '../../../services/attachmentService'
@@ -82,8 +83,7 @@ export function AttachmentCard({ orderId, payload, isOwn, onReply }: {
                 <Image
                   source={{ uri: imgUri }}
                   style={{ width: '100%', height: 180 }}
-                  resizeMode="cover"
-                  resizeMethod="resize"
+                  contentFit="cover"
                   onError={handleImgError}
                 />
               )}
