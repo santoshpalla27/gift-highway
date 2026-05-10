@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import {
   Modal, View, Text, TouchableOpacity, Image,
   StyleSheet, Dimensions, ActivityIndicator, Platform,
@@ -98,30 +98,41 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
 
   // ── Image sizing ────────────────────────────────────────────────────────
 
-  const onImageLoad = useCallback((e: any) => {
-    let natW: number, natH: number
-    if (Platform.OS === 'web') {
-      natW = e.nativeEvent?.target?.naturalWidth ?? 800
-      natH = e.nativeEvent?.target?.naturalHeight ?? 600
-    } else {
-      const { width: w, height: h } = e.nativeEvent.source
-      natW = w; natH = h
-    }
-    setImageSize({ w: natW, h: natH })
-
-    // Fit the image into the available space
+  const applyDimensions = useCallback((natW: number, natH: number) => {
+    const w = natW > 0 ? natW : 800
+    const h = natH > 0 ? natH : 600
+    setImageSize({ w, h })
     const toolbarH = 120
     const bottomH = 100
     const maxW = SCREEN_W - 24
     const maxH = SCREEN_H - insets.top - insets.bottom - toolbarH - bottomH - 40
-    const ratio = natW / natH
+    const ratio = w / h
     let fitW = maxW
     let fitH = fitW / ratio
     if (fitH > maxH) { fitH = maxH; fitW = fitH * ratio }
     setCanvasSize({ w: Math.round(fitW), h: Math.round(fitH) })
   }, [insets.top, insets.bottom])
 
-  // ── Convert touch point from viewport space to canvas space ─────────────
+  // Use platform-appropriate APIs to reliably get image dimensions.
+  // RN Image.getSize works better than onLoad in native production builds;
+  // browser Image API works better than onLoad events on Expo Web.
+  useEffect(() => {
+    if (canvasSize.w > 0) return
+    if (Platform.OS === 'web') {
+      const img = new window.Image()
+      img.onload = () => applyDimensions(img.naturalWidth, img.naturalHeight)
+      img.onerror = () => applyDimensions(800, 600)
+      img.src = imageUrl
+    } else {
+      Image.getSize(
+        imageUrl,
+        (w, h) => applyDimensions(w, h),
+        () => applyDimensions(800, 600),
+      )
+    }
+  }, [imageUrl, canvasSize.w, applyDimensions])
+
+  // ── Convert touch point from viewport space to canvas space ──────────────
   function toCanvasCoords(touchX: number, touchY: number) {
     return {
       x: (touchX - savedOffsetX.current) / savedScale.current,
@@ -395,7 +406,6 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
                         source={{ uri: imageUrl }}
                         style={{ width: canvasSize.w, height: canvasSize.h, position: 'absolute' }}
                         resizeMode="contain"
-                        onLoad={onImageLoad}
                       />
                       <Svg
                         width={canvasSize.w}
@@ -430,11 +440,6 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
               </GestureDetector>
             ) : (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                <Image
-                  source={{ uri: imageUrl }}
-                  style={{ width: 1, height: 1, opacity: 0 }}
-                  onLoad={onImageLoad}
-                />
                 <ActivityIndicator size="large" color="#6366F1" />
               </View>
             )}

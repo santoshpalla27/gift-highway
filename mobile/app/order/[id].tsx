@@ -123,6 +123,17 @@ export default function OrderDetailScreen() {
 
   // ── Render timeline ────────────────────────────────────────────────────
 
+  // Shared handler used by onScroll, onMomentumScrollEnd, and onScrollEndDrag.
+  // All three are needed because scrollEventThrottle may miss the exact moment
+  // the scroll animation settles, leaving the badge stuck even at the bottom.
+  const handleScrollUpdate = (e: { nativeEvent: { layoutMeasurement: { height: number }; contentOffset: { y: number }; contentSize: { height: number } } }) => {
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent
+    const atBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 60
+    D.atBottomRef.current = atBottom
+    D.setIsAtBottom(atBottom)
+    if (atBottom && D.newCount > 0) D.setNewCount(0)
+  }
+
   const groups = groupByDate(D.allEvents)
 
   return (
@@ -205,13 +216,9 @@ export default function OrderDetailScreen() {
                 D.scrollRef.current?.scrollToEnd({ animated: false })
               }
             }}
-            onScroll={e => {
-              const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent
-              const atBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 60
-              D.atBottomRef.current = atBottom
-              D.setIsAtBottom(atBottom)
-              if (atBottom && D.newCount > 0) D.setNewCount(0)
-            }}
+            onScroll={handleScrollUpdate}
+            onMomentumScrollEnd={handleScrollUpdate}
+            onScrollEndDrag={handleScrollUpdate}
             scrollEventThrottle={100}
             keyboardShouldPersistTaps="handled"
           >
