@@ -139,7 +139,7 @@ export default function OrderDetailScreen() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: '#FFFFFF' }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? keyboardOffset : 0}
     >
       <View style={S.screen}>
@@ -375,7 +375,7 @@ export default function OrderDetailScreen() {
           onSend={D.handleSendComment}
           onAttach={() => D.setShowAttachSheet(true)}
           sending={D.sending}
-          paddingBottom={Math.max(insets.bottom + 4, 16)}
+          paddingBottom={Platform.OS === 'ios' ? Math.max(insets.bottom + 4, 16) : 12}
         />
       </View>
 
