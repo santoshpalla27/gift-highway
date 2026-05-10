@@ -26,6 +26,7 @@ export const PortalAttachmentCard = React.memo(function PortalAttachmentCard({ o
   const isImg = IMG_EXTS.includes(ext)
   const [viewerVisible, setViewerVisible] = useState(false)
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   const hasBubble = isStaff !== undefined
   const bubbleBg     = isStaff ? '#EFF6FF' : '#F0FDF4'
@@ -56,7 +57,16 @@ export const PortalAttachmentCard = React.memo(function PortalAttachmentCard({ o
             activeOpacity={0.85}
           >
             {viewUrl
-              ? <Image source={{ uri: viewUrl }} style={{ width: '100%', height: 180 }} contentFit="cover" transition={200} cachePolicy="memory-disk" />
+              ? (
+                <View style={{ width: '100%', height: 180 }}>
+                  <Image source={{ uri: viewUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={200} cachePolicy="memory-disk" onLoad={() => setLoading(false)} />
+                  {loading && (
+                    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' }}>
+                      <ActivityIndicator size="small" color="#94A3B8" />
+                    </View>
+                  )}
+                </View>
+              )
               : <View style={{ width: '100%', height: 60, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' }}>
                   <ActivityIndicator size="small" color="#94A3B8" />
                 </View>

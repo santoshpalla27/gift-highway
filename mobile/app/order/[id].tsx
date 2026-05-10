@@ -139,7 +139,7 @@ export default function OrderDetailScreen() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: '#FFFFFF' }}
-      behavior="padding"
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? keyboardOffset : 0}
     >
       <View style={S.screen}>

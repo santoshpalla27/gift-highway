@@ -18,6 +18,7 @@ export const AttachmentCard = React.memo(function AttachmentCard({ orderId, payl
   const [viewerVisible, setViewerVisible] = useState(false)
   const [viewerUrl, setViewerUrl] = useState('')
   const [resolving, setResolving] = useState(false)
+  const [loading, setLoading] = useState(true)
   const refreshingRef = useRef(false)
   const imgFile = isImage(payload.mime_type ?? '')
 
@@ -80,14 +81,22 @@ export const AttachmentCard = React.memo(function AttachmentCard({ orderId, payl
                   <Text style={{ fontSize: 12, color: '#9CA3AF' }}>Image unavailable</Text>
                 </View>
               ) : (
-                <Image
-                  source={{ uri: imgUri }}
-                  style={{ width: '100%', height: 180 }}
-                  contentFit="cover"
-                  transition={200}
-                  cachePolicy="memory-disk"
-                  onError={handleImgError}
-                />
+                <View style={{ width: '100%', height: 180 }}>
+                  <Image
+                    source={{ uri: imgUri }}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                    transition={200}
+                    cachePolicy="memory-disk"
+                    onError={handleImgError}
+                    onLoad={() => setLoading(false)}
+                  />
+                  {loading && (
+                    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' }}>
+                      <ActivityIndicator size="small" color="#94A3B8" />
+                    </View>
+                  )}
+                </View>
               )}
             </TouchableOpacity>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 10, gap: 6 }}>
