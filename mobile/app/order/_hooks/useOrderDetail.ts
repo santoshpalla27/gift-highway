@@ -608,6 +608,50 @@ export function useOrderDetail(orderId: string | undefined) {
     }
   }, [uploadFile])
 
+  type PendingCameraPhoto = { uri: string; fileName: string; mimeType: string; size: number }
+  const [pendingCameraPhoto, setPendingCameraPhoto] = useState<PendingCameraPhoto | null>(null)
+
+  const handlePickCamera = useCallback(async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync()
+    if (status !== 'granted') { Alert.alert('Permission required', 'Allow camera access to take photos.'); return }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'] as ImagePicker.MediaType[],
+      quality: 0.85,
+    })
+    if (!result.canceled) {
+      const asset = result.assets[0]
+      const uri = (Platform.OS !== 'web' && !asset.uri.startsWith('file://')) ? `file://${asset.uri}` : asset.uri
+      let mimeType = asset.mimeType
+      if (!mimeType) {
+        const ext = (asset.uri.split('.').pop() ?? '').toLowerCase()
+        const mimeMap: Record<string, string> = {
+          jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+          webp: 'image/webp', heic: 'image/jpeg', heif: 'image/jpeg',
+        }
+        mimeType = mimeMap[ext] ?? 'image/jpeg'
+      }
+      let size = asset.fileSize ?? 0
+      if ((!size || size === 0) && Platform.OS !== 'web') {
+        try {
+          const info = await FileSystem.getInfoAsync(uri)
+          if (info.exists && info.size) size = info.size
+        } catch { /* use fallback */ }
+      }
+      const fileExt = (asset.uri.split('.').pop() ?? 'jpg').toLowerCase()
+      const fileName = asset.fileName ?? `photo-${Date.now()}.${fileExt}`
+      setPendingCameraPhoto({ uri, fileName, mimeType, size })
+    }
+  }, [])
+
+  const confirmCameraUpload = useCallback(async () => {
+    if (!pendingCameraPhoto) return
+    const { uri, fileName, mimeType, size } = pendingCameraPhoto
+    setPendingCameraPhoto(null)
+    await uploadFile(uri, fileName, mimeType, size)
+  }, [pendingCameraPhoto, uploadFile])
+
+  const cancelCameraPhoto = useCallback(() => setPendingCameraPhoto(null), [])
+
   const handlePickDocument = useCallback(async () => {
     const result = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true })
     if (!result.canceled) {
@@ -682,7 +726,8 @@ export function useOrderDetail(orderId: string | undefined) {
     showStatus, setShowStatus, showInfo, setShowInfo, showEdit, setShowEdit,
     showAttachSheet, setShowAttachSheet,
     // uploads
-    uploadingFiles, setUploadingFiles, retryUpload, handlePickImage, handlePickDocument,
+    uploadingFiles, setUploadingFiles, retryUpload, handlePickImage, handlePickCamera, handlePickDocument,
+    pendingCameraPhoto, confirmCameraUpload, cancelCameraPhoto,
     // permissions
     isAdmin, canEdit, user,
     // utils

@@ -431,11 +431,43 @@ export default function OrderDetailScreen() {
         </TouchableOpacity>
       </Modal>
 
+      {/* Camera preview */}
+      <Modal visible={!!D.pendingCameraPhoto} transparent animationType="fade" onRequestClose={D.cancelCameraPhoto}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.96)' }}>
+          {D.pendingCameraPhoto && (
+            <Image
+              source={{ uri: D.pendingCameraPhoto.uri }}
+              style={{ flex: 1, width: '100%' }}
+              resizeMode="contain"
+            />
+          )}
+          <View style={{ flexDirection: 'row', gap: 12, padding: 20, paddingBottom: Math.max(insets.bottom + 16, 24) }}>
+            <TouchableOpacity
+              style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)', alignItems: 'center' }}
+              onPress={D.cancelCameraPhoto}
+            >
+              <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 15 }}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ flex: 2, paddingVertical: 14, borderRadius: 12, backgroundColor: '#6366F1', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              onPress={D.confirmCameraUpload}
+            >
+              <Ionicons name="send" size={16} color="#FFFFFF" />
+              <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 15 }}>Send</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Attach sheet */}
       <Modal visible={D.showAttachSheet} transparent animationType="slide" onRequestClose={() => D.setShowAttachSheet(false)}>
         <TouchableOpacity style={AS.overlay} activeOpacity={1} onPress={() => D.setShowAttachSheet(false)}>
           <TouchableOpacity activeOpacity={1} style={[AS.sheet, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
             <Text style={AS.title}>Attach File</Text>
+            <TouchableOpacity style={AS.row} onPress={() => { D.setShowAttachSheet(false); setTimeout(D.handlePickCamera, 100) }}>
+              <Ionicons name="camera-outline" size={20} color="#374151" />
+              <Text style={AS.rowText}>Camera</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={AS.row} onPress={() => { D.setShowAttachSheet(false); setTimeout(D.handlePickImage, 100) }}>
               <Ionicons name="image-outline" size={20} color="#374151" />
               <Text style={AS.rowText}>Photo Library</Text>
