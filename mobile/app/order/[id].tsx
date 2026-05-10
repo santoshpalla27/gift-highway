@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import * as Notifications from 'expo-notifications'
 import { Ionicons } from '@expo/vector-icons'
 
@@ -134,29 +134,6 @@ export default function OrderDetailScreen() {
     if (atBottom && D.newCount > 0) D.setNewCount(0)
   }
 
-  // ── Bottom pull-to-refresh ─────────────────────────────────────────────
-  // Track where the drag started so we can detect an upward pull at the bottom.
-  const dragStartAtBottomRef = useRef(false)
-
-  const handleScrollBeginDrag = (e: { nativeEvent: { layoutMeasurement: { height: number }; contentOffset: { y: number }; contentSize: { height: number } } }) => {
-    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent
-    const maxScroll = Math.max(0, contentSize.height - layoutMeasurement.height)
-    dragStartAtBottomRef.current = contentOffset.y >= maxScroll - 20
-  }
-
-  const handleScrollEndDrag = (e: { nativeEvent: { layoutMeasurement: { height: number }; contentOffset: { y: number }; contentSize: { height: number } } }) => {
-    handleScrollUpdate(e)
-    if (D.refreshing || !dragStartAtBottomRef.current) return
-    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent
-    const maxScroll = Math.max(0, contentSize.height - layoutMeasurement.height)
-    // iOS: rubber-band bounce pushes contentOffset past maxScroll when pulling up at bottom
-    // Android: user started at bottom and ended at bottom (drag was absorbed by boundary)
-    const triggered =
-      (Platform.OS === 'ios' && contentOffset.y > maxScroll + 30) ||
-      (Platform.OS === 'android' && contentOffset.y >= maxScroll - 20)
-    if (triggered) D.onRefresh()
-  }
-
   const groups = groupByDate(D.allEvents)
 
   return (
@@ -239,8 +216,7 @@ export default function OrderDetailScreen() {
             }}
             onScroll={handleScrollUpdate}
             onMomentumScrollEnd={handleScrollUpdate}
-            onScrollBeginDrag={handleScrollBeginDrag}
-            onScrollEndDrag={handleScrollEndDrag}
+            onScrollEndDrag={handleScrollUpdate}
             scrollEventThrottle={100}
             keyboardShouldPersistTaps="handled"
           >
@@ -318,12 +294,6 @@ export default function OrderDetailScreen() {
               </View>
             ))
             })()}
-
-            {D.refreshing && (
-              <View style={{ alignItems: 'center', paddingVertical: 10 }}>
-                <ActivityIndicator size="small" color="#94A3B8" />
-              </View>
-            )}
           </ScrollView>
 
           {!D.isAtBottom && (
