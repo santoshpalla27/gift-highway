@@ -64,18 +64,11 @@ echo '/swapfile none swap sw 0 0' >> /etc/fstab
 free -h
 ```
 
-## 8. Clone project & install dependencies
-
-```bash
-cd /root
-git clone https://github.com/santoshpalla27/gift-highway.git
-cd gift-highway/mobile
-npm install
-```
-
 ## 9. Prebuild & build APK
 
 ```bash
+cd /root
+yum install git -y
 git clone https://github.com/santoshpalla27/gift-highway.git
 cd gift-highway/mobile
 npm install
