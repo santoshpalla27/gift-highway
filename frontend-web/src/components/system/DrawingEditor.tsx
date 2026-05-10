@@ -40,7 +40,7 @@ const WIDTHS = [
 function buildAnnotatedFilename(original: string): string {
   const dot = original.lastIndexOf('.')
   const base = dot > 0 ? original.slice(0, dot) : original
-  return `${base}_annotated.png`
+  return `${base}_annotated.jpg`
 }
 
 /** Draw a single stroke onto a canvas context using quadratic Bézier curves */
@@ -331,24 +331,27 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
     if (!imgNatural || !blobUrl || strokes.length === 0) return
     setSaving(true)
     try {
-      // Draw image + strokes at native resolution
+        // Cap at 2048px — full-res DSLR images produce 40MB+ PNGs otherwise
+      const MAX = 2048
+      const downscale = Math.min(1, MAX / Math.max(imgNatural.w, imgNatural.h))
+      const outW = Math.round(imgNatural.w * downscale)
+      const outH = Math.round(imgNatural.h * downscale)
+
       const offscreen = document.createElement('canvas')
-      offscreen.width = imgNatural.w
-      offscreen.height = imgNatural.h
+      offscreen.width = outW
+      offscreen.height = outH
       const ctx = offscreen.getContext('2d')!
 
-      // Draw original image using blob URL (avoids CORS tainting the canvas)
       const img = new Image()
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve()
         img.onerror = () => reject(new Error('Failed to load image'))
         img.src = blobUrl
       })
-      ctx.drawImage(img, 0, 0, imgNatural.w, imgNatural.h)
+      ctx.drawImage(img, 0, 0, outW, outH)
 
-      // Scale strokes from display coords to native coords
-      const scaleX = imgNatural.w / canvasSize.w
-      const scaleY = imgNatural.h / canvasSize.h
+      const scaleX = outW / canvasSize.w
+      const scaleY = outH / canvasSize.h
       for (const stroke of strokes) {
         const scaled: Stroke = {
           ...stroke,
@@ -358,9 +361,9 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
         drawStroke(ctx, scaled)
       }
 
-      // Export as PNG blob
+      // JPEG at 90% quality — ~1-3MB vs 40MB+ PNG
       const blob = await new Promise<Blob>((resolve, reject) => {
-        offscreen.toBlob(b => b ? resolve(b) : reject(new Error('Failed to export')), 'image/png')
+        offscreen.toBlob(b => b ? resolve(b) : reject(new Error('Failed to export')), 'image/jpeg', 0.9)
       })
 
       await onSave(blob, buildAnnotatedFilename(filename))

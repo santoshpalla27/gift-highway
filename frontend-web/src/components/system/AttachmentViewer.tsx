@@ -294,7 +294,7 @@ export function AttachmentViewer({
           onCancel={() => setDrawingMode(false)}
           onSave={async (blob, annotatedFilename) => {
             // Upload annotated image as a new attachment
-            const mimeType = 'image/png'
+            const mimeType = 'image/jpeg'
             const sizeBytes = blob.size
             const { upload_url, file_key, file_url } = await attachmentService.getUploadURL(orderId, annotatedFilename, mimeType, sizeBytes)
             await attachmentService.uploadToR2(upload_url, new File([blob], annotatedFilename, { type: mimeType }), mimeType, () => {})
