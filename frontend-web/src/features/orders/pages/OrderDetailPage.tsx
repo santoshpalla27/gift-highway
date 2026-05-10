@@ -1175,10 +1175,8 @@ export function OrderDetailPage() {
   const [isAtBottom, setIsAtBottom] = useState(true)
   const atBottomRef = useRef(true)
   const timelineRef = useRef<HTMLDivElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
   const feedEndRef = useRef<HTMLDivElement>(null)
   const initialScrolledRef = useRef(false)
-  const prevAllEventsLenRef = useRef(0)
 
   const [showEdit, setShowEdit] = useState(false)
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
@@ -1247,12 +1245,13 @@ export function OrderDetailPage() {
     })
   }, [id])
 
-  // Scroll to bottom once after initial events render
+  // Scroll to bottom once after initial events load. After this, CSS
+  // overflow-anchor on the feedEndRef sentinel keeps the user pinned to
+  // the bottom as images load and new events arrive — no ResizeObserver needed.
   useEffect(() => {
     if (eventsLoading || initialScrolledRef.current) return
     if (evList.length === 0) return
     initialScrolledRef.current = true
-    prevAllEventsLenRef.current = allEvents.length
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const tl = timelineRef.current
@@ -1261,54 +1260,17 @@ export function OrderDetailPage() {
         atBottomRef.current = true
       })
     })
-  }, [eventsLoading, evList.length, allEvents.length])
+  }, [eventsLoading, evList.length])
 
-  // Keep scrolled to bottom when content grows (images loading, layout shifts).
-  // ResizeObserver fires whenever the inner content div changes height — covering
-  // new nodes AND images loading without separate image-load listeners.
-  //
-  // Two cases handled here because scrollHeight can change without a scroll event:
-  //   • At bottom: snap to new bottom so images don't push user off-screen.
-  //   • Scrolled up: recompute badge state so the badge appears correctly.
-  //
-  // Depends on orderLoading (not []) because the early return at the top of the
-  // component renders a skeleton when orderLoading=true, so refs are null on the
-  // first render. The effect must re-run once the real layout is mounted.
+  // Safety net: when new events arrive and the user is within the "at bottom"
+  // threshold but feedEndRef is not yet in the viewport, scroll anchoring won't
+  // fire. Snap explicitly so new messages are never silently missed.
   useEffect(() => {
-    const content = contentRef.current
-    if (!content) return
-    const tl = timelineRef.current
-    if (!tl) return
-    const observer = new ResizeObserver(() => {
-      if (!initialScrolledRef.current) return
-      const gap = tl.scrollHeight - tl.scrollTop - tl.clientHeight
-      if (atBottomRef.current || gap < 80) {
-        // At bottom (or close enough) — snap to new bottom as content grows.
-        tl.scrollTop = tl.scrollHeight
-        atBottomRef.current = true
-        setIsAtBottom(true)
-      } else {
-        // User scrolled up intentionally — don't force-scroll, but update
-        // the badge state since scrollHeight changed without a scroll event.
-        setIsAtBottom(false)
-      }
+    if (!atBottomRef.current || !initialScrolledRef.current) return
+    requestAnimationFrame(() => {
+      const tl = timelineRef.current
+      if (tl) tl.scrollTop = tl.scrollHeight
     })
-    observer.observe(content)
-    return () => observer.disconnect()
-  }, [orderLoading])
-
-  // Auto-scroll to bottom when new events arrive (real-time or optimistic),
-  // after React has committed the render. The ResizeObserver above handles
-  // the subsequent image-load growth; this effect handles text-only events.
-  useEffect(() => {
-    const curr = allEvents.length
-    if (curr > prevAllEventsLenRef.current && atBottomRef.current && initialScrolledRef.current) {
-      requestAnimationFrame(() => {
-        const tl = timelineRef.current
-        if (tl) tl.scrollTop = tl.scrollHeight
-      })
-    }
-    prevAllEventsLenRef.current = curr
   }, [allEvents.length])
 
   // ── Load older ──────────────────────────────────────────────────────────────
@@ -1741,7 +1703,12 @@ export function OrderDetailPage() {
             onScroll={handleTimelineScroll}
             style={{ flex: 1, overflowY: 'auto', padding: '16px 28px 8px', position: 'relative' }}
           >
-            <div ref={contentRef}>
+            {/* overflow-anchor:none excludes all event content from the browser's
+                scroll-anchor algorithm, leaving feedEndRef as the sole anchor.
+                When the user is at the bottom, images loading above feedEndRef
+                cause the browser to adjust scrollTop automatically — same as
+                mobile's onContentSizeChange + scrollToEnd(). */}
+            <div style={{ overflowAnchor: 'none' }}>
             {/* Load older button */}
             {!eventsLoading && hasOlder && (
               <div style={{ textAlign: 'center', marginBottom: 16 }}>
@@ -1864,8 +1831,10 @@ export function OrderDetailPage() {
                 </div>
               ))
             })()}
+            </div>{/* end overflow-anchor:none wrapper */}
+            {/* Sole scroll-anchor candidate — browser keeps this in view when
+                content above grows (images loading, new events). */}
             <div ref={feedEndRef} style={{ height: 16 }} />
-            </div>{/* end contentRef */}
           </div>
 
           {/* Scroll-to-bottom FAB */}
