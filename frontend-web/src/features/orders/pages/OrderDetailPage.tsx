@@ -1178,6 +1178,8 @@ export function OrderDetailPage() {
   const timelineRef = useRef<HTMLDivElement>(null)
   const feedEndRef = useRef<HTMLDivElement>(null)
   const initialScrolledRef = useRef(false)
+  const userScrollingRef = useRef(false)
+  const userScrollTimerRef = useRef<ReturnType<typeof setTimeout>>()
 
   const [showEdit, setShowEdit] = useState(false)
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
@@ -1285,7 +1287,7 @@ export function OrderDetailPage() {
     if (!sentinel || !tl) return
     const io = new IntersectionObserver(([entry]) => {
       if (!initialScrolledRef.current) return
-      if (!entry.isIntersecting && atBottomRef.current) {
+      if (!entry.isIntersecting && atBottomRef.current && !userScrollingRef.current) {
         tl.scrollTop = tl.scrollHeight
       }
     }, { root: tl, threshold: 0 })
@@ -1378,6 +1380,9 @@ export function OrderDetailPage() {
     atBottomRef.current = atBottom
     setIsAtBottom(atBottom)
     if (atBottom && newCount > 0) setNewCount(0)
+    userScrollingRef.current = true
+    clearTimeout(userScrollTimerRef.current)
+    userScrollTimerRef.current = setTimeout(() => { userScrollingRef.current = false }, 150)
   }
   const scrollToBottom = () => {
     feedEndRef.current?.scrollIntoView({ behavior: 'smooth' })
