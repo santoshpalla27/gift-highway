@@ -234,6 +234,7 @@ function AttachmentImage({ orderId, fileKey, fileName, fileUrl, onOpen }: {
     <img
       src={src}
       alt={fileName}
+      loading="lazy"
       onError={handleError}
       onClick={() => onOpen?.(src)}
       style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block', cursor: onOpen ? 'pointer' : 'default' }}
@@ -295,7 +296,7 @@ function PortalAttachmentItem({ orderId, attId, fileName, fileType, isOwn, isSta
           style={{ cursor: 'pointer', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           {viewUrl ? (
-            <img src={viewUrl} alt={fileName} style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
+            <img src={viewUrl} alt={fileName} loading="lazy" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
           ) : (
             <div style={{ width: '100%', height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                <div style={{ width: 16, height: 16, border: '2px solid #94A3B8', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />

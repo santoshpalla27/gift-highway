@@ -110,17 +110,17 @@ func (r *PortalRepository) ListMessages(ctx context.Context, orderID string) ([]
 func (r *PortalRepository) CreateAttachment(ctx context.Context, a *models.PortalAttachment) (*models.PortalAttachment, error) {
 	var out models.PortalAttachment
 	err := r.db.QueryRowxContext(ctx, `
-		INSERT INTO portal_attachments (order_id, s3_key, file_name, file_type, file_size)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, order_id, s3_key, file_name, file_type, file_size, created_at
-	`, a.OrderID, a.S3Key, a.FileName, a.FileType, a.FileSize).StructScan(&out)
+		INSERT INTO portal_attachments (order_id, s3_key, file_name, file_type, file_size, view_url)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, order_id, s3_key, file_name, file_type, file_size, view_url, created_at
+	`, a.OrderID, a.S3Key, a.FileName, a.FileType, a.FileSize, a.ViewURL).StructScan(&out)
 	return &out, err
 }
 
 func (r *PortalRepository) ListAttachments(ctx context.Context, orderID string) ([]*models.PortalAttachment, error) {
 	var list []*models.PortalAttachment
 	err := r.db.SelectContext(ctx, &list,
-		`SELECT id, order_id, s3_key, file_name, file_type, file_size, created_at FROM portal_attachments WHERE order_id = $1 ORDER BY created_at ASC`,
+		`SELECT id, order_id, s3_key, file_name, file_type, file_size, view_url, created_at FROM portal_attachments WHERE order_id = $1 ORDER BY created_at ASC`,
 		orderID,
 	)
 	return list, err
@@ -129,7 +129,7 @@ func (r *PortalRepository) ListAttachments(ctx context.Context, orderID string) 
 func (r *PortalRepository) GetAttachment(ctx context.Context, id int64) (*models.PortalAttachment, error) {
 	var a models.PortalAttachment
 	err := r.db.QueryRowxContext(ctx,
-		`SELECT id, order_id, s3_key, file_name, file_type, file_size, created_at FROM portal_attachments WHERE id = $1`,
+		`SELECT id, order_id, s3_key, file_name, file_type, file_size, view_url, created_at FROM portal_attachments WHERE id = $1`,
 		id,
 	).StructScan(&a)
 	if err != nil {

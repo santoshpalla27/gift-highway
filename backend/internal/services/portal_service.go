@@ -199,9 +199,10 @@ func (s *PortalService) GetUploadURL(ctx context.Context, orderID, fileName stri
 	}
 	presignClient := s3.NewPresignClient(client)
 	putReq, err := presignClient.PresignPutObject(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(s.cfg.R2Bucket),
-		Key:         aws.String(fileKey),
-		ContentType: aws.String(mime),
+		Bucket:       aws.String(s.cfg.R2Bucket),
+		Key:          aws.String(fileKey),
+		ContentType:  aws.String(mime),
+		CacheControl: aws.String("private, max-age=86400, immutable"),
 	}, s3.WithPresignExpires(10*time.Minute))
 	if err != nil {
 		return nil, err
@@ -219,12 +220,14 @@ type PortalAttachmentWithURL struct {
 }
 
 func (s *PortalService) ConfirmAttachment(ctx context.Context, portal *models.CustomerPortal, s3Key, fileName, fileType string, fileSize int64) (*PortalAttachmentWithURL, error) {
+	viewURL, _ := s.getViewURL(ctx, s3Key)
 	att, err := s.repo.CreateAttachment(ctx, &models.PortalAttachment{
 		OrderID:  portal.OrderID,
 		S3Key:    s3Key,
 		FileName: fileName,
 		FileType: fileType,
 		FileSize: fileSize,
+		ViewURL:  viewURL,
 	})
 	if err != nil {
 		return nil, err
@@ -240,23 +243,23 @@ func (s *PortalService) ConfirmAttachment(ctx context.Context, portal *models.Cu
 		"customer_name": portal.CustomerName,
 	})
 
-	viewURL, _ := s.getViewURL(ctx, s3Key)
-	return &PortalAttachmentWithURL{PortalAttachment: *att, ViewURL: viewURL}, nil
+	return &PortalAttachmentWithURL{PortalAttachment: *att, ViewURL: att.ViewURL}, nil
 }
 
 func (s *PortalService) SaveAttachment(ctx context.Context, orderID, s3Key, fileName, fileType string, fileSize int64) (*PortalAttachmentWithURL, error) {
+	viewURL, _ := s.getViewURL(ctx, s3Key)
 	att, err := s.repo.CreateAttachment(ctx, &models.PortalAttachment{
 		OrderID:  orderID,
 		S3Key:    s3Key,
 		FileName: fileName,
 		FileType: fileType,
 		FileSize: fileSize,
+		ViewURL:  viewURL,
 	})
 	if err != nil {
 		return nil, err
 	}
-	viewURL, _ := s.getViewURL(ctx, s3Key)
-	return &PortalAttachmentWithURL{PortalAttachment: *att, ViewURL: viewURL}, nil
+	return &PortalAttachmentWithURL{PortalAttachment: *att, ViewURL: att.ViewURL}, nil
 }
 
 func (s *PortalService) ListAttachments(ctx context.Context, orderID string) ([]*PortalAttachmentWithURL, error) {
@@ -266,8 +269,7 @@ func (s *PortalService) ListAttachments(ctx context.Context, orderID string) ([]
 	}
 	result := make([]*PortalAttachmentWithURL, len(atts))
 	for i, a := range atts {
-		viewURL, _ := s.getViewURL(ctx, a.S3Key)
-		result[i] = &PortalAttachmentWithURL{PortalAttachment: *a, ViewURL: viewURL}
+		result[i] = &PortalAttachmentWithURL{PortalAttachment: *a, ViewURL: a.ViewURL}
 	}
 	return result, nil
 }
@@ -317,8 +319,9 @@ func (s *PortalService) getViewURL(ctx context.Context, s3Key string) (string, e
 	}
 	presignClient := s3.NewPresignClient(client)
 	req, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(s.cfg.R2Bucket),
-		Key:    aws.String(s3Key),
+		Bucket:               aws.String(s.cfg.R2Bucket),
+		Key:                  aws.String(s3Key),
+		ResponseCacheControl: aws.String("private, max-age=86400, immutable"),
 	}, s3.WithPresignExpires(7*24*time.Hour))
 	if err != nil {
 		return "", err

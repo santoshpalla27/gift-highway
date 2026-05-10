@@ -130,20 +130,26 @@ func (s *AttachmentService) GetUploadURL(ctx context.Context, orderID string, re
 	}
 	presignClient := s3.NewPresignClient(client)
 
-	// PUT URL for the direct upload (5 min)
+	// PUT URL for the direct upload (5 min).
+	// CacheControl is stored as object metadata so all subsequent GETs
+	// include the header — telling browsers to cache the file.
 	putReq, err := presignClient.PresignPutObject(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(s.cfg.R2Bucket),
-		Key:         aws.String(fileKey),
-		ContentType: aws.String(req.MimeType),
+		Bucket:       aws.String(s.cfg.R2Bucket),
+		Key:          aws.String(fileKey),
+		ContentType:  aws.String(req.MimeType),
+		CacheControl: aws.String("private, max-age=86400, immutable"),
 	}, s3.WithPresignExpires(5*time.Minute))
 	if err != nil {
 		return nil, err
 	}
 
 	// GET URL for viewing — 7 days. This is stored in the DB as file_url.
+	// ResponseCacheControl overrides response headers so the browser caches
+	// the file bytes, preventing re-downloads on every page/component render.
 	getReq, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(s.cfg.R2Bucket),
-		Key:    aws.String(fileKey),
+		Bucket:               aws.String(s.cfg.R2Bucket),
+		Key:                  aws.String(fileKey),
+		ResponseCacheControl: aws.String("private, max-age=86400, immutable"),
 	}, s3.WithPresignExpires(7*24*time.Hour))
 	if err != nil {
 		return nil, err
@@ -164,8 +170,9 @@ func (s *AttachmentService) GetSignedURL(ctx context.Context, fileKey string) (s
 	}
 	presignClient := s3.NewPresignClient(client)
 	req, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(s.cfg.R2Bucket),
-		Key:    aws.String(fileKey),
+		Bucket:               aws.String(s.cfg.R2Bucket),
+		Key:                  aws.String(fileKey),
+		ResponseCacheControl: aws.String("private, max-age=86400, immutable"),
 	}, s3.WithPresignExpires(7*24*time.Hour))
 	if err != nil {
 		return "", err

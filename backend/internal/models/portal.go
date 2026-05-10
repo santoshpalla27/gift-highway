@@ -27,5 +27,6 @@ type PortalAttachment struct {
 	FileName  string    `db:"file_name"`
 	FileType  string    `db:"file_type"`
 	FileSize  int64     `db:"file_size"`
+	ViewURL   string    `db:"view_url"`
 	CreatedAt time.Time `db:"created_at"`
 }

@@ -62,9 +62,10 @@ func (s *ProfileService) GetAvatarUploadURL(ctx context.Context, userID, filenam
 
 	presignClient := s3.NewPresignClient(client)
 	req, err := presignClient.PresignPutObject(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(s.cfg.R2Bucket),
-		Key:         aws.String(objectKey),
-		ContentType: aws.String(contentType),
+		Bucket:       aws.String(s.cfg.R2Bucket),
+		Key:          aws.String(objectKey),
+		ContentType:  aws.String(contentType),
+		CacheControl: aws.String("private, max-age=3600, immutable"),
 	}, s3.WithPresignExpires(5*time.Minute))
 	if err != nil {
 		return nil, err
@@ -104,8 +105,9 @@ func (s *ProfileService) GetAvatarSignedURL(ctx context.Context, objectKey strin
 
 	presignClient := s3.NewPresignClient(client)
 	req, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(s.cfg.R2Bucket),
-		Key:    aws.String(objectKey),
+		Bucket:               aws.String(s.cfg.R2Bucket),
+		Key:                  aws.String(objectKey),
+		ResponseCacheControl: aws.String("private, max-age=3600, immutable"),
 	}, s3.WithPresignExpires(1*time.Hour))
 	if err != nil {
 		return "", err
