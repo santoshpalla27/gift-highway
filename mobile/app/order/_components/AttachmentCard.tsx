@@ -1,13 +1,13 @@
 import { View, Text, TouchableOpacity, Dimensions, ActivityIndicator, Linking } from 'react-native'
 import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
-import { useState, useRef } from 'react'
+import React, { useState, useRef } from 'react'
 import { attachmentService, isImage, formatBytes } from '../../../services/attachmentService'
 import { AttachmentViewer } from '../../../components/AttachmentViewer'
 
 const ATTACH_MAX_W = Math.round(Dimensions.get('window').width * 0.6)
 
-export function AttachmentCard({ orderId, payload, isOwn, onReply }: {
+export const AttachmentCard = React.memo(function AttachmentCard({ orderId, payload, isOwn, onReply }: {
   orderId: string
   payload: Record<string, string>
   isOwn?: boolean
@@ -84,6 +84,8 @@ export function AttachmentCard({ orderId, payload, isOwn, onReply }: {
                   source={{ uri: imgUri }}
                   style={{ width: '100%', height: 180 }}
                   contentFit="cover"
+                  transition={200}
+                  cachePolicy="memory-disk"
                   onError={handleImgError}
                 />
               )}
@@ -134,4 +136,8 @@ export function AttachmentCard({ orderId, payload, isOwn, onReply }: {
       ) : null}
     </>
   )
-}
+}, (prev, next) => {
+  return prev.orderId === next.orderId &&
+         prev.isOwn === next.isOwn &&
+         prev.payload.file_key === next.payload.file_key
+})

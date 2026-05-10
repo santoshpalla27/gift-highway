@@ -261,7 +261,6 @@ export function useOrderDetail(orderId: string | undefined) {
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── Comment input ─────────────────────────────────────────────────────────
-  const [comment, setComment] = useState('')
   const [sending, setSending] = useState(false)
   const sendingRef = useRef(false)
   const [editingComment, setEditingComment] = useState<{ eventId: string; text: string } | null>(null)
@@ -494,14 +493,13 @@ export function useOrderDetail(orderId: string | undefined) {
     }
   }, [isOnline, orderId, user, fetchLatest])
 
-  const handleSendComment = useCallback(async () => {
-    const text = comment.trim()
-    if (!text || sendingRef.current) return
+  const handleSendComment = useCallback(async (text: string) => {
+    const cleanText = text.trim()
+    if (!cleanText || sendingRef.current) return
     const replyPrefix = replyToEvent ? `[reply:${replyToEvent.id}:${getEventPreview(replyToEvent)}]\n` : ''
-    setComment('')
     setReplyToEvent(null)
-    await sendComment(replyPrefix + text)
-  }, [comment, replyToEvent, sendComment])
+    await sendComment(replyPrefix + cleanText)
+  }, [replyToEvent, sendComment])
 
   const handleRetry = useCallback(async (ev: OptimisticEvent) => {
     const text = ev.originalText ?? (ev.payload as Record<string, string>).text
@@ -732,7 +730,7 @@ export function useOrderDetail(orderId: string | undefined) {
     // reply / highlight
     replyToEvent, setReplyToEvent, handleSelectReplyEvent, highlightedEventId, highlightEvent, highlightPortalMsg,
     // comment input
-    comment, setComment, sending, handleSendComment, handleRetry,
+    sending, handleSendComment, handleRetry,
     handleDeleteComment, confirmDelete, deleteConfirmId, setDeleteConfirmId,
     editingComment, setEditingComment, editCommentText, setEditCommentText, saveEditComment,
     // sheets

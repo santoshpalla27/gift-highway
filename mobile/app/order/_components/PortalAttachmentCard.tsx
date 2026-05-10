@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, ActivityIndicator, Dimensions, Linking } from 'react-native'
 import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { staffPortalApi } from '../../../services/portalService'
 import { formatBytes } from '../../../services/attachmentService'
 import { AttachmentViewer } from '../../../components/AttachmentViewer'
@@ -10,7 +10,7 @@ const ATTACH_MAX_W = Math.round(Dimensions.get('window').width * 0.6)
 
 const IMG_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.heic']
 
-export function PortalAttachmentCard({ orderId, attId, fileName, viewUrl, isOwn, isStaff, caption, sizeBytes, onReply }: {
+export const PortalAttachmentCard = React.memo(function PortalAttachmentCard({ orderId, attId, fileName, viewUrl, isOwn, isStaff, caption, sizeBytes, onReply }: {
   orderId: string
   attId: number | null
   fileName: string
@@ -56,7 +56,7 @@ export function PortalAttachmentCard({ orderId, attId, fileName, viewUrl, isOwn,
             activeOpacity={0.85}
           >
             {viewUrl
-              ? <Image source={{ uri: viewUrl }} style={{ width: '100%', height: 180 }} contentFit="cover" />
+              ? <Image source={{ uri: viewUrl }} style={{ width: '100%', height: 180 }} contentFit="cover" transition={200} cachePolicy="memory-disk" />
               : <View style={{ width: '100%', height: 60, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' }}>
                   <ActivityIndicator size="small" color="#94A3B8" />
                 </View>
@@ -140,4 +140,10 @@ export function PortalAttachmentCard({ orderId, attId, fileName, viewUrl, isOwn,
       ) : null}
     </>
   )
-}
+}, (prev, next) => {
+  return prev.orderId === next.orderId &&
+         prev.attId === next.attId &&
+         prev.viewUrl === next.viewUrl &&
+         prev.isOwn === next.isOwn &&
+         prev.caption === next.caption
+})

@@ -372,8 +372,6 @@ export default function OrderDetailScreen() {
 
         {/* Composer */}
         <ComposerBar
-          value={D.comment}
-          onChangeText={D.setComment}
           onSend={D.handleSendComment}
           onAttach={() => D.setShowAttachSheet(true)}
           sending={D.sending}

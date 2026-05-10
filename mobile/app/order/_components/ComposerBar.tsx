@@ -1,16 +1,24 @@
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { useState } from 'react'
 
-export function ComposerBar({ value, onChangeText, onSend, onAttach, sending, placeholder, paddingBottom }: {
-  value: string
-  onChangeText: (t: string) => void
-  onSend: () => void
+export function ComposerBar({ onSend, onAttach, sending, placeholder, paddingBottom }: {
+  onSend: (text: string) => void
   onAttach: () => void
   sending: boolean
   placeholder?: string
   paddingBottom?: number
 }) {
-  const canSend = value.trim().length > 0 && !sending
+  const [text, setText] = useState('')
+  const canSend = text.trim().length > 0 && !sending
+
+  const handleSend = () => {
+    if (!canSend) return
+    const currentText = text
+    setText('')
+    onSend(currentText)
+  }
+
   return (
     <View style={[C.composer, { paddingBottom: paddingBottom ?? 16 }]}>
       <TouchableOpacity onPress={onAttach} style={C.attachBtn}>
@@ -18,8 +26,8 @@ export function ComposerBar({ value, onChangeText, onSend, onAttach, sending, pl
       </TouchableOpacity>
       <TextInput
         style={C.input}
-        value={value}
-        onChangeText={onChangeText}
+        value={text}
+        onChangeText={setText}
         placeholder={placeholder ?? 'Add a comment...'}
         placeholderTextColor="#94A3B8"
         multiline
@@ -27,7 +35,7 @@ export function ComposerBar({ value, onChangeText, onSend, onAttach, sending, pl
       />
       <TouchableOpacity
         style={[C.sendBtn, !canSend && C.sendBtnDisabled]}
-        onPress={onSend}
+        onPress={handleSend}
         disabled={!canSend}
       >
         {sending

@@ -2,7 +2,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, Modal, Image,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { useState } from 'react'
+import React, { useState } from 'react'
 import type { OrderEvent } from '../../../services/orderService'
 import type { PortalMessage, PortalAttachment } from '../../../services/portalService'
 import { useAuthStore } from '../../../store/authStore'
@@ -91,7 +91,7 @@ function MenuSheet({ visible, onClose, onReply, onEdit, onDelete, forAttachment 
 
 // ─── TimelineItem ─────────────────────────────────────────────────────────────
 
-export function TimelineItem({
+export const TimelineItem = React.memo(function TimelineItem({
   event, isOptimistic, onRetry, onDelete, onEdit, onReply,
   onHighlightQuoted, onHighlightPortalMsg,
   orderId, portalMessages, portalAttachments, quotedEvent, highlighted, attCaption,
@@ -313,7 +313,14 @@ export function TimelineItem({
   }
 
   return <SystemEventRow event={event} />
-}
+}, (prev, next) => {
+  return prev.event.id === next.event.id &&
+         prev.isOptimistic === next.isOptimistic &&
+         prev.highlighted === next.highlighted &&
+         prev.attCaption === next.attCaption &&
+         prev.event.failed === next.event.failed &&
+         JSON.stringify(prev.event.payload) === JSON.stringify(next.event.payload)
+})
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
