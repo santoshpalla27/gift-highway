@@ -5,6 +5,7 @@ import { View, ActivityIndicator, Platform } from 'react-native'
 import { SocketProvider } from '../providers/SocketProvider'
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent'
 import * as Notifications from 'expo-notifications'
+import { markColdStartHandled } from '../hooks/usePushToken'
 
 function AppNavigator() {
   const { loadAuth, isAuthenticated } = useAuthStore()
@@ -59,7 +60,8 @@ function AppNavigator() {
       if (!response) return
       const data = response.notification.request.content.data as Record<string, unknown>
       if (data?.screen === 'order' && data?.order_id) {
-        router.replace(`/order/${data.order_id}` as any)
+        markColdStartHandled()
+        router.push(`/order/${data.order_id}` as any)
       }
     })
   }, [routed, authReady, isAuthenticated])

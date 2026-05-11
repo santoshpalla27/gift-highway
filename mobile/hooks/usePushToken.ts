@@ -1,4 +1,9 @@
 import { useEffect, useRef } from 'react'
+
+// Module-level flag: set by the cold-start handler in _layout.tsx so the
+// addNotificationResponseReceivedListener below skips it and avoids a double navigate.
+let coldStartHandled = false
+export function markColdStartHandled() { coldStartHandled = true }
 import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
 import Constants from 'expo-constants'
@@ -102,6 +107,7 @@ export function usePushToken() {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as Record<string, unknown>
       if (data?.screen === 'order' && data?.order_id) {
+        if (coldStartHandled) { coldStartHandled = false; return }
         router.replace(`/order/${data.order_id}` as any)
       }
     })
