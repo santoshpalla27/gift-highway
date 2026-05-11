@@ -1020,7 +1020,13 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
           </Text>
         </View>
         {hasAnyFilter && (
-          <TouchableOpacity onPress={() => { setFilters(emptyFilters); setSearch('') }}>
+          <TouchableOpacity onPress={() => {
+            setFilters(emptyFilters)
+            setSearch('')
+            // Clear URL params so a subsequent dashboard tap with the same params re-triggers the effect
+            router.setParams({ status: undefined, overdue: undefined, today: undefined, stale: undefined, assignee: undefined, priority: undefined } as any)
+            lastParamsKey.current = ''
+          }}>
             <Text style={S.clearAllText}>Clear all</Text>
           </TouchableOpacity>
         )}
