@@ -59,7 +59,7 @@ function AppNavigator() {
       if (!response) return
       const data = response.notification.request.content.data as Record<string, unknown>
       if (data?.screen === 'order' && data?.order_id) {
-        router.push(`/order/${data.order_id}` as any)
+        router.replace(`/order/${data.order_id}` as any)
       }
     })
   }, [routed, authReady, isAuthenticated])

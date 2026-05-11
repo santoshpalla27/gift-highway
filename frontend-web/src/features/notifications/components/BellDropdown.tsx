@@ -189,7 +189,7 @@ export function BellDropdown() {
 
   function openOrder(group: DisplayGroup) {
     setOpen(false)
-    navigate(`/orders/${group.order_id}`)
+    navigate(`/orders/${group.order_id}`, { replace: true })
   }
 
   return (
