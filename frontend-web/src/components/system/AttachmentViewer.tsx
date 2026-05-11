@@ -68,6 +68,13 @@ export function AttachmentViewer({
   const [imgError, setImgError] = useState(false)
   const [drawingMode, setDrawingMode] = useState(false)
   const overlayRef = useRef<HTMLDivElement>(null)
+  
+  // Zoom & Pan state
+  const [scale, setScale] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const isDragging = useRef(false)
+  const lastPos = useRef({ x: 0, y: 0 })
+  const imageContainerRef = useRef<HTMLDivElement>(null)
 
   function handleDownload() {
     if (onDownload) {
@@ -102,6 +109,81 @@ export function AttachmentViewer({
     }
   }
 
+  // Handle zoom and pan
+  const handleResetZoom = () => {
+    setScale(1)
+    setPan({ x: 0, y: 0 })
+  }
+
+  useEffect(() => {
+    const el = imageContainerRef.current
+    if (!el || !isImg) return
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      
+      const zoomFactor = -e.deltaY * 0.002
+      let newScale = scale * Math.exp(zoomFactor)
+      newScale = Math.min(Math.max(0.5, newScale), 5) // Clamp between 0.5x and 5x
+
+      if (newScale === scale) return
+
+      const rect = el.getBoundingClientRect()
+      const mouseX = e.clientX - rect.left - rect.width / 2
+      const mouseY = e.clientY - rect.top - rect.height / 2
+
+      const scaleRatio = newScale / scale
+      const newPanX = mouseX - (mouseX - pan.x) * scaleRatio
+      const newPanY = mouseY - (mouseY - pan.y) * scaleRatio
+
+      setScale(newScale)
+      setPan({ x: newPanX, y: newPanY })
+    }
+
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => el.removeEventListener('wheel', handleWheel)
+  }, [scale, pan, isImg])
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // Only drag with primary button (left click or touch)
+    if (e.button !== 0) return
+    isDragging.current = true
+    lastPos.current = { x: e.clientX, y: e.clientY }
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+  }
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging.current) return
+    const dx = e.clientX - lastPos.current.x
+    const dy = e.clientY - lastPos.current.y
+    setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }))
+    lastPos.current = { x: e.clientX, y: e.clientY }
+  }
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!isDragging.current) return
+    isDragging.current = false
+    ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
+  }
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (scale > 1) {
+      handleResetZoom()
+    } else {
+      const rect = imageContainerRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const mouseX = e.clientX - rect.left - rect.width / 2
+      const mouseY = e.clientY - rect.top - rect.height / 2
+      
+      const newScale = 2
+      const newPanX = mouseX - (mouseX - pan.x) * (newScale / scale)
+      const newPanY = mouseY - (mouseY - pan.y) * (newScale / scale)
+      
+      setScale(newScale)
+      setPan({ x: newPanX, y: newPanY })
+    }
+  }
+
   return (
     <div
       ref={overlayRef}
@@ -123,6 +205,7 @@ export function AttachmentViewer({
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '12px 14px', borderBottom: '1px solid #F1F5F9', flexShrink: 0,
+          position: 'relative', zIndex: 10
         }}>
           <div style={{
             width: 34, height: 34, borderRadius: 10, flexShrink: 0,
@@ -211,11 +294,21 @@ export function AttachmentViewer({
 
         {/* Content */}
         {isImg ? (
-          <div style={{
-            flex: 1, overflow: 'auto', display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            background: '#F8FAFC', padding: 20, minHeight: 200,
-          }}>
+          <div 
+            ref={imageContainerRef}
+            style={{
+              flex: 1, overflow: 'hidden', display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              background: '#F8FAFC', padding: 20, minHeight: 200,
+              position: 'relative',
+              touchAction: 'none' // Prevent browser default pan/zoom
+            }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onDoubleClick={handleDoubleClick}
+          >
             {imgError ? (
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 52, marginBottom: 12 }}>🖼️</div>
@@ -230,16 +323,56 @@ export function AttachmentViewer({
                 </a>
               </div>
             ) : (
-              <img
-                src={src}
-                alt={filename}
-                onError={() => setImgError(true)}
-                style={{
-                  maxWidth: '100%', maxHeight: 'calc(92vh - 72px)',
-                  objectFit: 'contain', borderRadius: 10,
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                }}
-              />
+              <>
+                <img
+                  src={src}
+                  alt={filename}
+                  onError={() => setImgError(true)}
+                  style={{
+                    maxWidth: '100%', maxHeight: 'calc(92vh - 72px)',
+                    objectFit: 'contain', borderRadius: 10,
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+                    transition: isDragging.current ? 'none' : 'transform 0.15s ease-out',
+                    transformOrigin: 'center',
+                    cursor: scale > 1 ? 'grab' : 'zoom-in',
+                    userSelect: 'none',
+                    WebkitUserDrag: 'none'
+                  }}
+                  draggable={false}
+                />
+                
+                {/* Reset Zoom Button */}
+                {(scale !== 1 || pan.x !== 0 || pan.y !== 0) && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleResetZoom(); }}
+                    style={{
+                      position: 'absolute',
+                      bottom: 24,
+                      right: 24,
+                      padding: '10px 16px',
+                      borderRadius: 12,
+                      background: 'rgba(15, 23, 42, 0.85)',
+                      backdropFilter: 'blur(4px)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                      fontWeight: 600,
+                      fontSize: 13,
+                      zIndex: 20
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                    </svg>
+                    Reset Zoom
+                  </button>
+                )}
+              </>
             )}
           </div>
         ) : (
@@ -308,3 +441,4 @@ export function AttachmentViewer({
     </div>
   )
 }
+

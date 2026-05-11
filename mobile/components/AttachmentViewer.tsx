@@ -15,6 +15,17 @@ import { Ionicons } from '@expo/vector-icons'
 import { formatBytes, downloadAttachment, shareAttachment, attachmentService } from '../services/attachmentService'
 import { DrawingEditor } from './DrawingEditor'
 
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated'
+
+const AnimatedImage = Animated.createAnimatedComponent(Image)
+
 const { width: SW } = Dimensions.get('window')
 
 const IMG_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'avif', 'svg']
@@ -86,6 +97,7 @@ export function AttachmentViewer({
   const [imgError, setImgError] = useState(false)
   const [sharing, setSharing] = useState(false)
   const [drawingMode, setDrawingMode] = useState(false)
+  const [isZoomed, setIsZoomed] = useState(false)
 
   const isImg = resolveIsImage(mimeType, filename)
   const fileIcon = isImg ? null : getFileIconInfo(mimeType, filename)
@@ -111,6 +123,84 @@ export function AttachmentViewer({
     }
   }
 
+  // Zoom & Pan shared values
+  const scale = useSharedValue(1)
+  const savedScale = useSharedValue(1)
+  const translateX = useSharedValue(0)
+  const translateY = useSharedValue(0)
+  const savedTranslateX = useSharedValue(0)
+  const savedTranslateY = useSharedValue(0)
+
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate((e) => {
+      scale.value = Math.max(0.5, Math.min(savedScale.value * e.scale, 5))
+      if (scale.value !== 1) runOnJS(setIsZoomed)(true)
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value
+      if (scale.value <= 1) {
+        scale.value = withSpring(1)
+        translateX.value = withSpring(0)
+        translateY.value = withSpring(0)
+        savedScale.value = 1
+        savedTranslateX.value = 0
+        savedTranslateY.value = 0
+        runOnJS(setIsZoomed)(false)
+      }
+    })
+
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      if (scale.value > 1) {
+        translateX.value = savedTranslateX.value + e.translationX
+        translateY.value = savedTranslateY.value + e.translationY
+      }
+    })
+    .onEnd(() => {
+      savedTranslateX.value = translateX.value
+      savedTranslateY.value = translateY.value
+    })
+
+  const doubleTapGesture = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      if (scale.value > 1) {
+        scale.value = withTiming(1)
+        translateX.value = withTiming(0)
+        translateY.value = withTiming(0)
+        savedScale.value = 1
+        savedTranslateX.value = 0
+        savedTranslateY.value = 0
+        runOnJS(setIsZoomed)(false)
+      } else {
+        scale.value = withTiming(2)
+        savedScale.value = 2
+        runOnJS(setIsZoomed)(true)
+      }
+    })
+
+  const composedGesture = Gesture.Simultaneous(pinchGesture, panGesture, doubleTapGesture)
+
+  const animatedImageStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        { scale: scale.value },
+      ],
+    }
+  })
+
+  const handleResetZoom = () => {
+    scale.value = withTiming(1)
+    translateX.value = withTiming(0)
+    translateY.value = withTiming(0)
+    savedScale.value = 1
+    savedTranslateX.value = 0
+    savedTranslateY.value = 0
+    setIsZoomed(false)
+  }
+
   return (
     <>
     <Modal
@@ -119,7 +209,7 @@ export function AttachmentViewer({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={[S.root, { paddingTop: insets.top }]}>
+      <GestureHandlerRootView style={[S.root, { paddingTop: insets.top }]}>
         {/* Toolbar */}
         <View style={S.toolbar}>
           <TouchableOpacity onPress={onClose} style={S.toolbarBtn} hitSlop={8}>
@@ -167,13 +257,40 @@ export function AttachmentViewer({
                 </TouchableOpacity>
               </View>
             ) : (
-              <Image
-                source={{ uri: url }}
-                style={{ width: SW, flex: 1 }}
-                contentFit="contain"
-                onLoad={() => setImgLoading(false)}
-                onError={() => { setImgLoading(false); setImgError(true) }}
-              />
+              <GestureDetector gesture={composedGesture}>
+                <Animated.View style={{ flex: 1, width: SW }}>
+                  <AnimatedImage
+                    source={{ uri: url }}
+                    style={[{ width: SW, flex: 1 }, animatedImageStyle]}
+                    contentFit="contain"
+                    onLoad={() => setImgLoading(false)}
+                    onError={() => { setImgLoading(false); setImgError(true) }}
+                  />
+                </Animated.View>
+              </GestureDetector>
+            )}
+
+            {/* Reset Zoom Button */}
+            {isZoomed && (
+              <TouchableOpacity
+                onPress={handleResetZoom}
+                style={{
+                  position: 'absolute',
+                  bottom: 24,
+                  right: 24,
+                  backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  borderRadius: 20,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  zIndex: 20
+                }}
+              >
+                <Ionicons name="expand" size={16} color="#FFFFFF" />
+                <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 13 }}>Reset Zoom</Text>
+              </TouchableOpacity>
             )}
           </View>
         ) : (
@@ -218,7 +335,7 @@ export function AttachmentViewer({
             <Text style={S.bottomSize}>{formatBytes(sizeBytes)}</Text>
           )}
         </View>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
 
     {/* Drawing editor modal */}
@@ -256,6 +373,7 @@ export function AttachmentViewer({
     </>
   )
 }
+
 
 const S = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFFFFF' },
