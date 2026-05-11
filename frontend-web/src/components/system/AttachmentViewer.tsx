@@ -337,7 +337,6 @@ export function AttachmentViewer({
                     transformOrigin: 'center',
                     cursor: scale > 1 ? 'grab' : 'zoom-in',
                     userSelect: 'none',
-                    WebkitUserDrag: 'none'
                   }}
                   draggable={false}
                 />
