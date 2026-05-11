@@ -855,7 +855,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
   const { user } = useAuthStore()
   const { isOnline } = useNetworkStatus()
   const { unreadByOrder } = useNotifications(myOrdersOnly ? { mineOnly: true } : {})
-  const params = useLocalSearchParams<{ status?: string; priority?: string; today?: string; overdue?: string; stale?: string; assignee?: string }>()
+  const params = useLocalSearchParams<{ status?: string; priority?: string; today?: string; overdue?: string; stale?: string; assignee?: string; _t?: string }>()
   const [orders, setOrders] = useState<Order[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -869,7 +869,9 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
   // The ref prevents re-applying the same params after the user manually clears a filter.
   const lastParamsKey = useRef('')
   useEffect(() => {
-    const key = `${params.status ?? ''}|${params.overdue ?? ''}|${params.today ?? ''}|${params.stale ?? ''}|${params.assignee ?? ''}`
+    // _t is a nonce added by dashboard taps to force the effect to re-run even when
+    // the filter value is the same as a previous navigation (e.g. tapping "Yet to Start" twice).
+    const key = `${params.status ?? ''}|${params.overdue ?? ''}|${params.today ?? ''}|${params.stale ?? ''}|${params.assignee ?? ''}|${params._t ?? ''}`
     if (key === lastParamsKey.current) return
     lastParamsKey.current = key
     setFilters({
@@ -881,7 +883,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
       staleOnly:    params.stale === '1',
       assigneeIds:  params.assignee ? [params.assignee] : [],
     })
-  }, [params.status, params.overdue, params.today, params.stale, params.assignee])
+  }, [params.status, params.overdue, params.today, params.stale, params.assignee, params._t])
   const [showCreate, setShowCreate] = useState(false)
   const [editOrder, setEditOrder] = useState<Order | null>(null)
   const [userNameMap, setUserNameMap] = useState<Record<string, string>>({})
@@ -1020,13 +1022,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
           </Text>
         </View>
         {hasAnyFilter && (
-          <TouchableOpacity onPress={() => {
-            setFilters(emptyFilters)
-            setSearch('')
-            // Clear URL params so a subsequent dashboard tap with the same params re-triggers the effect
-            router.setParams({ status: undefined, overdue: undefined, today: undefined, stale: undefined, assignee: undefined, priority: undefined } as any)
-            lastParamsKey.current = ''
-          }}>
+          <TouchableOpacity onPress={() => { setFilters(emptyFilters); setSearch('') }}>
             <Text style={S.clearAllText}>Clear all</Text>
           </TouchableOpacity>
         )}
