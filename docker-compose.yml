@@ -25,7 +25,7 @@ services:
     restart: unless-stopped
     environment:
       - DOCKER_API_VERSION=1.41
-      - CF_API_TOKEN=${CF_API_TOKEN}
+      - CLOUDFLARE_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN}
     command:
       - --api.dashboard=false
       - --providers.docker=true
