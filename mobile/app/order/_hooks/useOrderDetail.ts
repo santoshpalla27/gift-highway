@@ -331,6 +331,9 @@ export function useOrderDetail(orderId: string | undefined) {
       // the if-check below runs — making auto-scroll and the badge never fire.
       const prevIds = new Set(evListRef.current.map(e => e.id))
       const newEvs = latest.filter(e => !prevIds.has(e.id))
+      // Capture the anchor event (last already-seen event) before mutating state.
+      // Used below to pin the "New updates" divider directly before the new events.
+      const prevLastEv = evListRef.current[evListRef.current.length - 1]
       setEvList(prev => {
         const existingIds = new Set(prev.map(e => e.id))
         const toAdd = latest.filter(e => !existingIds.has(e.id))
@@ -340,6 +343,9 @@ export function useOrderDetail(orderId: string | undefined) {
       setTotalEvents(data.total)
       if (newEvs.length > 0) {
         if (atBottomRef.current) {
+          // Advance threshold to just before the new events so the divider renders
+          // directly above them — not above old unread messages from the last visit.
+          if (prevLastEv) setNewSinceAt(prevLastEv.created_at)
           setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50)
         } else {
           setNewCount(n => n + newEvs.length)
@@ -448,14 +454,6 @@ export function useOrderDetail(orderId: string | undefined) {
     })
     return () => sub.remove()
   }, [fetchOrder, fetchLatest, orderId])
-
-  // ── Advance "new updates" threshold while user is at the bottom ───────────
-  // When the user is actively reading (at bottom), move newSinceAt to now so
-  // the next real-time message gets the divider right before it — not before
-  // older unread messages from the previous session.
-  useEffect(() => {
-    if (isAtBottom) setNewSinceAt(new Date().toISOString())
-  }, [isAtBottom])
 
   // ── Highlight / scroll-to ─────────────────────────────────────────────────
 
