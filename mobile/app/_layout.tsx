@@ -60,7 +60,7 @@ function AppNavigator() {
       if (!response) return
       const data = response.notification.request.content.data as Record<string, unknown>
       if (data?.screen === 'order' && data?.order_id) {
-        markColdStartHandled()
+        markColdStartHandled(response.notification.request.identifier)
         router.push(`/order/${data.order_id}` as any)
       }
     })
