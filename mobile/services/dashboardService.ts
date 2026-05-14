@@ -50,6 +50,7 @@ export interface TeamDashboard {
   overdue_orders: DashboardOrder[]
   stale_orders: DashboardOrder[]
   unread_customer_orders: DashboardOrder[]
+  unassigned_orders?: DashboardOrder[]
 }
 
 export interface MyDashboard {

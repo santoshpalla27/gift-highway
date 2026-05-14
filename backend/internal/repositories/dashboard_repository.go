@@ -202,6 +202,19 @@ func (r *DashboardRepository) GetUnreadCustomerOrders(ctx context.Context) ([]Da
 	return orders, err
 }
 
+func (r *DashboardRepository) GetUnassignedOrders(ctx context.Context) ([]DashboardOrder, error) {
+	var orders []DashboardOrder
+	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
+		WHERE NOT EXISTS (
+			SELECT 1 FROM order_assignees oa WHERE oa.order_id = o.id
+		)
+		AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
+		ORDER BY CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END, o.order_number
+		LIMIT 20
+	`)
+	return orders, err
+}
+
 func (r *DashboardRepository) GetMyDueTodayOrders(ctx context.Context, userID, localDate string) ([]DashboardOrder, error) {
 	var orders []DashboardOrder
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`

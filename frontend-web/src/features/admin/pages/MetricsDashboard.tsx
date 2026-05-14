@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiClient } from '../../../services/apiClient'
 import { useAuthStore } from '../../../store/authStore'
-import { STATUS_META as BASE_STATUS_META, STATUS_OPTIONS } from '../../../constants/status'
 
 interface UserMetric {
   id: string
@@ -20,44 +19,8 @@ interface UserMetric {
   cancelled_count: number
 }
 
-type StatusFilter = 'all' | 'yet_to_start' | 'working' | 'waiting_for_client' | 'making' | 'done' | 'delivered' | 'cancelled'
-type SortKey = 'name' | 'total' | 'active' | 'pending' | 'done'
-type SortDir = 'asc' | 'desc'
 
-const BAR_SEGMENTS: { key: string; color: string }[] = [
-  { key: 'working',            color: '#3B82F6' },
-  { key: 'making',             color: '#8B5CF6' },
-  { key: 'yet_to_start',       color: '#6B7280' },
-  { key: 'waiting_for_client', color: '#F59E0B' },
-  { key: 'done',               color: '#10B981' },
-  { key: 'delivered',          color: '#0D9488' },
-  { key: 'cancelled',          color: '#EF4444' },
-]
 
-const STATUS_COUNT_KEY: Record<string, keyof UserMetric> = {
-  yet_to_start:       'new_count',
-  working:            'working_count',
-  waiting_for_client: 'waiting_for_client_count',
-  making:             'making_count',
-  done:               'done_count',
-  delivered:          'delivered_count',
-  cancelled:          'cancelled_count',
-}
-
-const STATUS_FILTERS = [
-  { key: 'all' as StatusFilter, label: 'All' },
-  ...STATUS_OPTIONS.map(k => ({ key: k as StatusFilter, label: BASE_STATUS_META[k].label })),
-]
-
-const SORT_OPTIONS: { value: string; label: string }[] = [
-  { value: 'total_desc',   label: 'Most Orders'   },
-  { value: 'total_asc',    label: 'Fewest Orders' },
-  { value: 'active_desc',  label: 'Most Active'   },
-  { value: 'pending_desc', label: 'Most Pending'  },
-  { value: 'done_desc',    label: 'Most Closed'   },
-  { value: 'name_asc',     label: 'Name A – Z'    },
-  { value: 'name_desc',    label: 'Name Z – A'    },
-]
 
 function getInitials(name: string) {
   return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2)
@@ -66,13 +29,8 @@ function getActive(u: UserMetric)  { return u.working_count + u.making_count }
 function getPending(u: UserMetric) { return u.new_count + u.waiting_for_client_count }
 function getDone(u: UserMetric)    { return u.done_count + u.delivered_count }
 
-function getSortValue(u: UserMetric, key: SortKey): string | number {
-  if (key === 'name')    return u.name
-  if (key === 'total')   return u.total_assigned
-  if (key === 'active')  return getActive(u)
-  if (key === 'pending') return getPending(u)
-  if (key === 'done')    return getDone(u)
-  return 0
+function getSortValue(u: UserMetric): number {
+  return u.total_assigned
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -99,31 +57,6 @@ function SummaryCard({ label, value, sublabel, color }: {
   )
 }
 
-function StatusBar({ u, onNavigate }: {
-  u: UserMetric
-  onNavigate: (userId: string, status: string) => void
-}) {
-  if (u.total_assigned === 0) {
-    return <div style={{ height: 7, borderRadius: 4, background: 'var(--border)', width: '100%' }} />
-  }
-  const segs = BAR_SEGMENTS
-    .map(s => ({ ...s, count: u[STATUS_COUNT_KEY[s.key]] as number }))
-    .filter(s => s.count > 0)
-  return (
-    <div style={{ display: 'flex', height: 7, borderRadius: 4, overflow: 'hidden', width: '100%', gap: 1 }}>
-      {segs.map(s => (
-        <div
-          key={s.key}
-          title={`${BASE_STATUS_META[s.key]?.label}: ${s.count}`}
-          onClick={e => { e.stopPropagation(); onNavigate(u.id, s.key) }}
-          style={{ flex: s.count, background: s.color, cursor: 'pointer', transition: 'opacity 0.1s' }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = '0.65')}
-          onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-        />
-      ))}
-    </div>
-  )
-}
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -132,9 +65,6 @@ export function MetricsDashboard() {
   const navigate = useNavigate()
   const [users, setUsers] = useState<UserMetric[]>([])
   const [loading, setLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [sortKey, setSortKey] = useState<SortKey>('total')
-  const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [search, setSearch] = useState('')
 
   useEffect(() => {
@@ -155,30 +85,14 @@ export function MetricsDashboard() {
     .filter(u => {
       if (search && !u.name.toLowerCase().includes(search.toLowerCase()) &&
           !u.email.toLowerCase().includes(search.toLowerCase())) return false
-      if (statusFilter === 'yet_to_start')       return u.new_count > 0
-      if (statusFilter === 'working')            return u.working_count > 0
-      if (statusFilter === 'waiting_for_client') return u.waiting_for_client_count > 0
-      if (statusFilter === 'making')             return u.making_count > 0
-      if (statusFilter === 'done')               return u.done_count > 0
-      if (statusFilter === 'delivered')          return u.delivered_count > 0
-      if (statusFilter === 'cancelled')          return u.cancelled_count > 0
       return true
     })
-    .sort((a, b) => {
-      const av = getSortValue(a, sortKey)
-      const bv = getSortValue(b, sortKey)
-      if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv as string) : (bv as string).localeCompare(av)
-      return sortDir === 'asc' ? (av as number) - (bv as number) : (bv as number) - (av as number)
-    })
+    .sort((a, b) => getSortValue(b) - getSortValue(a))
 
   const totalOrders  = users.reduce((s, u) => s + u.total_assigned, 0)
   const totalActive  = users.reduce((s, u) => s + getActive(u), 0)
   const totalPending = users.reduce((s, u) => s + getPending(u), 0)
 
-  const handleSortChange = (val: string) => {
-    const [key, dir] = val.split('_') as [SortKey, SortDir]
-    setSortKey(key); setSortDir(dir)
-  }
 
   return (
     <div style={{ width: '100%', height: '100%', overflowY: 'auto', background: 'var(--bg)' }}>
@@ -238,45 +152,7 @@ export function MetricsDashboard() {
             }}
           />
 
-          {/* Sort */}
-          <select
-            value={`${sortKey}_${sortDir}`}
-            onChange={e => handleSortChange(e.target.value)}
-            style={{
-              padding: '7px 10px', border: '1.5px solid var(--border)', borderRadius: 8,
-              fontSize: 13, color: 'var(--text-primary)', background: 'var(--surface)',
-              outline: 'none', cursor: 'pointer',
-            }}
-          >
-            {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-
-          {/* Filter chips */}
-          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', flexShrink: 0 }}>
-            {STATUS_FILTERS.map(f => {
-              const active = statusFilter === f.key
-              const m = f.key !== 'all' ? BASE_STATUS_META[f.key] : null
-              return (
-                <button
-                  key={f.key}
-                  onClick={() => setStatusFilter(f.key)}
-                  style={{
-                    padding: '5px 14px', borderRadius: 9999, fontSize: 13, fontWeight: 600,
-                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5,
-                    border: active && m ? `1.5px solid ${m.color}` : '1.5px solid var(--border)',
-                    background: active && m ? m.bg : active ? 'var(--surface-2)' : 'var(--surface)',
-                    color: active && m ? m.color : active ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    transition: 'all 0.15s', whiteSpace: 'nowrap',
-                  }}
-                >
-                  {m && active && <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.color }} />}
-                  {f.label}
-                </button>
-              )
-            })}
-          </div>
-
-          <span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--text-tertiary)', flexShrink: 0 }}>
+<span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--text-tertiary)', flexShrink: 0 }}>
             {filtered.length} of {users.length} users
           </span>
         </div>
@@ -350,23 +226,18 @@ export function MetricsDashboard() {
                     </button>
                   </div>
 
-                  {/* Breakdown bar */}
-                  <div style={{ padding: '0 20px 14px' }}>
-                    <StatusBar u={u} onNavigate={goToOrders} />
-                  </div>
-
-                  {/* Count row */}
-                  <div style={{ display: 'flex', borderTop: '1px solid var(--border)' }}>
+{/* Count grid — 4×2 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderTop: '1px solid var(--border)' }}>
                     {cols.map((col, idx) => (
                       <div
                         key={col.label}
                         onClick={() => col.value > 0 && col.status && goToOrders(u.id, col.status)}
                         style={{
-                          flex: 1,
-                          borderRight: idx < cols.length - 1 ? '1px solid var(--border)' : 'none',
                           padding: '14px 8px',
                           textAlign: 'center',
                           cursor: col.value > 0 && col.status ? 'pointer' : 'default',
+                          borderRight: idx % 4 !== 3 ? '1px solid var(--border)' : 'none',
+                          borderBottom: idx < 4 ? '1px solid var(--border)' : 'none',
                         }}
                         onMouseEnter={e => { if (col.value > 0 && col.status) e.currentTarget.style.background = 'var(--surface-2)' }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}

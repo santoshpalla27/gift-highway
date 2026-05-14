@@ -20,6 +20,7 @@ type TeamDashboard struct {
 	OverdueOrders        []repositories.DashboardOrder `json:"overdue_orders"`
 	StaleOrders          []repositories.DashboardOrder `json:"stale_orders"`
 	UnreadCustomerOrders []repositories.DashboardOrder `json:"unread_customer_orders"`
+	UnassignedOrders     []repositories.DashboardOrder `json:"unassigned_orders"`
 }
 
 type MyDashboard struct {
@@ -50,6 +51,10 @@ func (s *DashboardService) GetTeamDashboard(ctx context.Context, localDate strin
 	if err != nil {
 		return nil, err
 	}
+	unassigned, err := s.repo.GetUnassignedOrders(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if dueToday == nil {
 		dueToday = []repositories.DashboardOrder{}
 	}
@@ -62,12 +67,16 @@ func (s *DashboardService) GetTeamDashboard(ctx context.Context, localDate strin
 	if unread == nil {
 		unread = []repositories.DashboardOrder{}
 	}
+	if unassigned == nil {
+		unassigned = []repositories.DashboardOrder{}
+	}
 	return &TeamDashboard{
 		Stats:                stats,
 		DueTodayList:         dueToday,
 		OverdueOrders:        overdue,
 		StaleOrders:          stale,
 		UnreadCustomerOrders: unread,
+		UnassignedOrders:     unassigned,
 	}, nil
 }
 

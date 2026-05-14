@@ -90,16 +90,21 @@ function OrderRow({ order, onClick }: { order: DashboardOrder; onClick: () => vo
 
 // ─── Section Card ─────────────────────────────────────────────────────────────
 
-function SectionCard({ title, count, children, onViewAll, emptyText }: {
-  title: string; count?: number; children: React.ReactNode; onViewAll?: () => void; emptyText?: string
+function SectionCard({ title, count, children, onViewAll, emptyText, badgeColor }: {
+  title: string; count?: number; children: React.ReactNode; onViewAll?: () => void; emptyText?: string; badgeColor?: string
 }) {
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--surface)', border: `1px solid ${badgeColor ? badgeColor + '40' : 'var(--border)'}`, borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
           {title}
           {count !== undefined && count > 0 && (
-            <span style={{ marginLeft: 8, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 999, padding: '1px 8px', fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>
+            <span style={{
+              marginLeft: 8, borderRadius: 999, padding: '1px 8px', fontSize: 11, fontWeight: 700,
+              background: badgeColor ? badgeColor + '18' : 'var(--surface-2)',
+              border: `1px solid ${badgeColor ? badgeColor + '40' : 'var(--border)'}`,
+              color: badgeColor ?? 'var(--text-secondary)',
+            }}>
               {count}
             </span>
           )}
@@ -158,6 +163,20 @@ function TeamDashboardTab() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
         {kpis.map(k => <KpiCard key={k.label} loading={isLoading} {...k} />)}
       </div>
+
+      {/* Unassigned orders — only shown when present */}
+      {(data?.unassigned_orders ?? []).length > 0 && (
+        <SectionCard
+          title="Unassigned Orders"
+          count={(data?.unassigned_orders ?? []).length}
+          onViewAll={() => navigate('/orders?unassigned=1')}
+          badgeColor="#F97316"
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+            {(data?.unassigned_orders ?? []).map(o => <OrderRow key={o.id} order={o} onClick={() => navigate(`/orders/${o.id}`)} />)}
+          </div>
+        </SectionCard>
+      )}
 
       {/* Row 2: Due today + Overdue */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>

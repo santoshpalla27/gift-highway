@@ -25,28 +25,7 @@ interface UserMetric {
   cancelled_count: number
 }
 
-type StatusFilter = 'all' | 'yet_to_start' | 'working' | 'waiting_for_client' | 'making' | 'done' | 'delivered' | 'cancelled'
 
-const FILTERS: { key: StatusFilter; label: string; color: string; bg: string }[] = [
-  { key: 'all',                label: 'All',                color: '#6B7280', bg: '#F3F4F6' },
-  { key: 'yet_to_start',       label: 'Yet to Start',       color: '#6B7280', bg: '#F3F4F6' },
-  { key: 'working',            label: 'Working',            color: '#3B82F6', bg: '#EFF6FF' },
-  { key: 'waiting_for_client', label: 'Waiting for Client', color: '#F59E0B', bg: '#FFFBEB' },
-  { key: 'making',             label: 'Making',             color: '#8B5CF6', bg: '#F3E8FF' },
-  { key: 'done',               label: 'Done',               color: '#10B981', bg: '#ECFDF5' },
-  { key: 'delivered',          label: 'Delivered',          color: '#0D9488', bg: '#F0FDFA' },
-  { key: 'cancelled',          label: 'Cancelled',          color: '#EF4444', bg: '#FEF2F2' },
-]
-
-const BAR_SEGMENTS: { key: string; field: keyof UserMetric; color: string }[] = [
-  { key: 'working',            field: 'working_count',            color: '#3B82F6' },
-  { key: 'making',             field: 'making_count',             color: '#8B5CF6' },
-  { key: 'yet_to_start',       field: 'new_count',                color: '#9CA3AF' },
-  { key: 'waiting_for_client', field: 'waiting_for_client_count', color: '#F59E0B' },
-  { key: 'done',               field: 'done_count',               color: '#10B981' },
-  { key: 'delivered',          field: 'delivered_count',          color: '#0D9488' },
-  { key: 'cancelled',          field: 'cancelled_count',          color: '#EF4444' },
-]
 
 function getInitials(name: string) {
   return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2)
@@ -68,27 +47,6 @@ function StatTile({ label, value, sublabel, color }: {
   )
 }
 
-function MiniBar({ u, onPress }: {
-  u: UserMetric
-  onPress: (status: string) => void
-}) {
-  if (u.total_assigned === 0) {
-    return <View style={[M.barTrack, { backgroundColor: '#E5E7EB' }]} />
-  }
-  const segs = BAR_SEGMENTS.filter(s => (u[s.field] as number) > 0)
-  return (
-    <View style={M.barTrack}>
-      {segs.map(s => (
-        <TouchableOpacity
-          key={s.key}
-          onPress={() => onPress(s.key)}
-          activeOpacity={0.7}
-          style={{ flex: u[s.field] as number, backgroundColor: s.color }}
-        />
-      ))}
-    </View>
-  )
-}
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -98,7 +56,6 @@ export default function AdminMetricsScreen() {
   const [users, setUsers] = useState<UserMetric[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [search, setSearch] = useState('')
 
   useEffect(() => {
@@ -123,13 +80,6 @@ export default function AdminMetricsScreen() {
   const filtered = users.filter(u => {
     if (search && !u.name.toLowerCase().includes(search.toLowerCase()) &&
         !u.email.toLowerCase().includes(search.toLowerCase())) return false
-    if (statusFilter === 'yet_to_start')       return u.new_count > 0
-    if (statusFilter === 'working')            return u.working_count > 0
-    if (statusFilter === 'waiting_for_client') return u.waiting_for_client_count > 0
-    if (statusFilter === 'making')             return u.making_count > 0
-    if (statusFilter === 'done')               return u.done_count > 0
-    if (statusFilter === 'delivered')          return u.delivered_count > 0
-    if (statusFilter === 'cancelled')          return u.cancelled_count > 0
     return true
   })
 
@@ -169,31 +119,6 @@ export default function AdminMetricsScreen() {
           </TouchableOpacity>
         )}
       </View>
-
-      {/* Filter chips */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={M.chipScroll} contentContainerStyle={M.chipRow}>
-        {FILTERS.map(f => {
-          const active = statusFilter === f.key
-          const hasColor = f.key !== 'all'
-          return (
-            <TouchableOpacity
-              key={f.key}
-              style={[
-                M.chip,
-                active && hasColor  && { backgroundColor: f.bg, borderColor: f.color },
-                active && !hasColor && { backgroundColor: '#F3F4F6', borderColor: '#6B7280' },
-              ]}
-              onPress={() => setStatusFilter(f.key)}
-              activeOpacity={0.7}
-            >
-              {active && hasColor && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: f.color }} />}
-              <Text style={[M.chipText, active && { color: hasColor ? f.color : '#374151', fontWeight: '700' }]}>
-                {f.label}
-              </Text>
-            </TouchableOpacity>
-          )
-        })}
-      </ScrollView>
 
       {/* Content */}
       {loading ? (
@@ -289,34 +214,28 @@ export default function AdminMetricsScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Breakdown bar — tap a segment to filter */}
-                  <MiniBar u={u} onPress={status => goToOrders(u.id, status)} />
-
-                  {/* Scrollable counts */}
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={M.countsScroll}
-                    contentContainerStyle={M.countsRow}
-                  >
+{/* Counts grid — 4 per row, 2 rows */}
+                  <View style={M.countsGrid}>
                     {cols.map((col, idx) => (
-                      <View key={col.label} style={{ flexDirection: 'row' }}>
-                        <TouchableOpacity
-                          onPress={() => col.value > 0 && col.status ? goToOrders(u.id, col.status) : undefined}
-                          activeOpacity={col.value > 0 && col.status ? 0.6 : 1}
-                          style={M.countCol}
-                        >
-                          <Text style={[M.countLabel, { color: col.color, opacity: col.value === 0 ? 0.35 : 1 }]}>
-                            {col.label}
-                          </Text>
-                          <Text style={[M.countNum, { color: col.value > 0 ? col.color : '#9CA3AF', opacity: col.value === 0 ? 0.35 : 1 }]}>
-                            {col.value}
-                          </Text>
-                        </TouchableOpacity>
-                        {idx < cols.length - 1 && <View style={M.countDivider} />}
-                      </View>
+                      <TouchableOpacity
+                        key={col.label}
+                        onPress={() => col.value > 0 && col.status ? goToOrders(u.id, col.status) : undefined}
+                        activeOpacity={col.value > 0 && col.status ? 0.6 : 1}
+                        style={[
+                          M.countCol,
+                          idx < 4 && { borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+                          idx % 4 !== 3 && { borderRightWidth: 1, borderRightColor: '#F1F5F9' },
+                        ]}
+                      >
+                        <Text style={[M.countLabel, { color: col.color, opacity: col.value === 0 ? 0.35 : 1 }]}>
+                          {col.label}
+                        </Text>
+                        <Text style={[M.countNum, { color: col.value > 0 ? col.color : '#9CA3AF', opacity: col.value === 0 ? 0.35 : 1 }]}>
+                          {col.value}
+                        </Text>
+                      </TouchableOpacity>
                     ))}
-                  </ScrollView>
+                  </View>
 
                 </View>
               )
@@ -346,14 +265,6 @@ const M = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 14, color: '#111827', padding: 0 },
 
-  chipScroll: { flexGrow: 0 },
-  chipRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
-  chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
-    borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF',
-  },
-  chipText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
 
   list: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
@@ -396,17 +307,10 @@ const M = StyleSheet.create({
   viewBtn:         { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' },
   viewBtnText:     { fontSize: 12.5, fontWeight: '600', color: '#6366F1' },
 
-  // Breakdown bar
-  barTrack: {
-    flexDirection: 'row', height: 6, overflow: 'hidden',
-    marginHorizontal: 14, marginTop: 8, marginBottom: 10, borderRadius: 3,
-  },
 
   // Count columns
-  countsScroll: { borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-  countsRow:    { flexDirection: 'row', paddingHorizontal: 4 },
-  countCol:     { alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, minWidth: 72 },
+  countsGrid:   { flexDirection: 'row', flexWrap: 'wrap', borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  countCol:     { width: '25%', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4 },
   countLabel:   { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 5 },
   countNum:     { fontSize: 20, fontWeight: '800' },
-  countDivider: { width: 1, backgroundColor: '#F1F5F9', alignSelf: 'stretch' },
 })

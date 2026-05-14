@@ -114,9 +114,9 @@ function OrderRow({ order, onPress }: { order: DashboardOrder; onPress: () => vo
 
 // ─── Section Card ─────────────────────────────────────────────────────────────
 
-function SectionCard({ title, count, children, onViewAll, emptyText }: {
+function SectionCard({ title, count, children, onViewAll, emptyText, badgeColor }: {
   title: string; count: number; children?: React.ReactNode
-  onViewAll?: () => void; emptyText: string
+  onViewAll?: () => void; emptyText: string; badgeColor?: string
 }) {
   return (
     <View style={S.section}>
@@ -124,8 +124,8 @@ function SectionCard({ title, count, children, onViewAll, emptyText }: {
         <View style={S.sectionTitleRow}>
           <Text style={S.sectionTitle}>{title}</Text>
           {count > 0 && (
-            <View style={S.sectionBadge}>
-              <Text style={S.sectionBadgeText}>{count}</Text>
+            <View style={[S.sectionBadge, badgeColor && { backgroundColor: badgeColor + '20', borderColor: badgeColor + '40' }]}>
+              <Text style={[S.sectionBadgeText, badgeColor && { color: badgeColor }]}>{count}</Text>
             </View>
           )}
         </View>
@@ -179,6 +179,20 @@ function TeamTab({ data, refreshing, onRefresh }: {
       <View style={S.kpiGrid}>
         {kpis.map(k => <KpiCard key={k.label} {...k} />)}
       </View>
+
+      {(data.unassigned_orders ?? []).length > 0 && (
+        <SectionCard
+          title="Unassigned Orders"
+          count={(data.unassigned_orders ?? []).length}
+          emptyText=""
+          badgeColor="#F97316"
+          onViewAll={() => router.push({ pathname: '/(app)/all-orders', params: { unassigned: '1', _t: Date.now().toString() } } as any)}
+        >
+          {(data.unassigned_orders ?? []).map(o => (
+            <OrderRow key={o.id} order={o} onPress={() => go(o.id)} />
+          ))}
+        </SectionCard>
+      )}
 
       <SectionCard title="Due Today" count={(data.due_today_list ?? []).length} emptyText="No orders due today"
         onViewAll={() => router.push({ pathname: '/(app)/all-orders', params: { today: '1', _t: Date.now().toString() } } as any)}>
