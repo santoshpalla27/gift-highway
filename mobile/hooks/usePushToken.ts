@@ -113,7 +113,16 @@ export function usePushToken() {
           coldStartNotificationId = null
           return
         }
-        router.replace(`/order/${data.order_id}` as any)
+        // If the stack has something below us (e.g. already on an order screen),
+        // replace the current screen so we don't stack orders on top of each other.
+        // If we're on a tab screen (nothing below), push instead — replace would
+        // remove the (app) group from the stack, unmounting this listener and
+        // making every subsequent notification tap do nothing.
+        if (router.canGoBack()) {
+          router.replace(`/order/${data.order_id}` as any)
+        } else {
+          router.push(`/order/${data.order_id}` as any)
+        }
       }
     })
 
