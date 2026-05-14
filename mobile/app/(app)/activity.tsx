@@ -314,7 +314,7 @@ const S = StyleSheet.create({
   rowBody: { flex: 1, gap: 3 },
   rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   typePill: { borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
-  typeLabel: { fontSize: 10, fontWeight: '700' },
+  typeLabel: { fontSize: 11, fontWeight: '700' },
   rowTime: { fontSize: 11, color: '#9CA3AF', flexShrink: 0 },
   rowSummary: { fontSize: 13, color: '#374151', lineHeight: 18 },
   rowOrder: { fontSize: 12, fontWeight: '700', color: '#2563EB' },

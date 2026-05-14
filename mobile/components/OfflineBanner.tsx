@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Animated, StyleSheet, Text, View } from 'react-native'
+import { COLORS } from '../constants/theme'
 
 type BannerState = 'offline' | 'back-online' | 'hidden'
 
@@ -35,8 +36,8 @@ export function OfflineBanner({ isOnline }: Props) {
 
   return (
     <Animated.View style={[styles.banner, isOffline ? styles.offline : styles.online, { opacity }]}>
-      <View style={styles.dot} />
-      <Text style={[styles.text, { color: isOffline ? '#92400E' : '#065F46' }]}>
+      <View style={[styles.dot, { backgroundColor: isOffline ? COLORS.offlineDot : COLORS.onlineDot }]} />
+      <Text style={[styles.text, { color: isOffline ? COLORS.offlineText : COLORS.onlineText }]}>
         {isOffline ? "You're offline · Changes may not sync" : 'Back online · Sync restored'}
       </Text>
     </Animated.View>
@@ -52,12 +53,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 8,
   },
-  offline: { backgroundColor: '#FEF3C7', borderBottomWidth: 1, borderBottomColor: '#FCD34D' },
-  online:  { backgroundColor: '#D1FAE5', borderBottomWidth: 1, borderBottomColor: '#6EE7B7' },
+  offline: {
+    backgroundColor: COLORS.offlineBg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.offlineBorder,
+  },
+  online: {
+    backgroundColor: COLORS.onlineBg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.onlineBorder,
+  },
   dot: {
     width: 7,
     height: 7,
     borderRadius: 4,
+    // backgroundColor applied inline from theme — was missing in original
   },
   text: {
     fontSize: 12.5,

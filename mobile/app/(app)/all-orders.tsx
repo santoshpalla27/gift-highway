@@ -742,49 +742,45 @@ function OrderCard({ order, onOpen, unreadCount = 0 }: {
     : 'Unassigned'
 
   return (
-    <TouchableOpacity style={[C.card, unreadCount > 0 && C.cardUnread]} onPress={onOpen} activeOpacity={0.6}>
-      {/* Top row: Order ID (left) | Status badge (right) */}
+    <TouchableOpacity
+      style={[C.card, unreadCount > 0 && C.cardUnread]}
+      onPress={onOpen}
+      activeOpacity={0.6}
+      accessibilityRole="button"
+      accessibilityLabel={`Order ${order.title}, ${order.customer_name}, ${sm.label}`}
+    >
+      {/* Top row: Order ID + unread badge (left) | Priority dot + Status (right) */}
       <View style={C.rowTop}>
         <View style={C.orderNumWrap}>
           <Text style={C.orderNum} numberOfLines={1}>#{order.title}</Text>
+          {unreadCount > 0 && (
+            <View style={C.unreadPill}>
+              <Ionicons name="notifications" size={10} color="#fff" />
+              <Text style={C.unreadPillText}>{unreadCount}</Text>
+            </View>
+          )}
         </View>
-        <View style={[C.statusBadge, { backgroundColor: sm.bg }]}>
-          <View style={[C.statusDot, { backgroundColor: sm.color }]} />
-          <Text style={[C.statusText, { color: sm.color }]}>{sm.label}</Text>
-        </View>
-      </View>
-
-      {/* Centered notification alert */}
-      {unreadCount > 0 && (
-        <View style={C.alertRow}>
-          <View style={C.alertBadge}>
-            <Ionicons name="notifications" size={11} color="#fff" />
-            <Text style={C.alertText}>{unreadCount} unread</Text>
+        <View style={C.topRight}>
+          <View style={[C.priorityDot, { backgroundColor: pm.color }]} />
+          <View style={[C.statusBadge, { backgroundColor: sm.bg }]}>
+            <Text style={[C.statusText, { color: sm.color }]}>{sm.label}</Text>
           </View>
         </View>
-      )}
-
-      {/* Middle row: Customer name (left) | Priority (center) */}
-      <View style={C.rowMid}>
-        <View style={C.midLeft}>
-          <Text style={C.customerName} numberOfLines={1}>{order.customer_name}</Text>
-        </View>
-        <View style={C.midCenter}>
-          <View style={[C.priorityDot, { backgroundColor: pm.color }]} />
-          <Text style={[C.priorityText, { color: pm.color }]}>{pm.label}</Text>
-        </View>
       </View>
+
+      {/* Middle row: Customer name */}
+      <Text style={C.customerName} numberOfLines={1}>{order.customer_name}</Text>
 
       {/* Bottom row: Assignee (left) | Delivery date (right) */}
       <View style={C.rowBottom}>
-        <View style={C.midLeft}>
+        <View style={C.assigneeWrap}>
           <Ionicons name="person-outline" size={11} color="#9CA3AF" />
           <Text style={C.assignText} numberOfLines={1}>{assigneeText}</Text>
         </View>
         {due ? (
           <Text style={[C.dueText, due.overdue && C.dueOverdue]} numberOfLines={1}>{due.text}</Text>
         ) : (
-          <Text style={C.dueEmpty}>No delivery date</Text>
+          <Text style={C.dueEmpty}>No date</Text>
         )}
       </View>
     </TouchableOpacity>
@@ -1078,7 +1074,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
             <OrderCard order={o} onOpen={() => router.push(`/order/${o.id}`)} unreadCount={unreadByOrder.get(o.id) ?? 0} />
           )}
           style={S.list}
-          contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40), padding: 12, backgroundColor: '#F8FAFC' }}
+          contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40), padding: 12, backgroundColor: '#F5F6FA' }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F172A" />}
           onEndReached={() => { if (orders.length < total) loadMore() }}
           onEndReachedThreshold={0.3}
@@ -1107,7 +1103,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const S = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F9FAFB' },
+  screen: { flex: 1, backgroundColor: '#F5F6FA' },
   headerSurface: {
     backgroundColor: '#FFFFFF',
     paddingTop: 10,
@@ -1144,15 +1140,15 @@ const S = StyleSheet.create({
   socketBanner: { backgroundColor: '#FEF3C7', paddingVertical: 7, paddingHorizontal: 16, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#FCD34D' },
   socketBannerText: { fontSize: 12.5, fontWeight: '600', color: '#92400E' },
 
-  countBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6 },
-  countText: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
-  clearAllText: { fontSize: 13, fontWeight: '700', color: '#EF4444' },
+  countBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 },
+  countText: { fontSize: 13, fontWeight: '500', color: '#64748B' },
+  clearAllText: { fontSize: 13, fontWeight: '600', color: '#6366F1' },
 
   list: { flex: 1 },
   centerList: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  emptyIconWrap: { width: 64, height: 64, borderRadius: 20, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: '800', color: '#111827' },
-  emptySub: { fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 6, lineHeight: 20 },
+  emptyIconWrap: { width: 64, height: 64, borderRadius: 20, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
+  emptySub: { fontSize: 14, color: '#64748B', textAlign: 'center', marginTop: 6, lineHeight: 20 },
   emptyBtn: { marginTop: 24, backgroundColor: '#FFFFFF', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1 },
   emptyBtnText: { color: '#111827', fontSize: 14, fontWeight: '700' },
   fab: {
@@ -1161,7 +1157,7 @@ const S = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6, zIndex: 100,
   },
-  screenTitle: { fontSize: 24, fontWeight: '800', color: '#111827', letterSpacing: -0.5 },
+  screenTitle: { fontSize: 20, fontWeight: '800', color: '#111827', letterSpacing: -0.3 },
 })
 
 const AP = StyleSheet.create({
@@ -1186,14 +1182,14 @@ const FS = StyleSheet.create({
   clearBtn: { fontSize: 14, fontWeight: '700', color: '#EF4444' },
 
   section: { paddingHorizontal: 24, paddingVertical: 20, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1, marginBottom: 16 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 0.6, marginBottom: 16 },
   dimText: { fontSize: 14, color: '#9CA3AF' },
 
   optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   optionChip: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 12, borderWidth: 1.5, borderColor: '#F3F4F6', backgroundColor: '#FFFFFF',
+    borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF',
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
   optionText: { fontSize: 14, fontWeight: '600', color: '#4B5563' },
@@ -1208,12 +1204,12 @@ const FS = StyleSheet.create({
 
   assigneeTrigger: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderWidth: 1.5, borderColor: '#F3F4F6', borderRadius: 12,
+    borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 13, backgroundColor: '#FFFFFF',
   },
   assigneeTriggerText: { flex: 1, fontSize: 15, color: '#0F172A', marginRight: 8 },
   assigneeList: {
-    marginTop: 6, borderWidth: 1, borderColor: '#F3F4F6', borderRadius: 12,
+    marginTop: 6, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12,
     overflow: 'hidden', backgroundColor: '#FFFFFF', maxHeight: 260,
   },
   assigneeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 13 },
@@ -1222,14 +1218,14 @@ const FS = StyleSheet.create({
 
   dateLabel: { fontSize: 13, fontWeight: '700', color: '#4B5563', marginBottom: 8 },
   dateInput: {
-    borderWidth: 1.5, borderColor: '#F3F4F6', borderRadius: 12,
+    borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12,
     fontSize: 15, color: '#111827', backgroundColor: '#FFFFFF',
   },
 
   toggleRow: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    padding: 16, borderRadius: 16, borderWidth: 1.5, borderColor: '#F3F4F6', backgroundColor: '#FFFFFF',
+    padding: 16, borderRadius: 16, borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF',
   },
   toggleRowActive: { borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
   toggleRowToday: { borderColor: '#FDE68A', backgroundColor: '#FFFBEB' },
@@ -1241,46 +1237,54 @@ const FS = StyleSheet.create({
   toggleThumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 3, elevation: 2 },
   toggleThumbOn: { alignSelf: 'flex-end' },
 
-  footer: { padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  applyBtn: { backgroundColor: '#111827', borderRadius: 16, paddingVertical: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
+  footer: { padding: 24, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  applyBtn: { backgroundColor: '#6366F1', borderRadius: 16, paddingVertical: 16, alignItems: 'center', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 },
   applyText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
 })
 
 const C = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
-    borderWidth: 1, borderColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
     borderRadius: 16,
-    paddingHorizontal: 16, paddingVertical: 14, marginBottom: 12,
-    gap: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 10,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  // Top row: order ID left, status right
+  cardUnread: { borderColor: '#C7D2FE', borderWidth: 1.5 },
+
+  // Top row: order ID + unread badge (left) | priority dot + status (right)
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  orderNumWrap: { flex: 1, minWidth: 0 },
+  orderNumWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
   orderNum: { fontSize: 15, fontWeight: '800', color: '#6366F1' },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, flexShrink: 0 },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 12, fontWeight: '700' },
-  cardUnread: { borderColor: '#FECACA' },
-  // Centered notification alert row
-  alertRow: { alignItems: 'center' },
-  alertBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#EF4444', borderRadius: 12,
-    paddingHorizontal: 10, paddingVertical: 4,
+  unreadPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#6366F1', borderRadius: 10,
+    paddingHorizontal: 7, paddingVertical: 2,
   },
-  alertText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
-  // Middle row: customer left, priority center
-  rowMid: { flexDirection: 'row', alignItems: 'center' },
-  midLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
-  assignText: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
-  midCenter: { flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1, justifyContent: 'center' },
+  unreadPillText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
   priorityDot: { width: 7, height: 7, borderRadius: 4 },
-  priorityText: { fontSize: 12.5, fontWeight: '600' },
-  // Bottom row: customer name left, delivery date right
-  rowBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#F9FAFB', paddingTop: 10 },
-  customerName: { fontSize: 14, fontWeight: '700', color: '#111827', flex: 1, marginRight: 8 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  statusText: { fontSize: 12, fontWeight: '700' },
+
+  // Customer name
+  customerName: { fontSize: 14, fontWeight: '700', color: '#111827' },
+
+  // Bottom row
+  rowBottom: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 10,
+  },
+  assigneeWrap: { flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 },
+  assignText: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
   dueText: { fontSize: 12.5, color: '#6B7280', fontWeight: '600', flexShrink: 0 },
   dueOverdue: { color: '#EF4444', fontWeight: '700' },
   dueEmpty: { fontSize: 12.5, color: '#9CA3AF', flexShrink: 0, fontWeight: '500' },
@@ -1302,7 +1306,7 @@ const F = StyleSheet.create({
   assignRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F9FAFB' },
   assignRowActive: { backgroundColor: '#F8FAFC' },
   assignText: { fontSize: 15, color: '#374151', fontWeight: '500' },
-  submitBtn: { backgroundColor: '#111827', borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginTop: 32, marginBottom: 40, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
+  submitBtn: { backgroundColor: '#6366F1', borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginTop: 32, marginBottom: 40, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 },
   submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
   pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   pickerSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 32, overflow: 'hidden' },

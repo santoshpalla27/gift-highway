@@ -47,6 +47,8 @@ function NotificationIcon() {
       style={headerStyles.iconBtn}
       activeOpacity={0.7}
       onPress={() => router.push('/notifications' as any)}
+      accessibilityRole="button"
+      accessibilityLabel={badgeCount > 0 ? `Notifications, ${badgeCount} unread` : 'Notifications'}
     >
       <Ionicons name="notifications-outline" size={24} color="#111827" />
       {badgeCount > 0 && (
@@ -105,7 +107,7 @@ export default function AppLayout() {
         options={{
           tabBarLabel: 'Dashboard',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid" size={size} color={color} />
+            <Ionicons name="bar-chart-outline" size={size} color={color} />
           ),
         }}
       />
@@ -114,7 +116,7 @@ export default function AppLayout() {
         options={{
           tabBarLabel: 'My Orders',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cart" size={size} color={color} />
+            <Ionicons name="clipboard-outline" size={size} color={color} />
           ),
         }}
       />
@@ -203,10 +205,10 @@ const headerStyles = StyleSheet.create({
     lineHeight: 20,
   },
   logoSubText: {
-    fontSize: 8.5,
-    fontWeight: '700',
-    color: '#6B7280',
-    letterSpacing: 1.5,
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    letterSpacing: 1.2,
     marginTop: 1,
   },
   iconBtn: {

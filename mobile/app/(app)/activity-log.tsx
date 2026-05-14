@@ -280,7 +280,7 @@ const S = StyleSheet.create({
   rowMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
   orderNum: { fontSize: 11.5, fontWeight: '700', color: '#6366F1', fontVariant: ['tabular-nums'] },
   orderTitle: { fontSize: 11.5, color: '#9CA3AF', flex: 1 },
-  time: { fontSize: 10.5, color: '#9CA3AF', flexShrink: 0, textAlign: 'right', marginTop: 2 },
+  time: { fontSize: 11, color: '#9CA3AF', flexShrink: 0, textAlign: 'right', marginTop: 2 },
 
   loadMore: { alignItems: 'center', paddingVertical: 16 },
   loadMoreText: { fontSize: 13, fontWeight: '600', color: '#6366F1' },

@@ -314,7 +314,7 @@ export default function AdminScreen() {
 
   return (
     <View style={S.screen}>
-      <View style={S.header}>
+      <View style={[S.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
@@ -322,7 +322,7 @@ export default function AdminScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <TouchableOpacity onPress={() => fetchUsers(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             {refreshing
-              ? <ActivityIndicator size="small" color="#4F46E5" />
+              ? <ActivityIndicator size="small" color="#6366F1" />
               : <Ionicons name="refresh-outline" size={22} color="#6B7280" />}
           </TouchableOpacity>
           <TouchableOpacity style={S.addBtn} onPress={() => setShowCreate(true)}>
@@ -372,7 +372,7 @@ export default function AdminScreen() {
 
       {loading && users.length === 0 ? (
         <View style={S.center}>
-          <ActivityIndicator size="large" color="#4F46E5" />
+          <ActivityIndicator size="large" color="#6366F1" />
         </View>
       ) : error ? (
         <View style={S.center}>
@@ -564,7 +564,6 @@ const S = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 60 : 20,
     paddingBottom: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -582,7 +581,7 @@ const S = StyleSheet.create({
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4F46E5',
+    backgroundColor: '#6366F1',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -613,7 +612,7 @@ const S = StyleSheet.create({
   retryText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4F46E5',
+    color: '#6366F1',
   },
   list: {
     flex: 1,
@@ -690,7 +689,7 @@ const S = StyleSheet.create({
   badgeAdmin: { backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#E0E7FF' },
   badgeUser: { backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
   badgeText: { fontSize: 12, fontWeight: '600', textTransform: 'capitalize' },
-  badgeTextAdmin: { color: '#4F46E5' },
+  badgeTextAdmin: { color: '#6366F1' },
   badgeTextUser: { color: '#4B5563' },
   statusRow: {
     flexDirection: 'row',
@@ -800,7 +799,7 @@ const S = StyleSheet.create({
     alignItems: 'center',
   },
   roleChipActive: {
-    borderColor: '#4F46E5',
+    borderColor: '#6366F1',
     backgroundColor: '#EEF2FF',
   },
   roleChipText: {
@@ -809,10 +808,10 @@ const S = StyleSheet.create({
     color: '#6B7280',
   },
   roleChipTextActive: {
-    color: '#4F46E5',
+    color: '#6366F1',
   },
   primaryBtn: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: '#6366F1',
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
@@ -842,8 +841,8 @@ const S = StyleSheet.create({
     }),
   },
   searchContainerFocused: {
-    borderColor: '#4F46E5',
-    shadowColor: '#4F46E5',
+    borderColor: '#6366F1',
+    shadowColor: '#6366F1',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.15,
     shadowRadius: 4,

@@ -68,11 +68,16 @@ export function InfoSheet({ order, portal, onClose, onPortalChange, onArchived }
     <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
         <View style={[E.header, { paddingTop: insets.top + 16 }]}>
-          <TouchableOpacity onPress={onClose}>
+          <TouchableOpacity
+            onPress={onClose}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
             <Ionicons name="close" size={24} color="#0F172A" />
           </TouchableOpacity>
           <Text style={E.headerTitle}>Order Info</Text>
-          <View style={{ width: 24 }} />
+          <View style={{ width: 44 }} />
         </View>
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: Math.max(insets.bottom + 16, 48) }}>
 
@@ -236,11 +241,16 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
     <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
         <View style={[E.header, { paddingTop: insets.top + 16 }]}>
-          <TouchableOpacity onPress={onClose}>
+          <TouchableOpacity
+            onPress={onClose}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
             <Ionicons name="close" size={24} color="#0F172A" />
           </TouchableOpacity>
           <Text style={E.headerTitle}>Edit Order</Text>
-          <View style={{ width: 24 }} />
+          <View style={{ width: 44 }} />
         </View>
         <ScrollView style={{ padding: 20 }} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40) }} keyboardShouldPersistTaps="handled">
           {error ? <View style={E.errorBox}><Text style={E.errorText}>{error}</Text></View> : null}
@@ -433,13 +443,13 @@ const E = StyleSheet.create({
   assignRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   assignRowActive: { backgroundColor: '#F8FAFC' },
   assignText: { fontSize: 15, color: '#475569' },
-  saveBtn: { backgroundColor: '#0F172A', borderRadius: 10, paddingVertical: 16, alignItems: 'center', marginTop: 32, marginBottom: 40 },
+  saveBtn: { backgroundColor: '#6366F1', borderRadius: 10, paddingVertical: 16, alignItems: 'center', marginTop: 32, marginBottom: 40 },
   saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 })
 
 const IN = StyleSheet.create({
   section: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  label: { fontSize: 10, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.8, marginBottom: 6 },
+  label: { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 0.6, marginBottom: 6 },
   value: { fontSize: 14, fontWeight: '600', color: '#0F172A' },
   sub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   badge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },

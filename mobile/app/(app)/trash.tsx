@@ -630,7 +630,7 @@ const FS = StyleSheet.create({
     paddingHorizontal: 24, paddingVertical: 20,
     backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1, marginBottom: 16 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 0.6, marginBottom: 16 },
   optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   optionChip: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -651,8 +651,8 @@ const FS = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#F3F4F6',
   },
   applyBtn: {
-    backgroundColor: '#111827', borderRadius: 16, paddingVertical: 16, alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
+    backgroundColor: '#6366F1', borderRadius: 16, paddingVertical: 16, alignItems: 'center',
+    shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
   },
   applyText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
 })

@@ -66,6 +66,7 @@ function SectionCard({ label, children }: { label: string; children: React.React
 function SettingsRow({
   icon,
   iconBg,
+  iconColor,
   label,
   subtitle,
   onPress,
@@ -75,6 +76,7 @@ function SettingsRow({
 }: {
   icon: React.ComponentProps<typeof Ionicons>['name']
   iconBg: string
+  iconColor?: string
   label: string
   subtitle?: string
   onPress?: () => void
@@ -98,13 +100,16 @@ function SettingsRow({
       activeOpacity={disabled ? 1 : 0.7}
       disabled={disabled}
       accessibilityRole="button"
+      accessibilityLabel={label}
     >
       <Animated.View style={[S.row, { opacity }]}>
-        {/* Icon */}
         <View style={[S.rowIcon, { backgroundColor: iconBg }]}>
-          <Ionicons name={icon} size={18} color={danger ? '#EF4444' : '#FFFFFF'} />
+          <Ionicons
+            name={icon}
+            size={18}
+            color={iconColor ?? '#FFFFFF'}
+          />
         </View>
-        {/* Labels */}
         <View style={S.rowBody}>
           <Text style={[S.rowLabel, danger && { color: '#EF4444' }, disabled && S.rowLabelDisabled]}>
             {label}
@@ -113,7 +118,6 @@ function SettingsRow({
             <Text style={S.rowSubtitle}>{subtitle}</Text>
           ) : null}
         </View>
-        {/* Right */}
         {rightContent ?? (
           !disabled && onPress ? (
             <Ionicons name="chevron-forward" size={16} color="#C6C6C8" />
@@ -135,17 +139,24 @@ function AvatarSection({
   initials,
   uploading,
   onPressAvatar,
+  avatarUploadEnabled,
 }: {
   profile: Profile | null
   avatarUrl: string | null
   initials: string
   uploading: boolean
   onPressAvatar: () => void
+  avatarUploadEnabled: boolean
 }) {
   return (
     <View style={S.profileHero}>
-      {/* Avatar */}
-      <TouchableOpacity onPress={onPressAvatar} activeOpacity={0.8} style={S.avatarWrap}>
+      <TouchableOpacity
+        onPress={avatarUploadEnabled ? onPressAvatar : undefined}
+        activeOpacity={avatarUploadEnabled ? 0.8 : 1}
+        style={S.avatarWrap}
+        accessibilityRole={avatarUploadEnabled ? 'button' : undefined}
+        accessibilityLabel={avatarUploadEnabled ? 'Change profile photo' : undefined}
+      >
         {avatarUrl ? (
           <Image source={{ uri: avatarUrl }} style={S.avatarImg} />
         ) : (
@@ -153,16 +164,18 @@ function AvatarSection({
             <Text style={S.avatarInitials}>{initials}</Text>
           </View>
         )}
-        <View style={S.avatarBadge}>
-          {uploading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Ionicons name="camera" size={13} color="#FFFFFF" />
-          )}
-        </View>
+        {/* Camera badge only shown when upload is actually enabled */}
+        {avatarUploadEnabled && (
+          <View style={S.avatarBadge}>
+            {uploading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons name="camera" size={13} color="#FFFFFF" />
+            )}
+          </View>
+        )}
       </TouchableOpacity>
 
-      {/* Identity */}
       <View style={S.profileInfo}>
         {profile ? (
           <>
@@ -201,12 +214,14 @@ export default function SettingsScreen() {
   const [fetchError, setFetchError] = useState(false)
   const [uploading, setUploading] = useState(false)
 
+  // Avatar upload is disabled until expo-image-picker is installed
+  const avatarUploadEnabled = false
+
   const isAdmin = (profile?.role ?? user?.role) === 'admin'
   const initials = user
     ? `${user.first_name?.[0] ?? ''}${user.last_name?.[0] ?? ''}`.toUpperCase()
     : '??'
 
-  // ── Fetch Profile ──────────────────────────────────────────────────────────
   const fetchProfile = useCallback(async () => {
     setLoadingProfile(true)
     setFetchError(false)
@@ -228,56 +243,10 @@ export default function SettingsScreen() {
     fetchProfile()
   }, [fetchProfile])
 
-  // ── Avatar Upload ──────────────────────────────────────────────────────────
   const handleAvatarPress = async () => {
-    if (Platform.OS === 'web') {
-      window.alert('Avatar upload will be enabled once image picker is installed.');
-    } else {
-      Alert.alert('Coming Soon', 'Avatar upload will be enabled soon.');
-    }
     // TODO: Re-enable once expo-image-picker is installed
-    /*
-    if (uploading) return
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Allow photo library access to change your avatar.')
-      return
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.85,
-    })
-    if (result.canceled || !result.assets[0]) return
-
-    const asset = result.assets[0]
-    const filename = asset.uri.split('/').pop() ?? 'avatar.jpg'
-    const contentType = asset.mimeType ?? 'image/jpeg'
-
-    setUploading(true)
-    try {
-      const { upload_url, object_key } = await profileService.getAvatarUploadURL(filename, contentType)
-
-      // Upload to R2
-      const fileBlob = await (await fetch(asset.uri)).blob()
-      await fetch(upload_url, {
-        method: 'PUT',
-        body: fileBlob,
-        headers: { 'Content-Type': contentType },
-      })
-
-      const { signed_url } = await profileService.confirmAvatarUpload(object_key)
-      setAvatarUrl(signed_url)
-    } catch {
-      Alert.alert('Upload failed', 'Could not upload the image. Check storage configuration.')
-    } finally {
-      setUploading(false)
-    }
-    */
   }
 
-  // ── Logout ─────────────────────────────────────────────────────────────────
   const handleLogout = async () => {
     const performLogout = async () => {
       try {
@@ -305,27 +274,23 @@ export default function SettingsScreen() {
       contentContainerStyle={[S.scrollContent, { paddingBottom: Math.max(insets.bottom + 16, 40) }]}
       showsVerticalScrollIndicator={false}
     >
-      {/* ── Header ───────────────────────────────────────────────────────── */}
       <View style={S.pageHeader}>
         <Text style={S.pageTitle}>Settings</Text>
         <Text style={S.pageSubtitle}>Manage your account and preferences</Text>
       </View>
 
-      {/* ── Section 1: Profile ───────────────────────────────────────────── */}
       <SectionCard label="PROFILE">
-        {/* Avatar + Identity hero */}
         <AvatarSection
           profile={profile}
           avatarUrl={avatarUrl}
           initials={initials}
           uploading={uploading}
           onPressAvatar={handleAvatarPress}
+          avatarUploadEnabled={avatarUploadEnabled}
         />
 
-        {/* Divider */}
         <View style={S.divider} />
 
-        {/* Account details rows */}
         {loadingProfile && !fetchError ? (
           <View style={{ gap: 18, paddingVertical: 4 }}>
             {[200, 160, 100].map((w, i) => (
@@ -359,7 +324,6 @@ export default function SettingsScreen() {
         )}
       </SectionCard>
 
-      {/* ── Section 2: Tools ────────────────────────────────────────────── */}
       <SectionCard label="TOOLS">
         <SettingsRow
           icon="pulse-outline"
@@ -382,7 +346,6 @@ export default function SettingsScreen() {
         )}
       </SectionCard>
 
-      {/* ── Section 4: Admin Panel (conditional) ─────────────────────────── */}
       {isAdmin && (
         <SectionCard label="ADMIN PANEL">
           <SettingsRow
@@ -403,11 +366,12 @@ export default function SettingsScreen() {
         </SectionCard>
       )}
 
-      {/* ── Section 4: Logout ────────────────────────────────────────────── */}
       <SectionCard label="ACCOUNT">
+        {/* danger row: white icon on red background for proper contrast */}
         <SettingsRow
           icon="log-out-outline"
-          iconBg="#FCA5A5"
+          iconBg="#EF4444"
+          iconColor="#FFFFFF"
           label="Sign Out"
           danger
           onPress={handleLogout}
@@ -415,7 +379,7 @@ export default function SettingsScreen() {
       </SectionCard>
 
       <View style={S.footer}>
-        <Text style={S.footerText}>Gift Highway · v0.1</Text>
+        <Text style={S.footerText}>Gift Highway</Text>
       </View>
     </ScrollView>
   )
@@ -425,31 +389,29 @@ export default function SettingsScreen() {
 const S = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: '#F5F6FA',
   },
   scrollContent: {
     paddingHorizontal: 16,
     paddingBottom: 40,
   },
 
-  // Page header
   pageHeader: {
     paddingTop: 20,
     paddingBottom: 20,
   },
   pageTitle: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: '800',
     color: '#111827',
     letterSpacing: -0.5,
   },
   pageSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: 2,
   },
 
-  // Card
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -470,7 +432,6 @@ const S = StyleSheet.create({
     marginBottom: 14,
   },
 
-  // Profile hero
   profileHero: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -527,11 +488,10 @@ const S = StyleSheet.create({
   },
   profileEmail: {
     fontSize: 13,
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: 2,
   },
 
-  // Role chip
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -541,33 +501,18 @@ const S = StyleSheet.create({
     borderRadius: 99,
     gap: 5,
   },
-  chipAdmin: {
-    backgroundColor: '#FFF7ED',
-  },
-  chipUser: {
-    backgroundColor: '#ECFDF5',
-  },
-  chipDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  chipText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
+  chipAdmin: { backgroundColor: '#FFF7ED' },
+  chipUser:  { backgroundColor: '#ECFDF5' },
+  chipDot:   { width: 6, height: 6, borderRadius: 3 },
+  chipText:  { fontSize: 12, fontWeight: '700' },
 
-  // Divider
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: '#F3F4F6',
     marginBottom: 14,
   },
 
-  // Details list
-  detailsList: {
-    gap: 0,
-  },
+  detailsList: { gap: 0 },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -576,25 +521,15 @@ const S = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#F3F4F6',
   },
-  detailLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-    maxWidth: '60%',
-    textAlign: 'right',
-  },
+  detailLabel: { fontSize: 14, fontWeight: '500', color: '#6B7280' },
+  detailValue: { fontSize: 14, fontWeight: '600', color: '#111827', maxWidth: '60%', textAlign: 'right' },
 
-  // Rows
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     gap: 12,
+    minHeight: 44,
   },
   rowSep: {
     height: StyleSheet.hairlineWidth,
@@ -608,24 +543,11 @@ const S = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowBody: {
-    flex: 1,
-  },
-  rowLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#111827',
-  },
-  rowLabelDisabled: {
-    color: '#9CA3AF',
-  },
-  rowSubtitle: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 1,
-  },
+  rowBody: { flex: 1 },
+  rowLabel: { fontSize: 15, fontWeight: '500', color: '#111827' },
+  rowLabelDisabled: { color: '#9CA3AF' },
+  rowSubtitle: { fontSize: 12, color: '#9CA3AF', marginTop: 1 },
 
-  // Coming soon badge
   comingSoonBadge: {
     backgroundColor: '#F3F4F6',
     borderRadius: 99,
@@ -639,38 +561,16 @@ const S = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // Error / retry
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     paddingVertical: 8,
   },
-  errorText: {
-    fontSize: 14,
-    color: '#EF4444',
-    flex: 1,
-  },
-  retryBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#FEE2E2',
-    borderRadius: 8,
-  },
-  retryText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#EF4444',
-  },
+  errorText: { fontSize: 14, color: '#EF4444', flex: 1 },
+  retryBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#FEE2E2', borderRadius: 8 },
+  retryText: { fontSize: 13, fontWeight: '600', color: '#EF4444' },
 
-  // Footer
-  footer: {
-    alignItems: 'center',
-    paddingTop: 8,
-  },
-  footerText: {
-    fontSize: 12,
-    color: '#C6C6C8',
-    fontWeight: '500',
-  },
+  footer: { alignItems: 'center', paddingTop: 8 },
+  footerText: { fontSize: 12, color: '#C6C6C8', fontWeight: '500' },
 })

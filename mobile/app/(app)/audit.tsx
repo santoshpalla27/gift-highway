@@ -204,7 +204,7 @@ export default function AuditScreen() {
   return (
     <View style={S.screen}>
       {/* Header */}
-      <View style={[S.header, { paddingTop: Platform.OS === 'ios' ? 60 : 20 }]}>
+      <View style={[S.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
@@ -452,7 +452,7 @@ export default function AuditScreen() {
 }
 
 const S = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F2F2F7' },
+  screen: { flex: 1, backgroundColor: '#F5F6FA' },
   header: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingBottom: 16,
@@ -473,7 +473,7 @@ const S = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  cardTitle: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.8, marginBottom: 14 },
+  cardTitle: { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 0.6, marginBottom: 14 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
   dot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
   statusBody: { flex: 1 },
@@ -494,7 +494,7 @@ const S = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10,
     borderWidth: 1, borderColor: '#E0E7FF', backgroundColor: '#EEF2FF',
   },
-  dlBtnPrimary: { backgroundColor: '#111827', borderColor: '#111827' },
+  dlBtnPrimary: { backgroundColor: '#6366F1', borderColor: '#6366F1' },
   dlBtnDisabled: { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB' },
   dlBtnText: { fontSize: 14, fontWeight: '600', color: '#4F46E5' },
   dlBtnTextPrimary: { color: '#FFFFFF' },

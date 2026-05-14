@@ -139,33 +139,60 @@ export default function OrderDetailScreen() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: '#FFFFFF' }}
-      behavior="padding"
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? keyboardOffset : 0}
     >
       <View style={S.screen}>
 
         {/* Header */}
         <View style={[S.header, { paddingTop: insets.top + 10 }]}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <Ionicons name="arrow-back" size={24} color="#0F172A" />
           </TouchableOpacity>
+
           <View style={S.headerCenter}>
             <Text style={S.headerTitle} numberOfLines={1}>#{order.title}</Text>
           </View>
-          <TouchableOpacity onPress={D.onRefresh} disabled={D.refreshing} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            {D.refreshing
-              ? <ActivityIndicator size="small" color="#0F172A" />
-              : <Ionicons name="refresh-outline" size={22} color="#0F172A" />
-            }
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => D.setShowInfo(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="information-circle-outline" size={22} color="#0F172A" />
-          </TouchableOpacity>
-          {D.isAdmin && (
-            <TouchableOpacity onPress={() => D.setShowEdit(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="create-outline" size={22} color="#0F172A" />
+
+          <View style={S.headerActions}>
+            <TouchableOpacity
+              onPress={D.onRefresh}
+              disabled={D.refreshing}
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Refresh order"
+            >
+              {D.refreshing
+                ? <ActivityIndicator size="small" color="#0F172A" />
+                : <Ionicons name="refresh-outline" size={22} color="#0F172A" />
+              }
             </TouchableOpacity>
-          )}
+
+            <TouchableOpacity
+              onPress={() => D.setShowInfo(true)}
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Order info"
+            >
+              <Ionicons name="information-circle-outline" size={22} color="#0F172A" />
+            </TouchableOpacity>
+
+            {D.isAdmin && (
+              <TouchableOpacity
+                onPress={() => D.setShowEdit(true)}
+                hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel="Edit order"
+              >
+                <Ionicons name="create-outline" size={22} color="#0F172A" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Chip rows */}
@@ -173,11 +200,11 @@ export default function OrderDetailScreen() {
           {/* Row 1: status · priority · assignee */}
           <View style={S.chipRow}>
             <TouchableOpacity
-              style={[S.chip, S.chipFlex, { backgroundColor: sm.bg }]}
+              style={[S.chip, { flex: 2, backgroundColor: sm.bg }]}
               onPress={() => D.setShowStatus(true)}
               activeOpacity={0.7}
             >
-              <Text style={[S.chipText, { color: sm.color }]}>{sm.label}</Text>
+              <Text style={[S.chipText, { color: sm.color }]} numberOfLines={1}>{sm.label}</Text>
               <Ionicons name="chevron-down" size={13} color={sm.color} style={{ marginLeft: 4 }} />
             </TouchableOpacity>
             <View style={[S.chip, S.chipFlex, { backgroundColor: pm.bg }]}>
@@ -526,6 +553,7 @@ const S = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingBottom: 12, paddingHorizontal: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', gap: 12 },
   headerCenter: { flex: 1 },
   headerTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   chipSection: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, backgroundColor: '#F8FAFC', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   chipRow: { flexDirection: 'row', gap: 8 },
   chip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999 },

@@ -143,11 +143,11 @@ const S = StyleSheet.create({
     borderRadius: 10, padding: 3, gap: 2, marginTop: 4,
   },
   scopeBtn: {
-    flex: 1, paddingVertical: 7, paddingHorizontal: 12,
-    borderRadius: 8, alignItems: 'center',
+    flex: 1, paddingVertical: 10, paddingHorizontal: 12,
+    borderRadius: 8, alignItems: 'center', justifyContent: 'center', minHeight: 40,
   },
   scopeBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
-  scopeLabel: { fontSize: 12, fontWeight: '600', color: '#6B7280' },
+  scopeLabel: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
   scopeLabelActive: { color: '#4F46E5' },
 
   divider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 16 },
@@ -169,8 +169,8 @@ const S = StyleSheet.create({
   groupLabel: { fontSize: 12, fontWeight: '700', color: '#374151', marginBottom: 8 },
   typeRow: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#F3F4F6',
-    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8,
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB',
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10,
     marginBottom: 6,
   },
   typeRowActive: { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' },

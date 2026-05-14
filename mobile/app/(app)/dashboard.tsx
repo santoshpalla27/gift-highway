@@ -89,11 +89,12 @@ function OrderRow({ order, onPress }: { order: DashboardOrder; onPress: () => vo
       <View style={S.orderLeft}>
         <Text style={S.orderIdBadge} numberOfLines={1}>#{order.title}</Text>
         <View style={S.orderBody}>
-          <Text style={S.orderTitle} numberOfLines={1}>{order.title}</Text>
-          <Text style={S.orderCustomer} numberOfLines={1}>
-            {order.customer_name}
-            {order.assigned_names?.length > 0 ? ` · ${order.assigned_names[0].split(' ')[0]}` : ''}
-          </Text>
+          <Text style={S.orderTitle} numberOfLines={1}>{order.customer_name}</Text>
+          {order.assigned_names?.length > 0 && (
+            <Text style={S.orderCustomer} numberOfLines={1}>
+              {order.assigned_names[0].split(' ')[0]}
+            </Text>
+          )}
         </View>
       </View>
       <View style={S.orderRight}>
@@ -348,7 +349,7 @@ export default function DashboardScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const S = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: '#F3F4F6' },
+  container:    { flex: 1, backgroundColor: '#F5F6FA' },
   center:       { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
 
   // Header
@@ -369,7 +370,7 @@ const S = StyleSheet.create({
   // Tabs (Segmented Control Style)
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#E5E7EB',
     borderRadius: 12,
     padding: 4,
     marginHorizontal: 16,
@@ -390,15 +391,15 @@ const S = StyleSheet.create({
     elevation: 2,
   },
   tabLabel: { fontSize: 13, fontWeight: '600', color: '#6B7280' },
-  tabLabelActive: { color: '#111827' },
+  tabLabelActive: { color: '#111827', fontWeight: '700' },
 
   // Scrollable content
   tabContent: { padding: 16, gap: 16 },
 
-  // KPI Grid
+  // KPI Grid — 2-column to avoid orphan rows
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   kpiCard: {
-    width: '30.5%',
+    width: '47%',
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 14,
@@ -412,8 +413,8 @@ const S = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   kpiTop:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  kpiLabel: { fontSize: 10, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.4, flex: 1 },
-  kpiValue: { fontSize: 30, fontWeight: '800', lineHeight: 34 },
+  kpiLabel: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.4, flex: 1 },
+  kpiValue: { fontSize: 28, fontWeight: '800', lineHeight: 32 },
 
   // Section
   section: {
@@ -450,7 +451,7 @@ const S = StyleSheet.create({
   sectionBadgeText: { fontSize: 11, fontWeight: '700', color: '#6B7280' },
   viewAll:          { fontSize: 12, fontWeight: '600', color: '#6366F1' },
   emptyState:       { alignItems: 'center', paddingVertical: 24, gap: 6 },
-  emptyText:        { fontSize: 13, color: '#9CA3AF' },
+  emptyText:        { fontSize: 13, color: '#64748B' },
 
   // Order Row
   orderRow: {
@@ -466,7 +467,7 @@ const S = StyleSheet.create({
   orderIdBadge:  { fontSize: 11.5, fontWeight: '700', color: '#2563EB', fontVariant: ['tabular-nums'], flexShrink: 0 },
   orderBody:     { flex: 1, minWidth: 0 },
   orderTitle:    { fontSize: 13, fontWeight: '600', color: '#111827' },
-  orderCustomer: { fontSize: 11.5, color: '#6B7280', marginTop: 1 },
+  orderCustomer: { fontSize: 12, color: '#6B7280', marginTop: 1 },
   orderRight:    { alignItems: 'flex-end', gap: 4, flexShrink: 0 },
   orderRightBottom: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   priorityDot:   { width: 7, height: 7, borderRadius: 4 },
