@@ -325,20 +325,24 @@ export function useOrderDetail(orderId: string | undefined) {
     try {
       const data = await orderService.listEvents(orderId, 1, LIMIT, 'desc')
       const latest = [...data.events].reverse()
-      let added = 0
+      // Compute new events against the ref (always current) BEFORE calling setEvList.
+      // The setState updater runs during the next render in React 18's async batching,
+      // so an `added` variable captured inside the updater is always 0 by the time
+      // the if-check below runs — making auto-scroll and the badge never fire.
+      const prevIds = new Set(evListRef.current.map(e => e.id))
+      const newEvs = latest.filter(e => !prevIds.has(e.id))
       setEvList(prev => {
         const existingIds = new Set(prev.map(e => e.id))
-        const newEvs = latest.filter(e => !existingIds.has(e.id))
-        added = newEvs.length
-        return newEvs.length === 0 ? prev : [...prev, ...newEvs]
+        const toAdd = latest.filter(e => !existingIds.has(e.id))
+        return toAdd.length === 0 ? prev : [...prev, ...toAdd]
       })
       setOptimisticEvents(prev => prev.filter(e => e.failed))
       setTotalEvents(data.total)
-      if (added > 0) {
+      if (newEvs.length > 0) {
         if (atBottomRef.current) {
           setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50)
         } else {
-          setNewCount(n => n + added)
+          setNewCount(n => n + newEvs.length)
         }
       }
     } catch { /* ignore */ }
