@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { formatDate, formatRelative } from '../../../utils/date'
 import { DateInput } from '../../../components/system/DateInput'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -9,27 +9,10 @@ import { EmptyState } from '../../../components/system/EmptyState'
 import { TableSkeleton } from '../../../components/system/Skeleton'
 import { orderService, type UserOption } from '../../../services/orderService'
 import { useNotifications } from '../../notifications/hooks/useNotifications'
+import { FilterPill } from '../../../components/system/FilterPill'
+import { STATUS_META, PRIORITY_META, STATUS_OPTIONS, PRIORITY_OPTIONS } from '../../../constants/status'
 
-const STATUS_OPTIONS = ['yet_to_start', 'working', 'waiting_for_client', 'making', 'done', 'delivered', 'cancelled'] as const
-const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'urgent'] as const
 const PAGE_LIMIT = 50
-
-const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  yet_to_start:       { label: 'Yet to Start',             color: '#6B7280', bg: '#F3F4F6' },
-  working:            { label: 'Working',                   color: '#3B82F6', bg: '#EFF6FF' },
-  waiting_for_client: { label: 'Waiting for Client Review', color: '#F59E0B', bg: '#FFFBEB' },
-  making:             { label: 'Making',                    color: '#8B5CF6', bg: '#F3E8FF' },
-  done:               { label: 'Done',                      color: '#10B981', bg: '#ECFDF5' },
-  delivered:          { label: 'Delivered',                 color: '#0D9488', bg: '#F0FDFA' },
-  cancelled:          { label: 'Cancelled',                 color: '#EF4444', bg: '#FEF2F2' },
-}
-
-const PRIORITY_META: Record<string, { label: string; color: string; bg: string }> = {
-  low:    { label: 'Low',    color: '#6B7280', bg: '#F3F4F6' },
-  medium: { label: 'Medium', color: '#F59E0B', bg: '#FFFBEB' },
-  high:   { label: 'High',   color: '#8B5CF6', bg: '#F3E8FF' },
-  urgent: { label: 'Urgent', color: '#EF4444', bg: '#FEF2F2' },
-}
 
 // ─── Page number helper ───────────────────────────────────────────────────────
 
@@ -43,78 +26,6 @@ function getPageNums(current: number, total: number): (number | '…')[] {
   if (current < total - 2) nums.push('…')
   nums.push(total)
   return nums
-}
-
-// ─── Filter Pill ──────────────────────────────────────────────────────────────
-
-function FilterPill({
-  label, value, onClear, children,
-}: {
-  label: string
-  value?: string
-  onClear?: () => void
-  children: (close: () => void) => React.ReactNode
-}) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const isActive = !!value
-
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
-
-  return (
-    <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: 5,
-          padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-          border: `1.5px solid ${isActive ? '#6366F1' : '#E4E6EF'}`,
-          background: isActive ? '#EEF2FF' : '#FFFFFF',
-          color: isActive ? '#4F46E5' : '#374151',
-          cursor: 'pointer', whiteSpace: 'nowrap',
-          transition: 'all 120ms ease',
-        }}
-        onMouseEnter={e => { if (!isActive) e.currentTarget.style.borderColor = '#C7CAD9' }}
-        onMouseLeave={e => { if (!isActive) e.currentTarget.style.borderColor = '#E4E6EF' }}
-      >
-        <span>{isActive ? `${label}: ${value}` : label}</span>
-        {isActive ? (
-          <span
-            onClick={e => { e.stopPropagation(); onClear?.(); setOpen(false) }}
-            style={{ display: 'flex', alignItems: 'center', marginLeft: 2, opacity: 0.7 }}
-            title="Clear"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </span>
-        ) : (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-            style={{ opacity: 0.5 }}>
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        )}
-      </button>
-
-      {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 500,
-          background: '#FFFFFF', border: '1px solid #E4E6EF',
-          borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.10), 0 2px 6px rgba(0,0,0,.06)',
-          minWidth: 160, overflow: 'hidden',
-        }}>
-          {children(() => setOpen(false))}
-        </div>
-      )}
-    </div>
-  )
 }
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
@@ -152,7 +63,7 @@ function getInitials(name: string) {
 const pillListItem = (active: boolean): React.CSSProperties => ({
   padding: '9px 14px', fontSize: 13, cursor: 'pointer',
   background: active ? '#EEF2FF' : 'transparent',
-  color: active ? '#4F46E5' : '#374151',
+  color: active ? '#6366F1' : '#374151',
   fontWeight: active ? 600 : 400,
   display: 'flex', alignItems: 'center', gap: 8,
 })
@@ -172,7 +83,7 @@ function SortTh({
       style={{
         padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700,
         textTransform: 'uppercase', letterSpacing: '.5px',
-        color: active ? '#4F46E5' : '#9CA3AF',
+        color: active ? '#6366F1' : '#9CA3AF',
         background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap',
         userSelect: 'none', cursor: 'pointer',
         ...style,
@@ -662,7 +573,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
             padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
             border: `1.5px solid ${unreadOnly ? '#6366F1' : '#E4E6EF'}`,
             background: unreadOnly ? '#EEF2FF' : '#FFFFFF',
-            color: unreadOnly ? '#4F46E5' : '#374151',
+            color: unreadOnly ? '#6366F1' : '#374151',
             cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
             transition: 'all 120ms ease',
           }}
@@ -706,8 +617,9 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Status</th>
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Assigned</th>
                 <SortTh label="Delivery"  field="due_date"     sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Priority</th>
                 <SortTh label="Activity"  field="updated_at"   sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Alerts</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Unread</th>
               </tr>
             </thead>
             <tbody>
@@ -715,7 +627,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                 <TableSkeleton rows={7} cols={6} />
               ) : orders.length === 0 ? (
                 <tr style={{ background: '#FFFFFF', cursor: 'default' }}>
-                  <td colSpan={7}>
+                  <td colSpan={8}>
                     <EmptyState
                       title={hasFilters || search ? 'No matching orders' : myOrdersOnly ? 'No orders assigned to you' : 'No orders yet'}
                       description={hasFilters || search ? 'Try adjusting your filters.' : 'Create the first order to get started.'}
@@ -732,7 +644,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
 
                 return (
                   <tr key={order.id} onClick={() => navigate(`/orders/${order.id}`)}>
-                    <td><span style={{ fontWeight: 700, fontSize: 13.5, color: '#2563EB' }}>#{order.title}</span></td>
+                    <td><span style={{ fontWeight: 700, fontSize: 13.5, color: '#6366F1' }}>#{order.title}</span></td>
                     <td><span style={{ fontWeight: 600, fontSize: 13.5, color: '#111827' }}>{order.customer_name}</span></td>
                     <td><StatusBadge status={order.status} /></td>
                     <td>
@@ -760,6 +672,21 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                           {due.formatted}{due.isOverdue && ' (Overdue)'}
                         </span>
                       ) : <span style={{ color: '#9CA3AF' }}>—</span>}
+                    </td>
+                    <td>
+                      {order.priority && (() => {
+                        const pm = PRIORITY_META[order.priority]
+                        return pm ? (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px',
+                            borderRadius: 9999, fontSize: 11, fontWeight: 600,
+                            color: pm.color, background: pm.bg, whiteSpace: 'nowrap',
+                          }}>
+                            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor' }} />
+                            {pm.label}
+                          </span>
+                        ) : null
+                      })()}
                     </td>
                     <td style={{ fontSize: 12.5, color: dateColor, fontWeight: dateColor === '#111827' ? 500 : 400 }}>
                       {updatedText}
@@ -850,13 +777,14 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
       {toast && (
         <div style={{
           position: 'fixed', bottom: 28, right: 28, zIndex: 1000,
-          background: '#111827', color: '#FFFFFF', padding: '12px 20px',
-          borderRadius: 10, fontSize: 14, fontWeight: 500,
-          boxShadow: '0 8px 32px rgba(0,0,0,.12)',
+          background: 'var(--surface)', color: 'var(--text-primary)', padding: '12px 20px',
+          borderRadius: 'var(--radius-md)', fontSize: 14, fontWeight: 500,
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-lg)',
           display: 'flex', alignItems: 'center', gap: 10,
           animation: 'slideInToast 200ms cubic-bezier(.4,0,.2,1)',
         }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
           {toast}
         </div>
       )}

@@ -35,96 +35,13 @@ export function ProfileSettingsPage() {
   }
 
   return (
-    <div className="screen active" style={{ background: '#F9FAFB', minHeight: '100%', padding: '40px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <style>{`
-        .profile-max-width {
-          width: 100%;
-          max-width: 680px;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .premium-card {
-          background: #FFFFFF;
-          border: 1px solid #E5E7EB;
-          border-radius: 16px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-          margin-bottom: 24px;
-          overflow: hidden;
-          transition: all 0.2s ease;
-        }
-        .premium-card:hover {
-          border-color: #D1D5DB;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        }
-        .card-header {
-          padding: 24px 32px 0 32px;
-          margin-bottom: 24px;
-        }
-        .card-label {
-          font-size: 11px;
-          font-weight: 700;
-          text-transform: uppercase;
-          color: #9CA3AF;
-          letter-spacing: 0.05em;
-        }
-        .card-body {
-          padding: 0 32px 32px 32px;
-        }
-        .hero-layout {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          text-align: center;
-          gap: 24px;
-        }
-        .detail-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 16px 0;
-          border-bottom: 1px solid #F3F4F6;
-        }
-        .detail-row:last-child {
-          border-bottom: none;
-        }
-        .detail-label {
-          font-size: 14px;
-          font-weight: 500;
-          color: #6B7280;
-        }
-        .detail-value {
-          font-size: 14px;
-          font-weight: 600;
-          color: #111827;
-        }
-        .badge-status {
-          display: inline-flex;
-          align-items: center;
-          padding: 4px 10px;
-          border-radius: 999px;
-          font-size: 11px;
-          font-weight: 700;
-          background: #ECFDF5;
-          color: #059669;
-          border: 1px solid #D1FAE5;
-        }
-        @keyframes shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-        .skeleton {
-          background: linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%);
-          background-size: 200% 100%;
-          animation: shimmer 1.5s infinite;
-          border-radius: 4px;
-        }
-      `}</style>
+    <div className="screen active" style={{ background: 'var(--bg)', minHeight: '100%', padding: '40px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
       <div className="profile-max-width">
         <header style={{ marginBottom: '40px', textAlign: 'center' }}>
 
-          <h1 style={{ fontSize: '32px', fontWeight: 800, color: '#111827', margin: 0, letterSpacing: '-0.025em' }}>Profile Settings</h1>
-          <p style={{ fontSize: '15px', color: '#6B7280', marginTop: '4px' }}>Update your identity and workspace preferences.</p>
+          <h1 style={{ fontSize: '32px', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.025em' }}>Profile Settings</h1>
+          <p style={{ fontSize: '15px', color: 'var(--text-secondary)', marginTop: '4px' }}>Update your identity and workspace preferences.</p>
         </header>
 
         {/* HERO CARD */}
@@ -146,8 +63,8 @@ export function ProfileSettingsPage() {
                   onUploaded={handleAvatarUploaded}
                 />
                 <div style={{ flex: 1 }}>
-                  <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#111827', margin: 0 }}>{profile?.first_name} {profile?.last_name}</h2>
-                  <p style={{ fontSize: '14px', color: '#6B7280', margin: '4px 0 0 0' }}>{profile?.email}</p>
+                  <h2 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{profile?.first_name} {profile?.last_name}</h2>
+                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>{profile?.email}</p>
                   <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
                     <span className="badge-status">
                       <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', marginRight: '6px' }} />

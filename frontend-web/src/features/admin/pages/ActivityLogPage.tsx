@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiClient } from '../../../services/apiClient'
 import { formatRelative } from '../../../utils/date'
+import { STATUS_META } from '../../../constants/status'
 
 interface ActivityEvent {
   id: string
@@ -23,16 +24,11 @@ interface ActivityResponse {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const STATUS_LABEL: Record<string, string> = {
-  yet_to_start: 'Yet to Start', working: 'Working',
-  waiting_for_client: 'Waiting for Client', making: 'Making',
-  done: 'Done', delivered: 'Delivered', cancelled: 'Cancelled',
-}
-
 function describeEvent(type: string, payload: Record<string, any>): string {
+  const statusLabel = (k: string) => STATUS_META[k]?.label ?? k
   switch (type) {
     case 'order_created':         return 'Created the order'
-    case 'status_changed':        return `Status changed${payload.from ? ` from ${STATUS_LABEL[payload.from] ?? payload.from}` : ''} → ${STATUS_LABEL[payload.to] ?? payload.to}`
+    case 'status_changed':        return `Status changed${payload.from ? ` from ${statusLabel(payload.from)}` : ''} → ${statusLabel(payload.to)}`
     case 'assignees_changed':     return 'Updated assignees'
     case 'due_date_changed':      return `Due date changed to ${payload.to ?? 'none'}`
     case 'priority_changed':      return `Priority changed to ${payload.to}`

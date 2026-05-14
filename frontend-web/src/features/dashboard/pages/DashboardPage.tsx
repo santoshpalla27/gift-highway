@@ -4,25 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../../store/authStore'
 import { useTeamDashboard, useMyDashboard } from '../hooks/useDashboard'
 import type { DashboardOrder } from '../../../services/dashboardService'
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  yet_to_start:       { label: 'Yet to Start',             color: '#6B7280', bg: '#F3F4F6' },
-  working:            { label: 'Working',                   color: '#3B82F6', bg: '#EFF6FF' },
-  waiting_for_client: { label: 'Waiting for Client Review', color: '#F59E0B', bg: '#FFFBEB' },
-  making:             { label: 'Making',                    color: '#8B5CF6', bg: '#F3E8FF' },
-  done:               { label: 'Done',                      color: '#10B981', bg: '#ECFDF5' },
-  delivered:          { label: 'Delivered',                 color: '#0D9488', bg: '#F0FDFA' },
-  cancelled:          { label: 'Cancelled',                 color: '#EF4444', bg: '#FEF2F2' },
-}
-
-const PRIORITY_META: Record<string, { color: string }> = {
-  low:    { color: '#6B7280' },
-  medium: { color: '#F59E0B' },
-  high:   { color: '#8B5CF6' },
-  urgent: { color: '#EF4444' },
-}
+import { STATUS_META, PRIORITY_META } from '../../../constants/status'
 
 function fmtDue(dateStr: string | null) {
   if (!dateStr) return null

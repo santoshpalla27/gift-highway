@@ -761,7 +761,10 @@ function OrderCard({ order, onOpen, unreadCount = 0 }: {
           )}
         </View>
         <View style={C.topRight}>
-          <View style={[C.priorityDot, { backgroundColor: pm.color }]} />
+          <View style={[C.priorityBadge, { backgroundColor: pm.bg }]}>
+            <View style={[C.priorityDot, { backgroundColor: pm.color }]} />
+            <Text style={[C.priorityText, { color: pm.color }]}>{pm.label}</Text>
+          </View>
           <View style={[C.statusBadge, { backgroundColor: sm.bg }]}>
             <Text style={[C.statusText, { color: sm.color }]}>{sm.label}</Text>
           </View>
@@ -1271,7 +1274,9 @@ const C = StyleSheet.create({
   },
   unreadPillText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
   topRight: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
-  priorityDot: { width: 7, height: 7, borderRadius: 4 },
+  priorityBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10 },
+  priorityDot: { width: 6, height: 6, borderRadius: 3 },
+  priorityText: { fontSize: 11, fontWeight: '700' },
   statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   statusText: { fontSize: 12, fontWeight: '700' },
 

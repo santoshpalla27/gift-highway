@@ -64,6 +64,10 @@ function eventPreview(e: NotificationEvent): string {
   }
 }
 
+function isMessageType(type: string): boolean {
+  return type === 'customer_message' || type === 'comment_added' || type === 'staff_portal_reply'
+}
+
 function priorityDot(priority: string) {
   const color = priority === 'high' ? '#EF4444' : priority === 'medium' ? '#F59E0B' : '#9CA3AF'
   return (
@@ -78,27 +82,36 @@ function priorityDot(priority: string) {
 
 function GroupRow({ group, onOpen }: { group: DisplayGroup; onOpen: () => void }) {
   const topPriority = group.events[0]?.priority ?? 'medium'
+  const topType = group.events[0]?.type ?? ''
+  const newEventLabel = group.unread_count >= 2
+    ? `${group.unread_count} new ${isMessageType(topType) ? 'messages' : 'events'}`
+    : null
 
   return (
     <button
       onClick={onOpen}
+      aria-label={`Order #${group.order_title}: ${group.unread_count > 0 ? `${group.unread_count} unread` : 'read'}`}
+      className={group.isRead ? 'notif-group-row notif-group-read' : 'notif-group-row'}
       style={{
         display: 'flex', flexDirection: 'column', gap: 4,
         width: '100%', padding: '12px 16px', background: 'none', border: 'none',
-        cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid #F3F4F6',
-        opacity: group.isRead ? 0.45 : 1,
+        cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--border)',
       }}
-      onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+      onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
       onMouseLeave={e => (e.currentTarget.style.background = 'none')}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
         {!group.isRead && priorityDot(topPriority)}
-        <span style={{ fontSize: 12, fontWeight: group.isRead ? 500 : 700, color: group.isRead ? '#6B7280' : '#111827', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span className="notif-group-title" style={{
+          fontSize: 12, fontWeight: group.isRead ? 500 : 700,
+          color: group.isRead ? 'var(--text-secondary)' : 'var(--text-primary)',
+          flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
           Order #{group.order_title}
         </span>
         {!group.isRead && (
           <span style={{
-            fontSize: 10, fontWeight: 700, background: '#6366F1', color: '#fff',
+            fontSize: 10, fontWeight: 700, background: 'var(--accent)', color: '#fff',
             borderRadius: 10, padding: '1px 7px', flexShrink: 0,
           }}>
             {group.unread_count}
@@ -106,17 +119,20 @@ function GroupRow({ group, onOpen }: { group: DisplayGroup; onOpen: () => void }
         )}
       </div>
 
-      {!group.isRead && group.unread_count >= 2 ? (
-        <div style={{ paddingLeft: 15, fontSize: 12, color: '#9CA3AF' }}>
-          {group.unread_count} new messages
+      {!group.isRead && newEventLabel ? (
+        <div style={{ paddingLeft: 15, fontSize: 12, color: 'var(--text-tertiary)' }}>
+          {newEventLabel}
         </div>
       ) : (
         group.events.slice(0, 1).map(e => (
           <div key={e.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, paddingLeft: group.isRead ? 0 : 15 }}>
-            <span style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            <span className="notif-group-preview" style={{
+              fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.4,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+            }}>
               {eventPreview(e)}
             </span>
-            <span style={{ fontSize: 10, color: '#C4C9D4', flexShrink: 0, whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 10, color: 'var(--text-tertiary)', flexShrink: 0, whiteSpace: 'nowrap', opacity: 0.7 }}>
               {formatRelative(e.created_at)}
             </span>
           </div>
@@ -143,21 +159,17 @@ export function BellDropdown() {
   const { scope, getEnabledTypes } = useNotifPreference()
   const [tab, setTab] = useState<Tab>('mine')
 
-  // Always fetch both so badge and tabs are always up-to-date
   const { groups: myGroupsRaw, isLoading: myLoading, markAllRead: markMyRead } =
     useNotifications({ mineOnly: true })
   const { groups: otherGroupsRaw, isLoading: otherLoading, markAllRead: markOtherRead } =
     useNotifications({ othersOnly: true })
 
-  // Filter by per-scope enabled types
   const myGroups = filterGroupsByTypes(myGroupsRaw, getEnabledTypes('my_orders'))
   const otherGroups = filterGroupsByTypes(otherGroupsRaw, getEnabledTypes('all_orders'))
 
-  // Badge counts based on filtered groups
   const myCount = myGroups.filter(g => !g.isRead).reduce((s, g) => s + g.unread_count, 0)
   const otherCount = otherGroups.filter(g => !g.isRead).reduce((s, g) => s + g.unread_count, 0)
 
-  // Preference controls the badge: "all_orders" includes both counts
   const badgeCount = scope === 'all_orders' ? myCount + otherCount : myCount
 
   const groups = tab === 'mine' ? myGroups : otherGroups
@@ -187,6 +199,14 @@ export function BellDropdown() {
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return
+    function handler(e: KeyboardEvent) { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [open])
+
   function openOrder(group: DisplayGroup) {
     setOpen(false)
     navigate(`/orders/${group.order_id}`, { replace: true })
@@ -194,22 +214,24 @@ export function BellDropdown() {
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      {/* Bell button */}
       <button
         className="icon-btn"
         title="Notifications"
+        aria-label={badgeCount > 0 ? `${badgeCount} unread notifications` : 'Notifications'}
+        aria-expanded={open}
+        aria-haspopup="dialog"
         onClick={() => setOpen(o => !o)}
-        style={{ width: 42, height: 42, position: 'relative', background: open ? '#F5F3FF' : undefined }}
+        style={{ width: 42, height: 42, position: 'relative', background: open ? 'var(--accent-light)' : undefined }}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
         </svg>
         {badgeCount > 0 && (
-          <span style={{
+          <span aria-hidden="true" style={{
             position: 'absolute', top: 6, right: 6,
             minWidth: 16, height: 16, borderRadius: 8,
-            background: '#EF4444', color: '#fff',
+            background: 'var(--danger)', color: '#fff',
             fontSize: 9, fontWeight: 700,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '0 3px', lineHeight: 1, pointerEvents: 'none',
@@ -219,41 +241,46 @@ export function BellDropdown() {
         )}
       </button>
 
-      {/* Dropdown */}
       {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-          width: 360, background: '#fff',
-          border: '1px solid #E5E7EB', borderRadius: 12,
-          boxShadow: '0 8px 32px rgba(0,0,0,.12)',
-          zIndex: 300, overflow: 'hidden',
-        }}>
+        <div
+          role="dialog"
+          aria-label="Notifications"
+          style={{
+            position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+            width: 360, background: 'var(--surface)',
+            border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
+            boxShadow: 'var(--shadow-lg)',
+            zIndex: 300, overflow: 'hidden',
+          }}
+        >
           {/* Header */}
-          <div style={{ padding: '12px 16px 0', borderBottom: '1px solid #F3F4F6' }}>
+          <div style={{ padding: '12px 16px 0', borderBottom: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>
-                Notifications {totalCount > 0 && <span style={{ color: '#6366F1' }}>({totalCount})</span>}
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Notifications {totalCount > 0 && <span style={{ color: 'var(--accent)' }}>({totalCount})</span>}
               </span>
               {totalCount > 0 && (
                 <button
-                  onClick={() => { markAllRead() }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#6366F1', fontWeight: 600, padding: 0 }}
+                  onClick={() => markAllRead()}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--accent)', fontWeight: 600, padding: 0 }}
                 >
                   Mark all read
                 </button>
               )}
             </div>
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: 2 }}>
+            <div role="tablist" style={{ display: 'flex', gap: 2 }}>
               {(['mine', 'others'] as Tab[]).map(t => (
                 <button
                   key={t}
+                  role="tab"
+                  aria-selected={tab === t}
                   onClick={() => setTab(t)}
                   style={{
                     flex: 1, padding: '6px 0', fontSize: 12, fontWeight: 600,
                     background: 'none', border: 'none', cursor: 'pointer',
-                    color: tab === t ? '#4F46E5' : '#9CA3AF',
-                    borderBottom: tab === t ? '2px solid #6366F1' : '2px solid transparent',
+                    color: tab === t ? 'var(--accent)' : 'var(--text-tertiary)',
+                    borderBottom: tab === t ? '2px solid var(--accent)' : '2px solid transparent',
                     transition: 'color 150ms, border-color 150ms',
                   }}
                 >
@@ -266,14 +293,14 @@ export function BellDropdown() {
           {/* Groups */}
           <div style={{ maxHeight: 420, overflowY: 'auto' }}>
             {isLoading ? (
-              <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: 13, color: '#9CA3AF' }}>Loading…</div>
+              <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: 13, color: 'var(--text-tertiary)' }}>Loading…</div>
             ) : groups.length === 0 ? (
               <div style={{ padding: '32px 16px', textAlign: 'center' }}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5" style={{ margin: '0 auto 8px', display: 'block' }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--border)" strokeWidth="1.5" style={{ margin: '0 auto 8px', display: 'block' }} aria-hidden="true">
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                   <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
                 </svg>
-                <p style={{ fontSize: 13, color: '#9CA3AF', margin: 0 }}>
+                <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: 0 }}>
                   {tab === 'mine' ? "You're all caught up" : 'No activity on other orders'}
                 </p>
               </div>
@@ -286,12 +313,12 @@ export function BellDropdown() {
 
           {/* Footer */}
           {groups.length > 0 && (
-            <div style={{ padding: '10px 16px', borderTop: '1px solid #F3F4F6', textAlign: 'center' }}>
+            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', textAlign: 'center' }}>
               <button
                 onClick={() => { setOpen(false); navigate('/notifications') }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#6366F1', fontWeight: 600, padding: 0 }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--accent)', fontWeight: 600, padding: 0 }}
               >
-                View all notifications →
+                View all activity →
               </button>
             </div>
           )}

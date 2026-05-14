@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiClient } from '../../../services/apiClient'
 import { useAuthStore } from '../../../store/authStore'
+import { STATUS_META as BASE_STATUS_META, STATUS_OPTIONS } from '../../../constants/status'
 
 interface UserMetric {
   id: string
@@ -20,59 +21,146 @@ interface UserMetric {
 }
 
 type StatusFilter = 'all' | 'yet_to_start' | 'working' | 'waiting_for_client' | 'making' | 'done' | 'delivered' | 'cancelled'
-type SortKey = 'name' | 'total_assigned' | 'new_count' | 'working_count' | 'waiting_for_client_count' | 'making_count' | 'done_count' | 'delivered_count' | 'cancelled_count'
+type SortKey = 'name' | 'total' | 'active' | 'pending' | 'done'
+type SortDir = 'asc' | 'desc'
 
-const STATUS_META = {
-  yet_to_start:       { label: 'Yet to Start',             color: '#6B7280', bg: '#F3F4F6' },
-  working:            { label: 'Working',                   color: '#3B82F6', bg: '#EFF6FF' },
-  waiting_for_client: { label: 'Waiting for Client Review', color: '#F59E0B', bg: '#FFFBEB' },
-  making:             { label: 'Making',                    color: '#8B5CF6', bg: '#F3E8FF' },
-  done:               { label: 'Done',                      color: '#10B981', bg: '#ECFDF5' },
-  delivered:          { label: 'Delivered',                 color: '#0D9488', bg: '#F0FDFA' },
-  cancelled:          { label: 'Cancelled',                 color: '#EF4444', bg: '#FEF2F2' },
-  total:              { label: 'Total',                     color: '#6366F1', bg: '#EEF2FF' },
+const BAR_SEGMENTS: { key: string; color: string }[] = [
+  { key: 'working',            color: '#3B82F6' },
+  { key: 'making',             color: '#8B5CF6' },
+  { key: 'yet_to_start',       color: '#6B7280' },
+  { key: 'waiting_for_client', color: '#F59E0B' },
+  { key: 'done',               color: '#10B981' },
+  { key: 'delivered',          color: '#0D9488' },
+  { key: 'cancelled',          color: '#EF4444' },
+]
+
+const STATUS_COUNT_KEY: Record<string, keyof UserMetric> = {
+  yet_to_start:       'new_count',
+  working:            'working_count',
+  waiting_for_client: 'waiting_for_client_count',
+  making:             'making_count',
+  done:               'done_count',
+  delivered:          'delivered_count',
+  cancelled:          'cancelled_count',
 }
 
-const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
-  { key: 'all',                label: 'All'                      },
-  { key: 'yet_to_start',       label: 'Yet to Start'             },
-  { key: 'working',            label: 'Working'                   },
-  { key: 'waiting_for_client', label: 'Waiting for Client Review' },
-  { key: 'making',             label: 'Making'                    },
-  { key: 'done',               label: 'Done'                      },
-  { key: 'delivered',          label: 'Delivered'                 },
-  { key: 'cancelled',          label: 'Cancelled'                 },
+const STATUS_FILTERS = [
+  { key: 'all' as StatusFilter, label: 'All' },
+  ...STATUS_OPTIONS.map(k => ({ key: k as StatusFilter, label: BASE_STATUS_META[k].label })),
 ]
+
+const TH: React.CSSProperties = {
+  padding: '12px 16px', fontSize: 11.5, fontWeight: 700,
+  color: 'var(--text-tertiary)', textTransform: 'uppercase',
+  letterSpacing: '0.06em', whiteSpace: 'nowrap',
+}
 
 function getInitials(name: string) {
   return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2)
 }
+function getActive(u: UserMetric)  { return u.working_count + u.making_count }
+function getPending(u: UserMetric) { return u.new_count + u.waiting_for_client_count }
+function getDone(u: UserMetric)    { return u.done_count + u.delivered_count }
 
-// Matches the StatusBadge pill style from OrdersPage exactly
-function StatusPill({ count, metaKey, onClick }: {
-  count: number
-  metaKey: keyof typeof STATUS_META
-  onClick?: () => void
+function getSortValue(u: UserMetric, key: SortKey): string | number {
+  if (key === 'name')    return u.name
+  if (key === 'total')   return u.total_assigned
+  if (key === 'active')  return getActive(u)
+  if (key === 'pending') return getPending(u)
+  if (key === 'done')    return getDone(u)
+  return 0
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function SummaryCard({ label, value, sublabel, color }: {
+  label: string; value: number; sublabel: string; color: string
 }) {
-  const m = STATUS_META[metaKey]
   return (
-    <span
-      onClick={count > 0 ? onClick : undefined}
-      title={count > 0 ? `View ${m.label.toLowerCase()} orders` : undefined}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 5,
-        padding: '3px 10px', borderRadius: 9999, fontSize: 13, fontWeight: 700,
-        color: m.color, background: m.bg, whiteSpace: 'nowrap',
-        cursor: count > 0 ? 'pointer' : 'default',
-        opacity: count === 0 ? 0.4 : 1,
-        transition: 'opacity 0.1s',
-      }}
-    >
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', flexShrink: 0 }} />
-      {count}
-    </span>
+    <div style={{
+      flex: 1, minWidth: 0,
+      background: 'var(--surface)', border: '1px solid var(--border)',
+      borderRadius: 12, padding: '18px 20px',
+    }}>
+      <div style={{
+        fontSize: 30, fontWeight: 800, color, lineHeight: 1,
+        fontVariantNumeric: 'tabular-nums',
+      }}>
+        {value.toLocaleString()}
+      </div>
+      <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)', marginTop: 7 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', marginTop: 2 }}>
+        {sublabel}
+      </div>
+    </div>
   )
 }
+
+function StatusBar({ u, onNavigate }: {
+  u: UserMetric
+  onNavigate: (userId: string, status: string) => void
+}) {
+  if (u.total_assigned === 0) {
+    return <div style={{ height: 8, borderRadius: 4, background: 'var(--border)', width: 140 }} />
+  }
+  const segs = BAR_SEGMENTS
+    .map(s => ({ ...s, count: u[STATUS_COUNT_KEY[s.key]] as number }))
+    .filter(s => s.count > 0)
+  return (
+    <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', width: 140, gap: 1 }}>
+      {segs.map(s => (
+        <div
+          key={s.key}
+          title={`${BASE_STATUS_META[s.key]?.label}: ${s.count}`}
+          onClick={e => { e.stopPropagation(); onNavigate(u.id, s.key) }}
+          style={{ flex: s.count, background: s.color, cursor: 'pointer', transition: 'opacity 0.1s' }}
+          onMouseEnter={e => (e.currentTarget.style.opacity = '0.65')}
+          onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+        />
+      ))}
+    </div>
+  )
+}
+
+function CountCell({ items, userId, onNavigate }: {
+  items: { label: string; value: number; color: string; status?: string }[]
+  userId: string
+  onNavigate: (userId: string, status?: string) => void
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      {items.map(item => (
+        <div
+          key={item.label}
+          onClick={() => item.value > 0 && item.status && onNavigate(userId, item.status)}
+          style={{
+            display: 'flex', alignItems: 'baseline', gap: 7,
+            cursor: item.value > 0 && item.status ? 'pointer' : 'default',
+          }}
+        >
+          <span style={{
+            fontSize: 11, color: 'var(--text-tertiary)',
+            width: 54, flexShrink: 0, lineHeight: '20px',
+          }}>
+            {item.label}
+          </span>
+          <span style={{
+            fontSize: 16, fontWeight: 700, lineHeight: 1,
+            color: item.value > 0 ? item.color : 'var(--text-tertiary)',
+            opacity: item.value === 0 ? 0.3 : 1,
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            {item.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function MetricsDashboard() {
   const { user } = useAuthStore()
@@ -80,8 +168,8 @@ export function MetricsDashboard() {
   const [users, setUsers] = useState<UserMetric[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [sortKey, setSortKey] = useState<SortKey>('total_assigned')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [sortKey, setSortKey] = useState<SortKey>('total')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [search, setSearch] = useState('')
 
   useEffect(() => {
@@ -95,6 +183,12 @@ export function MetricsDashboard() {
   const handleSort = (key: SortKey) => {
     if (key === sortKey) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('desc') }
+  }
+
+  const goToOrders = (userId: string, status?: string) => {
+    const params = new URLSearchParams({ assignee: userId })
+    if (status) params.set('status', status)
+    navigate(`/orders?${params.toString()}`)
   }
 
   const filtered = users
@@ -111,201 +205,261 @@ export function MetricsDashboard() {
       return true
     })
     .sort((a, b) => {
-      const av = sortKey === 'name' ? a.name : (a as any)[sortKey] as number
-      const bv = sortKey === 'name' ? b.name : (b as any)[sortKey] as number
+      const av = getSortValue(a, sortKey)
+      const bv = getSortValue(b, sortKey)
       if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv as string) : (bv as string).localeCompare(av)
       return sortDir === 'asc' ? (av as number) - (bv as number) : (bv as number) - (av as number)
     })
 
+  const totalOrders  = users.reduce((s, u) => s + u.total_assigned, 0)
+  const totalActive  = users.reduce((s, u) => s + getActive(u), 0)
+  const totalPending = users.reduce((s, u) => s + getPending(u), 0)
+
   const SortIcon = ({ col }: { col: SortKey }) => (
-    <span style={{ marginLeft: 4, opacity: sortKey === col ? 1 : 0.3, fontSize: 10 }}>
+    <span style={{ marginLeft: 3, opacity: sortKey === col ? 1 : 0.3, fontSize: 9 }}>
       {sortKey === col ? (sortDir === 'asc' ? '▲' : '▼') : '▼'}
     </span>
   )
 
-  const openUserOrders = (userId: string, status?: string) => {
-    const params = new URLSearchParams({ assignee: userId })
-    if (status) params.set('status', status)
-    navigate(`/orders?${params.toString()}`)
-  }
-
   return (
-    <div style={{ width: '100%', height: '100%', overflowY: 'auto' }}>
-    <div style={{ padding: '28px 32px', maxWidth: 1100, margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' }}>User Metrics</h1>
-        <p style={{ margin: '4px 0 0', fontSize: 13.5, color: '#6B7280' }}>
-          Order workload breakdown per team member
-        </p>
-      </div>
+    <div style={{ width: '100%', height: '100%', overflowY: 'auto', background: 'var(--bg)' }}>
+      <div style={{ padding: '28px 32px', maxWidth: 1200, margin: '0 auto' }}>
 
-      {/* Filters row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        <input
-          placeholder="Search by name or email…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ padding: '7px 12px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13.5, outline: 'none', width: 220, color: '#111827' }}
-        />
-        <div style={{ display: 'flex', gap: 6 }}>
-          {STATUS_FILTERS.map(f => {
-            const active = statusFilter === f.key
-            const m = f.key !== 'all' ? STATUS_META[f.key] : null
-            return (
-              <button
-                key={f.key}
-                onClick={() => setStatusFilter(f.key)}
-                style={{
-                  padding: '5px 14px', borderRadius: 9999, fontSize: 13, fontWeight: 600,
-                  cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5,
-                  border: active && m ? `1.5px solid ${m.color}` : '1.5px solid #E5E7EB',
-                  background: active && m ? m.bg : active ? '#F3F4F6' : '#FFFFFF',
-                  color: active && m ? m.color : active ? '#374151' : '#6B7280',
-                  transition: 'all 0.15s',
-                }}
-              >
-                {m && active && <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.color }} />}
-                {f.label}
-              </button>
-            )
-          })}
+        {/* Header */}
+        <div style={{ marginBottom: 24 }}>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>
+            User Metrics
+          </h1>
+          <p style={{ margin: '4px 0 0', fontSize: 13.5, color: 'var(--text-secondary)' }}>
+            Order workload breakdown per team member
+          </p>
         </div>
-        <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#9CA3AF' }}>
-          {filtered.length} of {users.length} users
-        </span>
-      </div>
 
-      {/* Table */}
-      <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'hidden' }}>
-        {loading ? (
-          <div style={{ padding: 48, textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>Loading…</div>
-        ) : filtered.length === 0 ? (
-          <div style={{ padding: 48, textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>No users found</div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
-            <thead>
-              <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
-                {/* User column */}
-                <th
-                  onClick={() => handleSort('name')}
-                  style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', userSelect: 'none' }}
-                >
-                  User<SortIcon col="name" />
-                </th>
-                {/* Status count columns — colored dot like StatusBadge */}
-                {([
-                  { key: 'total_assigned'          as SortKey, metaKey: 'total'              as const },
-                  { key: 'new_count'               as SortKey, metaKey: 'yet_to_start'       as const },
-                  { key: 'working_count'           as SortKey, metaKey: 'working'            as const },
-                  { key: 'waiting_for_client_count' as SortKey, metaKey: 'waiting_for_client' as const },
-                  { key: 'making_count'            as SortKey, metaKey: 'making'             as const },
-                  { key: 'done_count'              as SortKey, metaKey: 'done'               as const },
-                  { key: 'delivered_count'         as SortKey, metaKey: 'delivered'          as const },
-                  { key: 'cancelled_count'         as SortKey, metaKey: 'cancelled'          as const },
-                ]).map(col => {
-                  const m = STATUS_META[col.metaKey]
-                  return (
-                    <th
-                      key={col.key}
-                      onClick={() => handleSort(col.key)}
-                      style={{ padding: '12px 16px', textAlign: 'center', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
-                    >
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: m.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
-                        {m.label}
-                        <SortIcon col={col.key} />
-                      </span>
-                    </th>
-                  )
-                })}
-                <th style={{ padding: '12px 16px', fontSize: 12, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((u, i) => (
-                <tr
-                  key={u.id}
-                  style={{ borderBottom: i < filtered.length - 1 ? '1px solid #F3F4F6' : 'none', transition: 'background 0.1s' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  {/* User cell */}
-                  <td style={{ padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{
-                        width: 36, height: 36, borderRadius: '50%', background: '#0F172A',
-                        color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 12, fontWeight: 700, flexShrink: 0,
-                      }}>
-                        {getInitials(u.name)}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{u.name}</div>
-                        <div style={{ fontSize: 12, color: '#9CA3AF' }}>{u.email}</div>
-                      </div>
-                      {u.role === 'admin' && (
-                        <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 600, color: '#6366F1', background: '#EEF2FF', padding: '2px 8px', borderRadius: 20 }}>
-                          Admin
-                        </span>
-                      )}
-                      {!u.is_active && (
-                        <span style={{ marginLeft: 4, fontSize: 11, fontWeight: 600, color: '#9CA3AF', background: '#F3F4F6', padding: '2px 8px', borderRadius: 20 }}>
-                          Inactive
-                        </span>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* Status count cells — always use StatusPill regardless of zero */}
-                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                    <StatusPill count={u.total_assigned} metaKey="total" onClick={() => openUserOrders(u.id)} />
-                  </td>
-                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                    <StatusPill count={u.new_count} metaKey="yet_to_start" onClick={() => openUserOrders(u.id, 'yet_to_start')} />
-                  </td>
-                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                    <StatusPill count={u.working_count} metaKey="working" onClick={() => openUserOrders(u.id, 'working')} />
-                  </td>
-                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                    <StatusPill count={u.waiting_for_client_count} metaKey="waiting_for_client" onClick={() => openUserOrders(u.id, 'waiting_for_client')} />
-                  </td>
-                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                    <StatusPill count={u.making_count} metaKey="making" onClick={() => openUserOrders(u.id, 'making')} />
-                  </td>
-                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                    <StatusPill count={u.done_count} metaKey="done" onClick={() => openUserOrders(u.id, 'done')} />
-                  </td>
-                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                    <StatusPill count={u.delivered_count} metaKey="delivered" onClick={() => openUserOrders(u.id, 'delivered')} />
-                  </td>
-                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                    <StatusPill count={u.cancelled_count} metaKey="cancelled" onClick={() => openUserOrders(u.id, 'cancelled')} />
-                  </td>
-
-                  {/* Actions */}
-                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                    <button
-                      onClick={() => openUserOrders(u.id)}
-                      style={{
-                        padding: '5px 12px', background: '#FFFFFF', border: '1.5px solid #E5E7EB',
-                        borderRadius: 8, fontSize: 12.5, fontWeight: 600, color: '#374151', cursor: 'pointer',
-                      }}
-                    >
-                      View Orders
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Summary strip */}
+        {!loading && (
+          <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+            <SummaryCard
+              label="Team Members"
+              value={users.length}
+              sublabel={`${users.filter(u => u.is_active).length} active`}
+              color="var(--text-primary)"
+            />
+            <SummaryCard
+              label="Total Orders"
+              value={totalOrders}
+              sublabel="across all members"
+              color="var(--accent)"
+            />
+            <SummaryCard
+              label="In Progress"
+              value={totalActive}
+              sublabel="working + making"
+              color="#3B82F6"
+            />
+            <SummaryCard
+              label="Needs Attention"
+              value={totalPending}
+              sublabel="new + waiting for client"
+              color="#F59E0B"
+            />
           </div>
         )}
+
+        {/* Toolbar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+          <input
+            placeholder="Search by name or email…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              padding: '7px 12px', border: '1.5px solid var(--border)', borderRadius: 8,
+              fontSize: 13.5, outline: 'none', width: 220,
+              color: 'var(--text-primary)', background: 'var(--surface)',
+            }}
+          />
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', flexShrink: 0 }}>
+            {STATUS_FILTERS.map(f => {
+              const active = statusFilter === f.key
+              const m = f.key !== 'all' ? BASE_STATUS_META[f.key] : null
+              return (
+                <button
+                  key={f.key}
+                  onClick={() => setStatusFilter(f.key)}
+                  style={{
+                    padding: '5px 14px', borderRadius: 9999, fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5,
+                    border: active && m ? `1.5px solid ${m.color}` : '1.5px solid var(--border)',
+                    background: active && m ? m.bg : active ? 'var(--surface-2)' : 'var(--surface)',
+                    color: active && m ? m.color : active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    transition: 'all 0.15s', whiteSpace: 'nowrap',
+                  }}
+                >
+                  {m && active && <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.color }} />}
+                  {f.label}
+                </button>
+              )
+            })}
+          </div>
+          <span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--text-tertiary)', flexShrink: 0 }}>
+            {filtered.length} of {users.length} users
+          </span>
+        </div>
+
+        {/* Table */}
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+          {loading ? (
+            <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 14 }}>
+              Loading…
+            </div>
+          ) : filtered.length === 0 ? (
+            <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 14 }}>
+              No users found
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 820 }}>
+                <thead>
+                  <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+                    <th onClick={() => handleSort('name')} style={{ ...TH, textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}>
+                      User <SortIcon col="name" />
+                    </th>
+                    <th onClick={() => handleSort('total')} style={{ ...TH, textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}>
+                      Total <SortIcon col="total" />
+                    </th>
+                    <th style={{ ...TH, textAlign: 'left' }}>
+                      Breakdown
+                    </th>
+                    <th onClick={() => handleSort('active')} style={{ ...TH, textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}>
+                      Active <SortIcon col="active" />
+                    </th>
+                    <th onClick={() => handleSort('pending')} style={{ ...TH, textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}>
+                      Queue <SortIcon col="pending" />
+                    </th>
+                    <th onClick={() => handleSort('done')} style={{ ...TH, textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}>
+                      Closed <SortIcon col="done" />
+                    </th>
+                    <th style={{ ...TH, textAlign: 'center' }}>
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((u, i) => (
+                    <tr
+                      key={u.id}
+                      style={{ borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none' }}
+                    >
+                      {/* User */}
+                      <td style={{ padding: '16px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{
+                            width: 38, height: 38, borderRadius: '50%',
+                            background: 'var(--accent-light)', color: 'var(--accent)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 12, fontWeight: 700, flexShrink: 0,
+                          }}>
+                            {getInitials(u.name)}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                              {u.name}
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
+                              {u.email}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                            {u.role === 'admin' && (
+                              <span style={{ fontSize: 10, fontWeight: 700, color: '#6366F1', background: '#EEF2FF', padding: '2px 7px', borderRadius: 20 }}>
+                                Admin
+                              </span>
+                            )}
+                            {!u.is_active && (
+                              <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', background: 'var(--surface-2)', padding: '2px 7px', borderRadius: 20 }}>
+                                Inactive
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Total */}
+                      <td style={{ padding: '16px 16px', textAlign: 'center' }}>
+                        <div
+                          onClick={() => goToOrders(u.id)}
+                          style={{ cursor: 'pointer', display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}
+                        >
+                          <span style={{
+                            fontSize: 28, fontWeight: 800, color: 'var(--text-primary)',
+                            lineHeight: 1, fontVariantNumeric: 'tabular-nums',
+                          }}>
+                            {u.total_assigned}
+                          </span>
+                          <span style={{ fontSize: 10.5, color: 'var(--text-tertiary)', marginTop: 3 }}>orders</span>
+                        </div>
+                      </td>
+
+                      {/* Breakdown bar */}
+                      <td style={{ padding: '16px 16px' }}>
+                        <StatusBar u={u} onNavigate={goToOrders} />
+                      </td>
+
+                      {/* Active: working + making */}
+                      <td style={{ padding: '16px 16px' }}>
+                        <CountCell
+                          userId={u.id}
+                          onNavigate={goToOrders}
+                          items={[
+                            { label: 'Working', value: u.working_count, color: '#3B82F6', status: 'working' },
+                            { label: 'Making',  value: u.making_count,  color: '#8B5CF6', status: 'making'  },
+                          ]}
+                        />
+                      </td>
+
+                      {/* Queue: yet_to_start + waiting */}
+                      <td style={{ padding: '16px 16px' }}>
+                        <CountCell
+                          userId={u.id}
+                          onNavigate={goToOrders}
+                          items={[
+                            { label: 'New',     value: u.new_count,                color: '#6B7280', status: 'yet_to_start'       },
+                            { label: 'Waiting', value: u.waiting_for_client_count, color: '#F59E0B', status: 'waiting_for_client' },
+                          ]}
+                        />
+                      </td>
+
+                      {/* Closed: done + delivered + cancelled */}
+                      <td style={{ padding: '16px 16px' }}>
+                        <CountCell
+                          userId={u.id}
+                          onNavigate={goToOrders}
+                          items={[
+                            { label: 'Done',      value: u.done_count,      color: '#10B981', status: 'done'      },
+                            { label: 'Delivered', value: u.delivered_count, color: '#0D9488', status: 'delivered' },
+                            { label: 'Cancelled', value: u.cancelled_count, color: '#EF4444', status: 'cancelled' },
+                          ]}
+                        />
+                      </td>
+
+                      {/* Actions */}
+                      <td style={{ padding: '16px 16px', textAlign: 'center' }}>
+                        <button
+                          onClick={() => goToOrders(u.id)}
+                          className="btn btn-secondary"
+                          style={{ fontSize: 12.5, padding: '5px 12px' }}
+                        >
+                          View Orders
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
       </div>
-    </div>
     </div>
   )
 }

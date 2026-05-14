@@ -18,29 +18,39 @@ interface ConfirmDialogProps {
 
 function ConfirmDialog({ title, message, confirmLabel, confirmColor = '#EF4444', onConfirm, onCancel }: ConfirmDialogProps) {
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)',
-    }} onClick={onCancel}>
-      <div style={{
-        background: '#fff', borderRadius: '12px', padding: '28px 28px 24px',
-        maxWidth: '400px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-      }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontSize: '17px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>{title}</div>
-        <div style={{ fontSize: '14px', color: '#6B7280', lineHeight: '1.5', marginBottom: '24px' }}>{message}</div>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-dialog-title"
+      aria-describedby="confirm-dialog-msg"
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)',
+      }}
+      onClick={onCancel}
+    >
+      <div
+        style={{
+          background: 'var(--surface)', borderRadius: 'var(--radius-md)', padding: '28px 28px 24px',
+          maxWidth: '400px', width: '90%', boxShadow: 'var(--shadow-lg)',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div id="confirm-dialog-title" style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>{title}</div>
+        <div id="confirm-dialog-msg" style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '24px' }}>{message}</div>
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
           <button
             onClick={onCancel}
             style={{
-              padding: '8px 16px', borderRadius: '8px', border: '1px solid #E5E7EB',
-              background: '#fff', color: '#374151', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
+              padding: '8px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)',
+              background: 'var(--surface)', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
             }}
           >Cancel</button>
           <button
             onClick={onConfirm}
             style={{
-              padding: '8px 16px', borderRadius: '8px', border: 'none',
+              padding: '8px 16px', borderRadius: 'var(--radius-sm)', border: 'none',
               background: confirmColor, color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer',
             }}
           >{confirmLabel}</button>
@@ -173,302 +183,31 @@ export function UsersPage() {
   }
 
   return (
-    <div className="screen active" style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#F9FAFB' }}>
-      <style>{`
-        .premium-header {
-          padding: 32px 40px;
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-end;
-        }
-        .premium-breadcrumb {
-          font-size: 13px;
-          color: #6B7280;
-          font-weight: 500;
-          margin-bottom: 8px;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .premium-toolbar {
-          padding: 0 40px 16px 40px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .premium-search {
-          display: flex;
-          align-items: center;
-          background: #FFFFFF;
-          border: 1px solid #E5E7EB;
-          border-radius: 8px;
-          padding: 0 12px;
-          width: 300px;
-          transition: all 0.2s ease;
-          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-        .premium-search:focus-within {
-          border-color: #6366F1;
-          box-shadow: 0 0 0 2px rgba(99,102,241,0.2);
-        }
-        .premium-search input {
-          border: none;
-          background: transparent;
-          padding: 10px 8px;
-          font-size: 14px;
-          outline: none;
-          width: 100%;
-          color: #111827;
-        }
-        .premium-search input::placeholder {
-          color: #9CA3AF;
-        }
-        .premium-table-wrap {
-          margin: 0 40px 40px 40px;
-          background: #FFFFFF;
-          border: 1px solid #E5E7EB;
-          border-radius: 12px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-          /* overflow: visible to allow dropdowns to pop out */
-          overflow: visible;
-        }
-        .premium-table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-        .premium-table th {
-          text-align: left;
-          padding: 14px 20px;
-          font-size: 12px;
-          font-weight: 600;
-          color: #6B7280;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          border-bottom: 1px solid #F3F4F6;
-          background: #FAFAFA;
-        }
-        .premium-table td {
-          padding: 16px 20px;
-          font-size: 14px;
-          color: #374151;
-          border-bottom: 1px solid #F3F4F6;
-          transition: background 0.15s ease;
-        }
-        .premium-table tr:hover td {
-          background: #F9FAFB;
-        }
-        .premium-table tr:last-child td {
-          border-bottom: none;
-        }
-        .premium-avatar {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: #F3F4F6;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 12px;
-          font-weight: 600;
-          color: #4B5563;
-          border: 1px solid #E5E7EB;
-          flex-shrink: 0;
-        }
-        .premium-role-chip {
-          display: inline-flex;
-          align-items: center;
-          padding: 4px 10px;
-          border-radius: 999px;
-          font-size: 12px;
-          font-weight: 600;
-          text-transform: capitalize;
-        }
-        .premium-role-chip.admin {
-          background: #EEF2FF;
-          color: #4F46E5;
-          border: 1px solid #E0E7FF;
-        }
-        .premium-role-chip.user {
-          background: #F3F4F6;
-          color: #4B5563;
-          border: 1px solid #E5E7EB;
-        }
-        .premium-status-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          display: inline-block;
-          margin-right: 6px;
-        }
-        .premium-status-dot.active { background: #10B981; }
-        .premium-status-dot.disabled { background: #9CA3AF; }
-        .premium-icon-btn {
-          background: transparent;
-          border: none;
-          padding: 8px;
-          border-radius: 6px;
-          color: #9CA3AF;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s ease;
-        }
-        .premium-icon-btn:hover {
-          background: #F3F4F6;
-          color: #374151;
-        }
-        .premium-dropdown {
-          position: absolute;
-          right: 0;
-          background: #FFFFFF;
-          border: 1px solid #E5E7EB;
-          border-radius: 8px;
-          box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
-          padding: 6px;
-          min-width: 180px;
-          z-index: 100;
-        }
-        .dropdown-down {
-          top: calc(100% + 4px);
-          animation: slideDown 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-          transform-origin: top right;
-        }
-        .dropdown-up {
-          bottom: calc(100% + 4px);
-          animation: slideUp 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-          transform-origin: bottom right;
-        }
-
-        .premium-menu-item {
-          width: 100%;
-          text-align: left;
-          padding: 8px 12px;
-          background: transparent;
-          border: none;
-          border-radius: 6px;
-          font-size: 13px;
-          font-weight: 500;
-          color: #374151;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          transition: all 0.1s ease;
-        }
-        .premium-menu-item:hover {
-          background: #F3F4F6;
-        }
-        .premium-menu-item.danger {
-          color: #EF4444;
-        }
-        .premium-menu-item.danger:hover {
-          background: #FEF2F2;
-        }
-        .premium-menu-divider {
-          height: 1px;
-          background: #F3F4F6;
-          margin: 4px 0;
-        }
-        @keyframes slideDown {
-          from { opacity: 0; transform: translateY(-8px) scale(0.95); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(8px) scale(0.95); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        @keyframes pulseSkeleton {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-        .skeleton-row td span {
-          display: block;
-          height: 20px;
-          background: #E5E7EB;
-          border-radius: 4px;
-          animation: pulseSkeleton 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-
-        @media (max-width: 768px) {
-          .premium-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 16px;
-            padding: 24px;
-          }
-          .premium-toolbar {
-            flex-direction: column;
-            gap: 16px;
-            padding: 0 24px 16px 24px;
-          }
-          .premium-search {
-            width: 100%;
-          }
-          .premium-table-wrap {
-            margin: 0 24px 24px 24px;
-            background: transparent;
-            border: none;
-            box-shadow: none;
-          }
-          .premium-table thead {
-            display: none;
-          }
-          .premium-table tbody tr {
-            display: flex;
-            flex-direction: column;
-            background: #FFFFFF;
-            border: 1px solid #E5E7EB;
-            border-radius: 12px;
-            margin-bottom: 16px;
-            padding: 16px;
-            position: relative;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-          }
-          .premium-table td {
-            border: none;
-            padding: 8px 0;
-            display: flex;
-            align-items: center;
-          }
-          .premium-table td:nth-child(1) { /* Avatar + Name */
-            padding-bottom: 12px;
-            border-bottom: 1px solid #F3F4F6;
-            margin-bottom: 6px;
-          }
-          .premium-table td:nth-child(2)::before { content: "Role: "; font-weight: 500; font-size: 13px; color: #6B7280; width: 60px; }
-          .premium-table td:nth-child(3)::before { content: "Status: "; font-weight: 500; font-size: 13px; color: #6B7280; width: 60px; }
-          .premium-table td:nth-child(4)::before { content: "Added: "; font-weight: 500; font-size: 13px; color: #6B7280; width: 60px; }
-          .premium-table td:last-child {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            padding: 0;
-          }
-        }
-      `}</style>
+    <div className="screen active" style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)' }}>
 
       <div className="premium-header">
         <div>
 
-          <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#111827', margin: 0, letterSpacing: '-0.02em' }}>Users</h1>
-          <p style={{ fontSize: '14px', color: '#6B7280', margin: '4px 0 0 0' }}>Manage access and team accounts.</p>
+          <h1 style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>Users</h1>
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>Manage access and team accounts.</p>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button
             onClick={() => navigate('/admin/audit')}
-            style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '14px', border: '1px solid #E5E7EB', background: '#FFFFFF', color: '#374151', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+            className="btn btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: '7px' }}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
             </svg>
             Audit Log
           </button>
           <button
             onClick={() => navigate('/admin/metrics')}
-            style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '14px', border: '1px solid #E5E7EB', background: '#FFFFFF', color: '#374151', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+            className="btn btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: '7px' }}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <rect x="2" y="3" width="6" height="18" rx="1"/><rect x="9" y="8" width="6" height="13" rx="1"/><rect x="16" y="13" width="6" height="8" rx="1"/>
             </svg>
             Metrics
@@ -491,7 +230,7 @@ export function UsersPage() {
           />
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 500, color: '#6B7280', display: 'flex', alignItems: 'center', background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '8px 12px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '8px 12px' }}>
             {users.length} users
           </div>
         </div>
@@ -512,7 +251,7 @@ export function UsersPage() {
             {isLoading ? (
               [...Array(5)].map((_, i) => (
                 <tr key={i} className="skeleton-row">
-                  <td><div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><div className="premium-avatar" style={{ background: '#E5E7EB', border: 'none' }}></div><div style={{ flex: 1 }}><span style={{ width: '120px', marginBottom: '6px' }}></span><span style={{ width: '180px', height: '14px' }}></span></div></div></td>
+                  <td><div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><div className="premium-avatar" style={{ background: 'var(--border)', border: 'none' }}></div><div style={{ flex: 1 }}><span style={{ width: '120px', marginBottom: '6px' }}></span><span style={{ width: '180px', height: '14px' }}></span></div></div></td>
                   <td><span style={{ width: '80px', height: '24px', borderRadius: '999px' }}></span></td>
                   <td><span style={{ width: '70px' }}></span></td>
                   <td><span style={{ width: '90px' }}></span></td>
@@ -523,11 +262,11 @@ export function UsersPage() {
               <tr>
                 <td colSpan={5}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 20px', textAlign: 'center' }}>
-                    <div style={{ width: '48px', height: '48px', background: '#F3F4F6', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <div style={{ width: '48px', height: '48px', background: 'var(--surface-2)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     </div>
-                    <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: '0 0 4px 0' }}>No users found</h3>
-                    <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>Try adjusting your search query, or add a new user.</p>
+                    <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>No users found</h3>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>Try adjusting your search query, or add a new user.</p>
                   </div>
                 </td>
               </tr>
@@ -538,8 +277,8 @@ export function UsersPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                       <div className="premium-avatar">{getInitials(user.name)}</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <span style={{ fontWeight: 600, color: '#111827' }}>{user.name}</span>
-                        <span style={{ fontSize: '12px', color: '#6B7280' }}>{user.email}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{user.name}</span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>{user.email}</span>
                       </div>
                     </div>
                   </td>
@@ -549,13 +288,13 @@ export function UsersPage() {
                     </span>
                   </td>
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', fontSize: '13px', fontWeight: 500, color: '#374151' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>
                       <span className={`premium-status-dot ${user.is_active ? 'active' : 'disabled'}`}></span>
                       {user.is_active ? 'Active' : 'Disabled'}
                     </div>
                   </td>
                   <td>
-                    <span style={{ fontSize: '13px', color: '#6B7280', fontWeight: 500 }}>
+                    <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', fontWeight: 500 }}>
                       {formatDate(user.created_at) || 'Just now'}
                     </span>
                   </td>

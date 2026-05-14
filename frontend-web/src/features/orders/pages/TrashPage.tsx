@@ -5,24 +5,11 @@ import { purgeNotificationOrder } from '../../notifications/hooks/useNotificatio
 import { useNavigate } from 'react-router-dom'
 import { DateInput } from '../../../components/system/DateInput'
 import { useAuthStore } from '../../../store/authStore'
-
-const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  yet_to_start:       { label: 'Yet to Start',             color: '#6B7280', bg: '#F3F4F6' },
-  working:            { label: 'Working',                   color: '#3B82F6', bg: '#EFF6FF' },
-  waiting_for_client: { label: 'Waiting for Client Review', color: '#F59E0B', bg: '#FFFBEB' },
-  making:             { label: 'Making',                    color: '#8B5CF6', bg: '#F3E8FF' },
-  done:               { label: 'Done',                      color: '#10B981', bg: '#ECFDF5' },
-  delivered:          { label: 'Delivered',                 color: '#0D9488', bg: '#F0FDFA' },
-}
+import { STATUS_META, STATUS_OPTIONS as STATUS_OPTION_KEYS } from '../../../constants/status'
 
 const STATUS_OPTIONS = [
-  { key: 'all',                label: 'All statuses'             },
-  { key: 'yet_to_start',       label: 'Yet to Start'             },
-  { key: 'working',            label: 'Working'                   },
-  { key: 'waiting_for_client', label: 'Waiting for Client Review' },
-  { key: 'making',             label: 'Making'                    },
-  { key: 'done',               label: 'Done'                      },
-  { key: 'delivered',          label: 'Delivered'                 },
+  { key: 'all',                label: 'All statuses' },
+  ...STATUS_OPTION_KEYS.filter(k => k !== 'cancelled').map(k => ({ key: k, label: STATUS_META[k].label })),
 ]
 
 function ConfirmDeleteModal({ order, onClose, onConfirm }: {
@@ -34,31 +21,36 @@ function ConfirmDeleteModal({ order, onClose, onConfirm }: {
   const [loading, setLoading] = useState(false)
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="trash-confirm-title"
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
       onClick={onClose}
     >
-      <div style={{
-        background: '#FFFFFF', borderRadius: 14, padding: 28, width: 420, maxWidth: '90vw',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-      }}
+      <div
+        style={{
+          background: 'var(--surface)', borderRadius: 'var(--radius-md)', padding: 28, width: 420, maxWidth: '90vw',
+          boxShadow: 'var(--shadow-lg)',
+        }}
         onClick={e => e.stopPropagation()}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           <div style={{
-            width: 36, height: 36, borderRadius: 10, background: '#FEF2F2',
+            width: 36, height: 36, borderRadius: 10, background: 'var(--danger-bg)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2" aria-hidden="true">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
               <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
             </svg>
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>Delete permanently?</div>
-            <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>This cannot be undone.</div>
+            <div id="trash-confirm-title" style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Delete permanently?</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>This cannot be undone.</div>
           </div>
         </div>
 

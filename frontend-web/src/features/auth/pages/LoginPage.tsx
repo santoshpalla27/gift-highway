@@ -41,7 +41,7 @@ export function LoginPage() {
                 <path d="M 53 32 C 61 18 70 24 62 32" fill="#F0914A" />
               </g>
             </svg>
-            <span style={{ fontWeight: 800, fontSize: '32px', letterSpacing: '-0.05em', lineHeight: 1, color: 'var(--text-primary)', fontFamily: "'Outfit', sans-serif" }}>
+            <span style={{ fontWeight: 800, fontSize: '32px', letterSpacing: '-0.05em', lineHeight: 1, color: 'var(--text-primary)' }}>
               <span style={{ color: '#F0914A' }}>Gift</span> Highway
             </span>
           </div>
@@ -61,7 +61,7 @@ export function LoginPage() {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
                 Email Address
               </label>
               <input
@@ -77,7 +77,7 @@ export function LoginPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
                   Password
                 </label>
 

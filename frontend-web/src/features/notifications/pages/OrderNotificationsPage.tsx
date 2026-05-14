@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationService, type NotificationEvent } from '../../../services/notificationService'
 import { formatRelative } from '../../../utils/date'
 import { useAuthStore } from '../../../store/authStore'
+import { FilterPill } from '../../../components/system/FilterPill'
+import { PRIORITY_META } from '../../../constants/status'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -40,12 +42,6 @@ const EVENT_TYPE_LABEL: Record<string, string> = {
   assignees_changed:   'Assignee Change',
   staff_portal_reply:  'Portal Reply',
   order_updated:       'Order Update',
-}
-
-const PRIORITY_META: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  high:   { label: 'High',   color: '#EF4444', bg: '#FEF2F2', border: '#FECACA' },
-  medium: { label: 'Medium', color: '#F59E0B', bg: '#FFFBEB', border: '#FDE68A' },
-  low:    { label: 'Low',    color: '#6B7280', bg: '#F3F4F6', border: '#E5E7EB' },
 }
 
 // ── Event icon ────────────────────────────────────────────────────────────────
@@ -147,67 +143,10 @@ function eventSummary(e: NotificationEvent): string {
   }
 }
 
-// ── FilterPill ────────────────────────────────────────────────────────────────
-
-function FilterPill({
-  label, value, onClear, children,
-}: {
-  label: string
-  value?: string
-  onClear?: () => void
-  children: (close: () => void) => React.ReactNode
-}) {
-  const [open, setOpen] = useState(false)
-  const isActive = !!value
-
-  return (
-    <div style={{ position: 'relative', flexShrink: 0 }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: 5,
-          padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-          border: `1.5px solid ${isActive ? '#6366F1' : '#E4E6EF'}`,
-          background: isActive ? '#EEF2FF' : '#FFFFFF',
-          color: isActive ? '#4F46E5' : '#374151',
-          cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 120ms ease',
-        }}
-        onMouseEnter={e => { if (!isActive) e.currentTarget.style.borderColor = '#C7CAD9' }}
-        onMouseLeave={e => { if (!isActive) e.currentTarget.style.borderColor = '#E4E6EF' }}
-      >
-        <span>{isActive ? `${label}: ${value}` : label}</span>
-        {isActive ? (
-          <span onClick={ev => { ev.stopPropagation(); onClear?.(); setOpen(false) }} style={{ display: 'flex', alignItems: 'center', marginLeft: 2, opacity: 0.7 }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </span>
-        ) : (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ opacity: 0.5 }}>
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        )}
-      </button>
-      {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 500,
-          background: '#FFFFFF', border: '1px solid #E4E6EF',
-          borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.10)',
-          minWidth: 180, overflow: 'hidden',
-        }}
-          onMouseLeave={() => setOpen(false)}
-        >
-          {children(() => setOpen(false))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 const pillItem = (active: boolean): React.CSSProperties => ({
   padding: '9px 14px', fontSize: 13, cursor: 'pointer',
   background: active ? '#EEF2FF' : 'transparent',
-  color: active ? '#4F46E5' : '#374151',
+  color: active ? '#6366F1' : '#374151',
   fontWeight: active ? 600 : 400,
   display: 'flex', alignItems: 'center', gap: 8,
 })
@@ -365,7 +304,7 @@ export function OrderNotificationsPage() {
                 cursor: marking ? 'default' : 'pointer',
                 boxShadow: '0 2px 8px rgba(99,102,241,.15)', opacity: marking ? 0.7 : 1,
               }}
-              onMouseOver={e => { if (!marking) e.currentTarget.style.background = '#4F46E5' }}
+              onMouseOver={e => { if (!marking) e.currentTarget.style.background = '#6366F1' }}
               onMouseOut={e => { e.currentTarget.style.background = '#6366F1' }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -457,7 +396,7 @@ export function OrderNotificationsPage() {
             padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
             border: `1.5px solid ${unreadOnly ? '#6366F1' : '#E4E6EF'}`,
             background: unreadOnly ? '#EEF2FF' : '#FFFFFF',
-            color: unreadOnly ? '#4F46E5' : '#374151',
+            color: unreadOnly ? '#6366F1' : '#374151',
             cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 120ms ease',
           }}
           onMouseEnter={e => { if (!unreadOnly) e.currentTarget.style.borderColor = '#C7CAD9' }}
@@ -566,7 +505,7 @@ export function OrderNotificationsPage() {
                     {pm && (
                       <span style={{
                         fontSize: 10, fontWeight: 700, color: pm.color,
-                        background: pm.bg, border: `1px solid ${pm.border}`,
+                        background: pm.bg, border: `1px solid ${pm.color}30`,
                         borderRadius: 4, padding: '2px 6px',
                       }}>
                         {pm.label.toUpperCase()}

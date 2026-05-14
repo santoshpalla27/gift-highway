@@ -264,6 +264,7 @@ const M = StyleSheet.create({
   chipScroll: { flexGrow: 0 },
   chipRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
   chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
     borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF',
   },
@@ -283,10 +284,10 @@ const M = StyleSheet.create({
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
   avatar: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#0F172A',
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#EEF2FF',
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  avatarText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  avatarText: { fontSize: 13, fontWeight: '700', color: '#6366F1' },
   userName: { fontSize: 14, fontWeight: '700', color: '#111827', flex: 1 },
   userEmail: { fontSize: 12, color: '#9CA3AF', marginTop: 1 },
   adminChip: { backgroundColor: '#EEF2FF', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20 },

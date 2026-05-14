@@ -4,8 +4,7 @@ import { useLogout } from '../../features/auth/hooks/useLogout'
 import { useAuthStore } from '../../store/authStore'
 import { orderService, type Order } from '../../services/orderService'
 import { BellDropdown } from '../../features/notifications/components/BellDropdown'
-
-// ─── Global Search ────────────────────────────────────────────────────────────
+import { STATUS_META } from '../../constants/status'
 
 function GlobalSearch() {
   const navigate = useNavigate()
@@ -18,7 +17,6 @@ function GlobalSearch() {
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Close on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -80,21 +78,10 @@ function GlobalSearch() {
     inputRef.current?.blur()
   }
 
-  const STATUS_COLOR: Record<string, string> = {
-    new: '#6B7280',
-    in_progress: '#3B82F6',
-    completed: '#10B981',
-  }
-  const STATUS_LABEL: Record<string, string> = {
-    new: 'New',
-    in_progress: 'Working',
-    completed: 'Done',
-  }
-
   return (
     <div ref={containerRef} style={{ position: 'relative', flex: 1, maxWidth: 420, minWidth: 0 }}>
       <div className={`search-bar${open || query ? ' active' : ''}`} style={{ width: '100%', boxSizing: 'border-box' }}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
         <input
@@ -106,9 +93,14 @@ function GlobalSearch() {
           placeholder="Search orders…"
           autoComplete="off"
           spellCheck={false}
+          aria-label="Search orders"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          role="combobox"
         />
         {loading && (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            aria-hidden="true"
             style={{ flexShrink: 0, opacity: 0.5, animation: 'spin 0.8s linear infinite' }}>
             <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
           </svg>
@@ -116,6 +108,7 @@ function GlobalSearch() {
         {query && !loading && (
           <button
             onClick={() => { setQuery(''); setResults([]); setOpen(false); inputRef.current?.focus() }}
+            aria-label="Clear search"
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--text-tertiary)', flexShrink: 0 }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -126,12 +119,16 @@ function GlobalSearch() {
       </div>
 
       {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
-          background: 'var(--surface)', border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)',
-          zIndex: 200, overflow: 'hidden',
-        }}>
+        <div
+          role="listbox"
+          aria-label="Search results"
+          style={{
+            position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)',
+            zIndex: 200, overflow: 'hidden',
+          }}
+        >
           {results.length === 0 ? (
             <div style={{ padding: '16px', textAlign: 'center', fontSize: 13, color: 'var(--text-tertiary)' }}>
               No orders found
@@ -144,6 +141,8 @@ function GlobalSearch() {
               {results.map((order, i) => (
                 <div
                   key={order.id}
+                  role="option"
+                  aria-selected={selectedIdx === i}
                   onMouseEnter={() => setSelectedIdx(i)}
                   onMouseLeave={() => setSelectedIdx(-1)}
                   onClick={() => openOrder(order.id)}
@@ -155,7 +154,6 @@ function GlobalSearch() {
                     transition: 'background 80ms',
                   }}
                 >
-                  {/* Order number badge */}
                   <span style={{
                     fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)',
                     background: 'var(--surface-2)', border: '1px solid var(--border)',
@@ -164,8 +162,6 @@ function GlobalSearch() {
                   }}>
                     #{order.title}
                   </span>
-
-                  {/* Title + customer */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {order.title}
@@ -174,13 +170,12 @@ function GlobalSearch() {
                       {order.customer_name}
                     </div>
                   </div>
-
-                  {/* Status dot */}
                   <span style={{
-                    fontSize: 11, fontWeight: 600, color: STATUS_COLOR[order.status] ?? '#6B7280',
+                    fontSize: 11, fontWeight: 600,
+                    color: STATUS_META[order.status]?.color ?? '#6B7280',
                     flexShrink: 0,
                   }}>
-                    {STATUS_LABEL[order.status] ?? order.status}
+                    {STATUS_META[order.status]?.label ?? order.status}
                   </span>
                 </div>
               ))}
@@ -229,16 +224,26 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // Close on Escape
+  useEffect(() => {
+    if (!dropdownOpen) return
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setDropdownOpen(false)
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [dropdownOpen])
+
   return (
     <header className="topbar">
       <div className="topbar-title" style={{ flex: 'none' }}>
         <button
           className="icon-btn"
           onClick={onMenuClick}
-          style={{ marginRight: '8px', border: 'none', background: 'transparent' }}
+          aria-label="Toggle sidebar"
           title="Toggle sidebar"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
           </svg>
         </button>
@@ -254,22 +259,34 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
 
         {/* Profile dropdown */}
         <div ref={dropdownRef} style={{ position: 'relative' }}>
-          <div
+          <button
             className="avatar avatar-md"
-            style={{ background: '#6366F120', color: '#6366F1', cursor: 'pointer', width: '38px', height: '38px', fontSize: '13px', userSelect: 'none' }}
             onClick={() => setDropdownOpen(o => !o)}
+            aria-label={`Account menu for ${user?.first_name} ${user?.last_name}`}
+            aria-expanded={dropdownOpen}
+            aria-haspopup="menu"
             title={`${user?.first_name} ${user?.last_name}`}
+            style={{
+              background: '#6366F120', color: '#6366F1',
+              width: '38px', height: '38px', fontSize: '13px',
+              border: 'none', cursor: 'pointer',
+              userSelect: 'none', fontFamily: 'inherit', fontWeight: 600,
+            }}
           >
             {initials}
-          </div>
+          </button>
 
           {dropdownOpen && (
-            <div style={{
-              position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-              background: 'var(--surface)', border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)',
-              minWidth: '200px', zIndex: 100, overflow: 'hidden',
-            }}>
+            <div
+              role="menu"
+              aria-label="Account menu"
+              style={{
+                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                background: 'var(--surface)', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)',
+                minWidth: '200px', zIndex: 100, overflow: 'hidden',
+              }}
+            >
               <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
                   {user?.first_name} {user?.last_name}
@@ -281,41 +298,29 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
 
               <div style={{ padding: '6px' }}>
                 <button
+                  role="menuitem"
                   onClick={() => { setDropdownOpen(false); navigate('/settings/profile') }}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-                    padding: '8px 10px', borderRadius: 'var(--radius)', border: 'none',
-                    background: 'transparent', cursor: 'pointer', fontSize: '13px',
-                    color: 'var(--text-secondary)', textAlign: 'left',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  className="dropdown-menu-item"
                 >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                   </svg>
                   View Profile
                 </button>
 
-                <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
+                <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} role="separator" />
 
                 <button
+                  role="menuitem"
                   onClick={() => { setDropdownOpen(false); logout() }}
                   disabled={isPending}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-                    padding: '8px 10px', borderRadius: 'var(--radius)', border: 'none',
-                    background: 'transparent', cursor: 'pointer', fontSize: '13px',
-                    color: 'var(--danger)', textAlign: 'left',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--danger-bg)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  className="dropdown-menu-item dropdown-menu-item--danger"
                 >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                     <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
                   </svg>
-                  {isPending ? 'Signing out...' : 'Sign Out'}
+                  {isPending ? 'Signing out…' : 'Sign Out'}
                 </button>
               </div>
             </div>
