@@ -397,6 +397,25 @@ export default function OrderDetailScreen() {
       )}
       {/* PORTAL HIDDEN: PortalChatSheet removed — see docs/portal-hidden.md to restore */}
 
+      {/* Order archived while viewing */}
+      <Modal visible={D.archivedWhileViewing} transparent animationType="fade" onRequestClose={() => {}}>
+        <View style={EC.overlay}>
+          <View style={[EC.sheet, { alignItems: 'center' }]}>
+            <Ionicons name="archive-outline" size={36} color="#6B7280" style={{ marginBottom: 12 }} />
+            <Text style={[EC.title, { textAlign: 'center' }]}>Order Archived</Text>
+            <Text style={{ fontSize: 14, color: '#6B7280', marginBottom: 20, textAlign: 'center' }}>
+              This order has been archived and is no longer active.
+            </Text>
+            <TouchableOpacity
+              style={[EC.saveBtn, { backgroundColor: '#6366F1', width: '100%', alignItems: 'center', paddingVertical: 12 }]}
+              onPress={() => router.replace('/(app)' as any)}
+            >
+              <Text style={EC.saveText}>Go to Home</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Delete confirm */}
       <Modal visible={!!D.deleteConfirmId} transparent animationType="fade" onRequestClose={() => D.setDeleteConfirmId(null)}>
         <TouchableOpacity style={EC.overlay} activeOpacity={1} onPress={() => D.setDeleteConfirmId(null)}>

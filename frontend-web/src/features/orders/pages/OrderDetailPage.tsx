@@ -1092,6 +1092,12 @@ export function OrderDetailPage() {
     enabled: !!id,
   })
 
+  // ── Archived-while-viewing detection ───────────────────────────────────────
+  useEffect(() => {
+    if (order?.is_archived && !wasArchivedRef.current) setArchivedWhileViewing(true)
+    if (order) wasArchivedRef.current = order.is_archived
+  }, [order?.is_archived])
+
   // ── Notifications: "New updates" divider ───────────────────────────────────
   // newSinceAt = last_seen_at from DB (null on first visit).
   // pageEnteredAt = fallback used only when newSinceAt is null, so the divider
@@ -1201,6 +1207,8 @@ export function OrderDetailPage() {
   const [showEdit, setShowEdit] = useState(false)
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
   const [archiving, setArchiving] = useState(false)
+  const [archivedWhileViewing, setArchivedWhileViewing] = useState(false)
+  const wasArchivedRef = useRef(false)
   const [commentText, setCommentText] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
@@ -2332,6 +2340,40 @@ export function OrderDetailPage() {
                 {archiving ? 'Archiving…' : 'Archive'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {archivedWhileViewing && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1100,
+          background: 'rgba(15,23,42,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            background: '#FFFFFF', borderRadius: 14, padding: '32px 28px 24px',
+            width: 340, boxShadow: '0 8px 32px rgba(0,0,0,.18)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+          }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="21 8 21 21 3 21 3 8" />
+              <rect x="1" y="3" width="22" height="5" />
+              <line x1="10" y1="12" x2="14" y2="12" />
+            </svg>
+            <div style={{ fontSize: 17, fontWeight: 700, color: '#111827', marginTop: 4 }}>Order Archived</div>
+            <div style={{ fontSize: 13.5, color: '#6B7280', lineHeight: 1.6, textAlign: 'center' }}>
+              This order has been archived and is no longer active.
+            </div>
+            <button
+              onClick={() => navigate('/')}
+              style={{
+                marginTop: 12, padding: '10px 28px', borderRadius: 8, border: 'none',
+                background: '#6366F1', fontSize: 14, fontWeight: 600,
+                cursor: 'pointer', color: '#FFFFFF', width: '100%',
+              }}
+            >
+              Go to Home
+            </button>
           </div>
         </div>
       )}

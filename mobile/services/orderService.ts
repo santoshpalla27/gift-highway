@@ -17,6 +17,8 @@ export interface Order {
   due_time: string | null
   created_at: string
   updated_at: string
+  is_archived: boolean
+  archived_by_name: string | null
 }
 
 export interface OrderEvent {

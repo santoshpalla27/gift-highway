@@ -208,6 +208,8 @@ export function useOrderDetail(orderId: string | undefined) {
   // ── Order ─────────────────────────────────────────────────────────────────
   const [order, setOrder] = useState<Order | null>(null)
   const [loadingOrder, setLoadingOrder] = useState(true)
+  const [archivedWhileViewing, setArchivedWhileViewing] = useState(false)
+  const wasArchivedRef = useRef(false)
 
   // ── Events ────────────────────────────────────────────────────────────────
   const [evList, setEvList] = useState<OrderEvent[]>([])
@@ -287,6 +289,10 @@ export function useOrderDetail(orderId: string | undefined) {
     try {
       const found = await orderService.getOrder(orderId)
       setOrder(found)
+      if (found.is_archived && !wasArchivedRef.current) {
+        setArchivedWhileViewing(true)
+      }
+      wasArchivedRef.current = found.is_archived
     } catch { /* ignore */ } finally {
       setLoadingOrder(false)
     }
@@ -731,7 +737,7 @@ export function useOrderDetail(orderId: string | undefined) {
 
   return {
     // order
-    order, loadingOrder, fetchOrder,
+    order, loadingOrder, fetchOrder, archivedWhileViewing,
     // events
     allEvents, loadingEvents, hasOlder, loadingOlder, loadOlderEvents, totalEvents, refreshing, onRefresh,
     // scroll
