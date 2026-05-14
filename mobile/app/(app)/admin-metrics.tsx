@@ -28,33 +28,69 @@ interface UserMetric {
 type StatusFilter = 'all' | 'yet_to_start' | 'working' | 'waiting_for_client' | 'making' | 'done' | 'delivered' | 'cancelled'
 
 const FILTERS: { key: StatusFilter; label: string; color: string; bg: string }[] = [
-  { key: 'all',                label: 'All',               color: '#6B7280', bg: '#F3F4F6' },
-  { key: 'yet_to_start',       label: 'Yet to Start',      color: '#6B7280', bg: '#F3F4F6' },
-  { key: 'working',            label: 'Working',           color: '#3B82F6', bg: '#EFF6FF' },
-  { key: 'waiting_for_client', label: 'Waiting for Client',color: '#F59E0B', bg: '#FFFBEB' },
-  { key: 'making',             label: 'Making',            color: '#8B5CF6', bg: '#F3E8FF' },
-  { key: 'done',               label: 'Done',              color: '#10B981', bg: '#ECFDF5' },
-  { key: 'delivered',          label: 'Delivered',         color: '#0D9488', bg: '#F0FDFA' },
-  { key: 'cancelled',          label: 'Cancelled',         color: '#EF4444', bg: '#FEF2F2' },
+  { key: 'all',                label: 'All',                color: '#6B7280', bg: '#F3F4F6' },
+  { key: 'yet_to_start',       label: 'Yet to Start',       color: '#6B7280', bg: '#F3F4F6' },
+  { key: 'working',            label: 'Working',            color: '#3B82F6', bg: '#EFF6FF' },
+  { key: 'waiting_for_client', label: 'Waiting for Client', color: '#F59E0B', bg: '#FFFBEB' },
+  { key: 'making',             label: 'Making',             color: '#8B5CF6', bg: '#F3E8FF' },
+  { key: 'done',               label: 'Done',               color: '#10B981', bg: '#ECFDF5' },
+  { key: 'delivered',          label: 'Delivered',          color: '#0D9488', bg: '#F0FDFA' },
+  { key: 'cancelled',          label: 'Cancelled',          color: '#EF4444', bg: '#FEF2F2' },
+]
+
+const BAR_SEGMENTS: { key: string; field: keyof UserMetric; color: string }[] = [
+  { key: 'working',            field: 'working_count',            color: '#3B82F6' },
+  { key: 'making',             field: 'making_count',             color: '#8B5CF6' },
+  { key: 'yet_to_start',       field: 'new_count',                color: '#9CA3AF' },
+  { key: 'waiting_for_client', field: 'waiting_for_client_count', color: '#F59E0B' },
+  { key: 'done',               field: 'done_count',               color: '#10B981' },
+  { key: 'delivered',          field: 'delivered_count',          color: '#0D9488' },
+  { key: 'cancelled',          field: 'cancelled_count',          color: '#EF4444' },
 ]
 
 function getInitials(name: string) {
   return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2)
 }
+function getActive(u: UserMetric)  { return u.working_count + u.making_count }
+function getPending(u: UserMetric) { return u.new_count + u.waiting_for_client_count }
 
-// Always show in status color — matches StatusBadge style throughout the app
-function CountBadge({ value, color, bg, onPress }: { value: number; color: string; bg: string; onPress?: () => void }) {
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function StatTile({ label, value, sublabel, color }: {
+  label: string; value: number; sublabel: string; color: string
+}) {
   return (
-    <TouchableOpacity
-      onPress={value > 0 ? onPress : undefined}
-      activeOpacity={value > 0 ? 0.7 : 1}
-      style={[M.countBadge, { backgroundColor: bg, opacity: value === 0 ? 0.4 : 1 }]}
-    >
-      <View style={[M.countDot, { backgroundColor: color }]} />
-      <Text style={[M.countNum, { color }]}>{value}</Text>
-    </TouchableOpacity>
+    <View style={M.statTile}>
+      <Text style={[M.statValue, { color }]}>{value.toLocaleString()}</Text>
+      <Text style={M.statLabel}>{label}</Text>
+      <Text style={M.statSublabel}>{sublabel}</Text>
+    </View>
   )
 }
+
+function MiniBar({ u, onPress }: {
+  u: UserMetric
+  onPress: (status: string) => void
+}) {
+  if (u.total_assigned === 0) {
+    return <View style={[M.barTrack, { backgroundColor: '#E5E7EB' }]} />
+  }
+  const segs = BAR_SEGMENTS.filter(s => (u[s.field] as number) > 0)
+  return (
+    <View style={M.barTrack}>
+      {segs.map(s => (
+        <TouchableOpacity
+          key={s.key}
+          onPress={() => onPress(s.key)}
+          activeOpacity={0.7}
+          style={{ flex: u[s.field] as number, backgroundColor: s.color }}
+        />
+      ))}
+    </View>
+  )
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function AdminMetricsScreen() {
   const insets = useSafeAreaInsets()
@@ -97,8 +133,13 @@ export default function AdminMetricsScreen() {
     return true
   })
 
+  const totalOrders  = users.reduce((s, u) => s + u.total_assigned, 0)
+  const totalActive  = users.reduce((s, u) => s + getActive(u), 0)
+  const totalPending = users.reduce((s, u) => s + getPending(u), 0)
+
   return (
     <View style={[M.screen, { paddingTop: insets.top }]}>
+
       {/* Header */}
       <View style={M.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -109,7 +150,6 @@ export default function AdminMetricsScreen() {
           <Ionicons name="refresh-outline" size={22} color="#6366F1" />
         </TouchableOpacity>
       </View>
-
 
       {/* Search */}
       <View style={M.searchRow}>
@@ -130,7 +170,7 @@ export default function AdminMetricsScreen() {
         )}
       </View>
 
-      {/* Status filter chips */}
+      {/* Filter chips */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={M.chipScroll} contentContainerStyle={M.chipRow}>
         {FILTERS.map(f => {
           const active = statusFilter === f.key
@@ -140,7 +180,7 @@ export default function AdminMetricsScreen() {
               key={f.key}
               style={[
                 M.chip,
-                active && hasColor && { backgroundColor: f.bg, borderColor: f.color },
+                active && hasColor  && { backgroundColor: f.bg, borderColor: f.color },
                 active && !hasColor && { backgroundColor: '#F3F4F6', borderColor: '#6B7280' },
               ]}
               onPress={() => setStatusFilter(f.key)}
@@ -174,70 +214,113 @@ export default function AdminMetricsScreen() {
           contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Summary tiles — 2 × 2 grid */}
+          <View style={M.statRow}>
+            <StatTile
+              label="Team Members"
+              value={users.length}
+              sublabel={`${users.filter(u => u.is_active).length} active`}
+              color="#111827"
+            />
+            <StatTile
+              label="Total Orders"
+              value={totalOrders}
+              sublabel="all members"
+              color="#6366F1"
+            />
+          </View>
+          <View style={[M.statRow, { marginBottom: 16 }]}>
+            <StatTile
+              label="In Progress"
+              value={totalActive}
+              sublabel="working + making"
+              color="#3B82F6"
+            />
+            <StatTile
+              label="Needs Attention"
+              value={totalPending}
+              sublabel="new + waiting"
+              color="#F59E0B"
+            />
+          </View>
+
+          {/* Result count */}
+          <Text style={M.userCount}>{filtered.length} of {users.length} members</Text>
+
           {filtered.length === 0 ? (
             <View style={M.center}>
               <Text style={{ color: '#9CA3AF', fontSize: 14 }}>No users match this filter.</Text>
             </View>
           ) : (
-            filtered.map(u => (
-              <View key={u.id} style={M.card}>
-                {/* User info */}
-                <View style={M.cardTop}>
-                  <View style={M.avatar}>
-                    <Text style={M.avatarText}>{getInitials(u.name)}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={M.userName} numberOfLines={1}>{u.name}</Text>
-                      {u.role === 'admin' && (
-                        <View style={M.adminChip}>
-                          <Text style={M.adminChipText}>Admin</Text>
-                        </View>
-                      )}
-                      {!u.is_active && (
-                        <View style={M.inactiveChip}>
-                          <Text style={M.inactiveChipText}>Inactive</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={M.userEmail} numberOfLines={1}>{u.email}</Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => goToOrders(u.id)}
-                    style={M.viewBtn}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={M.viewBtnText}>Orders</Text>
-                    <Ionicons name="chevron-forward" size={14} color="#6366F1" />
-                  </TouchableOpacity>
-                </View>
+            filtered.map(u => {
+              const cols = [
+                { label: 'Total',     value: u.total_assigned,           color: '#6366F1', status: undefined        },
+                { label: 'New',       value: u.new_count,                color: '#6B7280', status: 'yet_to_start'       },
+                { label: 'Working',   value: u.working_count,            color: '#3B82F6', status: 'working'            },
+                { label: 'Waiting',   value: u.waiting_for_client_count, color: '#F59E0B', status: 'waiting_for_client' },
+                { label: 'Making',    value: u.making_count,             color: '#8B5CF6', status: 'making'             },
+                { label: 'Done',      value: u.done_count,               color: '#10B981', status: 'done'               },
+                { label: 'Delivered', value: u.delivered_count,          color: '#0D9488', status: 'delivered'          },
+                { label: 'Cancelled', value: u.cancelled_count,          color: '#EF4444', status: 'cancelled'          },
+              ]
+              return (
+                <View key={u.id} style={M.card}>
 
-                {/* Counts row — horizontally scrollable so all 7 statuses are visible */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={M.countsScroll} contentContainerStyle={M.countsRow}>
-                  {[
-                    { label: 'Total',     value: u.total_assigned,           color: '#6366F1', bg: '#EEF2FF', status: undefined },
-                    { label: 'New',       value: u.new_count,                color: '#6B7280', bg: '#F3F4F6', status: 'yet_to_start' },
-                    { label: 'Working',   value: u.working_count,            color: '#3B82F6', bg: '#EFF6FF', status: 'working' },
-                    { label: 'Waiting',   value: u.waiting_for_client_count, color: '#F59E0B', bg: '#FFFBEB', status: 'waiting_for_client' },
-                    { label: 'Making',    value: u.making_count,             color: '#8B5CF6', bg: '#F3E8FF', status: 'making' },
-                    { label: 'Done',      value: u.done_count,               color: '#10B981', bg: '#ECFDF5', status: 'done' },
-                    { label: 'Delivered', value: u.delivered_count,          color: '#0D9488', bg: '#F0FDFA', status: 'delivered' },
-                    { label: 'Cancelled', value: u.cancelled_count,          color: '#EF4444', bg: '#FEF2F2', status: 'cancelled' },
-                  ].map((col, idx, arr) => (
-                    <View key={col.label} style={{ flexDirection: 'row' }}>
-                      <View style={M.countCol}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 4 }}>
-                          <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: col.color }} />
-                          <Text style={[M.countLabel, { color: col.color }]}>{col.label}</Text>
-                        </View>
-                        <CountBadge value={col.value} color={col.color} bg={col.bg} onPress={() => goToOrders(u.id, col.status)} />
-                      </View>
-                      {idx < arr.length - 1 && <View style={M.countDivider} />}
+                  {/* User row */}
+                  <View style={M.cardTop}>
+                    <View style={M.avatar}>
+                      <Text style={M.avatarText}>{getInitials(u.name)}</Text>
                     </View>
-                  ))}
-                </ScrollView>
-              </View>
-            ))
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={M.userName} numberOfLines={1}>{u.name}</Text>
+                        {u.role === 'admin' && (
+                          <View style={M.adminChip}><Text style={M.adminChipText}>Admin</Text></View>
+                        )}
+                        {!u.is_active && (
+                          <View style={M.inactiveChip}><Text style={M.inactiveChipText}>Inactive</Text></View>
+                        )}
+                      </View>
+                      <Text style={M.userEmail} numberOfLines={1}>{u.email}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => goToOrders(u.id)} style={M.viewBtn} activeOpacity={0.7}>
+                      <Text style={M.viewBtnText}>Orders</Text>
+                      <Ionicons name="chevron-forward" size={14} color="#6366F1" />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Breakdown bar — tap a segment to filter */}
+                  <MiniBar u={u} onPress={status => goToOrders(u.id, status)} />
+
+                  {/* Scrollable counts */}
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={M.countsScroll}
+                    contentContainerStyle={M.countsRow}
+                  >
+                    {cols.map((col, idx) => (
+                      <View key={col.label} style={{ flexDirection: 'row' }}>
+                        <TouchableOpacity
+                          onPress={() => col.value > 0 && col.status ? goToOrders(u.id, col.status) : undefined}
+                          activeOpacity={col.value > 0 && col.status ? 0.6 : 1}
+                          style={M.countCol}
+                        >
+                          <Text style={[M.countLabel, { color: col.color, opacity: col.value === 0 ? 0.35 : 1 }]}>
+                            {col.label}
+                          </Text>
+                          <Text style={[M.countNum, { color: col.value > 0 ? col.color : '#9CA3AF', opacity: col.value === 0 ? 0.35 : 1 }]}>
+                            {col.value}
+                          </Text>
+                        </TouchableOpacity>
+                        {idx < cols.length - 1 && <View style={M.countDivider} />}
+                      </View>
+                    ))}
+                  </ScrollView>
+
+                </View>
+              )
+            })
           )}
         </ScrollView>
       )}
@@ -247,6 +330,7 @@ export default function AdminMetricsScreen() {
 
 const M = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F8FAFC' },
+
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingBottom: 12, paddingTop: 10,
@@ -257,7 +341,8 @@ const M = StyleSheet.create({
   searchRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: '#FFFFFF', marginHorizontal: 16, marginTop: 12, marginBottom: 4,
-    borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB', paddingHorizontal: 12, paddingVertical: 9,
+    borderRadius: 10, borderWidth: 1, borderColor: '#E5E7EB',
+    paddingHorizontal: 12, paddingVertical: 9,
   },
   searchInput: { flex: 1, fontSize: 14, color: '#111827', padding: 0 },
 
@@ -276,33 +361,52 @@ const M = StyleSheet.create({
   retryBtn: { marginTop: 12, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' },
   retryText: { fontSize: 14, fontWeight: '600', color: '#374151' },
 
+  // Summary tiles
+  statRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  statTile: {
+    flex: 1, backgroundColor: '#FFFFFF', borderRadius: 12,
+    borderWidth: 1, borderColor: '#E5E7EB', padding: 14,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 3, elevation: 1,
+  },
+  statValue:   { fontSize: 26, fontWeight: '800', lineHeight: 30 },
+  statLabel:   { fontSize: 12.5, fontWeight: '600', color: '#111827', marginTop: 5 },
+  statSublabel:{ fontSize: 11, color: '#9CA3AF', marginTop: 2 },
+
+  userCount: { fontSize: 12, color: '#9CA3AF', marginBottom: 10 },
+
+  // Cards
   card: {
     backgroundColor: '#FFFFFF', borderRadius: 14, marginBottom: 12,
     borderWidth: 1, borderColor: '#E5E7EB',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 2,
     overflow: 'hidden',
   },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, paddingBottom: 10 },
   avatar: {
     width: 40, height: 40, borderRadius: 20, backgroundColor: '#EEF2FF',
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  avatarText: { fontSize: 13, fontWeight: '700', color: '#6366F1' },
-  userName: { fontSize: 14, fontWeight: '700', color: '#111827', flex: 1 },
-  userEmail: { fontSize: 12, color: '#9CA3AF', marginTop: 1 },
-  adminChip: { backgroundColor: '#EEF2FF', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20 },
-  adminChipText: { fontSize: 10, fontWeight: '700', color: '#6366F1' },
-  inactiveChip: { backgroundColor: '#F3F4F6', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20 },
-  inactiveChipText: { fontSize: 10, fontWeight: '600', color: '#9CA3AF' },
-  viewBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' },
-  viewBtnText: { fontSize: 12.5, fontWeight: '600', color: '#6366F1' },
+  avatarText:      { fontSize: 13, fontWeight: '700', color: '#6366F1' },
+  userName:        { fontSize: 14, fontWeight: '700', color: '#111827', flex: 1 },
+  userEmail:       { fontSize: 12, color: '#9CA3AF', marginTop: 1 },
+  adminChip:       { backgroundColor: '#EEF2FF', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20 },
+  adminChipText:   { fontSize: 10, fontWeight: '700', color: '#6366F1' },
+  inactiveChip:    { backgroundColor: '#F3F4F6', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20 },
+  inactiveChipText:{ fontSize: 10, fontWeight: '600', color: '#9CA3AF' },
+  viewBtn:         { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' },
+  viewBtnText:     { fontSize: 12.5, fontWeight: '600', color: '#6366F1' },
 
-  countsScroll: { borderTopWidth: 1, borderTopColor: '#F1F5F9', backgroundColor: '#FAFAFA' },
-  countsRow: { flexDirection: 'row', paddingHorizontal: 4 },
-  countCol: { alignItems: 'center', paddingVertical: 10, paddingHorizontal: 10, minWidth: 72 },
-  countLabel: { fontSize: 10, fontWeight: '600', color: '#9CA3AF', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-  countDivider: { width: 1, backgroundColor: '#F1F5F9' },
-  countBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20, minWidth: 34, alignItems: 'center', flexDirection: 'row', gap: 4, justifyContent: 'center' },
-  countDot: { width: 5, height: 5, borderRadius: 2.5 },
-  countNum: { fontSize: 14, fontWeight: '700' },
+  // Breakdown bar
+  barTrack: {
+    flexDirection: 'row', height: 6, overflow: 'hidden',
+    marginHorizontal: 14, marginTop: 8, marginBottom: 10, borderRadius: 3,
+  },
+
+  // Count columns
+  countsScroll: { borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  countsRow:    { flexDirection: 'row', paddingHorizontal: 4 },
+  countCol:     { alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, minWidth: 72 },
+  countLabel:   { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 5 },
+  countNum:     { fontSize: 20, fontWeight: '800' },
+  countDivider: { width: 1, backgroundColor: '#F1F5F9', alignSelf: 'stretch' },
 })

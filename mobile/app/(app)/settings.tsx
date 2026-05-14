@@ -328,7 +328,7 @@ export default function SettingsScreen() {
         <SettingsRow
           icon="pulse-outline"
           iconBg="#6366F1"
-          label="Activity Feed"
+          label="Notifications"
           subtitle="All order events"
           onPress={() => router.push('/(app)/activity' as never)}
         />

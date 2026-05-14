@@ -162,7 +162,7 @@ export default function AppLayout() {
       />
       <Tabs.Screen
         name="activity"
-        options={{ href: null, title: 'Activity' }}
+        options={{ href: null, title: 'Notifications' }}
       />
       <Tabs.Screen
         name="trash"

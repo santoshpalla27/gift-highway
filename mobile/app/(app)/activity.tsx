@@ -174,7 +174,7 @@ export default function ActivityScreen() {
           <Ionicons name="arrow-back" size={22} color="#111827" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={S.headerTitle}>Activity</Text>
+          <Text style={S.headerTitle}>Notifications</Text>
           {!loading && <Text style={S.headerSub}>{total} event{total !== 1 ? 's' : ''}{hasFilters && filtered.length !== events.length ? ` · ${filtered.length} shown` : ''}</Text>}
         </View>
         <TouchableOpacity
