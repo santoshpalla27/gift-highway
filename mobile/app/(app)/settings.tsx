@@ -357,7 +357,23 @@ export default function SettingsScreen() {
           />
           <View style={S.rowSep} />
           <SettingsRow
+            icon="bar-chart-outline"
+            iconBg="#6366F1"
+            label="User Metrics"
+            subtitle="Order stats per team member"
+            onPress={() => router.push('/(app)/admin-metrics' as never)}
+          />
+          <View style={S.rowSep} />
+          <SettingsRow
             icon="document-text-outline"
+            iconBg="#10B981"
+            label="Activity Log"
+            subtitle="All order events log"
+            onPress={() => router.push('/(app)/activity-log' as never)}
+          />
+          <View style={S.rowSep} />
+          <SettingsRow
+            icon="shield-checkmark-outline"
             iconBg="#16A34A"
             label="Audit Log"
             subtitle="CSV export & R2 status"
