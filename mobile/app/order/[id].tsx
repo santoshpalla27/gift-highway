@@ -553,7 +553,7 @@ const S = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingBottom: 12, paddingHorizontal: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9', gap: 12 },
   headerCenter: { flex: 1 },
   headerTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   chipSection: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, backgroundColor: '#F8FAFC', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   chipRow: { flexDirection: 'row', gap: 8 },
   chip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999 },
