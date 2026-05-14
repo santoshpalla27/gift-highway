@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { ScrollView, Alert, Keyboard, Platform } from 'react-native'
+import { ScrollView, Alert, Keyboard, Platform, AppState } from 'react-native'
 import { orderService, type Order, type OrderEvent, type UserOption } from '../../../services/orderService'
 import { attachmentService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE, resolveFileMime, isImage } from '../../../services/attachmentService'
 import { staffPortalApi, type PortalStatus, type PortalMessage, type PortalAttachment } from '../../../services/portalService'
@@ -433,6 +433,17 @@ export function useOrderDetail(orderId: string | undefined) {
       }
     },
   )
+
+  // ── Foreground resume — catch up on events missed while backgrounded ─────
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active' && orderId) {
+        fetchOrder()
+        fetchLatest()
+      }
+    })
+    return () => sub.remove()
+  }, [fetchOrder, fetchLatest, orderId])
 
   // ── Highlight / scroll-to ─────────────────────────────────────────────────
 

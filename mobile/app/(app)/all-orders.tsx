@@ -1,6 +1,6 @@
 import {
   View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity,
-  TextInput, ActivityIndicator, Modal, Platform, Alert, RefreshControl,
+  TextInput, ActivityIndicator, Modal, Platform, Alert, RefreshControl, AppState,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
@@ -962,6 +962,13 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
   useEffect(() => {
     const interval = setInterval(() => fetchOrders(true), 60_000)
     return () => clearInterval(interval)
+  }, [fetchOrders])
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') fetchOrders(true)
+    })
+    return () => sub.remove()
   }, [fetchOrders])
 
   const onRefresh = () => { setRefreshing(true); fetchOrders(true) }

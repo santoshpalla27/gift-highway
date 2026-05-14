@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { AppState, AppStateStatus } from 'react-native'
 import { useAuthStore } from '../store/authStore'
 import { refreshAccessToken } from '../services/tokenRefresh'
 
@@ -58,6 +59,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     const connect = async () => {
       if (destroyedRef.current) return
+      // Guard against double-connecting when already open or mid-handshake
+      if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) return
       const store = useAuthStore.getState()
       if (!store.isAuthenticated || !store.accessToken) return
 
@@ -119,10 +122,22 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       setStatus('disconnected')
     }
 
+    // Reconnect immediately when app comes to foreground instead of waiting for the
+    // backoff timer. The OS often closes the TCP connection while backgrounded, leaving
+    // the socket in a zombie OPEN state — cancel any pending retry and force a fresh connect.
+    const handleAppState = (nextState: AppStateStatus) => {
+      if (nextState !== 'active' || !isAuthenticated) return
+      if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
+      retryRef.current = 0
+      connect()
+    }
+    const appStateSub = AppState.addEventListener('change', handleAppState)
+
     return () => {
       destroyedRef.current = true
       if (timerRef.current) clearTimeout(timerRef.current)
       wsRef.current?.close()
+      appStateSub.remove()
     }
   }, [isAuthenticated])
 
