@@ -333,7 +333,6 @@ export function useOrderDetail(orderId: string | undefined) {
       const newEvs = latest.filter(e => !prevIds.has(e.id))
       // Capture the anchor event (last already-seen event) before mutating state.
       // Used below to pin the "New updates" divider directly before the new events.
-      const prevLastEv = evListRef.current[evListRef.current.length - 1]
       setEvList(prev => {
         const existingIds = new Set(prev.map(e => e.id))
         const toAdd = latest.filter(e => !existingIds.has(e.id))
@@ -343,9 +342,13 @@ export function useOrderDetail(orderId: string | undefined) {
       setTotalEvents(data.total)
       if (newEvs.length > 0) {
         if (atBottomRef.current) {
-          // Advance threshold to just before the new events so the divider renders
-          // directly above them — not above old unread messages from the last visit.
-          if (prevLastEv) setNewSinceAt(prevLastEv.created_at)
+          // Set threshold to 1ms before the first new event so the divider lands
+          // exactly before it. Using prevLastEv.created_at was unreliable: if a
+          // concurrent fetchLatest call had already added some new events by the
+          // time we read evListRef (after the await), prevLastEv would be one of
+          // the new events and the divider would skip to the last message.
+          const justBefore = new Date(new Date(newEvs[0].created_at).getTime() - 1).toISOString()
+          setNewSinceAt(justBefore)
           setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50)
         } else {
           setNewCount(n => n + newEvs.length)
