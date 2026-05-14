@@ -449,6 +449,14 @@ export function useOrderDetail(orderId: string | undefined) {
     return () => sub.remove()
   }, [fetchOrder, fetchLatest, orderId])
 
+  // ── Advance "new updates" threshold while user is at the bottom ───────────
+  // When the user is actively reading (at bottom), move newSinceAt to now so
+  // the next real-time message gets the divider right before it — not before
+  // older unread messages from the previous session.
+  useEffect(() => {
+    if (isAtBottom) setNewSinceAt(new Date().toISOString())
+  }, [isAtBottom])
+
   // ── Highlight / scroll-to ─────────────────────────────────────────────────
 
   const highlightEvent = useCallback((eventId: string) => {
