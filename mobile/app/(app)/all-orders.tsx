@@ -772,7 +772,7 @@ function OrderCard({ order, onOpen, unreadCount = 0 }: {
       </View>
 
       {/* Middle row: Customer name */}
-      <Text style={C.customerName} numberOfLines={1}>{order.customer_name}</Text>
+      <Text style={C.customerName} numberOfLines={1} ellipsizeMode="tail">{order.customer_name}</Text>
 
       {/* Bottom row: Assignee (left) | Delivery date (right) */}
       <View style={C.rowBottom}>
@@ -1281,7 +1281,7 @@ const C = StyleSheet.create({
   statusText: { fontSize: 12, fontWeight: '700' },
 
   // Customer name
-  customerName: { fontSize: 14, fontWeight: '700', color: '#111827' },
+  customerName: { fontSize: 14, fontWeight: '700', color: '#111827', maxWidth: '50%' },
 
   // Bottom row
   rowBottom: {
