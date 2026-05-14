@@ -755,7 +755,7 @@ function OrderCard({ order, onOpen, unreadCount = 0 }: {
           <Text style={C.orderNum} numberOfLines={1}>#{order.title}</Text>
           {unreadCount > 0 && (
             <View style={C.unreadPill}>
-              <Ionicons name="notifications" size={10} color="#fff" />
+              <Ionicons name="notifications" size={12} color="#fff" />
               <Text style={C.unreadPillText}>{unreadCount}</Text>
             </View>
           )}
@@ -1269,8 +1269,9 @@ const C = StyleSheet.create({
   orderNum: { fontSize: 15, fontWeight: '800', color: '#6366F1' },
   unreadPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#6366F1', borderRadius: 10,
-    paddingHorizontal: 7, paddingVertical: 2,
+    backgroundColor: '#EF4444', borderRadius: 10,
+    paddingHorizontal: 8, paddingVertical: 3,
+    shadowColor: '#EF4444', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.45, shadowRadius: 4, elevation: 4,
   },
   unreadPillText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
   topRight: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
