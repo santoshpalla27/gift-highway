@@ -1,5 +1,5 @@
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity,
   TextInput, ActivityIndicator, Modal, Platform, Alert, RefreshControl,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -887,6 +887,8 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
   const [showCreate, setShowCreate] = useState(false)
   const [editOrder, setEditOrder] = useState<Order | null>(null)
   const [userNameMap, setUserNameMap] = useState<Record<string, string>>({})
+  const [loadingMore, setLoadingMore] = useState(false)
+  const currentPage = useRef(1)
 
   // Eagerly resolve user names when assignee filter is set (e.g. arriving from admin metrics)
   useEffect(() => {
@@ -904,19 +906,22 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
   const d0 = new Date()
   const today = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
 
+  const queryParams = useMemo(() => ({
+    search: search || undefined,
+    status: filters.statuses.length ? filters.statuses.join(',') : undefined,
+    priority: filters.priorities.length ? filters.priorities.join(',') : undefined,
+    assigned_to: myOrdersOnly && user ? user.id : (filters.assigneeIds.length ? filters.assigneeIds.join(',') : undefined),
+    overdue: filters.overdueOnly ? '1' : undefined,
+    due_from: filters.overdueOnly ? undefined : filters.dueTodayOnly ? today : (filters.dueDateFrom || undefined),
+    due_to: filters.overdueOnly ? undefined : filters.dueTodayOnly ? today : (filters.dueDateTo || undefined),
+    stale: filters.staleOnly ? '1' : undefined,
+  }), [search, filters, myOrdersOnly, user, today])
+
   const fetchOrders = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true)
+    currentPage.current = 1
     try {
-      const data = await orderService.listOrders({
-        search: search || undefined,
-        status: filters.statuses.length ? filters.statuses.join(',') : undefined,
-        priority: filters.priorities.length ? filters.priorities.join(',') : undefined,
-        assigned_to: myOrdersOnly && user ? user.id : (filters.assigneeIds.length ? filters.assigneeIds.join(',') : undefined),
-        overdue: filters.overdueOnly ? '1' : undefined,
-        due_from: filters.overdueOnly ? undefined : filters.dueTodayOnly ? today : (filters.dueDateFrom || undefined),
-        due_to: filters.overdueOnly ? undefined : filters.dueTodayOnly ? today : (filters.dueDateTo || undefined),
-        stale: filters.staleOnly ? '1' : undefined,
-      })
+      const data = await orderService.listOrders({ ...queryParams, page: 1, limit: 50 })
       setOrders(data.orders)
       setTotal(data.total)
     } catch {
@@ -924,7 +929,23 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
     } finally {
       setLoading(false); setRefreshing(false)
     }
-  }, [search, filters, myOrdersOnly, user])
+  }, [queryParams])
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || filters.unreadOnly) return
+    setLoadingMore(true)
+    const nextPage = currentPage.current + 1
+    try {
+      const data = await orderService.listOrders({ ...queryParams, page: nextPage, limit: 50 })
+      setOrders(prev => [...prev, ...data.orders])
+      setTotal(data.total)
+      currentPage.current = nextPage
+    } catch {
+      // silently fail
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [loadingMore, queryParams, filters.unreadOnly])
 
   const displayedOrders = useMemo(
     () => filters.unreadOnly ? orders.filter(o => (unreadByOrder.get(o.id) ?? 0) > 0) : orders,
@@ -1043,15 +1064,19 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
           )}
         </ScrollView>
       ) : (
-        <ScrollView
+        <FlatList
+          data={displayedOrders}
+          keyExtractor={o => o.id}
+          renderItem={({ item: o }) => (
+            <OrderCard order={o} onOpen={() => router.push(`/order/${o.id}`)} unreadCount={unreadByOrder.get(o.id) ?? 0} />
+          )}
           style={S.list}
           contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40), padding: 12, backgroundColor: '#F8FAFC' }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F172A" />}
-        >
-          {displayedOrders.map(o => (
-            <OrderCard key={o.id} order={o} onOpen={() => router.push(`/order/${o.id}`)} unreadCount={unreadByOrder.get(o.id) ?? 0} />
-          ))}
-        </ScrollView>
+          onEndReached={() => { if (orders.length < total) loadMore() }}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={loadingMore ? <ActivityIndicator style={{ margin: 16 }} color="#6366F1" /> : null}
+        />
       )}
 
       {user?.role === 'admin' && (
