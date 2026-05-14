@@ -59,7 +59,7 @@ export default function AdminMetricsScreen() {
   const [search, setSearch] = useState('')
 
   useEffect(() => {
-    if (user?.role !== 'admin') { router.back(); return }
+    if (user?.role !== 'admin') { router.navigate('/(app)/settings' as any); return }
     fetchMetrics()
   }, [])
 
@@ -92,7 +92,7 @@ export default function AdminMetricsScreen() {
 
       {/* Header */}
       <View style={M.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity onPress={() => router.navigate('/(app)/settings' as any)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <Text style={M.headerTitle}>User Metrics</Text>

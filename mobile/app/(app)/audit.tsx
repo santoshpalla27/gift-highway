@@ -205,7 +205,7 @@ export default function AuditScreen() {
     <View style={S.screen}>
       {/* Header */}
       <View style={[S.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={S.backBtn} onPress={() => router.navigate('/(app)/settings' as any)}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <Text style={S.headerTitle}>Audit Log</Text>

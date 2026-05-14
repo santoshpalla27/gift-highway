@@ -315,7 +315,7 @@ export default function AdminScreen() {
   return (
     <View style={S.screen}>
       <View style={[S.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={S.backBtn} onPress={() => router.navigate('/(app)/settings' as any)}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <Text style={S.headerTitle}>Users</Text>

@@ -152,7 +152,7 @@ export default function ActivityLogScreen() {
     <View style={[S.screen, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={S.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity onPress={() => router.navigate('/(app)/settings' as any)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <Text style={S.headerTitle}>Activity Log</Text>
