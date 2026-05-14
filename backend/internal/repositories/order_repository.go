@@ -21,8 +21,9 @@ type OrderFilter struct {
 	DueFrom    string
 	DueTo      string
 	OverdueOnly bool    // due_date < today AND status NOT IN done/delivered/cancelled
-	StaleOnly  bool     // updated_at < NOW()-7d AND status NOT IN done/delivered/cancelled
-	Page       int
+	StaleOnly       bool   // updated_at < NOW()-7d AND status NOT IN done/delivered/cancelled
+	IncludeArchived bool   // when true, don't filter out archived orders
+	Page            int
 	Limit      int
 	SortBy     string // created_at | updated_at | due_date | order_number
 	SortDir    string // asc | desc
@@ -154,9 +155,11 @@ func (r *OrderRepository) buildWhere(f OrderFilter) (string, []interface{}) {
 func (r *OrderRepository) List(ctx context.Context, f OrderFilter) ([]*models.OrderWithNames, int, error) {
 	where, args := r.buildWhere(f)
 
-	// Active list always excludes archived orders
+	// Active list always excludes archived orders unless explicitly included
 	archiveFilter := "AND o.is_archived = false"
-	if where == "" {
+	if f.IncludeArchived {
+		archiveFilter = ""
+	} else if where == "" {
 		where = "WHERE o.is_archived = false"
 		archiveFilter = ""
 	}

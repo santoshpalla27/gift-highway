@@ -32,7 +32,7 @@ function GlobalSearch() {
     if (q.trim().length < 2) { setResults([]); setOpen(false); return }
     setLoading(true)
     try {
-      const { orders } = await orderService.listOrders({ search: q.trim(), limit: 8 })
+      const { orders } = await orderService.listOrders({ search: q.trim(), limit: 8, include_archived: '1' })
       setResults(orders)
       setOpen(true)
       setSelectedIdx(-1)
@@ -170,13 +170,23 @@ function GlobalSearch() {
                       {order.customer_name}
                     </div>
                   </div>
-                  <span style={{
-                    fontSize: 11, fontWeight: 600,
-                    color: STATUS_META[order.status]?.color ?? '#6B7280',
-                    flexShrink: 0,
-                  }}>
-                    {STATUS_META[order.status]?.label ?? order.status}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    {order.is_archived && (
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, color: '#92400E',
+                        background: '#FEF3C7', border: '1px solid #FDE68A',
+                        borderRadius: 4, padding: '1px 5px', letterSpacing: '0.3px',
+                      }}>
+                        ARCHIVED
+                      </span>
+                    )}
+                    <span style={{
+                      fontSize: 11, fontWeight: 600,
+                      color: STATUS_META[order.status]?.color ?? '#6B7280',
+                    }}>
+                      {STATUS_META[order.status]?.label ?? order.status}
+                    </span>
+                  </div>
                 </div>
               ))}
               <div style={{ padding: '8px 14px', fontSize: 11, color: 'var(--text-tertiary)', borderTop: '1px solid var(--border)', display: 'flex', gap: 12 }}>

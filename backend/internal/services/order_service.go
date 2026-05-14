@@ -61,8 +61,9 @@ type ListOrdersParams struct {
 	DueFrom     string
 	DueTo       string
 	OverdueOnly bool
-	StaleOnly   bool
-	Page       int
+	StaleOnly       bool
+	IncludeArchived bool
+	Page            int
 	Limit      int
 	SortBy     string
 	SortDir    string
@@ -78,8 +79,9 @@ func (s *OrderService) ListOrders(ctx context.Context, p ListOrdersParams) ([]*m
 		DueFrom:     p.DueFrom,
 		DueTo:       p.DueTo,
 		OverdueOnly: p.OverdueOnly,
-		StaleOnly:   p.StaleOnly,
-		Page:       p.Page,
+		StaleOnly:       p.StaleOnly,
+		IncludeArchived: p.IncludeArchived,
+		Page:            p.Page,
 		Limit:      p.Limit,
 		SortBy:     p.SortBy,
 		SortDir:    p.SortDir,

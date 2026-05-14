@@ -46,6 +46,7 @@ export interface ListOrdersParams {
   stale?: string
   sort_by?: string
   sort_dir?: string
+  include_archived?: string
 }
 
 export interface UserOption {
