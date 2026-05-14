@@ -1,7 +1,7 @@
 import { Stack, router } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
-import { View, ActivityIndicator, Platform } from 'react-native'
+import { View, ActivityIndicator, Platform, InteractionManager } from 'react-native'
 import { SocketProvider } from '../providers/SocketProvider'
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent'
 import * as Notifications from 'expo-notifications'
@@ -52,6 +52,9 @@ function AppNavigator() {
   // Step 4 — cold-start: app was dead when the user tapped a push notification.
   // getLastNotificationResponseAsync() returns the tap that launched the app.
   // Runs once after the base screen exists (routed=true) and the user is logged in.
+  // InteractionManager.runAfterInteractions defers the push until the /(app) replace
+  // animation from Step 1 has fully settled — without it, push can fire before
+  // /(app) is in the stack, leaving the order screen with no parent and no back button.
   useEffect(() => {
     if (!routed || !authReady || !isAuthenticated || Platform.OS === 'web') return
     if (coldStartChecked.current) return
@@ -61,7 +64,9 @@ function AppNavigator() {
       const data = response.notification.request.content.data as Record<string, unknown>
       if (data?.screen === 'order' && data?.order_id) {
         markColdStartHandled(response.notification.request.identifier)
-        router.push(`/order/${data.order_id}` as any)
+        InteractionManager.runAfterInteractions(() => {
+          router.push(`/order/${data.order_id}` as any)
+        })
       }
     })
   }, [routed, authReady, isAuthenticated])
