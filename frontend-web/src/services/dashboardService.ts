@@ -14,6 +14,7 @@ export interface TeamStats {
   due_today: number
   unread_customer: number
   stale_orders: number
+  unassigned_orders: number
 }
 
 export interface MyStats {
@@ -50,7 +51,6 @@ export interface TeamDashboard {
   overdue_orders: DashboardOrder[]
   stale_orders: DashboardOrder[]
   unread_customer_orders: DashboardOrder[]
-  unassigned_orders?: DashboardOrder[]
 }
 
 export interface MyDashboard {
@@ -61,10 +61,25 @@ export interface MyDashboard {
 }
 
 
+export interface SectionPageResult {
+  orders: DashboardOrder[]
+  has_more: boolean
+}
+
 export const dashboardService = {
   getTeam: (): Promise<TeamDashboard> =>
     apiClient.get<TeamDashboard>('/dashboard/team', { params: { local_date: localDateStr() } }).then(r => r.data),
 
   getMe: (): Promise<MyDashboard> =>
     apiClient.get<MyDashboard>('/dashboard/me', { params: { local_date: localDateStr() } }).then(r => r.data),
+
+  fetchTeamSection: (type: string, offset: number, limit = 10): Promise<SectionPageResult> =>
+    apiClient.get<SectionPageResult>('/dashboard/team/section', {
+      params: { type, offset, limit, local_date: localDateStr() },
+    }).then(r => r.data),
+
+  fetchMySection: (type: string, offset: number, limit = 10): Promise<SectionPageResult> =>
+    apiClient.get<SectionPageResult>('/dashboard/me/section', {
+      params: { type, offset, limit, local_date: localDateStr() },
+    }).then(r => r.data),
 }

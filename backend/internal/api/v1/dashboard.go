@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/company/app/backend/internal/services"
@@ -51,6 +52,38 @@ func (h *DashboardHandler) GetMyDashboard(c *gin.Context) {
 	data, err := h.svc.GetMyDashboard(c.Request.Context(), uid, localDate(c))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load my dashboard"})
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func (h *DashboardHandler) GetTeamSectionPage(c *gin.Context) {
+	section := c.Query("type")
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+	data, err := h.svc.GetTeamSectionPage(c.Request.Context(), section, localDate(c), offset, limit)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func (h *DashboardHandler) GetMySectionPage(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	uid, _ := userID.(string)
+	section := c.Query("type")
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+	data, err := h.svc.GetMySectionPage(c.Request.Context(), uid, section, localDate(c), offset, limit)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, data)

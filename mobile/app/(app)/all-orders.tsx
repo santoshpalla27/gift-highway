@@ -854,7 +854,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
   const { user } = useAuthStore()
   const { isOnline } = useNetworkStatus()
   const { unreadByOrder } = useNotifications(myOrdersOnly ? { mineOnly: true } : {})
-  const params = useLocalSearchParams<{ status?: string; priority?: string; today?: string; overdue?: string; stale?: string; assignee?: string; _t?: string }>()
+  const params = useLocalSearchParams<{ status?: string; priority?: string; today?: string; overdue?: string; stale?: string; assignee?: string; unassigned?: string; _t?: string }>()
   const [orders, setOrders] = useState<Order[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -870,7 +870,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
   useEffect(() => {
     // _t is a nonce added by dashboard taps to force the effect to re-run even when
     // the filter value is the same as a previous navigation (e.g. tapping "Yet to Start" twice).
-    const key = `${params.status ?? ''}|${params.overdue ?? ''}|${params.today ?? ''}|${params.stale ?? ''}|${params.assignee ?? ''}|${params._t ?? ''}`
+    const key = `${params.status ?? ''}|${params.overdue ?? ''}|${params.today ?? ''}|${params.stale ?? ''}|${params.assignee ?? ''}|${params.unassigned ?? ''}|${params._t ?? ''}`
     if (key === lastParamsKey.current) return
     lastParamsKey.current = key
     setFilters({
@@ -880,9 +880,9 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
       overdueOnly:  params.overdue === '1',
       dueTodayOnly: params.today === '1',
       staleOnly:    params.stale === '1',
-      assigneeIds:  params.assignee ? [params.assignee] : [],
+      assigneeIds:  params.unassigned === '1' ? ['unassigned'] : (params.assignee ? [params.assignee] : []),
     })
-  }, [params.status, params.overdue, params.today, params.stale, params.assignee, params._t])
+  }, [params.status, params.overdue, params.today, params.stale, params.assignee, params.unassigned, params._t])
   const [showCreate, setShowCreate] = useState(false)
   const [editOrder, setEditOrder] = useState<Order | null>(null)
   const [userNameMap, setUserNameMap] = useState<Record<string, string>>({})

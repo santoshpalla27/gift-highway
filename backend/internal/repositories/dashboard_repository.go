@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -29,6 +30,7 @@ type TeamStats struct {
 	DueToday               int `db:"due_today"                 json:"due_today"`
 	UnreadCustomer         int `db:"unread_customer"           json:"unread_customer"`
 	StaleOrders            int `db:"stale_orders"              json:"stale_orders"`
+	UnassignedOrders       int `db:"unassigned_orders"         json:"unassigned_orders"`
 }
 
 type MyStats struct {
@@ -105,7 +107,13 @@ func (r *DashboardRepository) GetTeamStats(ctx context.Context, localDate string
 				) latest
 				WHERE sender_type = 'customer'
 			) AS unread_customer,
-			COUNT(*) FILTER (WHERE updated_at < NOW() - INTERVAL '7 days' AND status NOT IN ('done','delivered','cancelled')) AS stale_orders
+			COUNT(*) FILTER (WHERE updated_at < NOW() - INTERVAL '7 days' AND status NOT IN ('done','delivered','cancelled')) AS stale_orders,
+			(
+				SELECT COUNT(*) FROM orders o2
+				WHERE NOT EXISTS (SELECT 1 FROM order_assignees oa WHERE oa.order_id = o2.id)
+				AND o2.status NOT IN ('done','delivered','cancelled')
+				AND o2.is_archived = false
+			) AS unassigned_orders
 		FROM orders
 		WHERE is_archived = false
 	`, localDate)
@@ -158,7 +166,7 @@ func (r *DashboardRepository) GetDueTodayOrders(ctx context.Context, localDate s
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
 		WHERE o.due_date = $1::date AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
 		ORDER BY CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END, o.order_number
-		LIMIT 10
+		LIMIT 15
 	`, localDate)
 	return orders, err
 }
@@ -179,7 +187,7 @@ func (r *DashboardRepository) GetStaleOrders(ctx context.Context) ([]DashboardOr
 	err := r.db.SelectContext(ctx, &orders, dashboardOrderSelect+`
 		WHERE o.updated_at < NOW() - INTERVAL '7 days' AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
 		ORDER BY o.updated_at ASC
-		LIMIT 10
+		LIMIT 15
 	`)
 	return orders, err
 }
@@ -210,7 +218,7 @@ func (r *DashboardRepository) GetUnassignedOrders(ctx context.Context) ([]Dashbo
 		)
 		AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
 		ORDER BY CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END, o.order_number
-		LIMIT 20
+		LIMIT 15
 	`)
 	return orders, err
 }
@@ -302,5 +310,100 @@ func (r *DashboardRepository) GetMyUnreadCustomerOrders(ctx context.Context, use
 		ORDER BY o.updated_at DESC
 		LIMIT 15
 	`, userID)
+	return orders, err
+}
+
+func (r *DashboardRepository) GetTeamSectionPage(ctx context.Context, section, localDate string, offset, limit int) ([]DashboardOrder, error) {
+	var q string
+	var args []interface{}
+	switch section {
+	case "due_today":
+		args = []interface{}{localDate, limit, offset}
+		q = dashboardOrderSelect + `
+			WHERE o.due_date = $1::date AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
+			ORDER BY CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END, o.order_number
+			LIMIT $2 OFFSET $3`
+	case "overdue":
+		args = []interface{}{localDate, limit, offset}
+		q = dashboardOrderSelect + `
+			WHERE o.due_date < $1::date AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
+			ORDER BY o.due_date ASC, CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END
+			LIMIT $2 OFFSET $3`
+	case "stale":
+		args = []interface{}{limit, offset}
+		q = dashboardOrderSelect + `
+			WHERE o.updated_at < NOW() - INTERVAL '7 days' AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
+			ORDER BY o.updated_at ASC
+			LIMIT $1 OFFSET $2`
+	case "unread":
+		args = []interface{}{limit, offset}
+		q = dashboardOrderSelect + `
+			WHERE o.id IN (
+				SELECT order_id FROM (
+					SELECT DISTINCT ON (order_id) order_id, sender_type
+					FROM portal_messages
+					ORDER BY order_id, created_at DESC
+				) latest
+				WHERE sender_type = 'customer'
+			)
+			AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
+			ORDER BY o.updated_at DESC
+			LIMIT $1 OFFSET $2`
+	case "unassigned":
+		args = []interface{}{limit, offset}
+		q = dashboardOrderSelect + `
+			WHERE NOT EXISTS (
+				SELECT 1 FROM order_assignees oa WHERE oa.order_id = o.id
+			)
+			AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
+			ORDER BY CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END, o.order_number
+			LIMIT $1 OFFSET $2`
+	default:
+		return nil, fmt.Errorf("unknown team section: %s", section)
+	}
+	var orders []DashboardOrder
+	err := r.db.SelectContext(ctx, &orders, q, args...)
+	return orders, err
+}
+
+func (r *DashboardRepository) GetMySectionPage(ctx context.Context, userID, section, localDate string, offset, limit int) ([]DashboardOrder, error) {
+	var q string
+	var args []interface{}
+	switch section {
+	case "due_today":
+		args = []interface{}{userID, localDate, limit, offset}
+		q = dashboardOrderSelect + `
+			JOIN order_assignees oa ON o.id = oa.order_id
+			WHERE oa.user_id = $1 AND o.due_date = $2::date AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
+			ORDER BY CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END, o.order_number
+			LIMIT $3 OFFSET $4`
+	case "overdue":
+		args = []interface{}{userID, localDate, limit, offset}
+		q = dashboardOrderSelect + `
+			JOIN order_assignees oa ON o.id = oa.order_id
+			WHERE oa.user_id = $1 AND o.due_date < $2::date AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
+			ORDER BY o.due_date ASC, CASE o.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END
+			LIMIT $3 OFFSET $4`
+	case "unread":
+		args = []interface{}{userID, limit, offset}
+		q = dashboardOrderSelect + `
+			JOIN order_assignees oa ON o.id = oa.order_id
+			WHERE oa.user_id = $1
+			AND o.id IN (
+				SELECT order_id FROM (
+					SELECT DISTINCT ON (order_id) order_id, sender_type
+					FROM portal_messages
+					ORDER BY order_id, created_at DESC
+				) latest
+				WHERE sender_type = 'customer'
+			)
+			AND o.status NOT IN ('done','delivered','cancelled') AND o.is_archived = false
+			ORDER BY o.updated_at DESC
+			LIMIT $2 OFFSET $3`
+	default:
+		return nil, fmt.Errorf("unknown my section: %s", section)
+	}
+	var orders []DashboardOrder
+	err := r.db.SelectContext(ctx, &orders, q, args...)
 	return orders, err
 }

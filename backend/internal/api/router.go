@@ -140,7 +140,9 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 			dashboardGroup := protected.Group("/dashboard")
 			{
 				dashboardGroup.GET("/team", dashboardHandler.GetTeamDashboard)
+				dashboardGroup.GET("/team/section", dashboardHandler.GetTeamSectionPage)
 				dashboardGroup.GET("/me", dashboardHandler.GetMyDashboard)
+				dashboardGroup.GET("/me/section", dashboardHandler.GetMySectionPage)
 			}
 
 			// Users list for assignment dropdowns

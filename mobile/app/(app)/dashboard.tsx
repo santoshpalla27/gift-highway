@@ -154,8 +154,6 @@ function TeamTab({ data, refreshing, onRefresh }: {
   const insets = useSafeAreaInsets()
   const { stats } = data
 
-  const go = (id: string) => router.push(`/order/${id}` as any)
-
   const kpis: { label: string; value: number; color: string; icon: keyof typeof Ionicons.glyphMap; onPress?: () => void }[] = [
     { label: 'Total Orders',       value: stats.total_orders,              color: '#6366F1', icon: 'layers-outline',         onPress: () => router.push('/(app)/all-orders' as any) },
     { label: 'Yet to Start',       value: stats.new_orders,                color: '#6B7280', icon: 'add-circle-outline',     onPress: () => router.push({ pathname: '/(app)/all-orders', params: { status: 'yet_to_start', _t: Date.now().toString() } } as any) },
@@ -168,7 +166,10 @@ function TeamTab({ data, refreshing, onRefresh }: {
     { label: 'Due Today',          value: stats.due_today,                 color: '#F59E0B', icon: 'time-outline',           onPress: () => router.push({ pathname: '/(app)/all-orders', params: { today: '1', _t: Date.now().toString() } } as any) },
     { label: 'Overdue',            value: stats.overdue,                   color: '#EF4444', icon: 'alert-circle-outline',   onPress: () => router.push({ pathname: '/(app)/all-orders', params: { overdue: '1', _t: Date.now().toString() } } as any) },
     { label: 'Stale (7+ days)',    value: stats.stale_orders,              color: '#F97316', icon: 'hourglass-outline',      onPress: () => router.push({ pathname: '/(app)/all-orders', params: { stale: '1', _t: Date.now().toString() } } as any) },
+    { label: 'Unassigned',         value: stats.unassigned_orders,         color: '#F97316', icon: 'person-add-outline',      onPress: () => router.push({ pathname: '/(app)/all-orders', params: { unassigned: '1', _t: Date.now().toString() } } as any) },
   ]
+
+  const go = (id: string) => router.push(`/order/${id}` as any)
 
   return (
     <ScrollView
@@ -179,20 +180,6 @@ function TeamTab({ data, refreshing, onRefresh }: {
       <View style={S.kpiGrid}>
         {kpis.map(k => <KpiCard key={k.label} {...k} />)}
       </View>
-
-      {(data.unassigned_orders ?? []).length > 0 && (
-        <SectionCard
-          title="Unassigned Orders"
-          count={(data.unassigned_orders ?? []).length}
-          emptyText=""
-          badgeColor="#F97316"
-          onViewAll={() => router.push({ pathname: '/(app)/all-orders', params: { unassigned: '1', _t: Date.now().toString() } } as any)}
-        >
-          {(data.unassigned_orders ?? []).map(o => (
-            <OrderRow key={o.id} order={o} onPress={() => go(o.id)} />
-          ))}
-        </SectionCard>
-      )}
 
       <SectionCard title="Due Today" count={(data.due_today_list ?? []).length} emptyText="No orders due today"
         onViewAll={() => router.push({ pathname: '/(app)/all-orders', params: { today: '1', _t: Date.now().toString() } } as any)}>
@@ -221,8 +208,6 @@ function MyTab({ data, refreshing, onRefresh }: {
   const insets = useSafeAreaInsets()
   const { stats } = data
 
-  const go = (id: string) => router.push(`/order/${id}` as any)
-
   const kpis: { label: string; value: number; color: string; icon: keyof typeof Ionicons.glyphMap; onPress?: () => void }[] = [
     { label: 'Total Orders',       value: stats.total_orders,              color: '#6366F1', icon: 'layers-outline',         onPress: () => router.push('/(app)/my-orders' as any) },
     { label: 'Yet to Start',       value: stats.new_orders,                color: '#6B7280', icon: 'add-circle-outline',     onPress: () => router.push({ pathname: '/(app)/my-orders', params: { status: 'yet_to_start', _t: Date.now().toString() } } as any) },
@@ -235,6 +220,8 @@ function MyTab({ data, refreshing, onRefresh }: {
     { label: 'Due Today',          value: stats.due_today,                 color: '#F59E0B', icon: 'time-outline',           onPress: () => router.push({ pathname: '/(app)/my-orders', params: { today: '1', _t: Date.now().toString() } } as any) },
     { label: 'Overdue',            value: stats.overdue,                   color: '#EF4444', icon: 'alert-circle-outline',   onPress: () => router.push({ pathname: '/(app)/my-orders', params: { overdue: '1', _t: Date.now().toString() } } as any) },
   ]
+
+  const go = (id: string) => router.push(`/order/${id}` as any)
 
   return (
     <ScrollView

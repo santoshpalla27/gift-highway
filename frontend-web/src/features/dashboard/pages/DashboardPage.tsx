@@ -91,7 +91,7 @@ function OrderRow({ order, onClick }: { order: DashboardOrder; onClick: () => vo
 // ─── Section Card ─────────────────────────────────────────────────────────────
 
 function SectionCard({ title, count, children, onViewAll, emptyText, badgeColor }: {
-  title: string; count?: number; children: React.ReactNode; onViewAll?: () => void; emptyText?: string; badgeColor?: string
+  title: string; count?: number; children?: React.ReactNode; onViewAll?: () => void; emptyText?: string; badgeColor?: string
 }) {
   return (
     <div style={{ background: 'var(--surface)', border: `1px solid ${badgeColor ? badgeColor + '40' : 'var(--border)'}`, borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
@@ -155,6 +155,8 @@ function TeamDashboardTab() {
       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> },
     { label: 'Stale (7+ days)', value: s?.stale_orders, color: '#F97316', onClick: () => navigate('/orders?stale=1'),
       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> },
+    { label: 'Unassigned', value: s?.unassigned_orders, color: '#F97316', onClick: () => navigate('/orders?unassigned=1'),
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg> },
   ]
 
   return (
@@ -163,20 +165,6 @@ function TeamDashboardTab() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
         {kpis.map(k => <KpiCard key={k.label} loading={isLoading} {...k} />)}
       </div>
-
-      {/* Unassigned orders — only shown when present */}
-      {(data?.unassigned_orders ?? []).length > 0 && (
-        <SectionCard
-          title="Unassigned Orders"
-          count={(data?.unassigned_orders ?? []).length}
-          onViewAll={() => navigate('/orders?unassigned=1')}
-          badgeColor="#F97316"
-        >
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
-            {(data?.unassigned_orders ?? []).map(o => <OrderRow key={o.id} order={o} onClick={() => navigate(`/orders/${o.id}`)} />)}
-          </div>
-        </SectionCard>
-      )}
 
       {/* Row 2: Due today + Overdue */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>

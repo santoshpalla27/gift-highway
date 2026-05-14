@@ -63,7 +63,7 @@ function getInitials(name: string) {
 const pillListItem = (active: boolean): React.CSSProperties => ({
   padding: '9px 14px', fontSize: 13, cursor: 'pointer',
   background: active ? '#EEF2FF' : 'transparent',
-  color: active ? '#6366F1' : '#374151',
+  color: active ? '#4F46E5' : '#374151',
   fontWeight: active ? 600 : 400,
   display: 'flex', alignItems: 'center', gap: 8,
 })
@@ -83,7 +83,7 @@ function SortTh({
       style={{
         padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700,
         textTransform: 'uppercase', letterSpacing: '.5px',
-        color: active ? '#6366F1' : '#9CA3AF',
+        color: active ? '#4F46E5' : '#9CA3AF',
         background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap',
         userSelect: 'none', cursor: 'pointer',
         ...style,
@@ -116,7 +116,11 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
   const priorityFilter = searchParams.get('priority') ?? ''
   const priorityFilters = priorityFilter ? priorityFilter.split(',').filter(Boolean) : []
   const assigneeRaw    = searchParams.get('assignee') ?? ''
-  const assigneeIds    = assigneeRaw ? assigneeRaw.split(',').filter(Boolean) : []
+  const unassignedParam = searchParams.get('unassigned') === '1'
+  const assigneeIds    = [
+    ...(unassignedParam ? ['unassigned'] : []),
+    ...(assigneeRaw ? assigneeRaw.split(',').filter(Boolean) : []),
+  ]
   const dueDateFrom    = searchParams.get('due_from') ?? ''
   const dueDateTo      = searchParams.get('due_to') ?? ''
   const overdueOnly    = searchParams.get('overdue') === '1'
@@ -189,7 +193,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
     search: search || undefined,
     status: statusFilter || undefined,
     priority: priorityFilter || undefined,
-    assigned_to: myOrdersOnly && user ? user.id : (assigneeRaw || undefined),
+    assigned_to: myOrdersOnly && user ? user.id : (assigneeIds.length ? assigneeIds.join(',') : undefined),
     overdue: overdueOnly ? '1' : undefined,
     due_from: overdueOnly ? undefined : dueTodayOnly ? today : (dueDateFrom || undefined),
     due_to: overdueOnly ? undefined : dueTodayOnly ? today : (dueDateTo || undefined),
@@ -214,7 +218,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
     if (!isLoading && total > 0 && page > totalPages) gotoPage(totalPages)
   }, [isLoading, total, page, totalPages])
 
-  const hasFilters = !!(statusFilter || priorityFilter || assigneeRaw || dueDateFrom || dueDateTo || overdueOnly || dueTodayOnly || unreadOnly || staleOnly)
+  const hasFilters = !!(statusFilter || priorityFilter || assigneeRaw || unassignedParam || dueDateFrom || dueDateTo || overdueOnly || dueTodayOnly || unreadOnly || staleOnly)
 
   function clearAll() {
     setSearchParams(prev => {
@@ -573,7 +577,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
             padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
             border: `1.5px solid ${unreadOnly ? '#6366F1' : '#E4E6EF'}`,
             background: unreadOnly ? '#EEF2FF' : '#FFFFFF',
-            color: unreadOnly ? '#6366F1' : '#374151',
+            color: unreadOnly ? '#4F46E5' : '#374151',
             cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
             transition: 'all 120ms ease',
           }}
@@ -617,9 +621,8 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Status</th>
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Assigned</th>
                 <SortTh label="Delivery"  field="due_date"     sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Priority</th>
                 <SortTh label="Activity"  field="updated_at"   sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Unread</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Alerts</th>
               </tr>
             </thead>
             <tbody>
@@ -627,7 +630,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                 <TableSkeleton rows={7} cols={6} />
               ) : orders.length === 0 ? (
                 <tr style={{ background: '#FFFFFF', cursor: 'default' }}>
-                  <td colSpan={8}>
+                  <td colSpan={7}>
                     <EmptyState
                       title={hasFilters || search ? 'No matching orders' : myOrdersOnly ? 'No orders assigned to you' : 'No orders yet'}
                       description={hasFilters || search ? 'Try adjusting your filters.' : 'Create the first order to get started.'}
@@ -644,8 +647,8 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
 
                 return (
                   <tr key={order.id} onClick={() => navigate(`/orders/${order.id}`)}>
-                    <td><span style={{ fontWeight: 700, fontSize: 13.5, color: '#6366F1' }}>#{order.title}</span></td>
-                    <td><span style={{ fontWeight: 600, fontSize: 13.5, color: '#111827' }}>{order.customer_name}</span></td>
+                    <td style={{ maxWidth: 220 }}><span style={{ fontWeight: 700, fontSize: 13.5, color: '#2563EB', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>#{order.title}</span></td>
+                    <td style={{ maxWidth: 180 }}><span style={{ fontWeight: 600, fontSize: 13.5, color: '#111827', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.customer_name}</span></td>
                     <td><StatusBadge status={order.status} /></td>
                     <td>
                       {order.assigned_names?.length > 0 ? (
@@ -672,21 +675,6 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                           {due.formatted}{due.isOverdue && ' (Overdue)'}
                         </span>
                       ) : <span style={{ color: '#9CA3AF' }}>—</span>}
-                    </td>
-                    <td>
-                      {order.priority && (() => {
-                        const pm = PRIORITY_META[order.priority]
-                        return pm ? (
-                          <span style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px',
-                            borderRadius: 9999, fontSize: 11, fontWeight: 600,
-                            color: pm.color, background: pm.bg, whiteSpace: 'nowrap',
-                          }}>
-                            <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor' }} />
-                            {pm.label}
-                          </span>
-                        ) : null
-                      })()}
                     </td>
                     <td style={{ fontSize: 12.5, color: dateColor, fontWeight: dateColor === '#111827' ? 500 : 400 }}>
                       {updatedText}
@@ -777,14 +765,13 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
       {toast && (
         <div style={{
           position: 'fixed', bottom: 28, right: 28, zIndex: 1000,
-          background: 'var(--surface)', color: 'var(--text-primary)', padding: '12px 20px',
-          borderRadius: 'var(--radius-md)', fontSize: 14, fontWeight: 500,
-          border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-lg)',
+          background: '#111827', color: '#FFFFFF', padding: '12px 20px',
+          borderRadius: 10, fontSize: 14, fontWeight: 500,
+          boxShadow: '0 8px 32px rgba(0,0,0,.12)',
           display: 'flex', alignItems: 'center', gap: 10,
           animation: 'slideInToast 200ms cubic-bezier(.4,0,.2,1)',
         }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
           {toast}
         </div>
       )}
