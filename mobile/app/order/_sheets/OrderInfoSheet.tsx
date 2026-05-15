@@ -1,6 +1,6 @@
 import {
   View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView,
-  TextInput, ActivityIndicator, Alert, Platform, Share,
+  TextInput, ActivityIndicator, Alert, Platform, Share, Linking,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -66,8 +66,8 @@ export function InfoSheet({ order, portal, onClose, onPortalChange, onArchived }
 
   return (
     <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-        <View style={[E.header, { paddingTop: insets.top + 16 }]}>
+      <View style={{ flex: 1, backgroundColor: '#F1F5F9' }}>
+        <View style={[E.header, { paddingTop: insets.top + 16, backgroundColor: '#FFFFFF' }]}>
           <TouchableOpacity
             onPress={onClose}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -79,105 +79,156 @@ export function InfoSheet({ order, portal, onClose, onPortalChange, onArchived }
           <Text style={E.headerTitle}>Order Info</Text>
           <View style={{ width: 44 }} />
         </View>
-        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: Math.max(insets.bottom + 16, 48) }}>
 
-          <View style={IN.section}>
-            <Text style={IN.label}>ORDER ID</Text>
-            <Text style={IN.value}>#{order.title}</Text>
-          </View>
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom + 16, 48) }}>
 
-          <View style={IN.section}>
-            <Text style={IN.label}>CUSTOMER</Text>
-            <Text style={IN.value}>{order.customer_name}</Text>
-            {!!order.contact_number && <Text style={IN.sub}>{order.contact_number}</Text>}
-          </View>
-
-          <View style={IN.section}>
-            <Text style={IN.label}>STATUS</Text>
-            <View style={[IN.badge, { backgroundColor: sm.bg }]}>
-              <Text style={[IN.badgeText, { color: sm.color }]}>{sm.label}</Text>
+          {/* Card 1: Order ID + Customer */}
+          <View style={IN.card}>
+            <View style={IN.row}>
+              <View style={IN.rowLabel}>
+                <Ionicons name="receipt-outline" size={13} color="#9CA3AF" />
+                <Text style={IN.label}>ORDER ID</Text>
+              </View>
+              <Text style={IN.value}>#{order.title}</Text>
             </View>
-          </View>
-
-          <View style={IN.section}>
-            <Text style={IN.label}>PRIORITY</Text>
-            <View style={[IN.badge, { backgroundColor: pm.bg }]}>
-              <Text style={[IN.badgeText, { color: pm.color }]}>{pm.label}</Text>
-            </View>
-          </View>
-
-          {order.assigned_names && order.assigned_names.length > 0 && (
-            <View style={IN.section}>
-              <Text style={IN.label}>ASSIGNED TO</Text>
-              <View style={{ gap: 8, marginTop: 2 }}>
-                {order.assigned_names.map((name, i) => (
-                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <View style={IN.avatar}>
-                      <Text style={IN.avatarText}>{getInitials(name)}</Text>
-                    </View>
-                    <Text style={IN.value}>{name}</Text>
-                  </View>
-                ))}
+            <View style={IN.divider} />
+            <View style={IN.row}>
+              <View style={IN.rowLabel}>
+                <Ionicons name="person-outline" size={13} color="#9CA3AF" />
+                <Text style={IN.label}>CUSTOMER</Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={IN.value}>{order.customer_name}</Text>
+                {!!order.contact_number && (
+                  <TouchableOpacity onPress={() => Linking.openURL(`tel:${order.contact_number}`)}>
+                    <Text style={IN.contactLink}>{order.contact_number}</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
-          )}
-
-          {due && (
-            <View style={IN.section}>
-              <Text style={IN.label}>DUE DATE</Text>
-              <Text style={[IN.value, dueOverdue && { color: '#EF4444' }]}>
-                {formatDate(order.due_date)}
-                {order.due_time ? `  ·  ${fmt12hrStr(order.due_time)}` : ''}
-                {dueOverdue ? '  ·  Overdue' : ''}
-              </Text>
-            </View>
-          )}
-
-          <View style={IN.section}>
-            <Text style={IN.label}>CREATED BY</Text>
-            <Text style={IN.value}>{order.created_by_name}</Text>
-            <Text style={IN.sub}>{formatDate(order.created_at)}</Text>
           </View>
 
+          {/* Card 2: Status + Priority side by side */}
+          <View style={[IN.card, { flexDirection: 'row' }]}>
+            <View style={{ flex: 1, alignItems: 'center', paddingVertical: 16 }}>
+              <View style={IN.rowLabel}>
+                <Ionicons name="ellipse-outline" size={12} color="#9CA3AF" />
+                <Text style={IN.label}>STATUS</Text>
+              </View>
+              <View style={[IN.badge, { backgroundColor: sm.bg, marginTop: 8 }]}>
+                <Text style={[IN.badgeText, { color: sm.color }]}>{sm.label}</Text>
+              </View>
+            </View>
+            <View style={IN.vDivider} />
+            <View style={{ flex: 1, alignItems: 'center', paddingVertical: 16 }}>
+              <View style={IN.rowLabel}>
+                <Ionicons name="flag-outline" size={12} color="#9CA3AF" />
+                <Text style={IN.label}>PRIORITY</Text>
+              </View>
+              <View style={[IN.badge, { backgroundColor: pm.bg, marginTop: 8 }]}>
+                <Text style={[IN.badgeText, { color: pm.color }]}>{pm.label}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Card 3: Assignment + Dates + Created By */}
+          <View style={IN.card}>
+            {order.assigned_names && order.assigned_names.length > 0 && (
+              <>
+                <View style={IN.row}>
+                  <View style={IN.rowLabel}>
+                    <Ionicons name="people-outline" size={13} color="#9CA3AF" />
+                    <Text style={IN.label}>ASSIGNED TO</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                    {order.assigned_names.map((name, i) => (
+                      <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={IN.value}>{name}</Text>
+                        <View style={IN.avatar}>
+                          <Text style={IN.avatarText}>{getInitials(name)}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+                <View style={IN.divider} />
+              </>
+            )}
+            {due && (
+              <>
+                <View style={IN.row}>
+                  <View style={IN.rowLabel}>
+                    <Ionicons name="calendar-outline" size={13} color="#9CA3AF" />
+                    <Text style={IN.label}>DUE DATE</Text>
+                  </View>
+                  <Text style={[IN.value, dueOverdue && { color: '#EF4444' }]}>
+                    {formatDate(order.due_date)}
+                    {order.due_time ? `  ·  ${fmt12hrStr(order.due_time)}` : ''}
+                    {dueOverdue ? '  ·  Overdue' : ''}
+                  </Text>
+                </View>
+                <View style={IN.divider} />
+              </>
+            )}
+            <View style={IN.row}>
+              <View style={IN.rowLabel}>
+                <Ionicons name="time-outline" size={13} color="#9CA3AF" />
+                <Text style={IN.label}>CREATED BY</Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={IN.value}>{order.created_by_name}</Text>
+                <Text style={IN.sub}>{formatDate(order.created_at)}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Card 4: Description */}
           {!!order.description && (
-            <View style={IN.section}>
-              <Text style={IN.label}>DESCRIPTION</Text>
-              <Text style={[IN.value, { lineHeight: 22 }]}>{order.description}</Text>
+            <View style={IN.card}>
+              <View style={[IN.row, { paddingBottom: 6 }]}>
+                <View style={IN.rowLabel}>
+                  <Ionicons name="document-text-outline" size={13} color="#9CA3AF" />
+                  <Text style={IN.label}>DESCRIPTION</Text>
+                </View>
+              </View>
+              <Text selectable style={IN.descText}>{order.description}</Text>
             </View>
           )}
 
           {/* PORTAL HIDDEN: CUSTOMER PORTAL section removed — see docs/portal-hidden.md to restore */}
 
-          {isAdmin && <View style={IN.archiveSection}>
-            <TouchableOpacity
-              style={IN.archiveBtn}
-              disabled={archiveLoading}
-              onPress={() => Alert.alert(
-                'Archive order?',
-                'The order will be moved to Trash. You can restore it later.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Archive', style: 'destructive', onPress: async () => {
-                    setArchiveLoading(true)
-                    try {
-                      await orderService.archiveOrder(order.id)
-                      onClose()
-                      onArchived?.()
-                    } catch { Alert.alert('Error', 'Could not archive order') }
-                    finally { setArchiveLoading(false) }
-                  }},
-                ],
-              )}
-            >
-              {archiveLoading
-                ? <ActivityIndicator size="small" color="#EF4444" />
-                : <>
-                    <Ionicons name="archive-outline" size={15} color="#EF4444" />
-                    <Text style={IN.archiveBtnText}>Archive Order</Text>
-                  </>
-              }
-            </TouchableOpacity>
-          </View>}
+          {isAdmin && (
+            <View style={IN.archiveSection}>
+              <TouchableOpacity
+                style={IN.archiveBtn}
+                disabled={archiveLoading}
+                onPress={() => Alert.alert(
+                  'Archive order?',
+                  'The order will be moved to Trash. You can restore it later.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Archive', style: 'destructive', onPress: async () => {
+                      setArchiveLoading(true)
+                      try {
+                        await orderService.archiveOrder(order.id)
+                        onClose()
+                        onArchived?.()
+                      } catch { Alert.alert('Error', 'Could not archive order') }
+                      finally { setArchiveLoading(false) }
+                    }},
+                  ],
+                )}
+              >
+                {archiveLoading
+                  ? <ActivityIndicator size="small" color="#EF4444" />
+                  : <>
+                      <Ionicons name="archive-outline" size={16} color="#EF4444" />
+                      <Text style={IN.archiveBtnText}>Archive Order</Text>
+                    </>
+                }
+              </TouchableOpacity>
+            </View>
+          )}
         </ScrollView>
       </View>
     </Modal>
@@ -448,21 +499,23 @@ const E = StyleSheet.create({
 })
 
 const IN = StyleSheet.create({
-  section: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  label: { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 0.6, marginBottom: 6 },
-  value: { fontSize: 14, fontWeight: '600', color: '#0F172A' },
-  sub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
-  badge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 14, marginBottom: 12, paddingHorizontal: 16, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14 },
+  rowLabel: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#F1F5F9' },
+  vDivider: { width: StyleSheet.hairlineWidth, backgroundColor: '#E2E8F0', alignSelf: 'stretch', marginVertical: 12 },
+  label: { fontSize: 11, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5 },
+  value: { fontSize: 14, fontWeight: '600', color: '#0F172A', textAlign: 'right', flexShrink: 1 },
+  sub: { fontSize: 12, color: '#6B7280', marginTop: 2, textAlign: 'right' },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   badgeText: { fontSize: 13, fontWeight: '700' },
   avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 10, fontWeight: '700', color: '#6366F1' },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  copyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC', marginTop: 2 },
-  copyBtnText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
-  portalBtn: { width: '100%', paddingVertical: 9, borderRadius: 8, backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#A7F3D0', alignItems: 'center', justifyContent: 'center' },
-  portalBtnText: { fontSize: 13, fontWeight: '600', color: '#10B981' },
-  portalActionBtn: { flex: 1, paddingVertical: 7, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  archiveSection: { paddingTop: 20, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F1F5F9', marginTop: 6 },
-  archiveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
-  archiveBtnText: { fontSize: 13, fontWeight: '600', color: '#EF4444' },
+  contactLink: { fontSize: 13, fontWeight: '600', color: '#6366F1', marginTop: 3 },
+  descText: { fontSize: 14, color: '#374151', lineHeight: 21, paddingBottom: 14 },
+  archiveSection: { marginTop: 4, marginBottom: 8 },
+  archiveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14,
+    borderRadius: 12, borderWidth: 1.5, borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
+  archiveBtnText: { fontSize: 14, fontWeight: '700', color: '#EF4444' },
 })
