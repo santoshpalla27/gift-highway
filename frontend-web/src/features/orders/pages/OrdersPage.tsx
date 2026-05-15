@@ -596,11 +596,11 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
         {hasFilters && (
           <button onClick={clearAll} style={{
             padding: '6px 10px', borderRadius: 8, border: 'none',
-            background: 'transparent', fontSize: 13, fontWeight: 500,
-            color: '#6B7280', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+            background: 'transparent', fontSize: 13, fontWeight: 600,
+            color: '#EF4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
           }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#EF4444' }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#6B7280' }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.75' }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>

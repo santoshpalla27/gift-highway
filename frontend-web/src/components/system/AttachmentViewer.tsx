@@ -10,26 +10,80 @@ function resolveIsImage(mimeType?: string, filename?: string): boolean {
   return IMG_EXTS.some(e => ext === '.' + e)
 }
 
-interface FileIconInfo { emoji: string; color: string; bg: string }
+interface FileIconInfo { svg: (size: number, color: string) => React.ReactNode; color: string; bg: string }
+
+const FILE_SVGS = {
+  pdf: (size: number, color: string) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+      <line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="8" y1="9" x2="11" y2="9"/>
+    </svg>
+  ),
+  doc: (size: number, color: string) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+      <line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="8" y1="9" x2="16" y2="9"/>
+    </svg>
+  ),
+  spreadsheet: (size: number, color: string) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/>
+      <line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
+    </svg>
+  ),
+  presentation: (size: number, color: string) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+    </svg>
+  ),
+  video: (size: number, color: string) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <polygon points="10 8 16 12 10 16 10 8" fill={color} stroke="none"/>
+    </svg>
+  ),
+  audio: (size: number, color: string) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+    </svg>
+  ),
+  archive: (size: number, color: string) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5" rx="1"/>
+      <line x1="10" y1="12" x2="14" y2="12"/>
+    </svg>
+  ),
+  file: (size: number, color: string) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/>
+    </svg>
+  ),
+  image: (size: number, color: string) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+      <polyline points="21 15 16 10 5 21"/>
+    </svg>
+  ),
+}
 
 function getFileIconInfo(mimeType?: string, filename?: string): FileIconInfo {
   const ext = (filename?.split('.').pop() ?? '').toLowerCase()
   const mime = mimeType ?? ''
   if (mime === 'application/pdf' || ext === 'pdf')
-    return { emoji: '📄', color: '#EF4444', bg: '#FEF2F2' }
+    return { svg: FILE_SVGS.pdf, color: '#EF4444', bg: '#FEF2F2' }
   if (mime.includes('word') || mime.includes('document') || ext === 'doc' || ext === 'docx')
-    return { emoji: '📝', color: '#3B82F6', bg: '#EFF6FF' }
+    return { svg: FILE_SVGS.doc, color: '#3B82F6', bg: '#EFF6FF' }
   if (mime.includes('excel') || mime.includes('spreadsheet') || ['xls', 'xlsx', 'csv'].includes(ext))
-    return { emoji: '📊', color: '#22C55E', bg: '#F0FDF4' }
+    return { svg: FILE_SVGS.spreadsheet, color: '#22C55E', bg: '#F0FDF4' }
   if (mime.includes('powerpoint') || mime.includes('presentation') || ['ppt', 'pptx'].includes(ext))
-    return { emoji: '📋', color: '#F97316', bg: '#FFF7ED' }
+    return { svg: FILE_SVGS.presentation, color: '#F97316', bg: '#FFF7ED' }
   if (mime.startsWith('video/') || ['mp4', 'mov', 'avi', 'mkv'].includes(ext))
-    return { emoji: '🎬', color: '#8B5CF6', bg: '#F5F3FF' }
+    return { svg: FILE_SVGS.video, color: '#8B5CF6', bg: '#F5F3FF' }
   if (mime.startsWith('audio/') || ['mp3', 'wav', 'aac', 'm4a'].includes(ext))
-    return { emoji: '🎵', color: '#EC4899', bg: '#FDF2F8' }
+    return { svg: FILE_SVGS.audio, color: '#EC4899', bg: '#FDF2F8' }
   if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext))
-    return { emoji: '📦', color: '#6B7280', bg: '#F9FAFB' }
-  return { emoji: '📎', color: '#6366F1', bg: '#EEF2FF' }
+    return { svg: FILE_SVGS.archive, color: '#6B7280', bg: '#F9FAFB' }
+  return { svg: FILE_SVGS.file, color: '#6366F1', bg: '#EEF2FF' }
 }
 
 function formatFileSize(bytes?: number): string {
@@ -210,9 +264,9 @@ export function AttachmentViewer({
           <div style={{
             width: 34, height: 34, borderRadius: 10, flexShrink: 0,
             background: fileIcon?.bg ?? '#F1F5F9',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            {isImg ? '🖼️' : fileIcon?.emoji}
+            {isImg ? FILE_SVGS.image(18, '#64748B') : fileIcon?.svg(18, fileIcon.color)}
           </div>
           <div style={{ flex: 1, display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', minWidth: 0, flex: 1 }}>
@@ -311,7 +365,7 @@ export function AttachmentViewer({
           >
             {imgError ? (
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 52, marginBottom: 12 }}>🖼️</div>
+                <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>{FILE_SVGS.image(52, '#94A3B8')}</div>
                 <div style={{ fontSize: 14, fontWeight: 500, color: '#64748B', marginBottom: 12 }}>
                   Image could not be loaded
                 </div>
@@ -384,9 +438,8 @@ export function AttachmentViewer({
               width: 120, height: 120, borderRadius: 30,
               background: fileIcon!.bg,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 56,
             }}>
-              {fileIcon!.emoji}
+              {fileIcon!.svg(56, fileIcon!.color)}
             </div>
             <div style={{ padding: '4px 16px', borderRadius: 20, background: fileIcon!.bg }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: fileIcon!.color, letterSpacing: '0.06em' }}>
