@@ -1,6 +1,6 @@
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, ActivityIndicator,
+  TextInput, ActivityIndicator, Modal,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
@@ -73,6 +73,64 @@ const EVENT_ICON: Record<string, { icon: IoniconName; color: string; bg: string 
 }
 const DEFAULT_ICON = { icon: 'ellipse-outline' as IoniconName, color: '#6B7280', bg: '#F3F4F6' }
 
+const EVENT_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'order_created',      label: 'Order Created' },
+  { value: 'comment_added',      label: 'Comment' },
+  { value: 'attachment_added',   label: 'Attachment Added' },
+  { value: 'attachment_deleted', label: 'Attachment Deleted' },
+  { value: 'status_changed',     label: 'Status Change' },
+  { value: 'assignees_changed',  label: 'Assignee Change' },
+  { value: 'due_date_changed',   label: 'Due Date Change' },
+  { value: 'priority_changed',   label: 'Priority Change' },
+  { value: 'order_updated',      label: 'Order Update' },
+  { value: 'user_mentioned',     label: 'Mention' },
+]
+
+function FilterSheet({ visible, selected, onSelect, onClose }: {
+  visible: boolean; selected: string; onSelect: (v: string) => void; onClose: () => void
+}) {
+  const insets = useSafeAreaInsets()
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={FS.overlay} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={[FS.sheet, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
+          <View style={FS.handle} />
+          <Text style={FS.title}>Filter by Event Type</Text>
+          <TouchableOpacity style={[FS.option, !selected && FS.optionActive]} onPress={() => { onSelect(''); onClose() }}>
+            <Text style={[FS.optionText, !selected && FS.optionTextActive]}>All events</Text>
+            {!selected && <Ionicons name="checkmark" size={16} color="#6366F1" />}
+          </TouchableOpacity>
+          {EVENT_TYPE_OPTIONS.map(opt => (
+            <TouchableOpacity
+              key={opt.value}
+              style={[FS.option, selected === opt.value && FS.optionActive]}
+              onPress={() => { onSelect(opt.value); onClose() }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                <View style={[FS.dot, { backgroundColor: (EVENT_ICON[opt.value] ?? DEFAULT_ICON).color }]} />
+                <Text style={[FS.optionText, selected === opt.value && FS.optionTextActive]}>{opt.label}</Text>
+              </View>
+              {selected === opt.value && <Ionicons name="checkmark" size={16} color="#6366F1" />}
+            </TouchableOpacity>
+          ))}
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  )
+}
+
+const FS = StyleSheet.create({
+  overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet:          { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 12, paddingHorizontal: 16 },
+  handle:         { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 16 },
+  title:          { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 8 },
+  option:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 4, borderRadius: 8 },
+  optionActive:   { backgroundColor: '#EEF2FF' },
+  optionText:     { fontSize: 14, color: '#374151' },
+  optionTextActive:{ color: '#4338CA', fontWeight: '600' },
+  dot:            { width: 8, height: 8, borderRadius: 4 },
+})
+
 const formatTime = formatRelative
 
 const LIMIT = 50
@@ -89,13 +147,16 @@ export default function ActivityLogScreen() {
   const [error, setError] = useState(false)
   const [orderInput, setOrderInput] = useState('')
   const [appliedOrder, setAppliedOrder] = useState('')
+  const [eventType, setEventType] = useState('')
+  const [showFilter, setShowFilter] = useState(false)
 
-  const fetchData = useCallback(async (pg: number, orderId: string, append: boolean) => {
+  const fetchData = useCallback(async (pg: number, orderId: string, evType: string, append: boolean) => {
     if (pg === 1) setLoading(true); else setLoadingMore(true)
     setError(false)
     try {
       const params: Record<string, string> = { page: String(pg), limit: String(LIMIT) }
       if (orderId) params.title = orderId
+      if (evType) params.event_type = evType
       const res = await apiClient.get<{ events: ActivityEvent[]; total: number; page: number }>('/admin/activity', { params })
       const data = res.data
       setEvents(prev => append ? [...prev, ...(data.events ?? [])] : (data.events ?? []))
@@ -109,20 +170,21 @@ export default function ActivityLogScreen() {
     }
   }, [])
 
-  useEffect(() => { fetchData(1, '', false) }, [fetchData])
+  useEffect(() => { fetchData(1, '', '', false) }, [fetchData])
 
   const applyFilter = () => {
     const id = orderInput.trim()
     setAppliedOrder(id)
     setEvents([])
-    fetchData(1, id, false)
+    fetchData(1, id, eventType, false)
   }
 
   const clearFilter = () => {
     setOrderInput('')
     setAppliedOrder('')
+    setEventType('')
     setEvents([])
-    fetchData(1, '', false)
+    fetchData(1, '', '', false)
   }
 
   const hasMore = events.length < total
@@ -156,7 +218,7 @@ export default function ActivityLogScreen() {
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <Text style={S.headerTitle}>Activity Log</Text>
-        <TouchableOpacity onPress={() => fetchData(1, appliedOrder, false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity onPress={() => fetchData(1, appliedOrder, eventType, false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="refresh-outline" size={22} color="#6366F1" />
         </TouchableOpacity>
       </View>
@@ -177,19 +239,27 @@ export default function ActivityLogScreen() {
             returnKeyType="search"
           />
           {orderInput.length > 0 && (
-            <TouchableOpacity onPress={clearFilter} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={() => { setOrderInput(''); setAppliedOrder(''); fetchData(1, '', eventType, false) }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close-circle" size={17} color="#9CA3AF" />
             </TouchableOpacity>
           )}
         </View>
+        <TouchableOpacity
+          style={[S.etBtn, eventType && S.etBtnActive]}
+          onPress={() => setShowFilter(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="options-outline" size={16} color={eventType ? '#6366F1' : '#6B7280'} />
+        </TouchableOpacity>
         <TouchableOpacity style={S.filterBtn} onPress={applyFilter} activeOpacity={0.8}>
           <Text style={S.filterBtnText}>Filter</Text>
         </TouchableOpacity>
       </View>
 
-      {appliedOrder ? (
+      {(appliedOrder || eventType) ? (
         <View style={S.activeFilter}>
-          <Text style={S.activeFilterText} numberOfLines={1}>Order ID: {appliedOrder}</Text>
+          {appliedOrder ? <Text style={S.activeFilterText} numberOfLines={1}>Order: {appliedOrder}</Text> : null}
+          {eventType ? <Text style={S.activeFilterText} numberOfLines={1}>{EVENT_TYPE_OPTIONS.find(o => o.value === eventType)?.label ?? eventType}</Text> : null}
           <TouchableOpacity onPress={clearFilter} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="close" size={14} color="#6366F1" />
           </TouchableOpacity>
@@ -205,7 +275,7 @@ export default function ActivityLogScreen() {
         <View style={S.center}>
           <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
           <Text style={S.errorText}>Failed to load activity log</Text>
-          <TouchableOpacity style={S.retryBtn} onPress={() => fetchData(1, appliedOrder, false)}>
+          <TouchableOpacity style={S.retryBtn} onPress={() => fetchData(1, appliedOrder, eventType, false)}>
             <Text style={S.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -225,7 +295,7 @@ export default function ActivityLogScreen() {
             hasMore ? (
               <TouchableOpacity
                 style={S.loadMore}
-                onPress={() => fetchData(page + 1, appliedOrder, true)}
+                onPress={() => fetchData(page + 1, appliedOrder, eventType, true)}
                 disabled={loadingMore}
                 activeOpacity={0.7}
               >
@@ -237,6 +307,13 @@ export default function ActivityLogScreen() {
           }
         />
       )}
+
+      <FilterSheet
+        visible={showFilter}
+        selected={eventType}
+        onSelect={v => { setEventType(v); setEvents([]); fetchData(1, appliedOrder, v, false) }}
+        onClose={() => setShowFilter(false)}
+      />
     </View>
   )
 }
@@ -255,6 +332,8 @@ const S = StyleSheet.create({
   filterRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 8, paddingHorizontal: 10, backgroundColor: '#fff' },
   searchInput: { flex: 1, fontSize: 13, color: '#111827', paddingVertical: 8 },
+  etBtn:     { width: 36, height: 36, borderRadius: 8, borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  etBtnActive: { borderColor: '#6366F1', backgroundColor: '#EEF2FF' },
   filterBtn: { backgroundColor: '#6366F1', paddingHorizontal: 16, paddingVertical: 9, borderRadius: 8 },
   filterBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 

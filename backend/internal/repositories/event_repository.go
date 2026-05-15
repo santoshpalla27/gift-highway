@@ -3,6 +3,8 @@ package repositories
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/company/app/backend/internal/models"
@@ -93,7 +95,7 @@ func (r *EventRepository) Delete(ctx context.Context, eventID string) error {
 	return err
 }
 
-func (r *EventRepository) ListAllEvents(ctx context.Context, orderTitle string, limit, offset int) ([]*ActivityEvent, int, error) {
+func (r *EventRepository) ListAllEvents(ctx context.Context, orderTitle, eventType string, limit, offset int) ([]*ActivityEvent, int, error) {
 	const baseCount = `SELECT COUNT(*) FROM order_events e JOIN orders o ON e.order_id = o.id`
 	const baseList = `
 		SELECT e.id, e.order_id, o.order_number, o.title AS order_title,
@@ -104,22 +106,33 @@ func (r *EventRepository) ListAllEvents(ctx context.Context, orderTitle string, 
 		LEFT JOIN users u ON e.actor_id = u.id
 	`
 
-	var total int
-	var events []*ActivityEvent
+	var conds []string
+	var args []interface{}
 
 	if orderTitle != "" {
-		pattern := "%" + orderTitle + "%"
-		if err := r.db.GetContext(ctx, &total, baseCount+` WHERE o.title ILIKE $1`, pattern); err != nil {
-			return nil, 0, err
-		}
-		err := r.db.SelectContext(ctx, &events, baseList+` WHERE o.title ILIKE $1 ORDER BY e.created_at DESC LIMIT $2 OFFSET $3`, pattern, limit, offset)
-		return events, total, err
+		args = append(args, orderTitle)
+		conds = append(conds, fmt.Sprintf("o.title ILIKE $%d", len(args)))
+	}
+	if eventType != "" {
+		args = append(args, eventType)
+		conds = append(conds, fmt.Sprintf("e.type = $%d", len(args)))
 	}
 
-	if err := r.db.GetContext(ctx, &total, baseCount); err != nil {
+	where := ""
+	if len(conds) > 0 {
+		where = " WHERE " + strings.Join(conds, " AND ")
+	}
+
+	var total int
+	if err := r.db.GetContext(ctx, &total, baseCount+where, args...); err != nil {
 		return nil, 0, err
 	}
-	err := r.db.SelectContext(ctx, &events, baseList+` ORDER BY e.created_at DESC LIMIT $1 OFFSET $2`, limit, offset)
+
+	args = append(args, limit, offset)
+	var events []*ActivityEvent
+	err := r.db.SelectContext(ctx, &events,
+		baseList+where+fmt.Sprintf(" ORDER BY e.created_at DESC LIMIT $%d OFFSET $%d", len(args)-1, len(args)),
+		args...)
 	return events, total, err
 }
 

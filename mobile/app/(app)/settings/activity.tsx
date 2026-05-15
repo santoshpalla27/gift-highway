@@ -23,7 +23,10 @@ const EVENT_META: Record<string, { label: string; icon: keyof typeof Ionicons.gl
   staff_portal_reply:  { label: 'Portal Reply',     icon: 'return-up-back-outline',    color: '#14B8A6' },
   order_updated:       { label: 'Order Update',     icon: 'create-outline',            color: '#9CA3AF' },
 }
-const EVENT_TYPE_OPTIONS = Object.entries(EVENT_META).map(([value, m]) => ({ value, ...m }))
+const EVENT_TYPE_OPTIONS = [
+  'comment_added', 'attachment_added', 'status_changed', 'assignees_changed',
+  'due_date_changed', 'priority_changed', 'order_updated',
+].map(value => ({ value, ...EVENT_META[value] }))
 
 function eventSummary(e: FlatActivityEvent): string {
   const p = e.payload ?? {}
@@ -155,7 +158,7 @@ export default function ActivityScreen() {
       if (eventType && e.type !== eventType) return false
       if (search.trim()) {
         const q = search.trim().toLowerCase()
-        if (!e.order_title.toLowerCase().includes(q) && !String(e.order_number).includes(q)) return false
+        if (e.order_title.toLowerCase() !== q && String(e.order_number) !== q) return false
       }
       return true
     })

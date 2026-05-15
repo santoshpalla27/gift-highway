@@ -9,17 +9,28 @@ import { DateInput } from '../../../components/system/DateInput'
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const EVENT_TYPE_OPTIONS = [
-  { value: 'customer_message',    label: 'Customer Message',  color: '#6366F1' },
-  { value: 'customer_attachment', label: 'Customer File',     color: '#10B981' },
   { value: 'comment_added',       label: 'Comment',           color: '#6B7280' },
   { value: 'attachment_added',    label: 'Attachment',        color: '#6B7280' },
   { value: 'status_changed',      label: 'Status Change',     color: '#3B82F6' },
   { value: 'assignees_changed',   label: 'Assignee Change',   color: '#8B5CF6' },
   { value: 'due_date_changed',    label: 'Due Date Change',   color: '#F59E0B' },
   { value: 'priority_changed',    label: 'Priority Change',   color: '#EC4899' },
-  { value: 'staff_portal_reply',  label: 'Portal Reply',      color: '#14B8A6' },
   { value: 'order_updated',       label: 'Order Update',      color: '#9CA3AF' },
 ] as const
+
+const EVENT_TYPE_LABEL: Record<string, string> = {
+  customer_message:    'Customer Message',
+  customer_attachment: 'Customer File',
+  comment_added:       'Comment',
+  attachment_added:    'Attachment',
+  status_changed:      'Status Change',
+  assignees_changed:   'Assignee Change',
+  due_date_changed:    'Due Date Change',
+  priority_changed:    'Priority Change',
+  staff_portal_reply:  'Portal Reply',
+  order_updated:       'Order Update',
+  user_mentioned:      'Mention',
+}
 
 const EVENT_ICON_COLOR: Record<string, string> = {
   customer_message:    '#6366F1',
@@ -257,7 +268,7 @@ export function NotificationsPage() {
       if (eventTypeFilter && e.type !== eventTypeFilter) return false
       if (orderSearch.trim()) {
         const q = orderSearch.trim().toLowerCase()
-        if (!e.order_title.toLowerCase().includes(q) && !String(e.order_number).includes(q)) return false
+        if (e.order_title.toLowerCase() !== q && String(e.order_number) !== q) return false
       }
       if (dateFrom) {
         if (new Date(e.created_at).getTime() < new Date(dateFrom).getTime()) return false
@@ -572,7 +583,7 @@ export function NotificationsPage() {
                         background: `${EVENT_ICON_COLOR[e.type] ?? '#9CA3AF'}14`,
                         borderRadius: 4, padding: '1px 6px', flexShrink: 0,
                       }}>
-                        {EVENT_TYPE_OPTIONS.find(o => o.value === e.type)?.label ?? e.type}
+                        {EVENT_TYPE_LABEL[e.type] ?? e.type}
                       </span>
                     </div>
                     <p style={{ margin: 0, fontSize: 13, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

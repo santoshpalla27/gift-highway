@@ -14,14 +14,11 @@ const STORAGE_KEY = 'gh-notif-prefs'
 
 export const DEFAULT_TYPE_PREFS: TypePrefs = {
   user_mentioned:      true,
-  customer_message:    true,
-  customer_attachment: true,
   assignees_changed:   true,
   status_changed:      true,
   due_date_changed:    true,
   comment_added:       true,
   attachment_added:    true,
-  staff_portal_reply:  true,
   order_updated:       false,
   priority_changed:    false,
 }

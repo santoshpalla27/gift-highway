@@ -65,7 +65,7 @@ function eventPreview(e: NotificationEvent): string {
 }
 
 function isMessageType(type: string): boolean {
-  return type === 'customer_message' || type === 'comment_added' || type === 'staff_portal_reply'
+  return type === 'comment_added'
 }
 
 function priorityDot(priority: string) {

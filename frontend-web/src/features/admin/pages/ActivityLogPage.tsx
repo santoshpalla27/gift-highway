@@ -67,6 +67,19 @@ const EVENT_STYLE: Record<string, { color: string; bg: string; icon: React.React
 
 const DEFAULT_STYLE = { color: '#6B7280', bg: '#F3F4F6', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/></svg> }
 
+const EVENT_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'order_created',     label: 'Order Created' },
+  { value: 'comment_added',     label: 'Comment' },
+  { value: 'attachment_added',  label: 'Attachment Added' },
+  { value: 'attachment_deleted',label: 'Attachment Deleted' },
+  { value: 'status_changed',    label: 'Status Change' },
+  { value: 'assignees_changed', label: 'Assignee Change' },
+  { value: 'due_date_changed',  label: 'Due Date Change' },
+  { value: 'priority_changed',  label: 'Priority Change' },
+  { value: 'order_updated',     label: 'Order Update' },
+  { value: 'user_mentioned',    label: 'Mention' },
+]
+
 const formatTimestamp = formatRelative
 
 const LIMIT = 50
@@ -83,14 +96,26 @@ export function ActivityLogPage() {
   const [error, setError] = useState(false)
   const [orderInput, setOrderInput] = useState('')
   const [appliedOrder, setAppliedOrder] = useState('')
+  const [eventType, setEventType] = useState('')
+  const [etOpen, setEtOpen] = useState(false)
+  const etRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const fetch = useCallback(async (pg: number, orderId: string, append: boolean) => {
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (etRef.current && !etRef.current.contains(e.target as Node)) setEtOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const fetch = useCallback(async (pg: number, orderId: string, evType: string, append: boolean) => {
     if (pg === 1) setLoading(true); else setLoadingMore(true)
     setError(false)
     try {
       const params: Record<string, string> = { page: String(pg), limit: String(LIMIT) }
       if (orderId) params.title = orderId
+      if (evType) params.event_type = evType
       const res = await apiClient.get<ActivityResponse>('/admin/activity', { params })
       const data = res.data
       setEvents(prev => append ? [...prev, ...data.events] : data.events)
@@ -104,20 +129,21 @@ export function ActivityLogPage() {
     }
   }, [])
 
-  useEffect(() => { fetch(1, '', false) }, [fetch])
+  useEffect(() => { fetch(1, '', '', false) }, [fetch])
 
   const applyFilter = () => {
     const id = orderInput.trim()
     setAppliedOrder(id)
     setEvents([])
-    fetch(1, id, false)
+    fetch(1, id, eventType, false)
   }
 
   const clearFilter = () => {
     setOrderInput('')
     setAppliedOrder('')
+    setEventType('')
     setEvents([])
-    fetch(1, '', false)
+    fetch(1, '', '', false)
     inputRef.current?.focus()
   }
 
@@ -136,8 +162,8 @@ export function ActivityLogPage() {
         </div>
 
         {/* Filter bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 0, border: '1.5px solid #E5E7EB', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid #E5E7EB', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
             <input
               ref={inputRef}
               type="text"
@@ -145,22 +171,72 @@ export function ActivityLogPage() {
               value={orderInput}
               onChange={e => setOrderInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && applyFilter()}
-              style={{ padding: '7px 12px', border: 'none', outline: 'none', fontSize: 13.5, color: '#111827', width: 260 }}
+              style={{ padding: '7px 12px', border: 'none', outline: 'none', fontSize: 13.5, color: '#111827', width: 220 }}
             />
             {orderInput && (
-              <button onClick={clearFilter} style={{ padding: '0 8px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: 16, lineHeight: 1 }}>×</button>
+              <button onClick={() => { setOrderInput(''); setAppliedOrder(''); fetch(1, '', eventType, false) }} style={{ padding: '0 8px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: 16, lineHeight: 1 }}>×</button>
             )}
           </div>
+
+          {/* Event type dropdown */}
+          <div ref={etRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setEtOpen(o => !o)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '7px 12px', border: `1.5px solid ${eventType ? '#6366F1' : '#E5E7EB'}`,
+                borderRadius: 8, background: eventType ? '#EEF2FF' : '#fff',
+                color: eventType ? '#4338CA' : '#374151', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              {eventType ? (EVENT_TYPE_OPTIONS.find(o => o.value === eventType)?.label ?? eventType) : 'Event Type'}
+              {eventType && <span onClick={e => { e.stopPropagation(); setEventType(''); fetch(1, appliedOrder, '', false) }} style={{ marginLeft: 2, color: '#9CA3AF', fontSize: 14, lineHeight: 1 }}>×</span>}
+            </button>
+            {etOpen && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50,
+                background: '#fff', border: '1px solid #E5E7EB', borderRadius: 10,
+                boxShadow: '0 4px 16px rgba(0,0,0,0.10)', minWidth: 200, padding: '4px 0',
+              }}>
+                <div
+                  onClick={() => { setEventType(''); setEtOpen(false); fetch(1, appliedOrder, '', false) }}
+                  style={{ padding: '8px 14px', fontSize: 13, cursor: 'pointer', color: !eventType ? '#4338CA' : '#374151', fontWeight: !eventType ? 600 : 400 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#F5F6FA')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '')}
+                >All event types</div>
+                {EVENT_TYPE_OPTIONS.map(opt => (
+                  <div
+                    key={opt.value}
+                    onClick={() => { setEventType(opt.value); setEtOpen(false); fetch(1, appliedOrder, opt.value, false) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 14px', fontSize: 13, cursor: 'pointer',
+                      color: eventType === opt.value ? '#4338CA' : '#374151',
+                      fontWeight: eventType === opt.value ? 600 : 400,
+                      background: eventType === opt.value ? '#EEF2FF' : '',
+                    }}
+                    onMouseEnter={e => { if (eventType !== opt.value) e.currentTarget.style.background = '#F5F6FA' }}
+                    onMouseLeave={e => { if (eventType !== opt.value) e.currentTarget.style.background = '' }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: (EVENT_STYLE[opt.value] ?? DEFAULT_STYLE).color, flexShrink: 0 }} />
+                    {opt.label}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button
             onClick={applyFilter}
             style={{ padding: '7px 16px', background: '#6366F1', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
           >
             Filter
           </button>
-          {appliedOrder && (
-            <span style={{ fontSize: 13, color: '#6B7280' }}>
-              Order ID: <strong style={{ color: '#4338CA' }}>{appliedOrder}</strong> · <button onClick={clearFilter} style={{ background: 'none', border: 'none', color: '#6366F1', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Clear</button>
-            </span>
+          {(appliedOrder || eventType) && (
+            <button onClick={clearFilter} style={{ background: 'none', border: 'none', color: '#6366F1', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+              Clear all
+            </button>
           )}
           <span style={{ marginLeft: 'auto', fontSize: 12.5, color: '#9CA3AF' }}>
             {total.toLocaleString()} events total
@@ -173,7 +249,7 @@ export function ActivityLogPage() {
         ) : error ? (
           <div style={{ padding: 40, textAlign: 'center' }}>
             <p style={{ color: '#EF4444', marginBottom: 12 }}>Failed to load activity log.</p>
-            <button onClick={() => fetch(1, appliedOrder, false)} style={{ padding: '6px 16px', border: '1.5px solid #E5E7EB', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13 }}>Retry</button>
+            <button onClick={() => fetch(1, appliedOrder, eventType, false)} style={{ padding: '6px 16px', border: '1.5px solid #E5E7EB', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13 }}>Retry</button>
           </div>
         ) : events.length === 0 ? (
           <div style={{ padding: 60, textAlign: 'center', color: '#9CA3AF' }}>No activity found.</div>
@@ -228,7 +304,7 @@ export function ActivityLogPage() {
             {hasMore && (
               <div style={{ textAlign: 'center', marginTop: 16 }}>
                 <button
-                  onClick={() => fetch(page + 1, appliedOrder, true)}
+                  onClick={() => fetch(page + 1, appliedOrder, eventType, true)}
                   disabled={loadingMore}
                   style={{
                     padding: '8px 24px', border: '1.5px solid #E5E7EB', borderRadius: 8,

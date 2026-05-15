@@ -10,8 +10,6 @@ import { PRIORITY_META } from '../../../constants/status'
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const EVENT_TYPE_OPTIONS = [
-  { value: 'customer_message',    label: 'Customer Messages',  color: '#6366F1' },
-  { value: 'customer_attachment', label: 'Customer Files',     color: '#10B981' },
   { value: 'comment_added',       label: 'Comments',           color: '#6B7280' },
   { value: 'attachment_added',    label: 'Attachments',        color: '#6B7280' },
   { value: 'status_changed',      label: 'Status Changes',     color: '#3B82F6' },
