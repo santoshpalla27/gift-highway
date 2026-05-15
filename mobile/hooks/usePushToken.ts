@@ -6,6 +6,9 @@ import { AppState } from 'react-native'
 // and avoids a double navigate — without blocking subsequent notification taps.
 let coldStartNotificationId: string | null = null
 export function markColdStartHandled(id: string) { coldStartNotificationId = id }
+
+let _onOrderScreen = false
+export function setOnOrderScreen(v: boolean) { _onOrderScreen = v }
 import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
 import Constants from 'expo-constants'
@@ -128,7 +131,11 @@ export function usePushToken() {
           coldStartNotificationId = null
           return
         }
-        router.push(`/order/${data.order_id}` as any)
+        if (_onOrderScreen) {
+          router.replace(`/order/${data.order_id}` as any)
+        } else {
+          router.push(`/order/${data.order_id}` as any)
+        }
       }
     })
 

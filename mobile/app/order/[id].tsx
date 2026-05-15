@@ -20,6 +20,7 @@ import { EditOrderSheet } from './_sheets/OrderInfoSheet'
 import { PortalChatSheet } from './_sheets/PortalChatSheet'
 import { formatDate, fmt12hrStr } from '../../utils/date'
 import { apiClient } from '../../services/apiClient'
+import { setOnOrderScreen } from '../../hooks/usePushToken'
 
 function NewUpdatesDivider() {
   return (
@@ -58,6 +59,11 @@ export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const insets = useSafeAreaInsets()
   const keyboardOffset = insets.top + 56
+
+  useEffect(() => {
+    setOnOrderScreen(true)
+    return () => setOnOrderScreen(false)
+  }, [])
 
   // When the order screen opens: dismiss local push notifications for this
   // order and tell the backend to reset the push-service batch so the next
