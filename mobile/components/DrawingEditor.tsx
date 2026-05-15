@@ -51,7 +51,7 @@ const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window')
 function buildAnnotatedFilename(original: string): string {
   const dot = original.lastIndexOf('.')
   const base = dot > 0 ? original.slice(0, dot) : original
-  return `${base}_annotated.png`
+  return `${base}_annotated.jpg`
 }
 
 /** Convert an array of {x,y} points to an SVG path string with smooth curves */
@@ -348,16 +348,18 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
                 onPress={resetZoom}
                 style={[S.iconBtn, { flexDirection: 'row', width: 'auto' as any, paddingHorizontal: 8, gap: 4 }]}
                 hitSlop={6}
+                activeOpacity={0.6}
               >
-                <Ionicons name="scan-outline" size={14} color="#6366F1" />
-                <Text style={{ fontSize: 11, fontWeight: '700', color: '#6366F1' }}>{scale.toFixed(1)}x</Text>
+                <Ionicons name="expand-outline" size={14} color="#6366F1" />
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#6366F1' }}>Reset</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
               onPress={handleUndo}
               disabled={strokes.length === 0}
               style={[S.iconBtn, strokes.length === 0 && { opacity: 0.35 }]}
-              hitSlop={6}
+              hitSlop={8}
+              activeOpacity={0.6}
             >
               <Ionicons name="arrow-undo" size={18} color="#475569" />
             </TouchableOpacity>
@@ -365,7 +367,8 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
               onPress={handleRedo}
               disabled={redoStack.length === 0}
               style={[S.iconBtn, redoStack.length === 0 && { opacity: 0.35 }]}
-              hitSlop={6}
+              hitSlop={8}
+              activeOpacity={0.6}
             >
               <Ionicons name="arrow-redo" size={18} color="#475569" />
             </TouchableOpacity>
@@ -373,7 +376,8 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
               onPress={handleClear}
               disabled={strokes.length === 0}
               style={[S.iconBtn, strokes.length === 0 && { opacity: 0.35 }]}
-              hitSlop={6}
+              hitSlop={8}
+              activeOpacity={0.6}
             >
               <Ionicons name="trash-outline" size={18} color="#475569" />
             </TouchableOpacity>
@@ -461,8 +465,12 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
                     c.value === '#FFFFFF' && { borderWidth: 1.5, borderColor: '#CBD5E1' },
                     color === c.value && {
                       borderWidth: 2.5,
-                      borderColor: c.value === '#FFFFFF' ? '#94A3B8' : c.value,
-                      transform: [{ scale: 1.2 }],
+                      borderColor: '#6366F1',
+                      shadowColor: '#6366F1',
+                      shadowOpacity: 0.3,
+                      shadowRadius: 4,
+                      shadowOffset: { width: 0, height: 0 },
+                      elevation: 4,
                     },
                   ]}
                 />
@@ -494,7 +502,7 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
                 onPress={handleSave}
                 disabled={saving || strokes.length === 0}
                 style={[S.saveBtn, (saving || strokes.length === 0) && { opacity: 0.5 }]}
-                activeOpacity={0.85}
+                activeOpacity={0.65}
               >
                 {saving ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />

@@ -380,10 +380,16 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
 
   return (
     <div ref={overlayRef} style={S.overlay}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <div style={S.modal}>
         {/* ── Top toolbar ─────────────────────────────────────────────── */}
         <div style={S.toolbar}>
-          <button onClick={onCancel} style={S.cancelBtn}>
+          <button
+            onClick={onCancel}
+            style={S.cancelBtn}
+            onMouseEnter={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#CBD5E1' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = '#E2E8F0' }}
+          >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
             Cancel
           </button>
@@ -397,7 +403,7 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
                 style={{
                   ...S.colorDot,
                   background: c.value,
-                  boxShadow: color === c.value ? `0 0 0 2.5px #fff, 0 0 0 4.5px ${c.value === '#FFFFFF' ? '#94A3B8' : c.value}` : 'none',
+                  boxShadow: color === c.value ? '0 0 0 2.5px #fff, 0 0 0 4.5px #6366F1' : 'none',
                   border: c.value === '#FFFFFF' ? '1.5px solid #CBD5E1' : '1.5px solid transparent',
                 }}
               />
@@ -415,6 +421,8 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
                   background: strokeWidth === w.value ? '#EEF2FF' : '#F8FAFC',
                   border: strokeWidth === w.value ? '1.5px solid #C7D2FE' : '1px solid #E2E8F0',
                 }}
+                onMouseEnter={e => { if (strokeWidth !== w.value) { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.borderColor = '#CBD5E1' } }}
+                onMouseLeave={e => { if (strokeWidth !== w.value) { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0' } }}
               >
                 <div style={{ width: Math.max(w.value * 2.5, 6), height: Math.max(w.value * 2.5, 6), borderRadius: '50%', background: color }} />
               </button>
@@ -428,13 +436,31 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
                 {scale.toFixed(1)}x
               </button>
             )}
-            <button onClick={handleUndo} disabled={strokes.length === 0} style={{ ...S.actionBtn, opacity: strokes.length === 0 ? 0.35 : 1 }} title="Undo (Ctrl+Z)">
+            <button
+              onClick={handleUndo} disabled={strokes.length === 0}
+              style={{ ...S.actionBtn, opacity: strokes.length === 0 ? 0.35 : 1, cursor: strokes.length === 0 ? 'not-allowed' : 'pointer' }}
+              onMouseEnter={e => { if (strokes.length > 0) e.currentTarget.style.background = '#EEF2FF' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#F8FAFC' }}
+              title="Undo (Ctrl+Z)"
+            >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
             </button>
-            <button onClick={handleRedo} disabled={redoStack.length === 0} style={{ ...S.actionBtn, opacity: redoStack.length === 0 ? 0.35 : 1 }} title="Redo (Ctrl+Shift+Z)">
+            <button
+              onClick={handleRedo} disabled={redoStack.length === 0}
+              style={{ ...S.actionBtn, opacity: redoStack.length === 0 ? 0.35 : 1, cursor: redoStack.length === 0 ? 'not-allowed' : 'pointer' }}
+              onMouseEnter={e => { if (redoStack.length > 0) e.currentTarget.style.background = '#EEF2FF' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#F8FAFC' }}
+              title="Redo (Ctrl+Shift+Z)"
+            >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6"/></svg>
             </button>
-            <button onClick={handleClear} disabled={strokes.length === 0} style={{ ...S.actionBtn, opacity: strokes.length === 0 ? 0.35 : 1 }} title="Clear all">
+            <button
+              onClick={handleClear} disabled={strokes.length === 0}
+              style={{ ...S.actionBtn, opacity: strokes.length === 0 ? 0.35 : 1, cursor: strokes.length === 0 ? 'not-allowed' : 'pointer' }}
+              onMouseEnter={e => { if (strokes.length > 0) e.currentTarget.style.background = '#FEF2F2' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#F8FAFC' }}
+              title="Clear all"
+            >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </button>
           </div>
@@ -442,12 +468,14 @@ export function DrawingEditor({ src, filename, onSave, onCancel }: DrawingEditor
           <button
             onClick={handleSave}
             disabled={saving || strokes.length === 0 || blobFetchFailed}
-            title={blobFetchFailed ? 'Image failed to load — close and reopen to retry' : undefined}
+            title={blobFetchFailed ? 'Image failed to load — close and reopen to retry' : strokes.length === 0 ? 'Draw something to save' : undefined}
             style={{
               ...S.saveBtn,
               opacity: (saving || strokes.length === 0 || blobFetchFailed) ? 0.5 : 1,
               cursor: (saving || strokes.length === 0 || blobFetchFailed) ? 'not-allowed' : 'pointer',
             }}
+            onMouseEnter={e => { if (!saving && strokes.length > 0 && !blobFetchFailed) e.currentTarget.style.filter = 'brightness(1.1)' }}
+            onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
           >
             {saving ? (
               <div style={{ width: 14, height: 14, border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
