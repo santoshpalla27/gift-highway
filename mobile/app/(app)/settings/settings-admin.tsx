@@ -14,6 +14,7 @@ import {
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { adminService, AdminUser } from '../../../services/adminService'
+import { formatRelative } from '../../../utils/date'
 import { router } from 'expo-router'
 
 // ─── Confirm Modal ────────────────────────────────────────────────────────────
@@ -407,7 +408,7 @@ export default function AdminScreen() {
                    <View style={[S.statusDot, u.is_active ? S.statusActive : S.statusDisabled]} />
                    <Text style={S.statusText}>{u.is_active ? 'Active' : 'Disabled'}</Text>
                  </View>
-                 <Text style={S.dateText}>{u.created_at || 'Just now'}</Text>
+                 <Text style={S.dateText}>{u.created_at ? formatRelative(u.created_at) : 'Just now'}</Text>
                </View>
 
                {/* Dropdown Menu */}

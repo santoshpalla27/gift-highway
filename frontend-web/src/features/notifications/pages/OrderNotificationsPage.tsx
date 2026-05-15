@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationService, type NotificationEvent } from '../../../services/notificationService'
-import { formatRelative } from '../../../utils/date'
+import { formatRelative, formatDate } from '../../../utils/date'
 import { useAuthStore } from '../../../store/authStore'
 import { FilterPill } from '../../../components/system/FilterPill'
 import { PRIORITY_META } from '../../../constants/status'
@@ -127,7 +127,7 @@ function eventSummary(e: NotificationEvent): string {
     case 'status_changed':
       return `${e.actor_name} changed status to ${p.to ?? ''}`
     case 'due_date_changed':
-      return `${e.actor_name} changed due date to ${p.to ?? 'none'}`
+      return `${e.actor_name} changed due date to ${p.to ? formatDate(p.to) : 'none'}`
     case 'assignees_changed':
       return `${e.actor_name} updated assignees`
     case 'priority_changed':
