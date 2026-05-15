@@ -2118,13 +2118,13 @@ export function OrderDetailPage() {
         {/* RIGHT — metadata panel */}
         <div style={{
           width: 260, flexShrink: 0, borderLeft: '1px solid #E4E6EF', background: '#FFFFFF',
-          overflowY: 'auto', padding: '24px 20px',
+          overflowY: 'auto', overflowX: 'hidden', padding: '24px 20px',
         }}>
 
           <PanelSection label="Customer">
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{order.customer_name}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#111827', wordBreak: 'break-word' }}>{order.customer_name}</div>
             {order.contact_number && (
-              <div style={{ fontSize: 12.5, color: '#6B7280', marginTop: 2 }}>{order.contact_number}</div>
+              <div style={{ fontSize: 12.5, color: '#6B7280', marginTop: 2, wordBreak: 'break-word' }}>{order.contact_number}</div>
             )}
           </PanelSection>
 
@@ -2151,7 +2151,7 @@ export function OrderDetailPage() {
                     }}>
                       {getInitials(name)}
                     </div>
-                    <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{name}</span>
+                    <span style={{ fontSize: 13, color: '#374151', fontWeight: 500, wordBreak: 'break-word', minWidth: 0 }}>{name}</span>
                   </div>
                 ))}
               </div>
