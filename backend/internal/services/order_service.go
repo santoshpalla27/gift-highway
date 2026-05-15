@@ -201,8 +201,8 @@ func (s *OrderService) RestoreOrder(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *OrderService) ListTrash(ctx context.Context) ([]*repositories.TrashOrder, error) {
-	return s.orderRepo.ListTrash(ctx)
+func (s *OrderService) ListTrash(ctx context.Context, limit, offset int) ([]*repositories.TrashOrder, int, error) {
+	return s.orderRepo.ListTrash(ctx, limit, offset)
 }
 
 func (s *OrderService) PermanentDeleteOrder(ctx context.Context, id string) error {

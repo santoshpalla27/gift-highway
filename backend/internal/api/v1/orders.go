@@ -392,12 +392,25 @@ func (h *OrderHandler) ListTrash(c *gin.Context) {
 		return
 	}
 
-	orders, err := h.orderService.ListTrash(c.Request.Context())
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if page < 1 {
+		page = 1
+	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if limit < 1 || limit > 100 {
+		limit = 50
+	}
+	offset := (page - 1) * limit
+
+	orders, total, err := h.orderService.ListTrash(c.Request.Context(), limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch trash"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"orders": orders})
+	if orders == nil {
+		orders = []*repositories.TrashOrder{}
+	}
+	c.JSON(http.StatusOK, gin.H{"orders": orders, "total": total, "page": page, "limit": limit})
 }
 
 func (h *OrderHandler) PermanentDelete(c *gin.Context) {

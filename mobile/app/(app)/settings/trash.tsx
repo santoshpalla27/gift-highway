@@ -337,15 +337,20 @@ export default function TrashScreen() {
   const isAdmin = user?.role === 'admin'
 
   const [orders, setOrders] = useState<TrashOrder[]>([])
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<TrashOrder | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const currentPage = React.useRef(1)
 
   const [search, setSearch] = useState('')
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState<FilterState>(emptyFilters)
+
+  const LIMIT = 30
 
   const filteredOrders = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -367,11 +372,26 @@ export default function TrashScreen() {
   const fetchTrash = useCallback(async () => {
     setLoading(true)
     try {
-      const list = await orderService.listTrash()
-      setOrders(list)
+      const res = await orderService.listTrash(1, LIMIT)
+      setOrders(res.orders)
+      setTotal(res.total)
+      currentPage.current = 1
     } catch { /* ignore */ }
     finally { setLoading(false) }
   }, [])
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || orders.length >= total) return
+    setLoadingMore(true)
+    try {
+      const nextPage = currentPage.current + 1
+      const res = await orderService.listTrash(nextPage, LIMIT)
+      setOrders(prev => [...prev, ...res.orders])
+      setTotal(res.total)
+      currentPage.current = nextPage
+    } catch { /* ignore */ }
+    finally { setLoadingMore(false) }
+  }, [loadingMore, orders.length, total])
 
   useFocusEffect(useCallback(() => { fetchTrash() }, [fetchTrash]))
 
@@ -385,6 +405,7 @@ export default function TrashScreen() {
     try {
       await orderService.restoreOrder(order.id)
       setOrders(prev => prev.filter(o => o.id !== order.id))
+      setTotal(prev => prev - 1)
       showToast(`Order #${order.title} restored.`)
     } catch {
       showToast('Failed to restore order.')
@@ -399,6 +420,7 @@ export default function TrashScreen() {
       await orderService.permanentDelete(order.id)
       purgeNotificationOrder(order.id)
       setOrders(prev => prev.filter(o => o.id !== order.id))
+      setTotal(prev => prev - 1)
       showToast(`Order #${order.title} permanently deleted.`)
     } catch {
       showToast('Failed to delete order.')
@@ -428,7 +450,7 @@ export default function TrashScreen() {
           <Text style={S.headerTitle}>Trash</Text>
           {!loading && (
             <Text style={S.headerSub}>
-              {filteredOrders.length} of {orders.length} archived order{orders.length !== 1 ? 's' : ''}
+              {total} archived order{total !== 1 ? 's' : ''}
             </Text>
           )}
         </View>
@@ -481,7 +503,7 @@ export default function TrashScreen() {
       {/* Count + clear bar */}
       <View style={S.countBar}>
         <Text style={S.countText}>
-          {loading ? 'Loading…' : `${filteredOrders.length} of ${orders.length} archived order${orders.length !== 1 ? 's' : ''}${hasAnyFilter ? ' · filtered' : ''}`}
+          {loading ? 'Loading…' : `${filteredOrders.length}${orders.length < total ? ` of ${total}` : ''} archived order${filteredOrders.length !== 1 ? 's' : ''}${hasAnyFilter ? ' · filtered' : ''}`}
         </Text>
         {hasAnyFilter && (
           <TouchableOpacity onPress={() => { setFilters(emptyFilters); setSearch('') }}>
@@ -520,6 +542,15 @@ export default function TrashScreen() {
             />
           )}
           contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: insets.bottom + 24 }}
+          onEndReached={() => { if (orders.length < total) loadMore() }}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#6366F1" />
+              </View>
+            ) : null
+          }
         />
       )}
 

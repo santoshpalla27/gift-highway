@@ -328,8 +328,12 @@ type TrashOrder struct {
 	CompletedDate  *string `db:"completed_date"  json:"completed_date"`
 }
 
-// ListTrash returns all archived orders.
-func (r *OrderRepository) ListTrash(ctx context.Context) ([]*TrashOrder, error) {
+// ListTrash returns paginated archived orders and the total count.
+func (r *OrderRepository) ListTrash(ctx context.Context, limit, offset int) ([]*TrashOrder, int, error) {
+	var total int
+	if err := r.db.GetContext(ctx, &total, `SELECT COUNT(*) FROM orders WHERE is_archived = true`); err != nil {
+		return nil, 0, err
+	}
 	var orders []*TrashOrder
 	err := r.db.SelectContext(ctx, &orders, `
 		SELECT
@@ -344,8 +348,9 @@ func (r *OrderRepository) ListTrash(ctx context.Context) ([]*TrashOrder, error) 
 		LEFT JOIN users au ON o.archived_by = au.id
 		WHERE o.is_archived = true
 		ORDER BY o.archived_at DESC
-	`)
-	return orders, err
+		LIMIT $1 OFFSET $2
+	`, limit, offset)
+	return orders, total, err
 }
 
 // PermanentDelete deletes an order and all related data from the database.

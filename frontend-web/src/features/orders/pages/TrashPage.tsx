@@ -2,16 +2,30 @@ import { useState, useRef, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { orderService, type TrashOrder } from '../../../services/orderService'
 import { purgeNotificationOrder } from '../../notifications/hooks/useNotifications'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { DateInput } from '../../../components/system/DateInput'
 import { formatDate, formatDateTime } from '../../../utils/date'
 import { useAuthStore } from '../../../store/authStore'
 import { STATUS_META, STATUS_OPTIONS as STATUS_OPTION_KEYS } from '../../../constants/status'
 
+const PAGE_LIMIT = 50
+
 const STATUS_OPTIONS = [
   { key: 'all',                label: 'All statuses' },
   ...STATUS_OPTION_KEYS.filter(k => k !== 'cancelled').map(k => ({ key: k, label: STATUS_META[k].label })),
 ]
+
+function getPageNums(current: number, total: number): (number | '…')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  const nums: (number | '…')[] = [1]
+  if (current > 3) nums.push('…')
+  const start = Math.max(2, current - 1)
+  const end = Math.min(total - 1, current + 1)
+  for (let i = start; i <= end; i++) nums.push(i)
+  if (current < total - 2) nums.push('…')
+  nums.push(total)
+  return nums
+}
 
 function FilterPill({
   label, value, onClear, children,
@@ -175,6 +189,7 @@ function ConfirmDeleteModal({ order, onClose, onConfirm }: {
 export function TrashPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuthStore()
   const isAdmin = user?.role === 'admin'
   const [deleteTarget, setDeleteTarget] = useState<TrashOrder | null>(null)
@@ -187,10 +202,31 @@ export function TrashPage() {
   const [dateDraftFrom, setDateDraftFrom] = useState('')
   const [dateDraftTo, setDateDraftTo] = useState('')
 
-  const { data: orders = [], isLoading } = useQuery<TrashOrder[]>({
-    queryKey: ['trash'],
-    queryFn: orderService.listTrash,
+  const page = Math.max(1, parseInt(searchParams.get('trash_page') ?? '1', 10))
+
+  function gotoPage(p: number) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (p <= 1) next.delete('trash_page')
+      else next.set('trash_page', String(p))
+      return next
+    })
+  }
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['trash', page],
+    queryFn: () => orderService.listTrash(page, PAGE_LIMIT),
   })
+
+  const orders = data?.orders ?? []
+  const total  = data?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT))
+  const from = total === 0 ? 0 : (page - 1) * PAGE_LIMIT + 1
+  const to   = Math.min(page * PAGE_LIMIT, total)
+
+  useEffect(() => {
+    if (!isLoading && total > 0 && page > totalPages) gotoPage(totalPages)
+  }, [isLoading, total, page, totalPages])
 
   const filteredOrders = orders.filter(o => {
     const q = search.trim().toLowerCase()
@@ -270,7 +306,7 @@ export function TrashPage() {
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 4px 0', letterSpacing: '-0.5px' }}>Trash</h1>
         <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>
-          {isLoading ? 'Loading…' : `${filteredOrders.length} of ${orders.length} archived order${orders.length !== 1 ? 's' : ''}`}
+          {isLoading ? 'Loading…' : total === 0 ? '0 archived orders' : `Showing ${from}–${to} of ${total} archived order${total !== 1 ? 's' : ''}`}
         </p>
       </div>
 
@@ -378,8 +414,8 @@ export function TrashPage() {
 
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, background: '#FFFFFF', border: '1px solid #E4E6EF', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,.06)' }}>
-        <div style={{ height: '100%', overflowY: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, background: '#FFFFFF', border: '1px solid #E4E6EF', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,.06)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
           {isLoading ? (
             <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF', fontSize: 13 }}>Loading…</div>
           ) : orders.length === 0 ? (
@@ -479,6 +515,67 @@ export function TrashPage() {
             </table>
           )}
         </div>
+
+        {/* Pagination footer */}
+        {!isLoading && total > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+            padding: '10px 16px', borderTop: '1px solid #E4E6EF', background: '#FAFAFA',
+            flexShrink: 0, gap: 12,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <button
+                onClick={() => gotoPage(page - 1)}
+                disabled={page <= 1}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  padding: '4px 10px', borderRadius: 7, fontSize: 12, fontWeight: 500,
+                  border: '1px solid #E4E6EF', background: '#FFFFFF',
+                  cursor: page <= 1 ? 'default' : 'pointer',
+                  color: page <= 1 ? '#C7CAD9' : '#374151', transition: 'all 100ms ease',
+                }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                Prev
+              </button>
+
+              {getPageNums(page, totalPages).map((n, i) =>
+                n === '…' ? (
+                  <span key={`e-${i}`} style={{ padding: '4px 6px', fontSize: 12, color: '#9CA3AF' }}>…</span>
+                ) : (
+                  <button
+                    key={n}
+                    onClick={() => gotoPage(n)}
+                    style={{
+                      width: 30, height: 28, borderRadius: 7, fontSize: 12,
+                      fontWeight: n === page ? 700 : 400,
+                      border: `1px solid ${n === page ? '#6366F1' : '#E4E6EF'}`,
+                      background: n === page ? '#6366F1' : '#FFFFFF',
+                      color: n === page ? '#FFFFFF' : '#374151',
+                      cursor: n === page ? 'default' : 'pointer',
+                      transition: 'all 100ms ease',
+                    }}
+                  >{n}</button>
+                )
+              )}
+
+              <button
+                onClick={() => gotoPage(page + 1)}
+                disabled={page >= totalPages}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  padding: '4px 10px', borderRadius: 7, fontSize: 12, fontWeight: 500,
+                  border: '1px solid #E4E6EF', background: '#FFFFFF',
+                  cursor: page >= totalPages ? 'default' : 'pointer',
+                  color: page >= totalPages ? '#C7CAD9' : '#374151', transition: 'all 100ms ease',
+                }}
+              >
+                Next
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {deleteTarget && (

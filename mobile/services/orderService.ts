@@ -136,8 +136,8 @@ export const orderService = {
     await apiClient.delete(`/orders/${id}/permanent`)
   },
 
-  listTrash: async (): Promise<TrashOrder[]> => {
-    const res = await apiClient.get<{ orders: TrashOrder[] }>('/orders/trash')
-    return res.data.orders ?? []
+  listTrash: async (page = 1, limit = 30): Promise<{ orders: TrashOrder[]; total: number }> => {
+    const res = await apiClient.get<{ orders: TrashOrder[]; total: number }>('/orders/trash', { params: { page, limit } })
+    return { orders: res.data.orders ?? [], total: res.data.total ?? 0 }
   },
 }
