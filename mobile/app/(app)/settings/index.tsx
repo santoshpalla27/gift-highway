@@ -14,9 +14,9 @@ import {
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { useAuthStore } from '../../store/authStore'
-import { authService } from '../../services/authService'
-import { profileService, Profile } from '../../services/profileService'
+import { useAuthStore } from '../../../store/authStore'
+import { authService } from '../../../services/authService'
+import { profileService, Profile } from '../../../services/profileService'
 
 // ─── Skeleton Pulse ────────────────────────────────────────────────────────────
 function SkeletonBlock({ width, height, borderRadius = 8 }: { width: number | `${number}%`; height: number; borderRadius?: number }) {

@@ -6,8 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { useState, useCallback, useEffect } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { apiClient } from '../../services/apiClient'
-import { formatRelative } from '../../utils/date'
+import { apiClient } from '../../../services/apiClient'
+import { formatRelative } from '../../../utils/date'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

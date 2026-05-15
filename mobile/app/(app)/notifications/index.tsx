@@ -6,11 +6,11 @@ import {
 import { useRouter, useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useNotifications } from '../../hooks/useNotifications'
-import { useNotifPreference } from '../../hooks/useNotifPreference'
-import type { DisplayGroup } from '../../hooks/useNotifications'
-import type { NotificationEvent } from '../../services/notificationService'
-import { formatRelative } from '../../utils/date'
+import { useNotifications } from '../../../hooks/useNotifications'
+import { useNotifPreference } from '../../../hooks/useNotifPreference'
+import type { DisplayGroup } from '../../../hooks/useNotifications'
+import type { NotificationEvent } from '../../../services/notificationService'
+import { formatRelative } from '../../../utils/date'
 
 type Tab = 'mine' | 'others'
 

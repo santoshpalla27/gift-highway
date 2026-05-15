@@ -5,8 +5,8 @@ import {
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useNotifPreference } from '../../hooks/useNotifPreference'
-import type { NotifScope } from '../../hooks/useNotifPreference'
+import { useNotifPreference } from '../../../hooks/useNotifPreference'
+import type { NotifScope } from '../../../hooks/useNotifPreference'
 
 const GROUPS: { label: string; types: { key: string; label: string }[] }[] = [
   {

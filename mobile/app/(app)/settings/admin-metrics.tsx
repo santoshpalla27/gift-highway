@@ -6,8 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { apiClient } from '../../services/apiClient'
-import { useAuthStore } from '../../store/authStore'
+import { apiClient } from '../../../services/apiClient'
+import { useAuthStore } from '../../../store/authStore'
 
 interface UserMetric {
   id: string

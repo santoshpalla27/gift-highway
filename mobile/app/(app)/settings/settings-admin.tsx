@@ -13,7 +13,7 @@ import {
 } from 'react-native'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { adminService, AdminUser } from '../../services/adminService'
+import { adminService, AdminUser } from '../../../services/adminService'
 import { router } from 'expo-router'
 
 // ─── Confirm Modal ────────────────────────────────────────────────────────────
