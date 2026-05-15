@@ -192,7 +192,7 @@ export default function NotificationsScreen() {
             </TouchableOpacity>
           )}
           <TouchableOpacity
-            onPress={() => router.push('/notification-preferences' as any)}
+            onPress={() => router.push('/(app)/notifications/notification-preferences' as any)}
             style={S.prefBtn}
             hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
             accessibilityRole="button"

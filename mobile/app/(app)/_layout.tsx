@@ -143,40 +143,6 @@ export default function AppLayout() {
         options={{ href: null, title: 'Notifications' }}
       />
       <Tabs.Screen
-        name="notification-preferences"
-        options={{ href: null, title: 'Notification Preferences' }}
-      />
-      <Tabs.Screen
-        name="settings-admin"
-        options={{
-          href: null,
-          title: 'Admin Panel',
-        }}
-      />
-      <Tabs.Screen
-        name="admin-metrics"
-        options={{
-          href: null,
-          title: 'User Metrics',
-        }}
-      />
-      <Tabs.Screen
-        name="activity"
-        options={{ href: null, title: 'Notifications' }}
-      />
-      <Tabs.Screen
-        name="trash"
-        options={{ href: null, title: 'Trash' }}
-      />
-      <Tabs.Screen
-        name="audit"
-        options={{ href: null, title: 'Audit Log' }}
-      />
-      <Tabs.Screen
-        name="activity-log"
-        options={{ href: null, title: 'Activity Log' }}
-      />
-      <Tabs.Screen
         name="index"
         options={{
           href: null,

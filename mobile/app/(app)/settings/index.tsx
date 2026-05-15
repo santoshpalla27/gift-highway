@@ -330,7 +330,7 @@ export default function SettingsScreen() {
           iconBg="#6366F1"
           label="Notifications"
           subtitle="All order events"
-          onPress={() => router.push('/(app)/activity' as never)}
+          onPress={() => router.push('/(app)/settings/activity' as never)}
         />
         {isAdmin && (
           <>
@@ -340,7 +340,7 @@ export default function SettingsScreen() {
               iconBg="#9CA3AF"
               label="Trash"
               subtitle="Archived orders"
-              onPress={() => router.push('/(app)/trash' as never)}
+              onPress={() => router.push('/(app)/settings/trash' as never)}
             />
           </>
         )}
@@ -353,7 +353,7 @@ export default function SettingsScreen() {
             iconBg="#F0914A"
             label="Admin Dashboard"
             subtitle="Manage users and access"
-            onPress={() => router.push('/(app)/settings-admin' as never)}
+            onPress={() => router.push('/(app)/settings/settings-admin' as never)}
           />
           <View style={S.rowSep} />
           <SettingsRow
@@ -361,7 +361,7 @@ export default function SettingsScreen() {
             iconBg="#6366F1"
             label="User Metrics"
             subtitle="Order stats per team member"
-            onPress={() => router.push('/(app)/admin-metrics' as never)}
+            onPress={() => router.push('/(app)/settings/admin-metrics' as never)}
           />
           <View style={S.rowSep} />
           <SettingsRow
@@ -369,7 +369,7 @@ export default function SettingsScreen() {
             iconBg="#10B981"
             label="Activity Log"
             subtitle="All order events log"
-            onPress={() => router.push('/(app)/activity-log' as never)}
+            onPress={() => router.push('/(app)/settings/activity-log' as never)}
           />
           <View style={S.rowSep} />
           <SettingsRow
@@ -377,7 +377,7 @@ export default function SettingsScreen() {
             iconBg="#16A34A"
             label="Audit Log"
             subtitle="CSV export & R2 status"
-            onPress={() => router.push('/(app)/audit' as never)}
+            onPress={() => router.push('/(app)/settings/audit' as never)}
           />
         </SectionCard>
       )}
