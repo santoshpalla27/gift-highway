@@ -216,6 +216,7 @@ export function NotificationsPage() {
   const { isAuthenticated } = useAuthStore()
   const sentinelRef = useRef<HTMLDivElement>(null)
 
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [orderSearch, setOrderSearch] = useState('')
   const [eventTypeFilter, setEventTypeFilter] = useState('')
   const [dateFrom, setDateFrom] = useState('')
@@ -325,21 +326,30 @@ export function NotificationsPage() {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button
-            onClick={() => refetch()}
+            onClick={async () => {
+              setIsRefreshing(true)
+              try { await refetch() } finally { setIsRefreshing(false) }
+            }}
+            disabled={isRefreshing}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '7px 14px', borderRadius: 10,
               border: '1.5px solid #E4E6EF', background: '#FFFFFF',
-              color: '#374151', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              color: '#374151', fontSize: 13, fontWeight: 600,
+              cursor: isRefreshing ? 'default' : 'pointer',
+              opacity: isRefreshing ? 0.7 : 1,
             }}
-            onMouseOver={e => { e.currentTarget.style.borderColor = '#C7CAD9' }}
+            onMouseOver={e => { if (!isRefreshing) e.currentTarget.style.borderColor = '#C7CAD9' }}
             onMouseOut={e => { e.currentTarget.style.borderColor = '#E4E6EF' }}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              style={isRefreshing ? { animation: 'spin 0.7s linear infinite' } : undefined}
+            >
               <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
             </svg>
-            Refresh
+            {isRefreshing ? 'Refreshing…' : 'Refresh'}
           </button>
           <button
             onClick={() => markAllRead()}
