@@ -749,7 +749,7 @@ function OrderCard({ order, onOpen, unreadCount = 0 }: {
       accessibilityRole="button"
       accessibilityLabel={`Order ${order.title}, ${order.customer_name}, ${sm.label}`}
     >
-      {/* Top row: Order ID + unread badge (left) | Status (right top) + Priority (right bottom) */}
+      {/* Top row: Order ID + unread badge (left) | Status (right) */}
       <View style={C.rowTop}>
         <View style={C.orderNumWrap}>
           <Text style={C.orderNum} numberOfLines={1}>#{order.title}</Text>
@@ -760,19 +760,19 @@ function OrderCard({ order, onOpen, unreadCount = 0 }: {
             </View>
           )}
         </View>
-        <View style={C.topRight}>
-          <View style={[C.statusBadge, { backgroundColor: sm.bg }]}>
-            <Text style={[C.statusText, { color: sm.color }]}>{sm.label}</Text>
-          </View>
-          <View style={[C.priorityBadge, { backgroundColor: pm.bg }]}>
-            <View style={[C.priorityDot, { backgroundColor: pm.color }]} />
-            <Text style={[C.priorityText, { color: pm.color }]}>{pm.label}</Text>
-          </View>
+        <View style={[C.statusBadge, { backgroundColor: sm.bg }]}>
+          <Text style={[C.statusText, { color: sm.color }]}>{sm.label}</Text>
         </View>
       </View>
 
-      {/* Middle row: Customer name */}
-      <Text style={C.customerName} numberOfLines={1} ellipsizeMode="tail">{order.customer_name}</Text>
+      {/* Middle row: Customer name (left) | Priority (right) */}
+      <View style={C.rowMiddle}>
+        <Text style={C.customerName} numberOfLines={1} ellipsizeMode="tail">{order.customer_name}</Text>
+        <View style={[C.priorityBadge, { backgroundColor: pm.bg }]}>
+          <View style={[C.priorityDot, { backgroundColor: pm.color }]} />
+          <Text style={[C.priorityText, { color: pm.color }]}>{pm.label}</Text>
+        </View>
+      </View>
 
       {/* Bottom row: Assignee (left) | Delivery date (right) */}
       <View style={C.rowBottom}>
@@ -1263,9 +1263,9 @@ const C = StyleSheet.create({
   },
   cardUnread: { borderColor: '#C7D2FE', borderWidth: 1.5 },
 
-  // Top row: order ID + unread badge (left) | priority dot + status (right)
-  rowTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  orderNumWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' },
+  // Top row: order ID + unread badge (left) | status (right)
+  rowTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  orderNumWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
   orderNum: { fontSize: 15, fontWeight: '800', color: '#6366F1' },
   unreadPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -1274,15 +1274,15 @@ const C = StyleSheet.create({
     shadowColor: '#EF4444', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.45, shadowRadius: 4, elevation: 4,
   },
   unreadPillText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
-  topRight: { flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 },
-  priorityBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10 },
+  priorityBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10, flexShrink: 0 },
   priorityDot: { width: 6, height: 6, borderRadius: 3 },
   priorityText: { fontSize: 11, fontWeight: '700' },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, flexShrink: 0 },
   statusText: { fontSize: 12, fontWeight: '700' },
 
-  // Customer name
-  customerName: { fontSize: 14, fontWeight: '700', color: '#111827', maxWidth: '50%' },
+  // Middle row: customer name + priority
+  rowMiddle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  customerName: { fontSize: 14, fontWeight: '700', color: '#111827', flex: 1 },
 
   // Bottom row
   rowBottom: {

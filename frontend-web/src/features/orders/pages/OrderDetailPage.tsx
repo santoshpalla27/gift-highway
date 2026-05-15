@@ -451,7 +451,7 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                 borderRadius: isOwn ? '12px 4px 12px 12px' : '4px 12px 12px 12px',
                 padding: '10px 14px', fontSize: 13.5, color: '#374151', lineHeight: 1.6,
                 boxShadow: '0 1px 3px rgba(0,0,0,.04)',
-                width: 'fit-content'
+                width: 'fit-content', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
               }}>
                 {replyPreview && (
                   <div
@@ -2177,7 +2177,7 @@ export function OrderDetailPage() {
 
           {order.description && (
             <PanelSection label="Description">
-              <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, margin: 0 }}>{order.description}</p>
+              <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{order.description}</p>
             </PanelSection>
           )}
 
