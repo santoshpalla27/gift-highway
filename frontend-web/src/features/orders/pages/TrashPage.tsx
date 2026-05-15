@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { orderService, type TrashOrder } from '../../../services/orderService'
 import { purgeNotificationOrder } from '../../notifications/hooks/useNotifications'
 import { useNavigate } from 'react-router-dom'
 import { DateInput } from '../../../components/system/DateInput'
+import { formatDate } from '../../../utils/date'
 import { useAuthStore } from '../../../store/authStore'
 import { STATUS_META, STATUS_OPTIONS as STATUS_OPTION_KEYS } from '../../../constants/status'
 
@@ -11,6 +12,69 @@ const STATUS_OPTIONS = [
   { key: 'all',                label: 'All statuses' },
   ...STATUS_OPTION_KEYS.filter(k => k !== 'cancelled').map(k => ({ key: k, label: STATUS_META[k].label })),
 ]
+
+function FilterPill({
+  label, value, onClear, children,
+}: {
+  label: string
+  value?: string
+  onClear?: () => void
+  children: (close: () => void) => React.ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  const pillRef = useRef<HTMLDivElement>(null)
+  const isActive = !!value
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (pillRef.current && !pillRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={pillRef} style={{ position: 'relative', flexShrink: 0 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
+          border: `1.5px solid ${isActive ? '#6366F1' : '#E4E6EF'}`,
+          background: isActive ? '#EEF2FF' : '#FFFFFF',
+          color: isActive ? '#4F46E5' : '#374151',
+          cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 120ms ease',
+        }}
+        onMouseEnter={e => { if (!isActive) e.currentTarget.style.borderColor = '#C7CAD9' }}
+        onMouseLeave={e => { if (!isActive) e.currentTarget.style.borderColor = '#E4E6EF' }}
+      >
+        <span>{isActive ? `${label}: ${value}` : label}</span>
+        {isActive ? (
+          <span onClick={ev => { ev.stopPropagation(); onClear?.(); setOpen(false) }} style={{ display: 'flex', alignItems: 'center', marginLeft: 2, opacity: 0.7 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </span>
+        ) : (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ opacity: 0.5 }}>
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        )}
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 500,
+          background: '#FFFFFF', border: '1px solid #E4E6EF',
+          borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.10)',
+          minWidth: 200,
+        }}>
+          {children(() => setOpen(false))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function ConfirmDeleteModal({ order, onClose, onConfirm }: {
   order: TrashOrder
@@ -118,7 +182,10 @@ export function TrashPage() {
   const [toast, setToast] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [dateFrom, setDateFrom] = useState('')   // "YYYY-MM-DD" or ""
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [dateDraftFrom, setDateDraftFrom] = useState('')
+  const [dateDraftTo, setDateDraftTo] = useState('')
 
   const { data: orders = [], isLoading } = useQuery<TrashOrder[]>({
     queryKey: ['trash'],
@@ -132,12 +199,10 @@ export function TrashPage() {
       o.customer_name.toLowerCase().includes(q) ||
       (o.archived_by_name ?? '').toLowerCase().includes(q)
     const matchesStatus = statusFilter === 'all' || o.status === statusFilter
-    const matchesDate = !dateFrom || (
-      o.archived_at
-        ? new Date(o.archived_at) >= new Date(dateFrom + 'T00:00:00')
-        : false
-    )
-    return matchesSearch && matchesStatus && matchesDate
+    const archivedMs = o.archived_at ? new Date(o.archived_at).getTime() : null
+    const matchesFrom = !dateFrom || (archivedMs !== null && archivedMs >= new Date(dateFrom + 'T00:00:00').getTime())
+    const matchesTo   = !dateTo   || (archivedMs !== null && archivedMs <= new Date(dateTo   + 'T23:59:59').getTime())
+    return matchesSearch && matchesStatus && matchesFrom && matchesTo
   })
 
   function showToast(msg: string) {
@@ -259,34 +324,57 @@ export function TrashPage() {
           </svg>
         </div>
 
-        {/* Date from */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <DateInput
-            value={dateFrom}
-            onChange={setDateFrom}
-            placeholder="Archived from…"
-            style={{
-              padding: '7px 11px', borderRadius: 9,
-              border: `1.5px solid ${dateFrom ? '#6366F1' : '#E4E6EF'}`,
-              background: dateFrom ? '#EEF2FF' : '#FFFFFF',
-              color: dateFrom ? '#4F46E5' : '#6B7280',
-            }}
-          />
-          {dateFrom && (
-            <button
-              onClick={() => setDateFrom('')}
-              title="Clear date filter"
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer', padding: 4,
-                color: '#9CA3AF', display: 'flex', alignItems: 'center',
-              }}
+        {/* Date range */}
+        {(() => {
+          const dateLabel = dateFrom && dateTo
+            ? `${formatDate(dateFrom)} – ${formatDate(dateTo)}`
+            : dateFrom ? `From ${formatDate(dateFrom)}`
+            : dateTo   ? `Until ${formatDate(dateTo)}`
+            : undefined
+          return (
+            <FilterPill
+              label="Date Range"
+              value={dateLabel}
+              onClear={() => { setDateFrom(''); setDateTo(''); setDateDraftFrom(''); setDateDraftTo('') }}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          )}
-        </div>
+              {close => (
+                <div style={{ padding: 16, width: 260 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.5px', marginBottom: 12 }}>DATE RANGE</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>From</label>
+                      <DateInput value={dateDraftFrom} onChange={setDateDraftFrom}
+                        style={{ width: '100%', padding: '7px 10px', border: '1.5px solid #E4E6EF', borderRadius: 8, boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>To</label>
+                      <DateInput value={dateDraftTo} onChange={setDateDraftTo} min={dateDraftFrom || undefined}
+                        style={{ width: '100%', padding: '7px 10px', border: '1.5px solid #E4E6EF', borderRadius: 8, boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                    <button
+                      onClick={() => { setDateFrom(dateDraftFrom); setDateTo(dateDraftTo); close() }}
+                      disabled={!dateDraftFrom && !dateDraftTo}
+                      style={{
+                        flex: 1, padding: '7px 0', borderRadius: 8, border: 'none',
+                        background: (dateDraftFrom || dateDraftTo) ? '#6366F1' : '#E4E6EF',
+                        color: (dateDraftFrom || dateDraftTo) ? '#FFFFFF' : '#9CA3AF',
+                        fontSize: 13, fontWeight: 600, cursor: (dateDraftFrom || dateDraftTo) ? 'pointer' : 'default',
+                      }}
+                    >Apply</button>
+                    <button
+                      onClick={() => { setDateDraftFrom(''); setDateDraftTo(''); setDateFrom(''); setDateTo(''); close() }}
+                      style={{ padding: '7px 14px', borderRadius: 8, border: '1.5px solid #E4E6EF', background: '#FFFFFF', fontSize: 13, fontWeight: 500, color: '#6B7280', cursor: 'pointer' }}
+                    >Clear</button>
+                  </div>
+                </div>
+              )}
+            </FilterPill>
+          )
+        })()}
 
       </div>
 

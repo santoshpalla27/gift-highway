@@ -21,6 +21,8 @@ func (h *ActivityHandler) GetActivityLog(c *gin.Context) {
 
 	orderTitle := c.Query("title")
 	eventType  := c.Query("event_type")
+	dateFrom   := c.Query("date_from")
+	dateTo     := c.Query("date_to")
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if page < 1 {
@@ -32,7 +34,7 @@ func (h *ActivityHandler) GetActivityLog(c *gin.Context) {
 	}
 	offset := (page - 1) * limit
 
-	events, total, err := h.eventRepo.ListAllEvents(ctx, orderTitle, eventType, limit, offset)
+	events, total, err := h.eventRepo.ListAllEvents(ctx, orderTitle, eventType, dateFrom, dateTo, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

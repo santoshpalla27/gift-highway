@@ -29,12 +29,13 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
 interface FilterState {
   status: string       // '' | 'yet_to_start' | 'working' | 'waiting_for_client' | 'making' | 'done' | 'delivered' | 'cancelled'
   archivedFrom: string // YYYY-MM-DD or ''
+  archivedTo: string   // YYYY-MM-DD or ''
 }
 
-const emptyFilters: FilterState = { status: '', archivedFrom: '' }
+const emptyFilters: FilterState = { status: '', archivedFrom: '', archivedTo: '' }
 
 function activeCount(f: FilterState) {
-  return [f.status, f.archivedFrom].filter(Boolean).length
+  return [f.status, f.archivedFrom, f.archivedTo].filter(Boolean).length
 }
 
 // ── Filter Sheet ──────────────────────────────────────────────────────────────
@@ -47,12 +48,28 @@ function FilterSheet({ visible, filters, onApply, onClose }: {
 }) {
   const insets = useSafeAreaInsets()
   const [draft, setDraft] = useState<FilterState>(filters)
-  const [showDatePicker, setShowDatePicker] = useState(false)
-  const [tempDateObj, setTempDateObj] = useState(new Date())
+  const [showFromPicker, setShowFromPicker] = useState(false)
+  const [showToPicker, setShowToPicker]     = useState(false)
+  const [tempDateObj, setTempDateObj]       = useState(new Date())
+  const [activePick, setActivePick]         = useState<'from'|'to'>('from')
 
   const set = (patch: Partial<FilterState>) => setDraft(d => ({ ...d, ...patch }))
   const hasChanges = JSON.stringify(draft) !== JSON.stringify(filters)
   const draftCount = activeCount(draft)
+
+  const openDatePicker = (field: 'from'|'to') => {
+    const val = field === 'from' ? draft.archivedFrom : draft.archivedTo
+    setTempDateObj(val ? new Date(val + 'T00:00:00') : new Date())
+    setActivePick(field)
+    if (field === 'from') setShowFromPicker(true)
+    else setShowToPicker(true)
+  }
+
+  const confirmDate = (d: Date) => {
+    const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    if (activePick === 'from') { set({ archivedFrom: iso }); setShowFromPicker(false) }
+    else                       { set({ archivedTo:   iso }); setShowToPicker(false) }
+  }
 
   // Sync draft whenever sheet opens
   React.useEffect(() => { if (visible) setDraft(filters) }, [visible])
@@ -95,53 +112,38 @@ function FilterSheet({ visible, filters, onApply, onClose }: {
             </View>
           </View>
 
-          {/* Archived from date */}
+          {/* Archived date range */}
           <View style={FS.section}>
-            <Text style={FS.sectionLabel}>ARCHIVED FROM</Text>
-            {Platform.OS === 'web' ? (
-              // Web: hidden native input behind a styled button
-              (() => {
-                const webPickerRef = React.createRef<any>()
+            <Text style={FS.sectionLabel}>ARCHIVED DATE RANGE</Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              {(['from', 'to'] as const).map(field => {
+                const val = field === 'from' ? draft.archivedFrom : draft.archivedTo
                 return (
-                  <TouchableOpacity
-                    style={[FS.dateInput, { flexDirection: 'row', alignItems: 'center' }]}
-                    onPress={() => webPickerRef.current?.showPicker?.()}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={{ flex: 1, fontSize: 14, color: draft.archivedFrom ? '#0F172A' : '#94A3B8' }} numberOfLines={1}>
-                      {draft.archivedFrom ? formatDate(draft.archivedFrom) : 'DD/MM/YYYY'}
+                  <TouchableOpacity key={field} style={[FS.dateBtn, val ? FS.dateBtnActive : undefined]} onPress={() => openDatePicker(field)}>
+                    <Ionicons name="calendar-outline" size={14} color={val ? '#6366F1' : '#94A3B8'} />
+                    <Text style={[FS.dateBtnText, val ? { color: '#4338CA' } : undefined]}>
+                      {val ? formatDate(val) : field === 'from' ? 'From date' : 'To date'}
                     </Text>
-                    <Ionicons name="calendar-outline" size={15} color="#94A3B8" />
-                    <input ref={webPickerRef} type="date" value={draft.archivedFrom || ''}
-                      onChange={(e: any) => set({ archivedFrom: e.target.value })}
-                      style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }} />
+                    {val ? (
+                      <TouchableOpacity onPress={() => set(field === 'from' ? { archivedFrom: '' } : { archivedTo: '' })} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                        <Ionicons name="close-circle" size={14} color="#94A3B8" />
+                      </TouchableOpacity>
+                    ) : null}
                   </TouchableOpacity>
                 )
-              })()
-            ) : (
-              <TouchableOpacity style={FS.dateInput} onPress={() => {
-                setTempDateObj(draft.archivedFrom ? new Date(draft.archivedFrom + 'T00:00:00') : new Date())
-                setShowDatePicker(true)
-              }}>
-                <Text style={{ color: draft.archivedFrom ? '#0F172A' : '#94A3B8', fontSize: 14 }}>
-                  {draft.archivedFrom ? formatDate(draft.archivedFrom) : 'DD/MM/YYYY'}
-                </Text>
-              </TouchableOpacity>
-            )}
+              })}
+            </View>
 
-            {/* Native date picker — iOS: Cancel/Done sheet; Android: native dialog */}
-            {Platform.OS === 'ios' && (
-              <Modal visible={showDatePicker} transparent animationType="slide" onRequestClose={() => setShowDatePicker(false)}>
+            {/* iOS: Cancel/Done spinner modal (shared for both From and To) */}
+            {Platform.OS === 'ios' && (showFromPicker || showToPicker) && (
+              <Modal visible transparent animationType="slide" onRequestClose={() => { setShowFromPicker(false); setShowToPicker(false) }}>
                 <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' }}>
                   <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: Math.max(insets.bottom + 8, 24) }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
-                      <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <TouchableOpacity onPress={() => { setShowFromPicker(false); setShowToPicker(false) }}>
                         <Text style={{ fontSize: 16, color: '#6B7280', fontWeight: '600' }}>Cancel</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={() => {
-                        set({ archivedFrom: `${tempDateObj.getFullYear()}-${String(tempDateObj.getMonth()+1).padStart(2,'0')}-${String(tempDateObj.getDate()).padStart(2,'0')}` })
-                        setShowDatePicker(false)
-                      }}>
+                      <TouchableOpacity onPress={() => confirmDate(tempDateObj)}>
                         <Text style={{ fontSize: 16, color: '#6366F1', fontWeight: '700' }}>Done</Text>
                       </TouchableOpacity>
                     </View>
@@ -152,15 +154,14 @@ function FilterSheet({ visible, filters, onApply, onClose }: {
                 </View>
               </Modal>
             )}
-            {Platform.OS === 'android' && showDatePicker && (
-              <DateTimePicker
-                value={draft.archivedFrom ? new Date(draft.archivedFrom + 'T00:00:00') : new Date()}
-                mode="date" display="default" maximumDate={new Date()}
-                onChange={(event, d) => {
-                  setShowDatePicker(false)
-                  if (event.type === 'set' && d) set({ archivedFrom: d.toISOString().split('T')[0] })
-                }}
-              />
+            {/* Android: native dialogs */}
+            {Platform.OS === 'android' && showFromPicker && (
+              <DateTimePicker value={tempDateObj} mode="date" display="default" maximumDate={new Date()}
+                onChange={(ev, d) => { setShowFromPicker(false); if (ev.type === 'set' && d) confirmDate(d) }} />
+            )}
+            {Platform.OS === 'android' && showToPicker && (
+              <DateTimePicker value={tempDateObj} mode="date" display="default" maximumDate={new Date()}
+                onChange={(ev, d) => { setShowToPicker(false); if (ev.type === 'set' && d) confirmDate(d) }} />
             )}
           </View>
 
@@ -312,6 +313,7 @@ function ActiveFilterPills({ filters, onClear }: {
   const pills: { label: string; key: keyof FilterState }[] = []
   if (filters.status) pills.push({ label: STATUS_META[filters.status]?.label ?? filters.status, key: 'status' })
   if (filters.archivedFrom) pills.push({ label: `From ${formatDate(filters.archivedFrom)}`, key: 'archivedFrom' })
+  if (filters.archivedTo)   pills.push({ label: `To ${formatDate(filters.archivedTo)}`,     key: 'archivedTo' })
   if (pills.length === 0) return null
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false}
@@ -347,19 +349,18 @@ export default function TrashScreen() {
 
   const filteredOrders = useMemo(() => {
     const q = search.trim().toLowerCase()
-    const filterTs = filters.archivedFrom
-      ? new Date(filters.archivedFrom + 'T00:00:00').getTime()
-      : null
+    const fromTs = filters.archivedFrom ? new Date(filters.archivedFrom + 'T00:00:00').getTime() : null
+    const toTs   = filters.archivedTo   ? new Date(filters.archivedTo   + 'T23:59:59').getTime() : null
     return orders.filter(o => {
       const matchesSearch = !q ||
         o.title.toLowerCase().includes(q) ||
         o.customer_name.toLowerCase().includes(q) ||
         (o.archived_by_name ?? '').toLowerCase().includes(q)
       const matchesStatus = !filters.status || o.status === filters.status
-      const matchesDate = !filterTs || (
-        o.archived_at ? new Date(o.archived_at).getTime() >= filterTs : false
-      )
-      return matchesSearch && matchesStatus && matchesDate
+      const archivedMs = o.archived_at ? new Date(o.archived_at).getTime() : null
+      const matchesFrom = !fromTs || (archivedMs != null && archivedMs >= fromTs)
+      const matchesTo   = !toTs   || (archivedMs != null && archivedMs <= toTs)
+      return matchesSearch && matchesStatus && matchesFrom && matchesTo
     })
   }, [orders, search, filters])
 
@@ -644,6 +645,13 @@ const FS = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12,
     fontSize: 15, color: '#111827', backgroundColor: '#FFFFFF',
   },
+  dateBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderWidth: 1.5, borderColor: '#F3F4F6', borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 11, backgroundColor: '#FFFFFF',
+  },
+  dateBtnActive: { borderColor: '#6366F1', backgroundColor: '#EEF2FF' },
+  dateBtnText: { flex: 1, fontSize: 13, color: '#94A3B8' },
   pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   pickerSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 32, overflow: 'hidden' },
   footer: {

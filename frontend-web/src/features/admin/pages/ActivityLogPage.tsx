@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiClient } from '../../../services/apiClient'
-import { formatRelative } from '../../../utils/date'
+import { formatRelative, formatDate } from '../../../utils/date'
 import { STATUS_META } from '../../../constants/status'
+import { DateInput } from '../../../components/system/DateInput'
 
 interface ActivityEvent {
   id: string
@@ -99,23 +100,32 @@ export function ActivityLogPage() {
   const [eventType, setEventType] = useState('')
   const [etOpen, setEtOpen] = useState(false)
   const etRef = useRef<HTMLDivElement>(null)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [dateDraftFrom, setDateDraftFrom] = useState('')
+  const [dateDraftTo, setDateDraftTo] = useState('')
+  const [drOpen, setDrOpen] = useState(false)
+  const drRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (etRef.current && !etRef.current.contains(e.target as Node)) setEtOpen(false)
+      if (drRef.current && !drRef.current.contains(e.target as Node)) setDrOpen(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  const fetch = useCallback(async (pg: number, orderId: string, evType: string, append: boolean) => {
+  const fetch = useCallback(async (pg: number, orderId: string, evType: string, dFrom: string, dTo: string, append: boolean) => {
     if (pg === 1) setLoading(true); else setLoadingMore(true)
     setError(false)
     try {
       const params: Record<string, string> = { page: String(pg), limit: String(LIMIT) }
       if (orderId) params.title = orderId
       if (evType) params.event_type = evType
+      if (dFrom) params.date_from = dFrom
+      if (dTo) params.date_to = dTo
       const res = await apiClient.get<ActivityResponse>('/admin/activity', { params })
       const data = res.data
       setEvents(prev => append ? [...prev, ...data.events] : data.events)
@@ -129,21 +139,23 @@ export function ActivityLogPage() {
     }
   }, [])
 
-  useEffect(() => { fetch(1, '', '', false) }, [fetch])
+  useEffect(() => { fetch(1, '', '', '', '', false) }, [fetch])
 
   const applyFilter = () => {
     const id = orderInput.trim()
     setAppliedOrder(id)
     setEvents([])
-    fetch(1, id, eventType, false)
+    fetch(1, id, eventType, dateFrom, dateTo, false)
   }
 
   const clearFilter = () => {
     setOrderInput('')
     setAppliedOrder('')
     setEventType('')
+    setDateFrom(''); setDateTo('')
+    setDateDraftFrom(''); setDateDraftTo('')
     setEvents([])
-    fetch(1, '', '', false)
+    fetch(1, '', '', '', '', false)
     inputRef.current?.focus()
   }
 
@@ -174,7 +186,7 @@ export function ActivityLogPage() {
               style={{ padding: '7px 12px', border: 'none', outline: 'none', fontSize: 13.5, color: '#111827', width: 220 }}
             />
             {orderInput && (
-              <button onClick={() => { setOrderInput(''); setAppliedOrder(''); fetch(1, '', eventType, false) }} style={{ padding: '0 8px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: 16, lineHeight: 1 }}>×</button>
+              <button onClick={() => { setOrderInput(''); setAppliedOrder(''); fetch(1, '', eventType, dateFrom, dateTo, false) }} style={{ padding: '0 8px', background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: 16, lineHeight: 1 }}>×</button>
             )}
           </div>
 
@@ -191,7 +203,7 @@ export function ActivityLogPage() {
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
               {eventType ? (EVENT_TYPE_OPTIONS.find(o => o.value === eventType)?.label ?? eventType) : 'Event Type'}
-              {eventType && <span onClick={e => { e.stopPropagation(); setEventType(''); fetch(1, appliedOrder, '', false) }} style={{ marginLeft: 2, color: '#9CA3AF', fontSize: 14, lineHeight: 1 }}>×</span>}
+              {eventType && <span onClick={e => { e.stopPropagation(); setEventType(''); fetch(1, appliedOrder, '', dateFrom, dateTo, false) }} style={{ marginLeft: 2, color: '#9CA3AF', fontSize: 14, lineHeight: 1 }}>×</span>}
             </button>
             {etOpen && (
               <div style={{
@@ -200,7 +212,7 @@ export function ActivityLogPage() {
                 boxShadow: '0 4px 16px rgba(0,0,0,0.10)', minWidth: 200, padding: '4px 0',
               }}>
                 <div
-                  onClick={() => { setEventType(''); setEtOpen(false); fetch(1, appliedOrder, '', false) }}
+                  onClick={() => { setEventType(''); setEtOpen(false); fetch(1, appliedOrder, '', dateFrom, dateTo, false) }}
                   style={{ padding: '8px 14px', fontSize: 13, cursor: 'pointer', color: !eventType ? '#4338CA' : '#374151', fontWeight: !eventType ? 600 : 400 }}
                   onMouseEnter={e => (e.currentTarget.style.background = '#F5F6FA')}
                   onMouseLeave={e => (e.currentTarget.style.background = '')}
@@ -208,7 +220,7 @@ export function ActivityLogPage() {
                 {EVENT_TYPE_OPTIONS.map(opt => (
                   <div
                     key={opt.value}
-                    onClick={() => { setEventType(opt.value); setEtOpen(false); fetch(1, appliedOrder, opt.value, false) }}
+                    onClick={() => { setEventType(opt.value); setEtOpen(false); fetch(1, appliedOrder, opt.value, dateFrom, dateTo, false) }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8,
                       padding: '8px 14px', fontSize: 13, cursor: 'pointer',
@@ -227,13 +239,86 @@ export function ActivityLogPage() {
             )}
           </div>
 
+          {/* Date range dropdown */}
+          <div ref={drRef} style={{ position: 'relative' }}>
+            {(() => {
+              const dateLabel = dateFrom && dateTo
+                ? `${formatDate(dateFrom)} – ${formatDate(dateTo)}`
+                : dateFrom ? `From ${formatDate(dateFrom)}`
+                : dateTo ? `Until ${formatDate(dateTo)}`
+                : null
+              return (
+                <button
+                  onClick={() => { setDateDraftFrom(dateFrom); setDateDraftTo(dateTo); setDrOpen(o => !o) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '7px 12px', border: `1.5px solid ${dateLabel ? '#6366F1' : '#E5E7EB'}`,
+                    borderRadius: 8, background: dateLabel ? '#EEF2FF' : '#fff',
+                    color: dateLabel ? '#4338CA' : '#374151', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+                    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  {dateLabel ?? 'Date Range'}
+                  {dateLabel && (
+                    <span
+                      onClick={e => { e.stopPropagation(); setDateFrom(''); setDateTo(''); setDateDraftFrom(''); setDateDraftTo(''); fetch(1, appliedOrder, eventType, '', '', false) }}
+                      style={{ marginLeft: 2, color: '#9CA3AF', fontSize: 14, lineHeight: 1 }}
+                    >×</span>
+                  )}
+                </button>
+              )
+            })()}
+            {drOpen && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50,
+                background: '#fff', border: '1px solid #E5E7EB', borderRadius: 10,
+                boxShadow: '0 4px 16px rgba(0,0,0,0.10)', width: 260, padding: 16,
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.5px', marginBottom: 12 }}>DATE RANGE</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>From</label>
+                    <DateInput value={dateDraftFrom} onChange={setDateDraftFrom}
+                      style={{ width: '100%', padding: '7px 10px', border: '1.5px solid #E4E6EF', borderRadius: 8, boxSizing: 'border-box' as const }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>To</label>
+                    <DateInput value={dateDraftTo} onChange={setDateDraftTo} min={dateDraftFrom || undefined}
+                      style={{ width: '100%', padding: '7px 10px', border: '1.5px solid #E4E6EF', borderRadius: 8, boxSizing: 'border-box' as const }}
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                  <button
+                    onClick={() => { setDateFrom(dateDraftFrom); setDateTo(dateDraftTo); setDrOpen(false); fetch(1, appliedOrder, eventType, dateDraftFrom, dateDraftTo, false) }}
+                    disabled={!dateDraftFrom && !dateDraftTo}
+                    style={{
+                      flex: 1, padding: '7px 0', borderRadius: 8, border: 'none',
+                      background: (dateDraftFrom || dateDraftTo) ? '#6366F1' : '#E4E6EF',
+                      color: (dateDraftFrom || dateDraftTo) ? '#fff' : '#9CA3AF',
+                      fontSize: 13, fontWeight: 600, cursor: (dateDraftFrom || dateDraftTo) ? 'pointer' : 'default',
+                    }}
+                  >Apply</button>
+                  <button
+                    onClick={() => { setDateDraftFrom(''); setDateDraftTo(''); setDateFrom(''); setDateTo(''); setDrOpen(false); fetch(1, appliedOrder, eventType, '', '', false) }}
+                    style={{ padding: '7px 14px', borderRadius: 8, border: '1.5px solid #E4E6EF', background: '#fff', fontSize: 13, fontWeight: 500, color: '#6B7280', cursor: 'pointer' }}
+                  >Clear</button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={applyFilter}
             style={{ padding: '7px 16px', background: '#6366F1', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
           >
             Filter
           </button>
-          {(appliedOrder || eventType) && (
+          {(appliedOrder || eventType || dateFrom || dateTo) && (
             <button onClick={clearFilter} style={{ background: 'none', border: 'none', color: '#6366F1', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
               Clear all
             </button>
@@ -249,7 +334,7 @@ export function ActivityLogPage() {
         ) : error ? (
           <div style={{ padding: 40, textAlign: 'center' }}>
             <p style={{ color: '#EF4444', marginBottom: 12 }}>Failed to load activity log.</p>
-            <button onClick={() => fetch(1, appliedOrder, eventType, false)} style={{ padding: '6px 16px', border: '1.5px solid #E5E7EB', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13 }}>Retry</button>
+            <button onClick={() => fetch(1, appliedOrder, eventType, dateFrom, dateTo, false)} style={{ padding: '6px 16px', border: '1.5px solid #E5E7EB', borderRadius: 8, background: '#fff', cursor: 'pointer', fontSize: 13 }}>Retry</button>
           </div>
         ) : events.length === 0 ? (
           <div style={{ padding: 60, textAlign: 'center', color: '#9CA3AF' }}>No activity found.</div>
@@ -304,7 +389,7 @@ export function ActivityLogPage() {
             {hasMore && (
               <div style={{ textAlign: 'center', marginTop: 16 }}>
                 <button
-                  onClick={() => fetch(page + 1, appliedOrder, eventType, true)}
+                  onClick={() => fetch(page + 1, appliedOrder, eventType, dateFrom, dateTo, true)}
                   disabled={loadingMore}
                   style={{
                     padding: '8px 24px', border: '1.5px solid #E5E7EB', borderRadius: 8,

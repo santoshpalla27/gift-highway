@@ -95,7 +95,7 @@ func (r *EventRepository) Delete(ctx context.Context, eventID string) error {
 	return err
 }
 
-func (r *EventRepository) ListAllEvents(ctx context.Context, orderTitle, eventType string, limit, offset int) ([]*ActivityEvent, int, error) {
+func (r *EventRepository) ListAllEvents(ctx context.Context, orderTitle, eventType, dateFrom, dateTo string, limit, offset int) ([]*ActivityEvent, int, error) {
 	const baseCount = `SELECT COUNT(*) FROM order_events e JOIN orders o ON e.order_id = o.id`
 	const baseList = `
 		SELECT e.id, e.order_id, o.order_number, o.title AS order_title,
@@ -116,6 +116,14 @@ func (r *EventRepository) ListAllEvents(ctx context.Context, orderTitle, eventTy
 	if eventType != "" {
 		args = append(args, eventType)
 		conds = append(conds, fmt.Sprintf("e.type = $%d", len(args)))
+	}
+	if dateFrom != "" {
+		args = append(args, dateFrom)
+		conds = append(conds, fmt.Sprintf("e.created_at >= $%d::date", len(args)))
+	}
+	if dateTo != "" {
+		args = append(args, dateTo)
+		conds = append(conds, fmt.Sprintf("e.created_at < ($%d::date + INTERVAL '1 day')", len(args)))
 	}
 
 	where := ""

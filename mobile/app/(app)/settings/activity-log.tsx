@@ -1,13 +1,14 @@
+import React, { useState, useCallback, useEffect } from 'react'
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, ActivityIndicator, Modal,
+  TextInput, ActivityIndicator, Modal, ScrollView, Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router'
-import { useState, useCallback, useEffect } from 'react'
 import { Ionicons } from '@expo/vector-icons'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import { apiClient } from '../../../services/apiClient'
-import { formatRelative } from '../../../utils/date'
+import { formatRelative, formatDate } from '../../../utils/date'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,49 +87,169 @@ const EVENT_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'user_mentioned',     label: 'Mention' },
 ]
 
-function FilterSheet({ visible, selected, onSelect, onClose }: {
-  visible: boolean; selected: string; onSelect: (v: string) => void; onClose: () => void
+interface SheetFilters { eventType: string; dateFrom: string; dateTo: string }
+const emptySheetFilters: SheetFilters = { eventType: '', dateFrom: '', dateTo: '' }
+
+function FilterSheet({ visible, filters, onApply, onClose }: {
+  visible: boolean
+  filters: SheetFilters
+  onApply: (f: SheetFilters) => void
+  onClose: () => void
 }) {
   const insets = useSafeAreaInsets()
+  const [draft, setDraft] = React.useState<SheetFilters>(filters)
+  const [showFromPicker, setShowFromPicker] = React.useState(false)
+  const [showToPicker, setShowToPicker]     = React.useState(false)
+  const [tempDate, setTempDate]             = React.useState(new Date())
+  const [activePick, setActivePick]         = React.useState<'from'|'to'>('from')
+
+  React.useEffect(() => { if (visible) setDraft(filters) }, [visible, filters])
+
+  const set = (patch: Partial<SheetFilters>) => setDraft(d => ({ ...d, ...patch }))
+
+  const openPicker = (field: 'from'|'to') => {
+    const val = field === 'from' ? draft.dateFrom : draft.dateTo
+    setTempDate(val ? new Date(val + 'T00:00:00') : new Date())
+    setActivePick(field)
+    if (field === 'from') setShowFromPicker(true)
+    else setShowToPicker(true)
+  }
+
+  const confirmDate = (d: Date) => {
+    const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    if (activePick === 'from') { set({ dateFrom: iso }); setShowFromPicker(false) }
+    else                       { set({ dateTo:   iso }); setShowToPicker(false)   }
+  }
+
+  const hasChanges = JSON.stringify(draft) !== JSON.stringify(filters)
+  const activeCount = [draft.eventType, draft.dateFrom, draft.dateTo].filter(Boolean).length
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={FS.overlay} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={[FS.sheet, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
-          <View style={FS.handle} />
-          <Text style={FS.title}>Filter by Event Type</Text>
-          <TouchableOpacity style={[FS.option, !selected && FS.optionActive]} onPress={() => { onSelect(''); onClose() }}>
-            <Text style={[FS.optionText, !selected && FS.optionTextActive]}>All events</Text>
-            {!selected && <Ionicons name="checkmark" size={16} color="#6366F1" />}
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View style={[FS.container, { paddingTop: insets.top }]}>
+        {/* Header */}
+        <View style={FS.header}>
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="close" size={24} color="#0F172A" />
+          </TouchableOpacity>
+          <Text style={FS.title}>Filters</Text>
+          <TouchableOpacity onPress={() => setDraft(emptySheetFilters)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={[FS.clearBtn, activeCount === 0 && { opacity: 0.3 }]}>Clear all</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom + 80, 40) }}>
+          {/* Event Type */}
+          <Text style={FS.sectionLabel}>EVENT TYPE</Text>
+          <TouchableOpacity style={[FS.option, !draft.eventType && FS.optionActive]} onPress={() => set({ eventType: '' })}>
+            <Text style={[FS.optionText, !draft.eventType && FS.optionTextActive]}>All events</Text>
+            {!draft.eventType && <Ionicons name="checkmark" size={16} color="#6366F1" />}
           </TouchableOpacity>
           {EVENT_TYPE_OPTIONS.map(opt => (
             <TouchableOpacity
               key={opt.value}
-              style={[FS.option, selected === opt.value && FS.optionActive]}
-              onPress={() => { onSelect(opt.value); onClose() }}
+              style={[FS.option, draft.eventType === opt.value && FS.optionActive]}
+              onPress={() => set({ eventType: opt.value })}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                 <View style={[FS.dot, { backgroundColor: (EVENT_ICON[opt.value] ?? DEFAULT_ICON).color }]} />
-                <Text style={[FS.optionText, selected === opt.value && FS.optionTextActive]}>{opt.label}</Text>
+                <Text style={[FS.optionText, draft.eventType === opt.value && FS.optionTextActive]}>{opt.label}</Text>
               </View>
-              {selected === opt.value && <Ionicons name="checkmark" size={16} color="#6366F1" />}
+              {draft.eventType === opt.value && <Ionicons name="checkmark" size={16} color="#6366F1" />}
             </TouchableOpacity>
           ))}
-        </TouchableOpacity>
-      </TouchableOpacity>
+
+          {/* Date Range */}
+          <Text style={[FS.sectionLabel, { marginTop: 20 }]}>DATE RANGE</Text>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {(['from', 'to'] as const).map(field => {
+              const val = field === 'from' ? draft.dateFrom : draft.dateTo
+              return (
+                <TouchableOpacity key={field} style={[FS.dateBtn, val && FS.dateBtnActive]} onPress={() => openPicker(field)}>
+                  <Ionicons name="calendar-outline" size={14} color={val ? '#6366F1' : '#9CA3AF'} />
+                  <Text style={[FS.dateBtnText, val && { color: '#4338CA' }]}>
+                    {val ? formatDate(val) : field === 'from' ? 'From date' : 'To date'}
+                  </Text>
+                  {val && (
+                    <TouchableOpacity onPress={() => set(field === 'from' ? { dateFrom: '' } : { dateTo: '' })} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                      <Ionicons name="close-circle" size={14} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+
+          {/* iOS date picker modal */}
+          {Platform.OS === 'ios' && (showFromPicker || showToPicker) && (
+            <Modal visible transparent animationType="slide" onRequestClose={() => { setShowFromPicker(false); setShowToPicker(false) }}>
+              <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: Math.max(insets.bottom + 8, 24) }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                    <TouchableOpacity onPress={() => { setShowFromPicker(false); setShowToPicker(false) }}>
+                      <Text style={{ fontSize: 16, color: '#6B7280', fontWeight: '600' }}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => confirmDate(tempDate)}>
+                      <Text style={{ fontSize: 16, color: '#6366F1', fontWeight: '700' }}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker value={tempDate} mode="date" display="spinner" maximumDate={new Date()}
+                    onChange={(_, d) => { if (d) setTempDate(d) }} style={{ width: '100%', height: 216 }} />
+                </View>
+              </View>
+            </Modal>
+          )}
+          {/* Android date pickers */}
+          {Platform.OS === 'android' && showFromPicker && (
+            <DateTimePicker value={tempDate} mode="date" display="default" maximumDate={new Date()}
+              onChange={(ev, d) => { setShowFromPicker(false); if (ev.type === 'set' && d) confirmDate(d) }} />
+          )}
+          {Platform.OS === 'android' && showToPicker && (
+            <DateTimePicker value={tempDate} mode="date" display="default" maximumDate={new Date()}
+              onChange={(ev, d) => { setShowToPicker(false); if (ev.type === 'set' && d) confirmDate(d) }} />
+          )}
+        </ScrollView>
+
+        {/* Apply */}
+        <View style={[FS.footer, { paddingBottom: Math.max(insets.bottom + 16, 20) }]}>
+          <TouchableOpacity
+            style={[FS.applyBtn, !hasChanges && { opacity: 0.5 }]}
+            onPress={() => { onApply(draft); onClose() }}
+            disabled={!hasChanges}
+          >
+            <Text style={FS.applyText}>{activeCount > 0 ? `Apply ${activeCount} filter${activeCount !== 1 ? 's' : ''}` : 'Apply'}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </Modal>
   )
 }
 
 const FS = StyleSheet.create({
-  overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  sheet:          { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 12, paddingHorizontal: 16 },
-  handle:         { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5E7EB', alignSelf: 'center', marginBottom: 16 },
-  title:          { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 8 },
-  option:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 4, borderRadius: 8 },
-  optionActive:   { backgroundColor: '#EEF2FF' },
-  optionText:     { fontSize: 14, color: '#374151' },
+  container:       { flex: 1, backgroundColor: '#F9FAFB' },
+  header:          {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 16,
+    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
+  },
+  title:           { fontSize: 18, fontWeight: '800', color: '#111827' },
+  clearBtn:        { fontSize: 14, fontWeight: '700', color: '#EF4444' },
+  sectionLabel:    { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 0.6, marginBottom: 10 },
+  option:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 11, paddingHorizontal: 10, borderRadius: 8 },
+  optionActive:    { backgroundColor: '#EEF2FF' },
+  optionText:      { fontSize: 14, color: '#374151' },
   optionTextActive:{ color: '#4338CA', fontWeight: '600' },
-  dot:            { width: 8, height: 8, borderRadius: 4 },
+  dot:             { width: 8, height: 8, borderRadius: 4 },
+  dateBtn:         {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 10, backgroundColor: '#fff',
+  },
+  dateBtnActive:   { borderColor: '#6366F1', backgroundColor: '#EEF2FF' },
+  dateBtnText:     { flex: 1, fontSize: 13, color: '#9CA3AF' },
+  footer:          { paddingHorizontal: 20, paddingTop: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  applyBtn:        { backgroundColor: '#6366F1', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  applyText:       { fontSize: 15, fontWeight: '700', color: '#fff' },
 })
 
 const formatTime = formatRelative
@@ -147,16 +268,18 @@ export default function ActivityLogScreen() {
   const [error, setError] = useState(false)
   const [orderInput, setOrderInput] = useState('')
   const [appliedOrder, setAppliedOrder] = useState('')
-  const [eventType, setEventType] = useState('')
+  const [sheetFilters, setSheetFilters] = useState<SheetFilters>(emptySheetFilters)
   const [showFilter, setShowFilter] = useState(false)
 
-  const fetchData = useCallback(async (pg: number, orderId: string, evType: string, append: boolean) => {
+  const fetchData = useCallback(async (pg: number, orderId: string, evType: string, dFrom: string, dTo: string, append: boolean) => {
     if (pg === 1) setLoading(true); else setLoadingMore(true)
     setError(false)
     try {
       const params: Record<string, string> = { page: String(pg), limit: String(LIMIT) }
       if (orderId) params.title = orderId
       if (evType) params.event_type = evType
+      if (dFrom) params.date_from = dFrom
+      if (dTo) params.date_to = dTo
       const res = await apiClient.get<{ events: ActivityEvent[]; total: number; page: number }>('/admin/activity', { params })
       const data = res.data
       setEvents(prev => append ? [...prev, ...(data.events ?? [])] : (data.events ?? []))
@@ -170,24 +293,27 @@ export default function ActivityLogScreen() {
     }
   }, [])
 
-  useEffect(() => { fetchData(1, '', '', false) }, [fetchData])
+  useEffect(() => { fetchData(1, '', '', '', '', false) }, [fetchData])
+
+  const { eventType, dateFrom: filterDateFrom, dateTo: filterDateTo } = sheetFilters
 
   const applyFilter = () => {
     const id = orderInput.trim()
     setAppliedOrder(id)
     setEvents([])
-    fetchData(1, id, eventType, false)
+    fetchData(1, id, eventType, filterDateFrom, filterDateTo, false)
   }
 
   const clearFilter = () => {
     setOrderInput('')
     setAppliedOrder('')
-    setEventType('')
+    setSheetFilters(emptySheetFilters)
     setEvents([])
-    fetchData(1, '', '', false)
+    fetchData(1, '', '', '', '', false)
   }
 
   const hasMore = events.length < total
+  const hasSheetFilters = !!(eventType || filterDateFrom || filterDateTo)
 
   const renderItem = ({ item, index }: { item: ActivityEvent; index: number }) => {
     const meta = EVENT_ICON[item.type] ?? DEFAULT_ICON
@@ -218,7 +344,7 @@ export default function ActivityLogScreen() {
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
         <Text style={S.headerTitle}>Activity Log</Text>
-        <TouchableOpacity onPress={() => fetchData(1, appliedOrder, eventType, false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity onPress={() => fetchData(1, appliedOrder, eventType, filterDateFrom, filterDateTo, false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="refresh-outline" size={22} color="#6366F1" />
         </TouchableOpacity>
       </View>
@@ -239,27 +365,29 @@ export default function ActivityLogScreen() {
             returnKeyType="search"
           />
           {orderInput.length > 0 && (
-            <TouchableOpacity onPress={() => { setOrderInput(''); setAppliedOrder(''); fetchData(1, '', eventType, false) }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={() => { setOrderInput(''); setAppliedOrder(''); fetchData(1, '', eventType, filterDateFrom, filterDateTo, false) }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close-circle" size={17} color="#9CA3AF" />
             </TouchableOpacity>
           )}
         </View>
         <TouchableOpacity
-          style={[S.etBtn, eventType && S.etBtnActive]}
+          style={[S.etBtn, hasSheetFilters && S.etBtnActive]}
           onPress={() => setShowFilter(true)}
           activeOpacity={0.8}
         >
-          <Ionicons name="options-outline" size={16} color={eventType ? '#6366F1' : '#6B7280'} />
+          <Ionicons name="options-outline" size={16} color={hasSheetFilters ? '#6366F1' : '#6B7280'} />
         </TouchableOpacity>
         <TouchableOpacity style={S.filterBtn} onPress={applyFilter} activeOpacity={0.8}>
           <Text style={S.filterBtnText}>Filter</Text>
         </TouchableOpacity>
       </View>
 
-      {(appliedOrder || eventType) ? (
+      {(appliedOrder || hasSheetFilters) ? (
         <View style={S.activeFilter}>
           {appliedOrder ? <Text style={S.activeFilterText} numberOfLines={1}>Order: {appliedOrder}</Text> : null}
           {eventType ? <Text style={S.activeFilterText} numberOfLines={1}>{EVENT_TYPE_OPTIONS.find(o => o.value === eventType)?.label ?? eventType}</Text> : null}
+          {filterDateFrom ? <Text style={S.activeFilterText} numberOfLines={1}>From {formatDate(filterDateFrom)}</Text> : null}
+          {filterDateTo   ? <Text style={S.activeFilterText} numberOfLines={1}>To {formatDate(filterDateTo)}</Text>   : null}
           <TouchableOpacity onPress={clearFilter} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="close" size={14} color="#6366F1" />
           </TouchableOpacity>
@@ -275,7 +403,7 @@ export default function ActivityLogScreen() {
         <View style={S.center}>
           <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
           <Text style={S.errorText}>Failed to load activity log</Text>
-          <TouchableOpacity style={S.retryBtn} onPress={() => fetchData(1, appliedOrder, eventType, false)}>
+          <TouchableOpacity style={S.retryBtn} onPress={() => fetchData(1, appliedOrder, eventType, filterDateFrom, filterDateTo, false)}>
             <Text style={S.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -295,7 +423,7 @@ export default function ActivityLogScreen() {
             hasMore ? (
               <TouchableOpacity
                 style={S.loadMore}
-                onPress={() => fetchData(page + 1, appliedOrder, eventType, true)}
+                onPress={() => fetchData(page + 1, appliedOrder, eventType, filterDateFrom, filterDateTo, true)}
                 disabled={loadingMore}
                 activeOpacity={0.7}
               >
@@ -310,8 +438,8 @@ export default function ActivityLogScreen() {
 
       <FilterSheet
         visible={showFilter}
-        selected={eventType}
-        onSelect={v => { setEventType(v); setEvents([]); fetchData(1, appliedOrder, v, false) }}
+        filters={sheetFilters}
+        onApply={f => { setSheetFilters(f); setEvents([]); fetchData(1, appliedOrder, f.eventType, f.dateFrom, f.dateTo, false) }}
         onClose={() => setShowFilter(false)}
       />
     </View>
