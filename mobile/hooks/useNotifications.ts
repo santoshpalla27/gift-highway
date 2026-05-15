@@ -58,6 +58,7 @@ interface CacheEntry {
   data: { groups: NotificationGroup[]; total_count: number } | null
   fetchedAt: number
   prevGroups: NotificationGroup[]
+  seenOrderIds: Set<string>
   inFlight: Promise<void> | null
   pollerRef: ReturnType<typeof setInterval> | null
   refCount: number
@@ -70,8 +71,8 @@ let _version = 0
 function _getEntry(key: CacheKey): CacheEntry {
   if (!_cache.has(key)) {
     _cache.set(key, {
-      data: null, fetchedAt: 0, prevGroups: [], inFlight: null,
-      pollerRef: null, refCount: 0, setters: new Set(),
+      data: null, fetchedAt: 0, prevGroups: [], seenOrderIds: new Set(),
+      inFlight: null, pollerRef: null, refCount: 0, setters: new Set(),
     })
   }
   return _cache.get(key)!
@@ -96,6 +97,7 @@ async function _fetch(key: CacheKey, mineOnly: boolean, othersOnly: boolean, for
     try {
       const result = await notificationService.getUnread(mineOnly, othersOnly)
       const newIds = new Set(result.groups.map((g: NotificationGroup) => g.order_id))
+      for (const id of newIds) entry.seenOrderIds.add(id)
       const now = Date.now()
       let needsBump = false
       for (const g of entry.prevGroups) {
@@ -260,7 +262,7 @@ export function useNotifications({
 
     const apiIds = new Set(apiGroups.map(g => g.order_id))
     const retained = [...recentlyRead.values()]
-      .filter(e => !apiIds.has(e.group.order_id))
+      .filter(e => entry.seenOrderIds.has(e.group.order_id) && !apiIds.has(e.group.order_id))
       .map(e => e.group)
       .sort((a, b) => {
         const at = new Date(a.events[0]?.created_at ?? 0).getTime()
