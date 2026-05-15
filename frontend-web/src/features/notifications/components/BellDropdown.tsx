@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useNotifications } from '../hooks/useNotifications'
 import { useNotifPreference } from '../hooks/useNotifPreference'
 import type { DisplayGroup } from '../hooks/useNotifications'
@@ -156,6 +156,7 @@ function filterGroupsByTypes(groups: DisplayGroup[], enabledTypes: string[]): Di
 
 export function BellDropdown() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { scope, getEnabledTypes } = useNotifPreference()
   const [tab, setTab] = useState<Tab>('mine')
 
@@ -209,7 +210,8 @@ export function BellDropdown() {
 
   function openOrder(group: DisplayGroup) {
     setOpen(false)
-    navigate(`/orders/${group.order_id}`)
+    const onOrderPage = location.pathname.startsWith('/orders/')
+    navigate(`/orders/${group.order_id}`, onOrderPage ? { replace: true } : undefined)
   }
 
   return (
