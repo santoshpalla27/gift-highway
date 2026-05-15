@@ -31,7 +31,7 @@ function describeEvent(type: string, payload: Record<string, any>): string {
     case 'order_created':         return 'Created the order'
     case 'status_changed':        return `Status changed${payload.from ? ` from ${statusLabel(payload.from)}` : ''} → ${statusLabel(payload.to)}`
     case 'assignees_changed':     return 'Updated assignees'
-    case 'due_date_changed':      return `Due date changed to ${payload.to ?? 'none'}`
+    case 'due_date_changed':      return `Due date changed to ${payload.to ? formatDate(payload.to) : 'none'}`
     case 'priority_changed':      return `Priority changed to ${payload.to}`
     case 'order_updated':         return 'Updated order details'
     case 'attachment_added':      return `Added attachment${payload.name ? `: ${payload.name}` : ''}`

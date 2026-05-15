@@ -4,7 +4,7 @@ import { orderService, type TrashOrder } from '../../../services/orderService'
 import { purgeNotificationOrder } from '../../notifications/hooks/useNotifications'
 import { useNavigate } from 'react-router-dom'
 import { DateInput } from '../../../components/system/DateInput'
-import { formatDate } from '../../../utils/date'
+import { formatDate, formatDateTime } from '../../../utils/date'
 import { useAuthStore } from '../../../store/authStore'
 import { STATUS_META, STATUS_OPTIONS as STATUS_OPTION_KEYS } from '../../../constants/status'
 
@@ -441,7 +441,7 @@ export function TrashPage() {
                         </span>
                       </td>
                       <td style={{ color: '#6B7280' }}>{order.archived_by_name ?? '—'}</td>
-                      <td style={{ color: '#6B7280', whiteSpace: 'nowrap' }}>{order.archived_at ?? '—'}</td>
+                      <td style={{ color: '#6B7280', whiteSpace: 'nowrap' }}>{order.archived_at ? formatDateTime(order.archived_at) : '—'}</td>
                       <td>
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                           {isAdmin && (

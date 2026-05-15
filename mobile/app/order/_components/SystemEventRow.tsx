@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import type { OrderEvent } from '../../../services/orderService'
-import { formatRelative } from '../../../utils/date'
+import { formatRelative, formatDate } from '../../../utils/date'
 
 const STATUS_META: Record<string, { label: string }> = {
   yet_to_start:       { label: 'Yet to Start' },
@@ -25,7 +25,7 @@ const EVENT_TYPE_META: Record<string, { icon: string; label: (p: Record<string, 
   comment_added:     { icon: 'chatbubble-outline',      label: () => '' },
   status_changed:    { icon: 'swap-horizontal-outline', label: p => `Status changed from ${STATUS_META[p.from]?.label ?? p.from} to ${STATUS_META[p.to]?.label ?? p.to}` },
   assignees_changed: { icon: 'people-outline',          label: p => p.names ? `Assigned to ${p.names}` : 'Assignees updated' },
-  due_date_changed:  { icon: 'calendar-outline',        label: p => p.to ? `Due date set to ${p.to}` : 'Due date removed' },
+  due_date_changed:  { icon: 'calendar-outline',        label: p => p.to ? `Due date set to ${formatDate(p.to)}` : 'Due date removed' },
   priority_changed:  { icon: 'flag-outline',            label: p => `Priority changed to ${PRIORITY_META[p.to]?.label ?? p.to}` },
   order_updated:     { icon: 'pencil-outline',          label: () => 'Order details updated' },
 }

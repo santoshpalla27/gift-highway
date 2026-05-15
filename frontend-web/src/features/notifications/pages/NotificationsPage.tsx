@@ -130,7 +130,7 @@ function eventSummary(e: FlatActivityEvent): string {
     case 'status_changed':
       return `${e.actor_name} changed status to ${p.to ?? ''}`
     case 'due_date_changed':
-      return `${e.actor_name} changed due date to ${p.to ?? 'none'}`
+      return `${e.actor_name} changed due date to ${p.to ? formatDate(p.to) : 'none'}`
     case 'assignees_changed':
       return `${e.actor_name} updated assignees`
     case 'priority_changed':
