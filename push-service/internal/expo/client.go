@@ -34,7 +34,8 @@ type Message struct {
 	ChannelID  string                 `json:"channelId"`
 	CollapseID string                 `json:"collapseId,omitempty"`
 	// Tag: Android only — a new notification with the same tag replaces the existing one in the tray.
-	Tag string `json:"tag,omitempty"`
+	Tag   string `json:"tag,omitempty"`
+	Badge *int   `json:"badge,omitempty"` // iOS app icon badge count
 }
 
 func IsValidToken(t string) bool {

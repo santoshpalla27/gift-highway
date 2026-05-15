@@ -220,6 +220,7 @@ func (p *Pusher) handle(msg *pq.Notification) {
 		if err := json.Unmarshal(event.Payload, &rp); err == nil && rp.OrderID != "" && rp.UserID != "" {
 			p.cleanupBatch(rp.UserID, rp.OrderID)
 			log.Printf("push: notification read user=%s order=%s — batch cleared", rp.UserID, rp.OrderID)
+			go p.sendBadgeUpdate(rp.UserID)
 		}
 		return
 	}
@@ -372,6 +373,52 @@ func (p *Pusher) cleanupBatch(userID, orderID string) {
 	log.Printf("push: batch expired user=%s order=%s", userID, orderID)
 }
 
+// getUnreadCount returns the number of orders with unread notification events
+// for the given user, or nil if the query fails (badge will be omitted).
+func (p *Pusher) getUnreadCount(userID string) *int {
+	var count int
+	err := p.db.QueryRow(`
+		SELECT COUNT(DISTINCT o.id)
+		FROM orders o
+		JOIN order_events e ON e.order_id = o.id
+		LEFT JOIN notification_reads nr
+		       ON nr.user_id::text = $1 AND nr.order_id = o.id
+		WHERE o.is_archived = false
+		  AND (e.actor_id IS NULL OR e.actor_id::text != $1)
+		  AND e.created_at > COALESCE(nr.last_seen_at, '1970-01-01'::timestamptz)
+	`, userID).Scan(&count)
+	if err != nil {
+		return nil
+	}
+	return &count
+}
+
+// sendBadgeUpdate sends a silent push that only updates the iOS badge count.
+func (p *Pusher) sendBadgeUpdate(userID string) {
+	tokens, err := p.getTokens(userID)
+	if err != nil || len(tokens) == 0 {
+		return
+	}
+	badge := p.getUnreadCount(userID)
+	if badge == nil {
+		return
+	}
+	var msgs []expo.Message
+	for _, tok := range tokens {
+		if expo.IsValidToken(tok) {
+			msgs = append(msgs, expo.Message{
+				To:    tok,
+				Badge: badge,
+			})
+		}
+	}
+	if len(msgs) == 0 {
+		return
+	}
+	log.Printf("push: badge update user=%s count=%d", userID, *badge)
+	p.expo.Send(msgs) //nolint:errcheck
+}
+
 // ── Send aggregated batch ─────────────────────────────────────────────────────
 
 func (p *Pusher) sendBatch(userID, orderID string, events []bufferedEvent) {
@@ -400,6 +447,7 @@ func (p *Pusher) sendBatch(userID, orderID string, events []bufferedEvent) {
 	// same value so the OS replaces the previous notification for this order
 	// instead of stacking a new one.
 	collapseID := fmt.Sprintf("order:%s", orderID)
+	badge := p.getUnreadCount(userID)
 
 	var msgs []expo.Message
 	for _, tok := range tokens {
@@ -413,6 +461,7 @@ func (p *Pusher) sendBatch(userID, orderID string, events []bufferedEvent) {
 				ChannelID:  "default",
 				CollapseID: collapseID,
 				Tag:        collapseID,
+				Badge:      badge,
 				Data: map[string]interface{}{
 					"order_id":   orderID,
 					"event_type": events[len(events)-1].evType,

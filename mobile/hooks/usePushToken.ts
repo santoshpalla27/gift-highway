@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { AppState } from 'react-native'
 
 // Module-level ID: set by the cold-start handler in _layout.tsx so the
 // addNotificationResponseReceivedListener below skips only that exact notification
@@ -23,7 +24,7 @@ if (Platform.OS !== 'web') {
       shouldShowBanner: false,
       shouldShowList: false,
       shouldPlaySound: true,
-      shouldSetBadge: false,
+      shouldSetBadge: true,
     }),
   })
 }
@@ -99,6 +100,18 @@ export function usePushToken() {
       pushTokenRef.current = pushToken
       registerDeviceToken(pushToken)
     })
+  }, [token, user?.id])
+
+  // Clear the badge whenever the app comes to the foreground (iOS only)
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return
+    if (!token || !user) return
+
+    Notifications.setBadgeCountAsync(0)
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') Notifications.setBadgeCountAsync(0)
+    })
+    return () => sub.remove()
   }, [token, user?.id])
 
   // Deep-link to the order when the user taps a notification

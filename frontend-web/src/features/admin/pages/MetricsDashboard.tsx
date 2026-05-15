@@ -27,7 +27,6 @@ function getInitials(name: string) {
 }
 function getActive(u: UserMetric)  { return u.working_count + u.making_count }
 function getPending(u: UserMetric) { return u.new_count + u.waiting_for_client_count }
-function getDone(u: UserMetric)    { return u.done_count + u.delivered_count }
 
 function getSortValue(u: UserMetric): number {
   return u.total_assigned
