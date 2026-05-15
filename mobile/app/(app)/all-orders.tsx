@@ -1282,7 +1282,7 @@ const C = StyleSheet.create({
 
   // Middle row: customer name + priority
   rowMiddle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  customerName: { fontSize: 14, fontWeight: '700', color: '#111827', flex: 1 },
+  customerName: { fontSize: 14, fontWeight: '700', color: '#111827', flex: 1, maxWidth: '60%' },
 
   // Bottom row
   rowBottom: {
