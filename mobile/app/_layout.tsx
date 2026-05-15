@@ -84,6 +84,7 @@ function AppNavigator() {
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(app)" />
       <Stack.Screen name="order/[id]" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen
         name="share"
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
