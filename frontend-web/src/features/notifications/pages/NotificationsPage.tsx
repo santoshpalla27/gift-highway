@@ -315,7 +315,7 @@ export function NotificationsPage() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{ marginTop: '-8px' }}>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 2px', letterSpacing: '-0.5px' }}>
-            Activity
+            Notifications
           </h1>
           <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>
             {isLoading
