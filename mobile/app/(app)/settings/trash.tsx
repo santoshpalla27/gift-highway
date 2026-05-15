@@ -355,7 +355,7 @@ export default function TrashScreen() {
   const filteredOrders = useMemo(() => {
     const q = search.trim().toLowerCase()
     const fromTs = filters.archivedFrom ? new Date(filters.archivedFrom + 'T00:00:00').getTime() : null
-    const toTs   = filters.archivedTo   ? new Date(filters.archivedTo   + 'T23:59:59').getTime() : null
+    const toTs   = filters.archivedTo   ? new Date(filters.archivedTo   + 'T23:59:59.999').getTime() : null
     return orders.filter(o => {
       const matchesSearch = !q ||
         o.title.toLowerCase().includes(q) ||

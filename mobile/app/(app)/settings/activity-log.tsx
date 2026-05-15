@@ -278,8 +278,8 @@ export default function ActivityLogScreen() {
       const params: Record<string, string> = { page: String(pg), limit: String(LIMIT) }
       if (orderId) params.title = orderId
       if (evType) params.event_type = evType
-      if (dFrom) params.date_from = dFrom
-      if (dTo) params.date_to = dTo
+      if (dFrom) params.date_from = new Date(dFrom + 'T00:00:00').toISOString()
+      if (dTo)   params.date_to   = new Date(dTo   + 'T23:59:59.999').toISOString()
       const res = await apiClient.get<{ events: ActivityEvent[]; total: number; page: number }>('/admin/activity', { params })
       const data = res.data
       setEvents(prev => append ? [...prev, ...(data.events ?? [])] : (data.events ?? []))

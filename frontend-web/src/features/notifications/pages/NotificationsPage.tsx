@@ -271,12 +271,10 @@ export function NotificationsPage() {
         if (e.order_title.toLowerCase() !== q && String(e.order_number) !== q) return false
       }
       if (dateFrom) {
-        if (new Date(e.created_at).getTime() < new Date(dateFrom).getTime()) return false
+        if (new Date(e.created_at).getTime() < new Date(dateFrom + 'T00:00:00').getTime()) return false
       }
       if (dateTo) {
-        const to = new Date(dateTo)
-        to.setHours(23, 59, 59, 999)
-        if (new Date(e.created_at).getTime() > to.getTime()) return false
+        if (new Date(e.created_at).getTime() > new Date(dateTo + 'T23:59:59.999').getTime()) return false
       }
       return true
     })

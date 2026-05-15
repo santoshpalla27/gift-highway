@@ -338,7 +338,7 @@ func (r *OrderRepository) ListTrash(ctx context.Context, limit, offset int) ([]*
 	err := r.db.SelectContext(ctx, &orders, `
 		SELECT
 			o.id, o.order_number, o.title, o.customer_name, o.status,
-			TO_CHAR(o.archived_at, 'YYYY-MM-DD HH24:MI') AS archived_at,
+			TO_CHAR(o.archived_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS archived_at,
 			CASE WHEN o.archived_by IS NOT NULL
 				THEN TRIM(CONCAT(au.first_name, ' ', COALESCE(au.last_name, '')))
 				ELSE NULL

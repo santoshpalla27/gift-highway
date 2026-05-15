@@ -119,11 +119,11 @@ func (r *EventRepository) ListAllEvents(ctx context.Context, orderTitle, eventTy
 	}
 	if dateFrom != "" {
 		args = append(args, dateFrom)
-		conds = append(conds, fmt.Sprintf("e.created_at >= $%d::date", len(args)))
+		conds = append(conds, fmt.Sprintf("e.created_at >= $%d::timestamptz", len(args)))
 	}
 	if dateTo != "" {
 		args = append(args, dateTo)
-		conds = append(conds, fmt.Sprintf("e.created_at < ($%d::date + INTERVAL '1 day')", len(args)))
+		conds = append(conds, fmt.Sprintf("e.created_at <= $%d::timestamptz", len(args)))
 	}
 
 	where := ""
