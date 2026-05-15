@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import {
   Modal, View, Text, TouchableOpacity,
-  StyleSheet, Dimensions, ActivityIndicator, Platform,
+  StyleSheet, ActivityIndicator, Platform,
   Image as RNImage,
 } from 'react-native'
 import { Image } from 'expo-image'
@@ -46,8 +46,6 @@ const WIDTHS = [
   { value: 8, label: 'Thick' },
 ]
 
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window')
-
 function buildAnnotatedFilename(original: string): string {
   const dot = original.lastIndexOf('.')
   const base = dot > 0 ? original.slice(0, dot) : original
@@ -89,37 +87,43 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
   // Image sizing
   const [imageSize, setImageSize] = useState<{ w: number; h: number } | null>(null)
   const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
+  const [containerLayout, setContainerLayout] = useState<{ w: number; h: number } | null>(null)
 
   // Zoom / pan state (visual transform only — does not affect capture)
   const [scale, setScale] = useState(1)
   const [offsetX, setOffsetX] = useState(0)
   const [offsetY, setOffsetY] = useState(0)
-  const savedScale = useRef(1)
-  const savedOffsetX = useRef(0)
+  const savedScale = useRef(1)     // scale at start of pinch gesture
+  const savedOffsetX = useRef(0)   // offset at start of pan gesture
   const savedOffsetY = useRef(0)
+  // Authoritative current values — always in sync, safe to read from gesture callbacks
+  const scaleRef = useRef(1)
+  const offsetXRef = useRef(0)
+  const offsetYRef = useRef(0)
 
   // ── Image sizing ────────────────────────────────────────────────────────
 
   const applyDimensions = useCallback((natW: number, natH: number) => {
-    const w = natW > 0 ? natW : 800
-    const h = natH > 0 ? natH : 600
-    setImageSize({ w, h })
-    const toolbarH = 120
-    const bottomH = 100
-    const maxW = SCREEN_W - 24
-    const maxH = SCREEN_H - insets.top - insets.bottom - toolbarH - bottomH - 40
-    const ratio = w / h
+    setImageSize({ w: natW > 0 ? natW : 800, h: natH > 0 ? natH : 600 })
+  }, [])
+
+  // Recalculate canvas size whenever the container is measured or image size is known
+  useEffect(() => {
+    if (!imageSize || !containerLayout) return
+    const maxW = containerLayout.w - 24
+    const maxH = containerLayout.h - 24
+    const ratio = imageSize.w / imageSize.h
     let fitW = maxW
     let fitH = fitW / ratio
     if (fitH > maxH) { fitH = maxH; fitW = fitH * ratio }
     setCanvasSize({ w: Math.round(fitW), h: Math.round(fitH) })
-  }, [insets.top, insets.bottom])
+  }, [imageSize, containerLayout])
 
   // Use platform-appropriate APIs to reliably get image dimensions.
   // RN Image.getSize works better than onLoad in native production builds;
   // browser Image API works better than onLoad events on Expo Web.
   useEffect(() => {
-    if (canvasSize.w > 0) return
+    if (imageSize) return
     if (Platform.OS === 'web') {
       const img = new window.Image()
       img.onload = () => applyDimensions(img.naturalWidth, img.naturalHeight)
@@ -132,13 +136,17 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
         () => applyDimensions(800, 600),
       )
     }
-  }, [imageUrl, canvasSize.w, applyDimensions])
+  }, [imageUrl, imageSize, applyDimensions])
 
   // ── Convert touch point from viewport space to canvas space ──────────────
+  // RN applies scale from the view's center, so the inverse transform must
+  // account for the center offset: cx = (tx - offset - W/2) / scale + W/2
   function toCanvasCoords(touchX: number, touchY: number) {
+    const cx = canvasSize.w / 2
+    const cy = canvasSize.h / 2
     return {
-      x: (touchX - savedOffsetX.current) / savedScale.current,
-      y: (touchY - savedOffsetY.current) / savedScale.current,
+      x: (touchX - offsetXRef.current - cx) / scaleRef.current + cx,
+      y: (touchY - offsetYRef.current - cy) / scaleRef.current + cy,
     }
   }
 
@@ -175,10 +183,11 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
   const pinchGesture = Gesture.Pinch()
     .runOnJS(true)
     .onStart(() => {
-      savedScale.current = scale
+      savedScale.current = scaleRef.current
     })
     .onUpdate((e) => {
       const newScale = Math.min(Math.max(savedScale.current * e.scale, 0.5), 5)
+      scaleRef.current = newScale
       setScale(newScale)
     })
 
@@ -188,16 +197,20 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
     .runOnJS(true)
     .minPointers(2)
     .onStart(() => {
-      savedOffsetX.current = offsetX
-      savedOffsetY.current = offsetY
+      savedOffsetX.current = offsetXRef.current
+      savedOffsetY.current = offsetYRef.current
     })
     .onUpdate((e) => {
-      setOffsetX(savedOffsetX.current + e.translationX)
-      setOffsetY(savedOffsetY.current + e.translationY)
+      const nx = savedOffsetX.current + e.translationX
+      const ny = savedOffsetY.current + e.translationY
+      offsetXRef.current = nx
+      offsetYRef.current = ny
+      setOffsetX(nx)
+      setOffsetY(ny)
     })
     .onEnd(() => {
-      savedOffsetX.current = offsetX
-      savedOffsetY.current = offsetY
+      savedOffsetX.current = offsetXRef.current
+      savedOffsetY.current = offsetYRef.current
     })
 
   // ── Double tap to reset zoom ────────────────────────────────────────────
@@ -206,12 +219,9 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
     .runOnJS(true)
     .numberOfTaps(2)
     .onEnd(() => {
-      setScale(1)
-      setOffsetX(0)
-      setOffsetY(0)
-      savedScale.current = 1
-      savedOffsetX.current = 0
-      savedOffsetY.current = 0
+      setScale(1); setOffsetX(0); setOffsetY(0)
+      scaleRef.current = 1; offsetXRef.current = 0; offsetYRef.current = 0
+      savedScale.current = 1; savedOffsetX.current = 0; savedOffsetY.current = 0
     })
 
   // Compose: 2-finger zoom+pan run simultaneously, then race with 1-finger draw
@@ -245,12 +255,9 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
   }
 
   function resetZoom() {
-    setScale(1)
-    setOffsetX(0)
-    setOffsetY(0)
-    savedScale.current = 1
-    savedOffsetX.current = 0
-    savedOffsetY.current = 0
+    setScale(1); setOffsetX(0); setOffsetY(0)
+    scaleRef.current = 1; offsetXRef.current = 0; offsetYRef.current = 0
+    savedScale.current = 1; savedOffsetX.current = 0; savedOffsetY.current = 0
   }
 
   async function handleSave() {
@@ -384,7 +391,13 @@ export function DrawingEditor({ visible, imageUrl, filename, onSave, onCancel }:
           </View>
 
           {/* ── Drawing area ─────────────────────────────────────────── */}
-          <View style={S.canvasContainer}>
+          <View
+            style={S.canvasContainer}
+            onLayout={e => {
+              const { width, height } = e.nativeEvent.layout
+              setContainerLayout({ w: width, h: height })
+            }}
+          >
             {canvasSize.w > 0 ? (
               <GestureDetector gesture={composedGesture}>
                 <View style={{ width: canvasSize.w, height: canvasSize.h, overflow: 'visible' }}>
