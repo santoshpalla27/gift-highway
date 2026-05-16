@@ -269,7 +269,10 @@ export const TimelineItem = React.memo(function TimelineItem({
     }
 
     // customer_message / staff_portal_reply text path
-    const parsed = parsePortalMsg(p.text ?? '')
+    // parseCommentText strips [reply:UUID:preview] first; parsePortalMsg then handles attachments/integer-based portal replies
+    const rawPortalText = p.text ?? ''
+    const { replyPreview: timelineReplyPreview, cleanText: textWithoutReply } = parseCommentText(rawPortalText)
+    const parsed = parsePortalMsg(textWithoutReply)
     if (event.type === 'customer_message' && parsed.tokens.length > 0) return null
 
     const quotedPortalMsg = parsed.replyToId !== null
@@ -301,6 +304,15 @@ export const TimelineItem = React.memo(function TimelineItem({
                 />
               )
             })()}
+            {!quotedPortalMsg && timelineReplyPreview && (
+              <ReplyQuote
+                senderName={quotedEvent ? getEventSenderName(quotedEvent) : undefined}
+                previewText={timelineReplyPreview}
+                thumb={quotedEvent ? getEventThumb(quotedEvent, portalAttachments) : null}
+                borderColor={isStaff ? C.indigo : '#10B981'}
+                onPress={onHighlightQuoted}
+              />
+            )}
             {parsed.text !== '' && <Text style={T.commentText}>{parsed.text}</Text>}
             {event.type === 'staff_portal_reply' && parsed.tokens.map(tok =>
               <PortalAttachmentCard key={tok.id} orderId={orderId} attId={tok.id} fileName={tok.name} isOwn={isOwn} isStaff viewUrl={portalAttachments?.find(a => a.id === tok.id)?.view_url ?? undefined} sizeBytes={portalAttachments?.find(a => a.id === tok.id)?.file_size ?? undefined} onReply={onReply} />

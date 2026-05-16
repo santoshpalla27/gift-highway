@@ -284,7 +284,8 @@ export default function OrderDetailScreen() {
               <View key={group.label}>
                 <DateDivider label={group.label} />
                 {group.events.map(ev => {
-                  const rawText = ev.type === 'comment_added' ? ((ev as any).payload?.text ?? '') : ''
+                  const rawText = (ev.type === 'comment_added' || ev.type === 'staff_portal_reply' || ev.type === 'customer_message')
+                    ? ((ev as any).payload?.text ?? '') : ''
                   const { replyEventId } = rawText ? parseCommentText(rawText) : { replyEventId: null }
                   const quotedEv = replyEventId ? D.allEvents.find(e => e.id === replyEventId) as any : undefined
                   const attCaption = ev.type === 'customer_attachment' && (ev.payload as any)?.att_id

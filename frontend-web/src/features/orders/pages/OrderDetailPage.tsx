@@ -747,11 +747,13 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
     // If the entire message is just attachment tokens (no text), suppress it —
     // the customer_attachment event already covers it in the timeline.
     const rawText = p.text ?? ''
+    // Strip [reply:UUID:preview] prefix first (timeline-based replies)
+    const { replyPreview: timelineReplyPreview, cleanText: textWithoutReply } = parseCommentText(rawText)
     let portalReplyMsgId: number | null = null
     const parsed = (() => {
       const tokens: { id: number; name: string }[] = []
       const textLines: string[] = []
-      for (const line of rawText.split('\n')) {
+      for (const line of textWithoutReply.split('\n')) {
         const att = line.match(/^\[attachment:(\d+):(.+?)\]$/)
         if (att) { tokens.push({ id: parseInt(att[1]), name: att[2] }); continue }
         const replyTok = line.match(/^\[reply:(\d+)\]$/)
@@ -845,6 +847,40 @@ function TimelineEvent({ event, isOptimistic, onRetry, onDelete, onEdit, onReply
                       </div>
                     )
                   })()}
+                  {!quotedPortalMsg && timelineReplyPreview && (
+                    <div
+                      onClick={onHighlightQuoted}
+                      style={{
+                        display: 'flex', alignItems: 'stretch', marginBottom: parsed.text ? 8 : 0,
+                        borderLeft: `3px solid ${isStaff ? '#6366F1' : '#10B981'}`,
+                        background: 'rgba(0,0,0,0.05)', borderRadius: '0 6px 6px 0',
+                        overflow: 'hidden',
+                        cursor: onHighlightQuoted ? 'pointer' : 'default',
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0, padding: '3px 8px' }}>
+                        {quotedEvent && (
+                          <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: isStaff ? '#6366F1' : '#10B981', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {(quotedEvent.type === 'customer_message' || quotedEvent.type === 'customer_attachment')
+                              ? ((quotedEvent.payload as any).customer_name ?? 'Customer')
+                              : quotedEvent.actor_name}
+                          </p>
+                        )}
+                        <p style={{ margin: 0, fontSize: 11, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {timelineReplyPreview}
+                        </p>
+                      </div>
+                      {quotedEvent && (() => {
+                        const thumb = getEventThumb(quotedEvent, portalAttachments)
+                        if (!thumb) return null
+                        return (
+                          <div style={{ width: 40, height: 40, flexShrink: 0, overflow: 'hidden' }}>
+                            <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  )}
                   {parsed.text}
                 </div>
               )}
@@ -1820,7 +1856,8 @@ export function OrderDetailPage() {
                           </div>
                         )
                       }
-                      const rawText = ev.type === 'comment_added' ? ((ev as any).payload?.text ?? '') : ''
+                      const rawText = (ev.type === 'comment_added' || ev.type === 'staff_portal_reply' || ev.type === 'customer_message')
+                        ? ((ev as any).payload?.text ?? '') : ''
                       const { replyEventId } = rawText ? parseCommentText(rawText) : { replyEventId: null }
                       const quotedEv = replyEventId ? allEvents.find(e => e.id === replyEventId) as LocalOrderEvent | undefined : undefined
                       const isHighlighted = highlightedEventId === ev.id
