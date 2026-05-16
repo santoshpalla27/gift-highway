@@ -50,6 +50,8 @@ function describeEvent(type: string, payload: Record<string, any>): string {
     case 'staff_portal_reply':     return 'Replied via portal'
     case 'portal_message_deleted': return 'Deleted portal message'
     case 'user_mentioned':         return `Mentioned ${payload.mentioned_name ?? 'a user'}`
+    case 'order_archived':         return 'Archived the order'
+    case 'order_restored':         return 'Restored the order from trash'
     default:                       return type.replace(/_/g, ' ')
   }
 }
@@ -71,6 +73,8 @@ const EVENT_ICON: Record<string, { icon: IoniconName; color: string; bg: string 
   staff_portal_reply:     { icon: 'send-outline',            color: '#3B82F6', bg: '#EFF6FF' },
   portal_message_deleted: { icon: 'trash-outline',           color: '#EF4444', bg: '#FEF2F2' },
   user_mentioned:         { icon: 'at-outline',              color: '#8B5CF6', bg: '#F3E8FF' },
+  order_archived:         { icon: 'archive-outline',         color: '#6B7280', bg: '#F3F4F6' },
+  order_restored:         { icon: 'refresh-outline',         color: '#10B981', bg: '#ECFDF5' },
 }
 const DEFAULT_ICON = { icon: 'ellipse-outline' as IoniconName, color: '#6B7280', bg: '#F3F4F6' }
 
@@ -85,6 +89,8 @@ const EVENT_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'priority_changed',   label: 'Priority Change' },
   { value: 'order_updated',      label: 'Order Update' },
   { value: 'user_mentioned',     label: 'Mention' },
+  { value: 'order_archived',     label: 'Archived' },
+  { value: 'order_restored',     label: 'Restored' },
 ]
 
 interface SheetFilters { eventType: string; dateFrom: string; dateTo: string }

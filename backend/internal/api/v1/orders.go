@@ -364,6 +364,9 @@ func (h *OrderHandler) ArchiveOrder(c *gin.Context) {
 		return
 	}
 
+	if ev, err := h.eventService.Record(c.Request.Context(), id, &uid, models.EvtOrderArchived, nil); err == nil {
+		h.hub.Broadcast(realtime.NewEvent(realtime.EventTimelineEvent, id, ev))
+	}
 	h.hub.Broadcast(realtime.NewEvent(realtime.EventOrderUpdated, id, gin.H{"id": id, "is_archived": true}))
 	c.JSON(http.StatusOK, gin.H{"message": "archived"})
 }
@@ -375,12 +378,17 @@ func (h *OrderHandler) RestoreOrder(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "only admins can restore orders"})
 		return
 	}
+	userID, _ := c.Get("user_id")
+	uid := userID.(string)
 
 	if err := h.orderService.RestoreOrder(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to restore order"})
 		return
 	}
 
+	if ev, err := h.eventService.Record(c.Request.Context(), id, &uid, models.EvtOrderRestored, nil); err == nil {
+		h.hub.Broadcast(realtime.NewEvent(realtime.EventTimelineEvent, id, ev))
+	}
 	h.hub.Broadcast(realtime.NewEvent(realtime.EventOrderUpdated, id, gin.H{"id": id, "is_archived": false}))
 	c.JSON(http.StatusOK, gin.H{"message": "restored"})
 }

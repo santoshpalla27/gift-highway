@@ -45,6 +45,8 @@ function describeEvent(type: string, payload: Record<string, any>): string {
     case 'staff_portal_reply':    return 'Replied via customer portal'
     case 'portal_message_deleted':return 'Deleted a portal message'
     case 'user_mentioned':        return `Mentioned ${payload.mentioned_name ?? 'a user'}`
+    case 'order_archived':        return 'Archived the order'
+    case 'order_restored':        return 'Restored the order from trash'
     default:                      return type.replace(/_/g, ' ')
   }
 }
@@ -64,6 +66,8 @@ const EVENT_STYLE: Record<string, { color: string; bg: string; icon: React.React
   staff_portal_reply:     { color: '#3B82F6', bg: '#EFF6FF', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> },
   portal_message_deleted: { color: '#EF4444', bg: '#FEF2F2', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg> },
   user_mentioned:         { color: '#8B5CF6', bg: '#F3E8FF', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg> },
+  order_archived:         { color: '#6B7280', bg: '#F3F4F6', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg> },
+  order_restored:         { color: '#10B981', bg: '#ECFDF5', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg> },
 }
 
 const DEFAULT_STYLE = { color: '#6B7280', bg: '#F3F4F6', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/></svg> }
@@ -79,6 +83,8 @@ const EVENT_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'priority_changed',  label: 'Priority Change' },
   { value: 'order_updated',     label: 'Order Update' },
   { value: 'user_mentioned',    label: 'Mention' },
+  { value: 'order_archived',    label: 'Archived' },
+  { value: 'order_restored',    label: 'Restored' },
 ]
 
 const formatTimestamp = formatRelative
