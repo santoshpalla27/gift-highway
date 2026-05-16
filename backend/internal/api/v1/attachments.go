@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/company/app/backend/internal/models"
 	"github.com/company/app/backend/internal/realtime"
@@ -217,6 +218,6 @@ func toAttachmentResponse(a *models.OrderAttachment) attachmentResponse {
 		FileURL:      a.FileURL,
 		MimeType:     a.MimeType,
 		SizeBytes:    a.SizeBytes,
-		CreatedAt:    a.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		CreatedAt:    a.CreatedAt.Format(time.RFC3339),
 	}
 }

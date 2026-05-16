@@ -196,8 +196,8 @@ export function AuditPage() {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                   {([
                     { range: 'all'   as const, label: 'All Orders', desc: 'Every order ever logged', primary: true },
-                    { range: 'month' as const, label: 'This Month', desc: new Date().toLocaleString('default', { month: 'long', year: 'numeric' }), primary: false },
-                    { range: 'today' as const, label: 'Today',      desc: new Date().toLocaleDateString(), primary: false },
+                    { range: 'month' as const, label: 'This Month', desc: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', month: 'long', year: 'numeric' }), primary: false },
+                    { range: 'today' as const, label: 'Today',      desc: new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }), primary: false },
                   ]).map(({ range, label, desc, primary }) => {
                     const isDisabled = !status.csv_exists || downloading !== null
                     return (
