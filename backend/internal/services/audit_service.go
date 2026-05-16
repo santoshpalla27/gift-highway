@@ -222,16 +222,34 @@ func (s *AuditService) GetCSVBytesFiltered(ctx context.Context, rangeParam, from
 	}
 }
 
-// maskEmail hides part of an email for display: user@example.com → u***@example.com
-func maskEmail(email string) string {
-	if email == "" {
+// parseRecipients splits a comma-separated list of email addresses.
+func parseRecipients(raw string) []string {
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if addr := strings.TrimSpace(p); addr != "" {
+			out = append(out, addr)
+		}
+	}
+	return out
+}
+
+// maskEmail masks each address in a comma-separated list: a@b.com,c@d.com → a***@b.com, c***@d.com
+func maskEmail(raw string) string {
+	if raw == "" {
 		return ""
 	}
-	at := strings.Index(email, "@")
-	if at <= 1 {
-		return email
+	parts := parseRecipients(raw)
+	masked := make([]string, 0, len(parts))
+	for _, email := range parts {
+		at := strings.Index(email, "@")
+		if at <= 1 {
+			masked = append(masked, email)
+		} else {
+			masked = append(masked, string(email[0])+"***"+email[at:])
+		}
 	}
-	return string(email[0]) + "***" + email[at:]
+	return strings.Join(masked, ", ")
 }
 
 // StartCron starts the daily (11 PM) and monthly (1st of month midnight) report goroutines.
@@ -567,9 +585,11 @@ func (s *AuditService) TestWrite(ctx context.Context) error {
 func (s *AuditService) sendEmail(subject, body, filename string, attachment []byte) error {
 	auth := smtp.PlainAuth("", s.cfg.SMTPUser, s.cfg.SMTPPass, "smtp.gmail.com")
 
+	recipients := parseRecipients(s.cfg.AuditEmailTo)
+
 	var msg strings.Builder
 	msg.WriteString("From: " + s.cfg.SMTPUser + "\r\n")
-	msg.WriteString("To: " + s.cfg.AuditEmailTo + "\r\n")
+	msg.WriteString("To: " + strings.Join(recipients, ", ") + "\r\n")
 	msg.WriteString("Subject: " + subject + "\r\n")
 	msg.WriteString("MIME-Version: 1.0\r\n")
 
@@ -601,7 +621,46 @@ func (s *AuditService) sendEmail(subject, body, filename string, attachment []by
 	}
 
 	return smtp.SendMail("smtp.gmail.com:587", auth, s.cfg.SMTPUser,
-		[]string{s.cfg.AuditEmailTo}, []byte(msg.String()))
+		recipients, []byte(msg.String()))
+}
+
+// SendEmailReport filters the audit CSV by range and emails it to the configured recipients.
+// Returns the masked recipient list on success.
+func (s *AuditService) SendEmailReport(ctx context.Context, rangeParam, fromDate, toDate string) (string, error) {
+	if !s.emailEnabled() {
+		return "", fmt.Errorf("email not configured — set SMTP_USER, SMTP_PASS, AUDIT_EMAIL_TO")
+	}
+	data, filename, err := s.GetCSVBytesFiltered(ctx, rangeParam, fromDate, toDate)
+	if err != nil {
+		return "", err
+	}
+
+	nowIST := time.Now().In(ist)
+	rowCount := bytes.Count(data, []byte("\n")) - 1
+	if rowCount < 0 {
+		rowCount = 0
+	}
+
+	var subject, body string
+	switch rangeParam {
+	case "today":
+		subject = fmt.Sprintf("Gift Highway — Daily Orders Report %s", nowIST.Format("2006-01-02"))
+		body = fmt.Sprintf("Daily orders report for %s\n\nTotal orders: %d\n\nSee attached CSV for full details.", nowIST.Format("January 2, 2006"), rowCount)
+	case "month":
+		subject = fmt.Sprintf("Gift Highway — Monthly Orders Report %s", nowIST.Format("January 2006"))
+		body = fmt.Sprintf("Monthly orders report for %s\n\nTotal orders: %d\n\nSee attached CSV for full details.", nowIST.Format("January 2006"), rowCount)
+	case "custom":
+		subject = fmt.Sprintf("Gift Highway — Orders %s to %s", fromDate, toDate)
+		body = fmt.Sprintf("Orders from %s to %s\n\nTotal orders: %d\n\nSee attached CSV for full details.", fromDate, toDate, rowCount)
+	default: // all
+		subject = fmt.Sprintf("Gift Highway — Full Orders Export %s", nowIST.Format("2006-01-02"))
+		body = fmt.Sprintf("Full audit export as of %s\n\nTotal orders: %d\n\nSee attached CSV for full details.", nowIST.Format("January 2, 2006"), rowCount)
+	}
+
+	if err := s.sendEmail(subject, body, filename, data); err != nil {
+		return "", err
+	}
+	return maskEmail(s.cfg.AuditEmailTo), nil
 }
 
 // ── Report senders ────────────────────────────────────────────────────────────

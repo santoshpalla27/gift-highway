@@ -124,6 +124,7 @@ func NewRouter(cfg *config.Config, db *sqlx.DB) *gin.Engine {
 				adminGroup.GET("/audit/status", auditHandler.GetStatus)
 				adminGroup.GET("/audit/download", auditHandler.DownloadCSV)
 				adminGroup.POST("/audit/test", auditHandler.TestWrite)
+				adminGroup.POST("/audit/send-email", auditHandler.SendEmailReport)
 				adminGroup.GET("/activity", activityHandler.GetActivityLog)
 			}
 

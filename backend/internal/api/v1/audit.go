@@ -37,6 +37,27 @@ func (h *AuditHandler) DownloadCSV(c *gin.Context) {
 	c.Data(http.StatusOK, "text/csv", data)
 }
 
+func (h *AuditHandler) SendEmailReport(c *gin.Context) {
+	var req struct {
+		Range    string `json:"range"`
+		FromDate string `json:"from_date"`
+		ToDate   string `json:"to_date"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+	if req.Range == "" {
+		req.Range = "all"
+	}
+	maskedTo, err := h.auditSvc.SendEmailReport(c.Request.Context(), req.Range, req.FromDate, req.ToDate)
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "message": "Report sent to " + maskedTo})
+}
+
 func (h *AuditHandler) TestWrite(c *gin.Context) {
 	ctx := c.Request.Context()
 	if err := h.auditSvc.TestWrite(ctx); err != nil {

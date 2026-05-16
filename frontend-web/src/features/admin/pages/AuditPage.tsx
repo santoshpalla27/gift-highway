@@ -55,6 +55,8 @@ export function AuditPage() {
   const [toDate, setToDate] = useState('')
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [sending, setSending] = useState<string | null>(null)
+  const [sendResult, setSendResult] = useState<{ ok: boolean; message: string } | null>(null)
 
   const fetchStatus = () => {
     setLoading(true); setError(false)
@@ -75,6 +77,23 @@ export function AuditPage() {
       setTestResult({ ok: false, message: 'R2 write test failed — check server logs.' })
     } finally {
       setTesting(false)
+    }
+  }
+
+  const handleSendEmail = async (range: 'all' | 'today' | 'month' | 'custom') => {
+    if (range === 'custom' && (!fromDate || !toDate)) return
+    setSending(range)
+    setSendResult(null)
+    try {
+      const body = range === 'custom'
+        ? { range: 'custom', from_date: fromDate, to_date: toDate }
+        : { range }
+      const res = await apiClient.post<{ ok: boolean; message: string }>('/admin/audit/send-email', body)
+      setSendResult({ ok: true, message: res.data.message })
+    } catch {
+      setSendResult({ ok: false, message: 'Failed to send email — check server logs.' })
+    } finally {
+      setSending(null)
     }
   }
 
@@ -199,30 +218,52 @@ export function AuditPage() {
                     { range: 'month' as const, label: 'This Month', desc: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', month: 'long', year: 'numeric' }), primary: false },
                     { range: 'today' as const, label: 'Today',      desc: new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }), primary: false },
                   ]).map(({ range, label, desc, primary }) => {
-                    const isDisabled = !status.csv_exists || downloading !== null
+                    const dlDisabled = !status.csv_exists || downloading !== null || sending !== null
+                    const sendDisabled = !status.csv_exists || !status.email_configured || downloading !== null || sending !== null
                     return (
-                      <button
-                        key={range}
-                        onClick={() => !isDisabled && handleDownload(range)}
-                        disabled={isDisabled}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 8,
-                          padding: '10px 18px', borderRadius: 8,
-                          border: primary ? 'none' : '1px solid #E5E7EB',
-                          background: primary ? (isDisabled ? '#6B7280' : '#111827') : '#fff',
-                          color: primary ? '#fff' : (isDisabled ? '#9CA3AF' : '#374151'),
-                          fontSize: 13, fontWeight: 600,
-                          cursor: isDisabled ? 'not-allowed' : 'pointer',
-                          opacity: downloading !== null && downloading !== range ? 0.5 : 1,
-                          transition: 'opacity 0.15s',
-                        }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        <span>
-                          {downloading === range ? 'Downloading…' : label}
-                          <span style={{ display: 'block', fontSize: 11, fontWeight: 400, opacity: 0.7, marginTop: 1 }}>{desc}</span>
-                        </span>
-                      </button>
+                      <div key={range} style={{ display: 'flex', gap: 4 }}>
+                        <button
+                          onClick={() => !dlDisabled && handleDownload(range)}
+                          disabled={dlDisabled}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            padding: '10px 18px', borderRadius: 8,
+                            border: primary ? 'none' : '1px solid #E5E7EB',
+                            background: primary ? (dlDisabled ? '#6B7280' : '#111827') : '#fff',
+                            color: primary ? '#fff' : (dlDisabled ? '#9CA3AF' : '#374151'),
+                            fontSize: 13, fontWeight: 600,
+                            cursor: dlDisabled ? 'not-allowed' : 'pointer',
+                            opacity: (downloading !== null && downloading !== range) || (sending !== null) ? 0.5 : 1,
+                            transition: 'opacity 0.15s',
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                          <span>
+                            {downloading === range ? 'Downloading…' : label}
+                            <span style={{ display: 'block', fontSize: 11, fontWeight: 400, opacity: 0.7, marginTop: 1 }}>{desc}</span>
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => !sendDisabled && handleSendEmail(range)}
+                          disabled={sendDisabled}
+                          title={!status.email_configured ? 'Email not configured — set SMTP_USER, SMTP_PASS, AUDIT_EMAIL_TO' : `Send ${label} report via email`}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '10px 12px', borderRadius: 8,
+                            border: '1px solid #E5E7EB', background: '#fff',
+                            color: sendDisabled ? '#9CA3AF' : '#374151',
+                            fontSize: 13, fontWeight: 600,
+                            cursor: sendDisabled ? 'not-allowed' : 'pointer',
+                            opacity: (sending !== null && sending !== range) || (downloading !== null) ? 0.5 : 1,
+                            transition: 'opacity 0.15s',
+                          }}
+                        >
+                          {sending === range
+                            ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                          }
+                        </button>
+                      </div>
                     )
                   })}
                 </div>
@@ -238,7 +279,7 @@ export function AuditPage() {
                       style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid #E5E7EB', fontSize: 13, color: '#374151', background: '#fff' }} />
                     <button
                       onClick={() => handleDownload('custom')}
-                      disabled={!status.csv_exists || !fromDate || !toDate || downloading !== null}
+                      disabled={!status.csv_exists || !fromDate || !toDate || downloading !== null || sending !== null}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 7,
                         border: '1px solid #E5E7EB', background: '#fff', fontSize: 13, fontWeight: 600,
@@ -249,8 +290,31 @@ export function AuditPage() {
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                       {downloading === 'custom' ? 'Downloading…' : 'Download'}
                     </button>
+                    <button
+                      onClick={() => handleSendEmail('custom')}
+                      disabled={!status.csv_exists || !status.email_configured || !fromDate || !toDate || downloading !== null || sending !== null}
+                      title={!status.email_configured ? 'Email not configured — set SMTP_USER, SMTP_PASS, AUDIT_EMAIL_TO' : 'Send custom range report via email'}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 7,
+                        border: '1px solid #E5E7EB', background: '#fff', fontSize: 13, fontWeight: 600,
+                        color: (!fromDate || !toDate || !status.csv_exists || !status.email_configured) ? '#9CA3AF' : '#374151',
+                        cursor: (!fromDate || !toDate || !status.csv_exists || !status.email_configured) ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {sending === 'custom'
+                        ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                      }
+                      {sending === 'custom' ? 'Sending…' : 'Send Email'}
+                    </button>
                   </div>
                 </div>
+
+                {sendResult && (
+                  <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: sendResult.ok ? '#059669' : '#DC2626' }}>
+                    {sendResult.ok ? '✓ ' : '✗ '}{sendResult.message}
+                  </div>
+                )}
               </>
             )}
 
