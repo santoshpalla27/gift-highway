@@ -30,7 +30,11 @@ async function loadRecentlyRead() {
     const saved: [string, { group: NotificationGroup; markedAt: number }][] =
       JSON.parse(raw ?? '[]')
     for (const [id, e] of saved) {
-      if (now - e.markedAt <= RETAIN_MS) recentlyRead.set(id, e)
+      if (now - e.markedAt <= RETAIN_MS) {
+        recentlyRead.set(id, e)
+        // Seed seenOrderIds so retained entries survive the filter after restart
+        _cache.forEach(entry => entry.seenOrderIds.add(id))
+      }
     }
     _notifyAll()
   } catch { /* ignore */ }
