@@ -247,18 +247,16 @@ export function useNotifications({
 
   const markAllRead = useCallback(async () => {
     const now = Date.now()
-    _cache.forEach((e, k) => {
-      for (const g of e.data?.groups ?? []) {
-        recentlyRead.set(g.order_id, { group: g, markedAt: now, queryKey: k })
-        locallyReadOrders.add(g.order_id)
-      }
-    })
+    for (const g of entry.data?.groups ?? []) {
+      recentlyRead.set(g.order_id, { group: g, markedAt: now, queryKey: key })
+      locallyReadOrders.add(g.order_id)
+    }
     persistRecentlyRead()
     try {
       await notificationService.markAllRead()
       _invalidateAll()
     } catch { /* ignore */ }
-  }, [])
+  }, [key, entry])
 
   const groups = useMemo((): DisplayGroup[] => {
     const apiGroups = data?.groups ?? []
