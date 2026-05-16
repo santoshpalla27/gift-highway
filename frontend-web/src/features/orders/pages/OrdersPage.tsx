@@ -71,9 +71,9 @@ const pillListItem = (active: boolean): React.CSSProperties => ({
 // ─── Sort header cell ─────────────────────────────────────────────────────────
 
 function SortTh({
-  label, field, sortBy, sortDir, onSort, style,
+  label, field, sortBy, onSort, style,
 }: {
-  label: string; field: string; sortBy: string; sortDir: string
+  label: string; field: string; sortBy: string
   onSort: (f: string) => void; style?: React.CSSProperties
 }) {
   const active = sortBy === field
@@ -91,9 +91,7 @@ function SortTh({
     >
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
         {label}
-        <span style={{ opacity: active ? 1 : 0.3, fontSize: 10 }}>
-          {active && sortDir === 'asc' ? '↑' : '↓'}
-        </span>
+        {active && <span style={{ fontSize: 10 }}>↓</span>}
       </span>
     </th>
   )
@@ -161,8 +159,11 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
 
 
   function handleSort(field: string) {
-    const newDir = sortBy === field && sortDir === 'desc' ? 'asc' : 'desc'
-    update({ sort_by: field, sort_dir: newDir })
+    if (sortBy === field) {
+      update({ sort_by: undefined, sort_dir: undefined })
+    } else {
+      update({ sort_by: field, sort_dir: 'desc' })
+    }
   }
 
   // ── Users for assignee dropdown ──────────────────────────────────────────
@@ -619,8 +620,8 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Customer</th>
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Status</th>
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Assigned</th>
-                <SortTh label="Delivery"  field="due_date"     sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
-                <SortTh label="Activity"  field="updated_at"   sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Delivery</th>
+                <SortTh label="Activity"  field="updated_at" sortBy={sortBy} onSort={handleSort} />
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Alerts</th>
               </tr>
             </thead>
