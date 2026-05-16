@@ -152,7 +152,7 @@ export function InfoSheet({ order, portal, onClose, onPortalChange, onArchived }
                 <View style={IN.divider} />
               </>
             )}
-            {due && (
+            {order.due_date && (
               <>
                 <View style={IN.row}>
                   <View style={IN.rowLabel}>
