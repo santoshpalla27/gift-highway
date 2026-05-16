@@ -20,12 +20,12 @@ func NewDashboardHandler(svc *services.DashboardService) *DashboardHandler {
 	return &DashboardHandler{svc: svc}
 }
 
-// localDate returns the client-supplied local date (YYYY-MM-DD) or falls back to UTC today.
+// localDate returns the client-supplied local date (YYYY-MM-DD) or falls back to IST today.
 func localDate(c *gin.Context) string {
 	if d := c.Query("local_date"); datePattern.MatchString(d) {
 		return d
 	}
-	return time.Now().UTC().Format("2006-01-02")
+	return time.Now().In(time.FixedZone("IST", 5*60*60+30*60)).Format("2006-01-02")
 }
 
 func (h *DashboardHandler) GetTeamDashboard(c *gin.Context) {

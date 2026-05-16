@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/company/app/backend/internal/services"
 	"github.com/gin-gonic/gin"
@@ -76,7 +77,7 @@ func (h *NotificationHandler) GetLastSeen(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"last_seen_at": nil})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"last_seen_at": t.UTC().Format("2006-01-02T15:04:05Z07:00")})
+	c.JSON(http.StatusOK, gin.H{"last_seen_at": t.UTC().Format(time.RFC3339)})
 }
 
 // POST /api/v1/notifications/read/:orderId — mark one order as read

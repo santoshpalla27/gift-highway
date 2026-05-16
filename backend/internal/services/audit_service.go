@@ -705,22 +705,22 @@ func (s *AuditService) monthlyCronLoop() {
 	}
 }
 
-// nextDailyAt returns the next wall-clock time when hour:minute occurs today or tomorrow.
+// nextDailyAt returns the next wall-clock time when hour:minute occurs today or tomorrow in IST.
 func nextDailyAt(hour, minute int) time.Time {
-	now := time.Now()
-	candidate := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, 0, 0, now.Location())
+	now := time.Now().In(ist)
+	candidate := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, 0, 0, ist)
 	if candidate.After(now) {
 		return candidate
 	}
 	return candidate.Add(24 * time.Hour)
 }
 
-// nextMonthlyAt returns the next 1st-of-month at midnight.
+// nextMonthlyAt returns the next 1st-of-month at midnight IST.
 func nextMonthlyAt() time.Time {
-	now := time.Now()
-	first := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	now := time.Now().In(ist)
+	first := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, ist)
 	if first.After(now) {
 		return first
 	}
-	return time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, now.Location())
+	return time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, ist)
 }
