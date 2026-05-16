@@ -16,7 +16,7 @@ const POLL_MS    = 60_000   // same as web refetchInterval
 // Groups that were unread when the user navigated into them stay visible
 // in a dimmed state for up to 24 h so the panel doesn't jump around.
 
-const recentlyRead = new Map<string, { group: NotificationGroup; markedAt: number }>()
+const recentlyRead = new Map<string, { group: NotificationGroup; markedAt: number; queryKey: string }>()
 // Groups marked read locally but not yet gone from the API response (optimistic)
 const locallyReadOrders = new Set<string>()
 let rrLoaded = false
@@ -27,12 +27,11 @@ async function loadRecentlyRead() {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY)
     const now = Date.now()
-    const saved: [string, { group: NotificationGroup; markedAt: number }][] =
+    const saved: [string, { group: NotificationGroup; markedAt: number; queryKey?: string }][] =
       JSON.parse(raw ?? '[]')
     for (const [id, e] of saved) {
       if (now - e.markedAt <= RETAIN_MS) {
-        recentlyRead.set(id, e)
-        // Seed seenOrderIds so retained entries survive the filter after restart
+        recentlyRead.set(id, { ...e, queryKey: e.queryKey ?? 'false:false' })
         _cache.forEach(entry => entry.seenOrderIds.add(id))
       }
     }
@@ -148,9 +147,15 @@ function _invalidateAll() {
 // this exported function replicates that without mounting a hook instance.
 export async function markNotificationOrderRead(orderId: string) {
   let group: NotificationGroup | undefined
-  _cache.forEach(e => { if (!group) group = e.data?.groups.find(g => g.order_id === orderId) })
+  let groupKey = 'false:false'
+  _cache.forEach((e, k) => {
+    if (!group) {
+      group = e.data?.groups.find(g => g.order_id === orderId)
+      if (group) groupKey = k
+    }
+  })
   if (group) {
-    recentlyRead.set(orderId, { group, markedAt: Date.now() })
+    recentlyRead.set(orderId, { group, markedAt: Date.now(), queryKey: groupKey })
     locallyReadOrders.add(orderId)
     persistRecentlyRead()
   }
@@ -228,28 +233,27 @@ export function useNotifications({
 
   // Mirrors web's onMutate (optimistic) + onSuccess (invalidate)
   const markOrderRead = useCallback(async (orderId: string) => {
-    let group: NotificationGroup | undefined
-    _cache.forEach(e => { if (!group) group = e.data?.groups.find(g => g.order_id === orderId) })
+    const group = _getEntry(key).data?.groups.find(g => g.order_id === orderId)
     if (group) {
-      recentlyRead.set(orderId, { group, markedAt: Date.now() })
+      recentlyRead.set(orderId, { group, markedAt: Date.now(), queryKey: key })
       locallyReadOrders.add(orderId)
-      persistRecentlyRead()  // optimistic: all instances see isRead=true instantly
+      persistRecentlyRead()
     }
     try {
       await notificationService.markOrderRead(orderId)
-      _invalidateAll()  // mirrors onSuccess: qc.invalidateQueries(['notifications'])
+      _invalidateAll()
     } catch { /* ignore */ }
-  }, [])
+  }, [key])
 
   const markAllRead = useCallback(async () => {
     const now = Date.now()
-    _cache.forEach(e => {
+    _cache.forEach((e, k) => {
       for (const g of e.data?.groups ?? []) {
-        recentlyRead.set(g.order_id, { group: g, markedAt: now })
+        recentlyRead.set(g.order_id, { group: g, markedAt: now, queryKey: k })
         locallyReadOrders.add(g.order_id)
       }
     })
-    persistRecentlyRead()  // optimistic clear
+    persistRecentlyRead()
     try {
       await notificationService.markAllRead()
       _invalidateAll()
@@ -266,7 +270,7 @@ export function useNotifications({
 
     const apiIds = new Set(apiGroups.map(g => g.order_id))
     const retained = [...recentlyRead.values()]
-      .filter(e => entry.seenOrderIds.has(e.group.order_id) && !apiIds.has(e.group.order_id))
+      .filter(e => entry.seenOrderIds.has(e.group.order_id) && !apiIds.has(e.group.order_id) && e.queryKey === key)
       .map(e => e.group)
       .sort((a, b) => {
         const at = new Date(a.events[0]?.created_at ?? 0).getTime()

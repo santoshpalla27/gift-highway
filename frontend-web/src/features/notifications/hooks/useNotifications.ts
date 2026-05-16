@@ -13,13 +13,13 @@ const STORAGE_KEY = 'gh-notif-rr'
 
 // Module-level store — shared across every useNotifications instance and survives
 // query invalidation / re-renders. Populated from localStorage on load.
-const recentlyRead = new Map<string, { group: NotificationGroup; markedAt: number }>()
+const recentlyRead = new Map<string, { group: NotificationGroup; markedAt: number; queryKey: string }>()
 try {
   const now = Date.now()
-  const saved: [string, { group: NotificationGroup; markedAt: number }][] =
+  const saved: [string, { group: NotificationGroup; markedAt: number; queryKey?: string }][] =
     JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')
   for (const [id, e] of saved) {
-    if (now - e.markedAt <= RETAIN_MS) recentlyRead.set(id, e)
+    if (now - e.markedAt <= RETAIN_MS) recentlyRead.set(id, { ...e, queryKey: e.queryKey ?? 'false:false' })
   }
 } catch { /* ignore */ }
 
@@ -60,14 +60,14 @@ export function useNotifications({ mineOnly = false, othersOnly = false }: { min
 
   useSocketEvent(handleSocketEvent)
 
+  const currentKey = `${mineOnly}:${othersOnly}`
+
   const { mutate: markOrderRead } = useMutation({
     mutationFn: notificationService.markOrderRead,
     onMutate: (orderId: string) => {
-      // Capture the group while it's still in the live data so it can stay
-      // visible in the bell as a dimmed "recently read" item.
       const group = data?.groups.find(g => g.order_id === orderId)
       if (group) {
-        recentlyRead.set(orderId, { group, markedAt: Date.now() })
+        recentlyRead.set(orderId, { group, markedAt: Date.now(), queryKey: currentKey })
         persist()
       }
     },
@@ -79,7 +79,7 @@ export function useNotifications({ mineOnly = false, othersOnly = false }: { min
     onMutate: () => {
       const now = Date.now()
       for (const g of data?.groups ?? []) {
-        recentlyRead.set(g.order_id, { group: g, markedAt: now })
+        recentlyRead.set(g.order_id, { group: g, markedAt: now, queryKey: currentKey })
       }
       persist()
     },
@@ -98,7 +98,7 @@ export function useNotifications({ mineOnly = false, othersOnly = false }: { min
     // Append retained groups (marked read) no longer in the live API response
     const apiIds = new Set(apiGroups.map(g => g.order_id))
     const retained = [...recentlyRead.values()]
-      .filter(e => !apiIds.has(e.group.order_id))
+      .filter(e => !apiIds.has(e.group.order_id) && e.queryKey === currentKey)
       .map(e => e.group)
       .sort((a, b) => {
         const at = new Date(a.events[0]?.created_at ?? 0).getTime()
