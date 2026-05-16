@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { istDateStr, formatDate } from '../../../utils/date'
 import { ScrollView, Alert, Keyboard, Platform, AppState } from 'react-native'
 import { orderService, type Order, type OrderEvent, type UserOption } from '../../../services/orderService'
 import { attachmentService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE, resolveFileMime, isImage } from '../../../services/attachmentService'
@@ -137,7 +138,7 @@ export function getInitials(name: string) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
 }
 
-function dayKey(iso: string) { return new Date(iso).toISOString().slice(0, 10) }
+function dayKey(iso: string) { return istDateStr(new Date(iso)) }
 
 export type DateGroup = { label: string; events: (OrderEvent & { failed?: boolean })[] }
 
@@ -148,17 +149,16 @@ export function groupByDate(events: (OrderEvent & { failed?: boolean })[]): Date
     if (!map.has(k)) map.set(k, [])
     map.get(k)!.push(ev)
   }
-  const fmt = (iso: string) => {
-    const d = new Date(iso)
-    const today = new Date(); today.setHours(0,0,0,0)
-    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
-    const date = new Date(d); date.setHours(0,0,0,0)
-    if (date.getTime() === today.getTime()) return 'Today'
-    if (date.getTime() === yesterday.getTime()) return 'Yesterday'
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const now = new Date()
+  const todayIST = istDateStr(now)
+  const yesterdayIST = istDateStr(new Date(now.getTime() - 86400000))
+  const fmtKey = (k: string) => {
+    if (k === todayIST) return 'Today'
+    if (k === yesterdayIST) return 'Yesterday'
+    return formatDate(new Date(k + 'T12:00:00+05:30'))
   }
   return Array.from(map.entries()).map(([k, evs]) => ({
-    label: fmt(k + 'T12:00:00'),
+    label: fmtKey(k),
     events: evs,
   }))
 }

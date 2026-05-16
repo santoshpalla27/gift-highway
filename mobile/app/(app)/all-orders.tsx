@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { formatDate, fmt12hrStr } from '../../utils/date'
+import { formatDate, fmt12hrStr, localDateStr, datePickerToIST, timePickerToIST } from '../../utils/date'
 import { orderService, Order, UserOption } from '../../services/orderService'
 import { staffPortalApi } from '../../services/portalService'
 import { useAuthStore } from '../../store/authStore'
@@ -41,14 +41,13 @@ const PRIORITY_META: Record<string, { label: string; color: string; bg: string }
 
 function formatDueDate(dateStr: string | null): { text: string; overdue: boolean } | null {
   if (!dateStr) return null
-  const d = new Date(dateStr + 'T00:00:00')
-  const now = new Date(); now.setHours(0, 0, 0, 0)
-  const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1)
-  const overdue = d < now
+  const today = localDateStr(0)
+  const tomorrow = localDateStr(1)
+  const overdue = dateStr < today
   let text = ''
-  if (d.getTime() === now.getTime()) text = 'Due Today'
-  else if (d.getTime() === tomorrow.getTime()) text = 'Due Tomorrow'
-  else text = `Due ${formatDate(dateStr)}`
+  if (dateStr === today)    text = 'Due Today'
+  else if (dateStr === tomorrow) text = 'Due Tomorrow'
+  else text = `Due ${formatDate(new Date(dateStr + 'T00:00:00+05:30'))}`
   return { text, overdue }
 }
 
@@ -321,8 +320,7 @@ function FilterSheet({
                       <Text style={{ fontSize: 16, color: '#6B7280', fontWeight: '600' }}>Cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => {
-                      const d = tempFromDate
-                      set({ dueDateFrom: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })
+                      set({ dueDateFrom: datePickerToIST(tempFromDate) })
                       setShowFromPicker(false)
                     }}>
                       <Text style={{ fontSize: 16, color: '#6366F1', fontWeight: '700' }}>Done</Text>
@@ -341,7 +339,7 @@ function FilterSheet({
               mode="date" display="default"
               onChange={(event, d) => {
                 setShowFromPicker(false)
-                if (event.type === 'set' && d) set({ dueDateFrom: d.toISOString().split('T')[0] })
+                if (event.type === 'set' && d) set({ dueDateFrom: datePickerToIST(d) })
               }}
             />
           )}
@@ -356,8 +354,7 @@ function FilterSheet({
                       <Text style={{ fontSize: 16, color: '#6B7280', fontWeight: '600' }}>Cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => {
-                      const d = tempToDate
-                      set({ dueDateTo: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })
+                      set({ dueDateTo: datePickerToIST(tempToDate) })
                       setShowToPicker(false)
                     }}>
                       <Text style={{ fontSize: 16, color: '#6366F1', fontWeight: '700' }}>Done</Text>
@@ -376,7 +373,7 @@ function FilterSheet({
               mode="date" display="default"
               onChange={(event, d) => {
                 setShowToPicker(false)
-                if (event.type === 'set' && d) set({ dueDateTo: d.toISOString().split('T')[0] })
+                if (event.type === 'set' && d) set({ dueDateTo: datePickerToIST(d) })
               }}
             />
           )}
@@ -624,8 +621,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
                             <Text style={{ fontSize: 16, color: '#6B7280', fontWeight: '600' }}>Cancel</Text>
                           </TouchableOpacity>
                           <TouchableOpacity onPress={() => {
-                            const d = tempDateObj
-                            setDueDate(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)
+                            setDueDate(datePickerToIST(tempDateObj))
                             setShowDatePicker(false)
                           }}>
                             <Text style={{ fontSize: 16, color: '#6366F1', fontWeight: '700' }}>Done</Text>
@@ -644,9 +640,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
                       mode="date" display="default"
                       onChange={(event, date) => {
                         setShowDatePicker(false)
-                        if (event.type === 'set' && date) {
-                          setDueDate(`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`)
-                        }
+                        if (event.type === 'set' && date) setDueDate(datePickerToIST(date))
                       }}
                     />
                   )
@@ -661,7 +655,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
                             <Text style={{ fontSize: 16, color: '#6B7280', fontWeight: '600' }}>Cancel</Text>
                           </TouchableOpacity>
                           <TouchableOpacity onPress={() => {
-                            setDueTime(`${String(tempTimeObj.getHours()).padStart(2,'0')}:${String(tempTimeObj.getMinutes()).padStart(2,'0')}`)
+                            setDueTime(timePickerToIST(tempTimeObj))
                             setShowTimePicker(false)
                           }}>
                             <Text style={{ fontSize: 16, color: '#6366F1', fontWeight: '700' }}>Done</Text>
@@ -684,9 +678,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
                       mode="time" display="default"
                       onChange={(event, date) => {
                         setShowTimePicker(false)
-                        if (event.type === 'set' && date) {
-                          setDueTime(`${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`)
-                        }
+                        if (event.type === 'set' && date) setDueTime(timePickerToIST(date))
                       }}
                     />
                   )
@@ -902,8 +894,7 @@ export default function AllOrdersScreen({ myOrdersOnly = false }: { myOrdersOnly
       .catch(() => {})
   }, [filters.assigneeIds])
 
-  const d0 = new Date()
-  const today = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
+  const today = localDateStr(0)
 
   const queryParams = useMemo(() => ({
     search: search || undefined,

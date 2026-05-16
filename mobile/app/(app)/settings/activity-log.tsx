@@ -8,7 +8,7 @@ import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { apiClient } from '../../../services/apiClient'
-import { formatRelative, formatDate } from '../../../utils/date'
+import { formatRelative, formatDate, datePickerToIST } from '../../../utils/date'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -116,7 +116,7 @@ function FilterSheet({ visible, filters, onApply, onClose }: {
   }
 
   const confirmDate = (d: Date) => {
-    const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    const iso = datePickerToIST(d)
     if (activePick === 'from') { set({ dateFrom: iso }); setShowFromPicker(false) }
     else                       { set({ dateTo:   iso }); setShowToPicker(false)   }
   }
@@ -278,8 +278,8 @@ export default function ActivityLogScreen() {
       const params: Record<string, string> = { page: String(pg), limit: String(LIMIT) }
       if (orderId) params.title = orderId
       if (evType) params.event_type = evType
-      if (dFrom) params.date_from = new Date(dFrom + 'T00:00:00').toISOString()
-      if (dTo)   params.date_to   = new Date(dTo   + 'T23:59:59.999').toISOString()
+      if (dFrom) params.date_from = new Date(dFrom + 'T00:00:00+05:30').toISOString()
+      if (dTo)   params.date_to   = new Date(dTo   + 'T23:59:59.999+05:30').toISOString()
       const res = await apiClient.get<{ events: ActivityEvent[]; total: number; page: number }>('/admin/activity', { params })
       const data = res.data
       setEvents(prev => append ? [...prev, ...(data.events ?? [])] : (data.events ?? []))

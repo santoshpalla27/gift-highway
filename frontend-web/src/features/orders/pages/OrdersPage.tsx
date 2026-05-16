@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { formatDate, formatRelative } from '../../../utils/date'
+import { formatDate, formatRelative, localDateStr } from '../../../utils/date'
 import { DateInput } from '../../../components/system/DateInput'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useOrders } from '../hooks/useOrders'
@@ -49,10 +49,10 @@ function StatusBadge({ status }: { status: string }) {
 
 function formatDueDate(dateStr: string | null) {
   if (!dateStr) return null
-  const d = new Date(dateStr + 'T00:00:00')
-  const now = new Date(); now.setHours(0, 0, 0, 0)
-  const isOverdue = d < now, isToday = d.getTime() === now.getTime()
-  const formatted = isToday ? 'Today' : formatDate(dateStr)
+  const today = localDateStr(0)
+  const isOverdue = dateStr < today
+  const isToday = dateStr === today
+  const formatted = isToday ? 'Today' : formatDate(new Date(dateStr + 'T00:00:00+05:30'))
   return { formatted, isOverdue, isToday }
 }
 
@@ -186,8 +186,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
     return () => clearTimeout(t)
   }, [toast])
 
-  const d0 = new Date()
-  const today = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
+  const today = localDateStr(0)
 
   const params = {
     search: search || undefined,

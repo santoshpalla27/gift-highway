@@ -236,8 +236,8 @@ export function TrashPage() {
       (o.archived_by_name ?? '').toLowerCase().includes(q)
     const matchesStatus = statusFilter === 'all' || o.status === statusFilter
     const archivedMs = o.archived_at ? new Date(o.archived_at).getTime() : null
-    const matchesFrom = !dateFrom || (archivedMs !== null && archivedMs >= new Date(dateFrom + 'T00:00:00').getTime())
-    const matchesTo   = !dateTo   || (archivedMs !== null && archivedMs <= new Date(dateTo   + 'T23:59:59.999').getTime())
+    const matchesFrom = !dateFrom || (archivedMs !== null && archivedMs >= new Date(dateFrom + 'T00:00:00+05:30').getTime())
+    const matchesTo   = !dateTo   || (archivedMs !== null && archivedMs <= new Date(dateTo   + 'T23:59:59.999+05:30').getTime())
     return matchesSearch && matchesStatus && matchesFrom && matchesTo
   })
 

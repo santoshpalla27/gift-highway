@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { notificationService, type FlatActivityEvent } from '../../../services/notificationService'
-import { formatRelative, formatDate } from '../../../utils/date'
+import { formatRelative, formatDate, datePickerToIST } from '../../../utils/date'
 
 // ── Event metadata ────────────────────────────────────────────────────────────
 
@@ -88,7 +88,7 @@ function FilterSheet({ visible, filters, onApply, onClose }: {
   }
 
   const confirmDate = (d: Date) => {
-    const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    const iso = datePickerToIST(d)
     if (activePick === 'from') { set({ dateFrom: iso }); setShowFromPicker(false) }
     else                       { set({ dateTo:   iso }); setShowToPicker(false)   }
   }
@@ -248,8 +248,8 @@ export default function ActivityScreen() {
   useFocusEffect(useCallback(() => { fetchPage(1, true) }, []))
 
   const filtered = useMemo(() => {
-    const fromMs = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : null
-    const toMs   = dateTo   ? new Date(dateTo   + 'T23:59:59.999').getTime() : null
+    const fromMs = dateFrom ? new Date(dateFrom + 'T00:00:00+05:30').getTime() : null
+    const toMs   = dateTo   ? new Date(dateTo   + 'T23:59:59.999+05:30').getTime() : null
     return events.filter(e => {
       if (eventType && e.type !== eventType) return false
       if (search.trim()) {

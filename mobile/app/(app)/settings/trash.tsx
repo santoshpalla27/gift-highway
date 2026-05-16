@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { orderService, type TrashOrder } from '../../../services/orderService'
 import { purgeNotificationOrder } from '../../../hooks/useNotifications'
-import { formatRelative, formatDate } from '../../../utils/date'
+import { formatRelative, formatDate, datePickerToIST } from '../../../utils/date'
 import { useAuthStore } from '../../../store/authStore'
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ function FilterSheet({ visible, filters, onApply, onClose }: {
   }
 
   const confirmDate = (d: Date) => {
-    const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    const iso = datePickerToIST(d)
     if (activePick === 'from') { set({ archivedFrom: iso }); setShowFromPicker(false) }
     else                       { set({ archivedTo:   iso }); setShowToPicker(false) }
   }
@@ -354,8 +354,8 @@ export default function TrashScreen() {
 
   const filteredOrders = useMemo(() => {
     const q = search.trim().toLowerCase()
-    const fromTs = filters.archivedFrom ? new Date(filters.archivedFrom + 'T00:00:00').getTime() : null
-    const toTs   = filters.archivedTo   ? new Date(filters.archivedTo   + 'T23:59:59.999').getTime() : null
+    const fromTs = filters.archivedFrom ? new Date(filters.archivedFrom + 'T00:00:00+05:30').getTime() : null
+    const toTs   = filters.archivedTo   ? new Date(filters.archivedTo   + 'T23:59:59.999+05:30').getTime() : null
     return orders.filter(o => {
       const matchesSearch = !q ||
         o.title.toLowerCase().includes(q) ||

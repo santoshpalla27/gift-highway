@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { formatDate } from '../../../utils/date'
+import { formatDate, localDateStr } from '../../../utils/date'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../../store/authStore'
 import { useTeamDashboard, useMyDashboard } from '../hooks/useDashboard'
@@ -8,13 +8,12 @@ import { STATUS_META, PRIORITY_META } from '../../../constants/status'
 
 function fmtDue(dateStr: string | null) {
   if (!dateStr) return null
-  const d = new Date(dateStr + 'T00:00:00')
-  const now = new Date(); now.setHours(0, 0, 0, 0)
-  const diff = Math.round((d.getTime() - now.getTime()) / 86_400_000)
-  if (diff === 0) return { label: 'Today', color: '#F59E0B' }
-  if (diff < 0) return { label: `${Math.abs(diff)}d overdue`, color: '#EF4444' }
-  if (diff === 1) return { label: 'Tomorrow', color: '#6B7280' }
-  return { label: formatDate(d), color: '#6B7280' }
+  const today = localDateStr(0)
+  const tomorrow = localDateStr(1)
+  if (dateStr === today)    return { label: 'Today',    color: '#F59E0B' }
+  if (dateStr === tomorrow) return { label: 'Tomorrow', color: '#6B7280' }
+  if (dateStr < today)      return { label: `${Math.round((new Date(today + 'T00:00:00+05:30').getTime() - new Date(dateStr + 'T00:00:00+05:30').getTime()) / 86_400_000)}d overdue`, color: '#EF4444' }
+  return { label: formatDate(new Date(dateStr + 'T00:00:00+05:30')), color: '#6B7280' }
 }
 
 

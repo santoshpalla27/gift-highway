@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react'
 import { orderService, type Order, type UserOption } from '../../../services/orderService'
 import { staffPortalApi, getPortalURL, type PortalStatus } from '../../../services/portalService'
 import { useNetworkStatus } from '../../../hooks/useNetworkStatus'
-import { formatDate, fmt12hrStr } from '../../../utils/date'
+import { formatDate, fmt12hrStr, localDateStr, datePickerToIST, timePickerToIST } from '../../../utils/date'
 import { useAuthStore } from '../../../store/authStore'
 
 function getInitials(name: string) {
@@ -47,9 +47,7 @@ export function InfoSheet({ order, portal, onClose, onPortalChange, onArchived }
   const isAdmin = user?.role === 'admin'
   const sm = STATUS_META[order.status] ?? STATUS_META.new
   const pm = PRIORITY_META[order.priority] ?? PRIORITY_META.low
-  const due = order.due_date ? new Date(order.due_date + 'T00:00:00') : null
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const dueOverdue = due ? due < today && order.status !== 'completed' : false
+  const dueOverdue = order.due_date ? order.due_date < localDateStr(0) && order.status !== 'completed' : false
   const [copied, setCopied] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
   const [archiveLoading, setArchiveLoading] = useState(false)
@@ -373,8 +371,7 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
                       <Text style={{ fontSize: 16, color: '#6B7280', fontWeight: '600' }}>Cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => {
-                      const d = tempDateObj
-                      setDueDate(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)
+                      setDueDate(datePickerToIST(tempDateObj))
                       setShowDatePicker(false)
                     }}>
                       <Text style={{ fontSize: 16, color: '#6366F1', fontWeight: '700' }}>Done</Text>
@@ -396,9 +393,7 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
                 mode="date" display="default"
                 onChange={(event, date) => {
                   setShowDatePicker(false)
-                  if (event.type === 'set' && date) {
-                    setDueDate(`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`)
-                  }
+                  if (event.type === 'set' && date) setDueDate(datePickerToIST(date))
                 }}
               />
             )
@@ -414,7 +409,7 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
                       <Text style={{ fontSize: 16, color: '#6B7280', fontWeight: '600' }}>Cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => {
-                      setDueTime(`${String(tempTimeObj.getHours()).padStart(2,'0')}:${String(tempTimeObj.getMinutes()).padStart(2,'0')}`)
+                      setDueTime(timePickerToIST(tempTimeObj))
                       setShowTimePicker(false)
                     }}>
                       <Text style={{ fontSize: 16, color: '#6366F1', fontWeight: '700' }}>Done</Text>
@@ -440,9 +435,7 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
                 mode="time" display="default"
                 onChange={(event, date) => {
                   setShowTimePicker(false)
-                  if (event.type === 'set' && date) {
-                    setDueTime(`${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`)
-                  }
+                  if (event.type === 'set' && date) setDueTime(timePickerToIST(date))
                 }}
               />
             )

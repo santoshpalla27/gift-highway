@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { notificationService } from '../../../services/notificationService'
 import { useNotifications } from '../../notifications/hooks/useNotifications'
-import { formatDate, formatRelative, formatDayGroup, fmt12hrStr } from '../../../utils/date'
+import { formatDate, formatRelative, formatDayGroup, fmt12hrStr, istDateStr, localDateStr } from '../../../utils/date'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { orderService, OrderEvent, UserOption } from '../../../services/orderService'
@@ -41,8 +41,7 @@ function formatTimestamp(iso: string): string { return formatRelative(iso) }
 function formatDateGroup(iso: string): string { return formatDayGroup(iso) }
 
 function dayKey(iso: string): string {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return istDateStr(new Date(iso))
 }
 
 function groupByDate(events: OrderEvent[]): { label: string; events: OrderEvent[] }[] {
@@ -1674,9 +1673,7 @@ export function OrderDetailPage() {
 
   const sm = STATUS_META[order.status] ?? STATUS_META.yet_to_start
   const pm = PRIORITY_META[order.priority] ?? PRIORITY_META.medium
-  const due = order.due_date ? new Date(order.due_date + 'T00:00:00') : null
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const dueOverdue = due && due < today
+  const dueOverdue = order.due_date ? order.due_date < localDateStr(0) : false
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, background: '#F5F6FA', overflow: 'hidden' }}>
@@ -2159,7 +2156,7 @@ export function OrderDetailPage() {
             </PanelSection>
           )}
 
-          {due && (
+          {order.due_date && (
             <PanelSection label="Due date">
               <span style={{ fontSize: 13, fontWeight: 600, color: dueOverdue ? '#EF4444' : '#111827' }}>
                 {formatDate(order.due_date)}

@@ -18,7 +18,7 @@ import {
   MyDashboard,
   DashboardOrder,
 } from '../../services/dashboardService'
-import { formatDate } from '../../utils/date'
+import { formatDate, localDateStr } from '../../utils/date'
 import { useOrderSocket } from '../../hooks/useOrderSocket'
 import { useAuthStore } from '../../store/authStore'
 
@@ -26,13 +26,12 @@ import { useAuthStore } from '../../store/authStore'
 
 function fmtDue(iso: string | null): { label: string; color: string } | null {
   if (!iso) return null
-  const d = new Date(iso + 'T00:00:00')
-  const now = new Date(); now.setHours(0, 0, 0, 0)
-  const diff = Math.round((d.getTime() - now.getTime()) / 86400000)
-  if (diff === 0)  return { label: 'Today',            color: '#F59E0B' }
-  if (diff < 0)   return { label: `${Math.abs(diff)}d overdue`, color: '#EF4444' }
-  if (diff === 1) return { label: 'Tomorrow',          color: '#6B7280' }
-  return { label: formatDate(iso), color: '#6B7280' }
+  const today = localDateStr(0)
+  const tomorrow = localDateStr(1)
+  if (iso === today)    return { label: 'Today',    color: '#F59E0B' }
+  if (iso === tomorrow) return { label: 'Tomorrow', color: '#6B7280' }
+  if (iso < today)      return { label: `${Math.round((new Date(today + 'T00:00:00+05:30').getTime() - new Date(iso + 'T00:00:00+05:30').getTime()) / 86400000)}d overdue`, color: '#EF4444' }
+  return { label: formatDate(new Date(iso + 'T00:00:00+05:30')), color: '#6B7280' }
 }
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {

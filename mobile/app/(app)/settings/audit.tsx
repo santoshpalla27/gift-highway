@@ -16,7 +16,7 @@ import { router } from 'expo-router'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { adminService, AuditStatus } from '../../../services/adminService'
 import { useAuthStore } from '../../../store/authStore'
-import { formatDate, formatDateTime } from '../../../utils/date'
+import { formatDate, formatDateTime, datePickerToIST } from '../../../utils/date'
 
 const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1')
 
@@ -28,10 +28,7 @@ function formatBytes(bytes: number) {
 }
 
 function toYMD(d: Date) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+  return datePickerToIST(d)
 }
 
 function StatusIndicator({ ok }: { ok: boolean }) {

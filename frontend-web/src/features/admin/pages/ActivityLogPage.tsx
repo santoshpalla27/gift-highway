@@ -124,8 +124,8 @@ export function ActivityLogPage() {
       const params: Record<string, string> = { page: String(pg), limit: String(LIMIT) }
       if (orderId) params.title = orderId
       if (evType) params.event_type = evType
-      if (dFrom) params.date_from = new Date(dFrom + 'T00:00:00').toISOString()
-      if (dTo)   params.date_to   = new Date(dTo   + 'T23:59:59.999').toISOString()
+      if (dFrom) params.date_from = new Date(dFrom + 'T00:00:00+05:30').toISOString()
+      if (dTo)   params.date_to   = new Date(dTo   + 'T23:59:59.999+05:30').toISOString()
       const res = await apiClient.get<ActivityResponse>('/admin/activity', { params })
       const data = res.data
       setEvents(prev => append ? [...prev, ...data.events] : data.events)
