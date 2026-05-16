@@ -8,7 +8,7 @@ import { STATUS_META, PRIORITY_META } from '../../../constants/status'
 
 function fmtDue(dateStr: string | null) {
   if (!dateStr) return null
-  const d = new Date(dateStr)
+  const d = new Date(dateStr + 'T00:00:00')
   const now = new Date(); now.setHours(0, 0, 0, 0)
   const diff = Math.round((d.getTime() - now.getTime()) / 86_400_000)
   if (diff === 0) return { label: 'Today', color: '#F59E0B' }

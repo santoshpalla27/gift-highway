@@ -41,7 +41,8 @@ function formatTimestamp(iso: string): string { return formatRelative(iso) }
 function formatDateGroup(iso: string): string { return formatDayGroup(iso) }
 
 function dayKey(iso: string): string {
-  return new Date(iso).toISOString().slice(0, 10)
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function groupByDate(events: OrderEvent[]): { label: string; events: OrderEvent[] }[] {

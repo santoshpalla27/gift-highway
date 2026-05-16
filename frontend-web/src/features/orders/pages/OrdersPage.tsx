@@ -49,7 +49,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function formatDueDate(dateStr: string | null) {
   if (!dateStr) return null
-  const d = new Date(dateStr); d.setHours(0, 0, 0, 0)
+  const d = new Date(dateStr + 'T00:00:00')
   const now = new Date(); now.setHours(0, 0, 0, 0)
   const isOverdue = d < now, isToday = d.getTime() === now.getTime()
   const formatted = isToday ? 'Today' : formatDate(dateStr)

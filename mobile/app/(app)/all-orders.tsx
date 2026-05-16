@@ -41,7 +41,7 @@ const PRIORITY_META: Record<string, { label: string; color: string; bg: string }
 
 function formatDueDate(dateStr: string | null): { text: string; overdue: boolean } | null {
   if (!dateStr) return null
-  const d = new Date(dateStr); d.setHours(0, 0, 0, 0)
+  const d = new Date(dateStr + 'T00:00:00')
   const now = new Date(); now.setHours(0, 0, 0, 0)
   const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1)
   const overdue = d < now
