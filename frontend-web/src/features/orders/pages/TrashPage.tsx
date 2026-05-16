@@ -282,7 +282,7 @@ export function TrashPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', padding: 24, background: '#F5F6FA', boxSizing: 'border-box', overflow: 'hidden' }}>
       <style>{`
-        .trash-table { width: 100%; border-collapse: collapse; }
+        .trash-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .trash-table th {
           padding: 10px 16px; text-align: left; font-size: 11.5px; font-weight: 700;
           text-transform: uppercase; letter-spacing: .5px; color: #9CA3AF;
@@ -443,12 +443,12 @@ export function TrashPage() {
             <table className="trash-table">
               <thead>
                 <tr>
-                  <th>Order ID</th>
-                  <th>Customer</th>
-                  <th>Status</th>
-                  <th>Archived By</th>
-                  <th>Archived Date</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
+                  <th style={{ width: '22%' }}>Order ID</th>
+                  <th style={{ width: '20%' }}>Customer</th>
+                  <th style={{ width: '130px' }}>Status</th>
+                  <th style={{ width: '15%' }}>Archived By</th>
+                  <th style={{ width: '150px' }}>Archived Date</th>
+                  <th style={{ width: '120px', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -460,12 +460,12 @@ export function TrashPage() {
                       <td>
                         <button
                           onClick={() => navigate(`/orders/${order.id}`)}
-                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 13.5, color: '#2563EB', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', textAlign: 'left' }}
+                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 13.5, color: '#2563EB', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', textAlign: 'left' }}
                         >
                           #{order.title}
                         </button>
                       </td>
-                      <td style={{ color: '#374151' }}>{order.customer_name}</td>
+                      <td><span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#374151' }}>{order.customer_name}</span></td>
                       <td>
                         <span style={{
                           display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px',
@@ -476,8 +476,8 @@ export function TrashPage() {
                           {meta.label}
                         </span>
                       </td>
-                      <td style={{ color: '#6B7280' }}>{order.archived_by_name ?? '—'}</td>
-                      <td style={{ color: '#6B7280', whiteSpace: 'nowrap' }}>{order.archived_at ? formatDateTime(order.archived_at) : '—'}</td>
+                      <td><span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#6B7280' }}>{order.archived_by_name ?? '—'}</span></td>
+                      <td style={{ color: '#6B7280', fontSize: 12.5 }}>{order.archived_at ? formatDateTime(order.archived_at) : '—'}</td>
                       <td>
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                           {isAdmin && (
