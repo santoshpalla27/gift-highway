@@ -65,9 +65,23 @@ export function useNotifications({ mineOnly = false, othersOnly = false }: { min
   const { mutate: markOrderRead } = useMutation({
     mutationFn: notificationService.markOrderRead,
     onMutate: (orderId: string) => {
-      const group = data?.groups.find(g => g.order_id === orderId)
+      // Search all notification query caches to find the group and its correct tab key.
+      // markOrderRead can be called from a neutral context (e.g. OrderDetailPage uses
+      // useNotifications() with no params), so currentKey may not match the bell tabs.
+      const tabKeys: [string, { mine: boolean; others: boolean }][] = [
+        ['true:false',  { mine: true,  others: false }],
+        ['false:true',  { mine: false, others: true  }],
+        ['false:false', { mine: false, others: false }],
+      ]
+      let group: NotificationGroup | undefined
+      let groupKey = currentKey
+      for (const [k, params] of tabKeys) {
+        const d = qc.getQueryData<{ groups: NotificationGroup[] }>(['notifications', { mine: params.mine, others: params.others }])
+        const found = d?.groups.find(g => g.order_id === orderId)
+        if (found) { group = found; groupKey = k; break }
+      }
       if (group) {
-        recentlyRead.set(orderId, { group, markedAt: Date.now(), queryKey: currentKey })
+        recentlyRead.set(orderId, { group, markedAt: Date.now(), queryKey: groupKey })
         persist()
       }
     },
