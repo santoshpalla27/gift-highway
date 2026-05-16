@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { notificationService, type FlatActivityEvent } from '../../../services/notificationService'
 import { formatDate, formatDateTime, formatRelative } from '../../../utils/date'
 import { useAuthStore } from '../../../store/authStore'
@@ -223,7 +223,6 @@ const pillItem = (active: boolean): React.CSSProperties => ({
 
 export function NotificationsPage() {
   const navigate = useNavigate()
-  const qc = useQueryClient()
   const { isAuthenticated } = useAuthStore()
   const sentinelRef = useRef<HTMLDivElement>(null)
 
@@ -298,14 +297,6 @@ export function NotificationsPage() {
     return () => observer.disconnect()
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
-  const { mutate: markAllRead, isPending: markingAll } = useMutation({
-    mutationFn: notificationService.markAllRead,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['notifications'] })
-      qc.invalidateQueries({ queryKey: ['notifications-orders'] })
-    },
-  })
-
   const eventTypeLabel = EVENT_TYPE_OPTIONS.find(o => o.value === eventTypeFilter)?.label
 
   return (
@@ -359,24 +350,6 @@ export function NotificationsPage() {
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
             </svg>
             {isRefreshing ? 'Refreshing…' : 'Refresh'}
-          </button>
-          <button
-            onClick={() => markAllRead()}
-            disabled={markingAll}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '7px 14px', borderRadius: 10, border: '1.5px solid transparent',
-              background: '#6366F1', color: '#FFFFFF', fontSize: 13, fontWeight: 600,
-              cursor: markingAll ? 'default' : 'pointer',
-              boxShadow: '0 2px 8px rgba(99,102,241,.15)', opacity: markingAll ? 0.7 : 1,
-            }}
-            onMouseOver={e => { if (!markingAll) e.currentTarget.style.background = '#4F46E5' }}
-            onMouseOut={e => { e.currentTarget.style.background = '#6366F1' }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-            {markingAll ? 'Marking…' : 'Mark all read'}
           </button>
         </div>
       </div>
