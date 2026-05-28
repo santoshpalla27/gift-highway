@@ -158,14 +158,14 @@ tbody tr:hover td { background: rgba(255,255,255,.025); }
       </div>
     </div>
     <div class="card">
-      <div class="card-label">Last R2 Backup</div>
+      <div class="card-label" id="backup-label">Last R2 Backup</div>
       <div class="card-value" id="backup-val">—</div>
       <div class="card-sub" id="backup-sub">&nbsp;</div>
       <div class="bar"><div class="bar-fill ok" id="backup-bar" style="width:0%"></div></div>
       <div style="margin-top:12px"><button class="log-btn" onclick="openBackupLogs()" style="font-size:11px;padding:3px 10px">View Log</button></div>
     </div>
     <div class="card">
-      <div class="card-label">Last S3 Backup</div>
+      <div class="card-label" id="s3backup-label">Last S3 Backup</div>
       <div class="card-value" id="s3backup-val">—</div>
       <div class="card-sub" id="s3backup-sub">&nbsp;</div>
       <div class="bar"><div class="bar-fill ok" id="s3backup-bar" style="width:0%"></div></div>
@@ -478,18 +478,23 @@ async function fetchBackup() {
   const valEl = document.getElementById('backup-val');
   const subEl = document.getElementById('backup-sub');
   const barEl = document.getElementById('backup-bar');
+  const labelEl = document.getElementById('backup-label');
+
+  // Show which log file the monitor is actually reading (helps debug path issues)
+  if (d.log_path && labelEl) labelEl.title = 'Log: ' + d.log_path;
 
   if (d.status === 'never') {
     valEl.textContent = 'Never';
     valEl.style.color = 'var(--muted)';
-    subEl.textContent = 'No backups run yet';
+    subEl.innerHTML = 'No backups run yet' +
+      (d.log_path ? '<br><span style="font-size:10px;opacity:.6">' + d.log_path + '</span>' : '');
     barEl.style.width = '0%';
     barEl.className = 'bar-fill ok';
     return;
   }
 
   if (d.status === 'running') {
-    valEl.textContent = 'Running…';
+    valEl.textContent = 'Running\u2026';
     valEl.style.color = 'var(--yellow)';
     subEl.textContent = 'Backup in progress';
     barEl.style.width = '50%';
@@ -500,7 +505,7 @@ async function fetchBackup() {
   if (d.status === 'failed') {
     valEl.textContent = 'Failed';
     valEl.style.color = 'var(--red)';
-    const ago = d.last_run ? timeAgo(Math.floor(Date.now() / 1000) - d.last_run) : '—';
+    const ago = d.last_run ? timeAgo(Math.floor(Date.now() / 1000) - d.last_run) : '\u2014';
     subEl.textContent = 'Last attempt: ' + ago;
     barEl.style.width = '100%';
     barEl.className = 'bar-fill crit';
@@ -525,18 +530,22 @@ async function fetchS3Backup() {
   const valEl = document.getElementById('s3backup-val');
   const subEl = document.getElementById('s3backup-sub');
   const barEl = document.getElementById('s3backup-bar');
+  const labelEl = document.getElementById('s3backup-label');
+
+  if (d.log_path && labelEl) labelEl.title = 'Log: ' + d.log_path;
 
   if (d.status === 'never') {
     valEl.textContent = 'Never';
     valEl.style.color = 'var(--muted)';
-    subEl.textContent = 'No backups run yet';
+    subEl.innerHTML = 'No backups run yet' +
+      (d.log_path ? '<br><span style="font-size:10px;opacity:.6">' + d.log_path + '</span>' : '');
     barEl.style.width = '0%';
     barEl.className = 'bar-fill ok';
     return;
   }
 
   if (d.status === 'running') {
-    valEl.textContent = 'Running…';
+    valEl.textContent = 'Running\u2026';
     valEl.style.color = 'var(--yellow)';
     subEl.textContent = 'Backup in progress';
     barEl.style.width = '50%';
@@ -547,23 +556,23 @@ async function fetchS3Backup() {
   if (d.status === 'failed') {
     valEl.textContent = 'Failed';
     valEl.style.color = 'var(--red)';
-    const ago = d.last_run ? timeAgo(Math.floor(Date.now() / 1000) - d.last_run) : '—';
+    const ago = d.last_run ? timeAgo(Math.floor(Date.now() / 1000) - d.last_run) : '\u2014';
     subEl.textContent = 'Last attempt: ' + ago;
     barEl.style.width = '100%';
     barEl.className = 'bar-fill crit';
     return;
   }
 
-  // ok — runs hourly so warn threshold is 2h, crit at 4h
+  // ok — S3 runs every 5 min so warn at 15m, crit at 30m
   const now = Math.floor(Date.now() / 1000);
   const secs = now - d.last_ok;
-  const hours = secs / 3600;
+  const mins = secs / 60;
   valEl.textContent = timeAgo(secs);
-  valEl.style.color = hours < 2 ? 'var(--green)' : hours < 4 ? 'var(--yellow)' : 'var(--red)';
+  valEl.style.color = mins < 15 ? 'var(--green)' : mins < 30 ? 'var(--yellow)' : 'var(--red)';
   subEl.textContent = new Date(d.last_ok * 1000).toLocaleString();
-  const freshness = Math.min((secs / (4 * 3600)) * 100, 100);
+  const freshness = Math.min((secs / (30 * 60)) * 100, 100);
   barEl.style.width = freshness + '%';
-  barEl.className = 'bar-fill ' + (hours < 2 ? 'ok' : hours < 4 ? 'warn' : 'crit');
+  barEl.className = 'bar-fill ' + (mins < 15 ? 'ok' : mins < 30 ? 'warn' : 'crit');
 }
 
 // ── Refresh loop ───────────────────────────────────────────────────────────
