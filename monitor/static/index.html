@@ -474,11 +474,22 @@ async function fetchErrors() {
 
 // ── Backup status ──────────────────────────────────────────────────────────
 async function fetchBackup() {
-  const d = await fetch('/api/backup').then(r => r.json());
+  const res = await fetch('/api/backup');
+  const d = await res.json();
   const valEl = document.getElementById('backup-val');
   const subEl = document.getElementById('backup-sub');
   const barEl = document.getElementById('backup-bar');
   const labelEl = document.getElementById('backup-label');
+
+  // Server returned a JSON error object
+  if (d.error) {
+    valEl.textContent = 'Error';
+    valEl.style.color = 'var(--red)';
+    subEl.textContent = d.error;
+    barEl.style.width = '100%';
+    barEl.className = 'bar-fill crit';
+    return;
+  }
 
   // Show which log file the monitor is actually reading (helps debug path issues)
   if (d.log_path && labelEl) labelEl.title = 'Log: ' + d.log_path;
@@ -526,11 +537,22 @@ async function fetchBackup() {
 
 // ── S3 Backup status ───────────────────────────────────────────────────────
 async function fetchS3Backup() {
-  const d = await fetch('/api/backup/s3').then(r => r.json());
+  const res = await fetch('/api/backup/s3');
+  const d = await res.json();
   const valEl = document.getElementById('s3backup-val');
   const subEl = document.getElementById('s3backup-sub');
   const barEl = document.getElementById('s3backup-bar');
   const labelEl = document.getElementById('s3backup-label');
+
+  // Server returned a JSON error object
+  if (d.error) {
+    valEl.textContent = 'Error';
+    valEl.style.color = 'var(--red)';
+    subEl.textContent = d.error;
+    barEl.style.width = '100%';
+    barEl.className = 'bar-fill crit';
+    return;
+  }
 
   if (d.log_path && labelEl) labelEl.title = 'Log: ' + d.log_path;
 
@@ -644,7 +666,12 @@ async function reloadLogs() {
 
 async function loadBackupLogs() {
   try {
-    const d = await fetch('/api/backup/logs').then(r => r.json());
+    const res = await fetch('/api/backup/logs');
+    const d = await res.json();
+    if (d.error) {
+      document.getElementById('log-pre').textContent = 'Server error: ' + d.error;
+      return;
+    }
     currentLogLines = d.logs || [];
     filterLogs();
     document.getElementById('log-pre').parentElement.scrollTop =
@@ -665,7 +692,12 @@ async function openBackupLogs() {
 
 async function loadS3BackupLogs() {
   try {
-    const d = await fetch('/api/backup/s3/logs').then(r => r.json());
+    const res = await fetch('/api/backup/s3/logs');
+    const d = await res.json();
+    if (d.error) {
+      document.getElementById('log-pre').textContent = 'Server error: ' + d.error;
+      return;
+    }
     currentLogLines = d.logs || [];
     filterLogs();
     document.getElementById('log-pre').parentElement.scrollTop =

@@ -6,9 +6,9 @@ sudo apt-get update -y && sudo apt-get upgrade -y
 
 sudo apt-get install -y curl wget gnupg2 lsb-release ca-certificates ufw fail2ban unattended-upgrades htop net-tools logrotate chrony
 
-3. Create 2GB swap
+3. Create 1GB swap (4GB RAM — reduced swap per best practice)
 
-sudo fallocate -l 2G /swapfile
+sudo fallocate -l 1G /swapfile
 sudo chmod 600 /swapfile
 sudo mkswap /swapfile
 sudo swapon /swapfile
@@ -17,9 +17,9 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 4. Kernel tuning
 
 sudo tee /etc/sysctl.d/99-production.conf << 'EOF'
-vm.swappiness=10
-vm.dirty_ratio=15
-vm.dirty_background_ratio=5
+vm.swappiness=5
+vm.dirty_ratio=20
+vm.dirty_background_ratio=10
 net.core.somaxconn=65535
 net.core.netdev_max_backlog=65536
 net.ipv4.tcp_max_syn_backlog=65535
@@ -44,11 +44,12 @@ sudo sysctl --system
 
 sudo mkdir -p /etc/systemd/system.conf.d
 
-echo '\* soft nofile 1048576
-
-- hard nofile 1048576
-- soft nproc 65535
-- hard nproc 65535' | sudo tee -a /etc/security/limits.conf
+sudo tee -a /etc/security/limits.conf << 'EOF'
+* soft nofile 1048576
+* hard nofile 1048576
+* soft nproc 65535
+* hard nproc 65535
+EOF
 
 sudo tee /etc/systemd/system.conf.d/limits.conf << 'EOF'
 [Manager]
@@ -73,13 +74,13 @@ sudo mkdir -p /etc/docker
 sudo tee /etc/docker/daemon.json << 'EOF'
 {
 "log-driver": "json-file",
-"log-opts": { "max-size": "20m", "max-file": "3" },
+"log-opts": { "max-size": "20m", "max-file": "5" },
 "storage-driver": "overlay2",
 "live-restore": true,
 "userland-proxy": false,
 "no-new-privileges": true,
 "default-ulimits": {
-"nofile": { "Name": "nofile", "Hard": 65536, "Soft": 65536 }
+"nofile": { "Name": "nofile", "Hard": 131072, "Soft": 131072 }
 }
 }
 EOF
@@ -89,7 +90,8 @@ sudo systemctl restart docker
 8. Add user to docker group
 
 sudo usermod -aG docker $USER
-newgrp docker
+# Re-login or run the next command to apply group without rebooting:
+exec newgrp docker
 
 9. Firewall
 

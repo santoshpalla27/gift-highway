@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -45,7 +46,7 @@ func main() {
 func handleSystem(w http.ResponseWriter, r *http.Request) {
 	stats, err := collectSystem()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err)
 		return
 	}
 	respond(w, stats)
@@ -54,7 +55,7 @@ func handleSystem(w http.ResponseWriter, r *http.Request) {
 func handleContainers(w http.ResponseWriter, r *http.Request) {
 	list, err := collectContainers()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err)
 		return
 	}
 	respond(w, list)
@@ -63,7 +64,7 @@ func handleContainers(w http.ResponseWriter, r *http.Request) {
 func handleVolumes(w http.ResponseWriter, r *http.Request) {
 	list, err := collectVolumes()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err)
 		return
 	}
 	respond(w, list)
@@ -72,7 +73,7 @@ func handleVolumes(w http.ResponseWriter, r *http.Request) {
 func handleErrors(w http.ResponseWriter, r *http.Request) {
 	lines, err := collectErrors()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err)
 		return
 	}
 	respond(w, lines)
@@ -81,12 +82,12 @@ func handleErrors(w http.ResponseWriter, r *http.Request) {
 func handleLogs(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, "/api/logs/")
 	if id == "" {
-		http.Error(w, "missing container id", http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, fmt.Errorf("missing container id"))
 		return
 	}
 	lines, err := fetchLogs(id, 300)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err)
 		return
 	}
 	respond(w, map[string]any{"logs": lines})
@@ -95,7 +96,7 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 func handleBackup(w http.ResponseWriter, r *http.Request) {
 	status, err := collectBackupStatus(backupLogPath)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err)
 		return
 	}
 	respond(w, status)
@@ -104,7 +105,7 @@ func handleBackup(w http.ResponseWriter, r *http.Request) {
 func handleBackupLogs(w http.ResponseWriter, r *http.Request) {
 	lines, err := collectBackupLogs(backupLogPath, 200)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err)
 		return
 	}
 	respond(w, map[string]any{"logs": lines})
@@ -113,7 +114,7 @@ func handleBackupLogs(w http.ResponseWriter, r *http.Request) {
 func handleS3Backup(w http.ResponseWriter, r *http.Request) {
 	status, err := collectBackupStatus(s3BackupLogPath)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err)
 		return
 	}
 	respond(w, status)
@@ -122,7 +123,7 @@ func handleS3Backup(w http.ResponseWriter, r *http.Request) {
 func handleS3BackupLogs(w http.ResponseWriter, r *http.Request) {
 	lines, err := collectBackupLogs(s3BackupLogPath, 200)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, err)
 		return
 	}
 	respond(w, map[string]any{"logs": lines})
@@ -132,4 +133,13 @@ func respond(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	json.NewEncoder(w).Encode(v)
+}
+
+// jsonError always responds with a JSON body so the frontend's r.json() never
+// receives a plain-text string (which would cause "Unexpected token" errors).
+func jsonError(w http.ResponseWriter, code int, err error) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]string{"error": fmt.Sprintf("%v", err)})
 }
