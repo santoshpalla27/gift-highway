@@ -1,5 +1,7 @@
 # Mobile APK Build Guide (Amazon Linux / EC2)
 
+c7i.2xlarge. -- instance
+
 ## 1. System updates & basic tools
 
 ```bash
