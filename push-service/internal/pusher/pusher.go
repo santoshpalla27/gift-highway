@@ -575,12 +575,12 @@ func buildContent(eventType, actorName string, payload json.RawMessage, orderTit
 
 	switch eventType {
 	case "order_created":
-		var p struct{ CustomerName string `json:"customer_name"` }
+		var p struct{ OrderDescription string `json:"order_description"` }
 		json.Unmarshal(payload, &p)
 		title = "📦 New Order"
 		body = actorName + " created " + ref
-		if p.CustomerName != "" {
-			body += " for " + p.CustomerName
+		if p.OrderDescription != "" {
+			body += " – " + p.OrderDescription
 		}
 	case "status_changed":
 		var p struct {

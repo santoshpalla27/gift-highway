@@ -175,7 +175,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 	uid := userID.(string)
 	if ev, err := h.eventService.Record(c.Request.Context(), o.ID, &uid, models.EvtOrderCreated,
-		map[string]string{"customer_name": o.CustomerName}); err == nil {
+		map[string]string{"order_description": o.OrderDescription}); err == nil {
 		h.hub.Broadcast(realtime.NewEvent(realtime.EventTimelineEvent, o.ID, toEventResponse(ev)))
 	}
 
