@@ -617,7 +617,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
             <thead>
               <tr>
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Order ID</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Customer</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Order Description</th>
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Status</th>
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Assigned</th>
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#9CA3AF', background: '#F0F1F5', borderBottom: '1px solid #E4E6EF', whiteSpace: 'nowrap' }}>Delivery</th>
@@ -647,8 +647,10 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
 
                 return (
                   <tr key={order.id} onClick={() => navigate(`/orders/${order.id}`)}>
-                    <td style={{ maxWidth: 220 }}><span style={{ fontWeight: 700, fontSize: 13.5, color: '#2563EB', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>#{order.title}</span></td>
-                    <td style={{ maxWidth: 180 }}><span style={{ fontWeight: 600, fontSize: 13.5, color: '#111827', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.customer_name}</span></td>
+                    <td style={{ maxWidth: 120 }}>
+                      <span style={{ fontWeight: 700, fontSize: 13.5, color: '#2563EB', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Order #{order.order_number}</span>
+                    </td>
+                    <td style={{ maxWidth: 260 }}><span style={{ fontWeight: 600, fontSize: 13.5, color: '#111827', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.order_description}</span></td>
                     <td><StatusBadge status={order.status} /></td>
                     <td>
                       {order.assigned_names?.length > 0 ? (

@@ -27,25 +27,25 @@ func NewOrderService(orderRepo *repositories.OrderRepository, cfg *config.Config
 }
 
 type CreateOrderRequest struct {
-	Title         string   `json:"title" binding:"required"`
-	Description   string   `json:"description"`
-	CustomerName  string   `json:"customer_name" binding:"required"`
-	ContactNumber string   `json:"contact_number"`
-	Priority      string   `json:"priority" binding:"required,oneof=low medium high urgent"`
-	AssignedTo    []string `json:"assigned_to"`
-	DueDate       *string  `json:"due_date"`
-	DueTime       *string  `json:"due_time"`
+	OrderDescription string   `json:"order_description" binding:"required"`
+	Description      string   `json:"description"`
+	CustomerName     string   `json:"customer_name" binding:"required"`
+	ContactNumber    string   `json:"contact_number"`
+	Priority         string   `json:"priority" binding:"required,oneof=low medium high urgent"`
+	AssignedTo       []string `json:"assigned_to"`
+	DueDate          *string  `json:"due_date"`
+	DueTime          *string  `json:"due_time"`
 }
 
 type UpdateOrderRequest struct {
-	Title         string   `json:"title" binding:"required"`
-	Description   string   `json:"description"`
-	CustomerName  string   `json:"customer_name" binding:"required"`
-	ContactNumber string   `json:"contact_number"`
-	Priority      string   `json:"priority" binding:"required,oneof=low medium high urgent"`
-	AssignedTo    []string `json:"assigned_to"`
-	DueDate       *string  `json:"due_date"`
-	DueTime       *string  `json:"due_time"`
+	OrderDescription string   `json:"order_description" binding:"required"`
+	Description      string   `json:"description"`
+	CustomerName     string   `json:"customer_name" binding:"required"`
+	ContactNumber    string   `json:"contact_number"`
+	Priority         string   `json:"priority" binding:"required,oneof=low medium high urgent"`
+	AssignedTo       []string `json:"assigned_to"`
+	DueDate          *string  `json:"due_date"`
+	DueTime          *string  `json:"due_time"`
 }
 
 type UpdateOrderStatusRequest struct {
@@ -93,7 +93,7 @@ func (s *OrderService) GetOrder(ctx context.Context, id string) (*models.OrderWi
 }
 
 func (s *OrderService) CreateOrder(ctx context.Context, createdBy string, req CreateOrderRequest) (*models.OrderWithNames, error) {
-	req.Title = utils.Strip(req.Title)
+	req.OrderDescription = utils.Strip(req.OrderDescription)
 	req.Description = utils.Strip(req.Description)
 	req.CustomerName = utils.Strip(req.CustomerName)
 	req.ContactNumber = utils.Strip(req.ContactNumber)
@@ -108,16 +108,16 @@ func (s *OrderService) CreateOrder(ctx context.Context, createdBy string, req Cr
 	}
 
 	o := &models.Order{
-		ID:            uuid.New().String(),
-		Title:         req.Title,
-		Description:   req.Description,
-		CustomerName:  req.CustomerName,
-		ContactNumber: req.ContactNumber,
-		Status:        "yet_to_start",
-		Priority:      req.Priority,
-		CreatedBy:     createdBy,
-		DueDate:       dueDate,
-		DueTime:       req.DueTime,
+		ID:               uuid.New().String(),
+		OrderDescription: req.OrderDescription,
+		Description:      req.Description,
+		CustomerName:     req.CustomerName,
+		ContactNumber:    req.ContactNumber,
+		Status:           "yet_to_start",
+		Priority:         req.Priority,
+		CreatedBy:        createdBy,
+		DueDate:          dueDate,
+		DueTime:          req.DueTime,
 	}
 	created, err := s.orderRepo.Create(ctx, o, req.AssignedTo)
 	if err != nil {
@@ -130,11 +130,11 @@ func (s *OrderService) CreateOrder(ctx context.Context, createdBy string, req Cr
 }
 
 func (s *OrderService) UpdateOrder(ctx context.Context, id string, req UpdateOrderRequest) error {
-	req.Title = utils.Strip(req.Title)
+	req.OrderDescription = utils.Strip(req.OrderDescription)
 	req.Description = utils.Strip(req.Description)
 	req.CustomerName = utils.Strip(req.CustomerName)
 	req.ContactNumber = utils.Strip(req.ContactNumber)
-	if err := s.orderRepo.Update(ctx, id, req.Title, req.Description, req.CustomerName, req.ContactNumber, req.Priority, req.AssignedTo, req.DueDate, req.DueTime); err != nil {
+	if err := s.orderRepo.Update(ctx, id, req.OrderDescription, req.Description, req.CustomerName, req.ContactNumber, req.Priority, req.AssignedTo, req.DueDate, req.DueTime); err != nil {
 		return err
 	}
 	if s.auditSvc != nil {

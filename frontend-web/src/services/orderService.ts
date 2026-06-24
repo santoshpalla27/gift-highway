@@ -4,6 +4,7 @@ export interface Order {
   id: string
   order_number: number
   title: string
+  order_description: string
   description: string
   customer_name: string
   contact_number: string
@@ -26,6 +27,7 @@ export interface TrashOrder {
   id: string
   order_number: number
   title: string
+  order_description: string
   customer_name: string
   status: string
   archived_at: string | null
@@ -76,7 +78,7 @@ export const orderService = {
   },
 
   createOrder: async (data: {
-    title: string
+    order_description: string
     description: string
     customer_name: string
     contact_number?: string
@@ -90,7 +92,7 @@ export const orderService = {
   },
 
   updateOrder: async (id: string, data: {
-    title: string
+    order_description: string
     description: string
     customer_name: string
     contact_number?: string

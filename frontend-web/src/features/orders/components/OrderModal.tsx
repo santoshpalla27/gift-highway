@@ -28,7 +28,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
   const { mutate: updateOrder, isPending: updating } = useUpdateOrder()
   const { data: users = [] } = useUsersForAssignment()
 
-  const [title, setTitle] = useState('')
+  const [orderDescription, setOrderDescription] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [contactNumber, setContactNumber] = useState('')
   const [description, setDescription] = useState('')
@@ -42,7 +42,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
 
   useEffect(() => {
     if (order) {
-      setTitle(order.title)
+      setOrderDescription(order.order_description ?? '')
       setCustomerName(order.customer_name)
       setContactNumber(order.contact_number ?? '')
       setDescription(order.description)
@@ -62,14 +62,14 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
   }
 
   const handleSubmit = () => {
-    if (!title.trim() || !customerName.trim()) {
-      setError('Order ID and Customer Name are required.')
+    if (!orderDescription.trim() || !customerName.trim()) {
+      setError('Order Description and Customer Name are required.')
       return
     }
     if (isPending) return
     setError('')
     const payload = {
-      title: title.trim(),
+      order_description: orderDescription.trim(),
       customer_name: customerName.trim(),
       contact_number: contactNumber.trim(),
       description: description.trim(),
@@ -140,7 +140,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
               {isEdit ? 'Edit Order' : 'Create Order'}
             </div>
             <div style={{ fontSize: '14px', color: '#64748B', marginTop: '4px' }}>
-              {isEdit ? `Updating order #${order!.title}` : 'Fill in the operational details'}
+              {isEdit ? `Updating Order #${order!.order_number}` : 'Fill in the operational details'}
             </div>
           </div>
           <button
@@ -167,8 +167,15 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label className="modal-label">Order ID *</label>
-              <input className="modal-input" value={title} onChange={e => setTitle(e.target.value)} />
+              <label className="modal-label">Order ID</label>
+              <div className="modal-input" style={{ background: '#F8FAFC', color: '#64748B', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'default' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>{isEdit ? `Order #${order!.order_number} (auto-generated)` : 'Auto-assigned on creation'}</span>
+              </div>
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="modal-label">Order Description *</label>
+              <input className="modal-input" value={orderDescription} onChange={e => setOrderDescription(e.target.value)} placeholder="e.g. Wedding Cake - John" />
             </div>
             <div>
               <label className="modal-label">Customer Name *</label>

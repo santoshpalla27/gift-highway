@@ -25,9 +25,9 @@ const auditCSVKey = "audit/orders_all.csv"
 
 var ist = time.FixedZone("IST", 5*60*60+30*60) // UTC+5:30
 
-// order_id = user-visible title; UUID is intentionally excluded
+// order_id = auto-generated title (e.g. "Order #42"); UUID is intentionally excluded
 var csvHeader = []string{
-	"order_number", "order_id", "customer_name", "contact_number",
+	"order_id", "order_description", "customer_name", "contact_number",
 	"priority", "status", "assigned_to", "due_date", "created_by", "created_at", "archived", "deleted",
 }
 
@@ -363,8 +363,8 @@ func (s *AuditService) orderToRow(o *models.OrderWithNames) []string {
 		}
 	}
 	return []string{
-		fmt.Sprintf("%d", o.OrderNumber),
 		o.Title,
+		o.OrderDescription,
 		o.CustomerName,
 		o.ContactNumber,
 		o.Priority,
@@ -424,7 +424,7 @@ func (s *AuditService) syncRow(data []byte, order *models.OrderWithNames) []byte
 	if err != nil || len(records) < 2 {
 		return data
 	}
-	target := fmt.Sprintf("%d", order.OrderNumber)
+	target := fmt.Sprintf("Order #%d", order.OrderNumber)
 	for i := 1; i < len(records); i++ {
 		if len(records[i]) > 0 && records[i][0] == target {
 			records[i] = s.orderToRow(order)
@@ -497,7 +497,7 @@ func (s *AuditService) markDeletedRow(data []byte, orderNumber int, deletedAt st
 		return data
 	}
 
-	target := fmt.Sprintf("%d", orderNumber)
+	target := fmt.Sprintf("Order #%d", orderNumber)
 	for i := 1; i < len(records); i++ {
 		if len(records[i]) > 0 && records[i][0] == target {
 			for len(records[i]) <= deletedCol {
@@ -517,7 +517,7 @@ func (s *AuditService) markDeletedRow(data []byte, orderNumber int, deletedAt st
 
 // rowExists returns true if a row with the given order_number is already in the CSV.
 func (s *AuditService) rowExists(data []byte, orderNumber int) bool {
-	target := fmt.Sprintf("%d", orderNumber)
+	target := fmt.Sprintf("Order #%d", orderNumber)
 	r := csv.NewReader(bytes.NewReader(data))
 	records, err := r.ReadAll()
 	if err != nil {

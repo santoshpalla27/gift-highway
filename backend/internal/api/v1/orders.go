@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -25,25 +24,26 @@ func NewOrderHandler(orderService *services.OrderService, eventService *services
 }
 
 type orderResponse struct {
-	ID             string  `json:"id"`
-	OrderNumber    int     `json:"order_number"`
-	Title          string  `json:"title"`
-	Description    string  `json:"description"`
-	CustomerName   string  `json:"customer_name"`
-	ContactNumber  string  `json:"contact_number"`
-	Status         string  `json:"status"`
-	Priority       string  `json:"priority"`
-	AssignedTo     []string `json:"assigned_to"`
-	AssignedNames  []string `json:"assigned_names"`
-	CreatedBy      string  `json:"created_by"`
-	CreatedByName  string  `json:"created_by_name"`
-	DueDate        *string `json:"due_date"`
-	DueTime        *string `json:"due_time"`
-	IsArchived     bool    `json:"is_archived"`
-	ArchivedAt     *string `json:"archived_at"`
-	ArchivedByName *string `json:"archived_by_name"`
-	CreatedAt      string  `json:"created_at"`
-	UpdatedAt      string  `json:"updated_at"`
+	ID               string   `json:"id"`
+	OrderNumber      int      `json:"order_number"`
+	Title            string   `json:"title"`
+	OrderDescription string   `json:"order_description"`
+	Description      string   `json:"description"`
+	CustomerName     string   `json:"customer_name"`
+	ContactNumber    string   `json:"contact_number"`
+	Status           string   `json:"status"`
+	Priority         string   `json:"priority"`
+	AssignedTo       []string `json:"assigned_to"`
+	AssignedNames    []string `json:"assigned_names"`
+	CreatedBy        string   `json:"created_by"`
+	CreatedByName    string   `json:"created_by_name"`
+	DueDate          *string  `json:"due_date"`
+	DueTime          *string  `json:"due_time"`
+	IsArchived       bool     `json:"is_archived"`
+	ArchivedAt       *string  `json:"archived_at"`
+	ArchivedByName   *string  `json:"archived_by_name"`
+	CreatedAt        string   `json:"created_at"`
+	UpdatedAt        string   `json:"updated_at"`
 }
 
 func toOrderResponse(o *models.OrderWithNames) orderResponse {
@@ -66,25 +66,26 @@ func toOrderResponse(o *models.OrderWithNames) orderResponse {
 		assignedNames = []string{}
 	}
 	return orderResponse{
-		ID:             o.ID,
-		OrderNumber:    o.OrderNumber,
-		Title:          o.Title,
-		Description:    o.Description,
-		CustomerName:   o.CustomerName,
-		ContactNumber:  o.ContactNumber,
-		Status:         o.Status,
-		Priority:       o.Priority,
-		AssignedTo:     assignedTo,
-		AssignedNames:  assignedNames,
-		CreatedBy:      o.CreatedBy,
-		CreatedByName:  o.CreatedByName,
-		DueDate:        dueDate,
-		DueTime:        o.DueTime,
-		IsArchived:     o.IsArchived,
-		ArchivedAt:     archivedAt,
-		ArchivedByName: o.ArchivedByName,
-		CreatedAt:      o.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:      o.UpdatedAt.Format(time.RFC3339),
+		ID:               o.ID,
+		OrderNumber:      o.OrderNumber,
+		Title:            o.Title,
+		OrderDescription: o.OrderDescription,
+		Description:      o.Description,
+		CustomerName:     o.CustomerName,
+		ContactNumber:    o.ContactNumber,
+		Status:           o.Status,
+		Priority:         o.Priority,
+		AssignedTo:       assignedTo,
+		AssignedNames:    assignedNames,
+		CreatedBy:        o.CreatedBy,
+		CreatedByName:    o.CreatedByName,
+		DueDate:          dueDate,
+		DueTime:          o.DueTime,
+		IsArchived:       o.IsArchived,
+		ArchivedAt:       archivedAt,
+		ArchivedByName:   o.ArchivedByName,
+		CreatedAt:        o.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:        o.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
@@ -166,10 +167,6 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	o, err := h.orderService.CreateOrder(c.Request.Context(), userID.(string), req)
 	if err != nil {
-		if errors.Is(err, repositories.ErrDuplicateTitle) {
-			c.JSON(http.StatusConflict, gin.H{"error": "An order with this ID already exists. Use a different ID or permanently delete the existing one."})
-			return
-		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create order"})
 		return
 	}
@@ -231,10 +228,6 @@ func (h *OrderHandler) UpdateOrder(c *gin.Context) {
 	}
 
 	if err := h.orderService.UpdateOrder(ctx, id, req); err != nil {
-		if errors.Is(err, repositories.ErrDuplicateTitle) {
-			c.JSON(http.StatusConflict, gin.H{"error": "An order with this ID already exists. Use a different ID or permanently delete the existing one."})
-			return
-		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update order"})
 		return
 	}
@@ -290,7 +283,7 @@ func (h *OrderHandler) UpdateOrder(c *gin.Context) {
 			}
 		}
 
-		if old.Title != req.Title || old.Description != req.Description ||
+		if old.OrderDescription != req.OrderDescription || old.Description != req.Description ||
 			old.CustomerName != req.CustomerName || old.ContactNumber != req.ContactNumber {
 			if ev, err := h.eventService.Record(ctx, id, &uid, models.EvtOrderUpdated,
 				map[string]string{}); err == nil {

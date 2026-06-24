@@ -1706,7 +1706,12 @@ export function OrderDetailPage() {
           Back
         </button>
         <div style={{ width: 1, height: 20, background: '#E4E6EF' }} />
-        <span style={{ fontSize: 15, fontWeight: 700, color: '#111827', flex: 1 }}>{order.title}</span>
+        <span style={{ fontSize: 15, fontWeight: 700, color: '#111827', flex: 1 }}>
+          Order #{order.order_number}
+          {order.order_description && (
+            <span style={{ fontWeight: 400, color: '#64748B', fontSize: 13, marginLeft: 8 }}>{order.order_description}</span>
+          )}
+        </span>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
           {/* PORTAL HIDDEN: portal button removed — see docs/portal-hidden.md to restore */}
           {perms.canEditOrder && (
@@ -2119,6 +2124,10 @@ export function OrderDetailPage() {
           overflowY: 'auto', overflowX: 'hidden', padding: '24px 20px',
         }}>
 
+          <PanelSection label="Order Description">
+            <div style={{ fontSize: 13.5, fontWeight: 500, color: '#374151', wordBreak: 'break-word', lineHeight: 1.4 }}>{order.order_description}</div>
+          </PanelSection>
+
           <PanelSection label="Customer">
             <div style={{ fontSize: 14, fontWeight: 600, color: '#111827', wordBreak: 'break-word' }}>{order.customer_name}</div>
             {order.contact_number && (
@@ -2283,7 +2292,7 @@ export function OrderDetailPage() {
           >
             <div style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>Archive this order?</div>
             <div style={{ fontSize: 13.5, color: '#6B7280', lineHeight: 1.6 }}>
-              <strong>#{order.title}</strong> will be removed from active lists and the dashboard. Admins can restore it from Trash.
+              <strong>Order #{order.order_number}</strong> will be removed from active lists and the dashboard. Admins can restore it from Trash.
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 12, justifyContent: 'flex-end' }}>
               <button

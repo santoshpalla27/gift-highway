@@ -47,7 +47,7 @@ export function InfoSheet({ order, portal, onClose, onPortalChange, onArchived }
   const isAdmin = user?.role === 'admin'
   const sm = STATUS_META[order.status] ?? STATUS_META.new
   const pm = PRIORITY_META[order.priority] ?? PRIORITY_META.low
-  const dueOverdue = order.due_date ? order.due_date < localDateStr(0) && order.status !== 'completed' : false
+  const dueOverdue = order.due_date ? order.due_date < localDateStr(0) && order.status !== 'done' && order.status !== 'delivered' : false
   const [copied, setCopied] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
   const [archiveLoading, setArchiveLoading] = useState(false)
@@ -80,15 +80,27 @@ export function InfoSheet({ order, portal, onClose, onPortalChange, onArchived }
 
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom + 16, 48) }}>
 
-          {/* Card 1: Order ID + Customer */}
+          {/* Card 1: Order ID + Order Description + Customer */}
           <View style={IN.card}>
             <View style={IN.row}>
               <View style={IN.rowLabel}>
                 <Ionicons name="receipt-outline" size={13} color="#9CA3AF" />
                 <Text style={IN.label}>ORDER ID</Text>
               </View>
-              <Text style={IN.value}>#{order.title}</Text>
+              <Text style={IN.value}>Order #{order.order_number}</Text>
             </View>
+            {!!order.order_description && (
+              <>
+                <View style={IN.divider} />
+                <View style={IN.row}>
+                  <View style={IN.rowLabel}>
+                    <Ionicons name="document-outline" size={13} color="#9CA3AF" />
+                    <Text style={IN.label}>ORDER DESCRIPTION</Text>
+                  </View>
+                  <Text style={[IN.value, { maxWidth: '60%' }]} numberOfLines={2}>{order.order_description}</Text>
+                </View>
+              </>
+            )}
             <View style={IN.divider} />
             <View style={IN.row}>
               <View style={IN.rowLabel}>
@@ -244,7 +256,7 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
 }) {
   const insets = useSafeAreaInsets()
   const { isOnline } = useNetworkStatus()
-  const [title, setTitle] = useState(order.title)
+  const [orderDescription, setOrderDescription] = useState(order.order_description ?? '')
   const [customerName, setCustomerName] = useState(order.customer_name)
   const [contactNumber, setContactNumber] = useState(order.contact_number ?? '')
   const [description, setDescription] = useState(order.description)
@@ -267,12 +279,12 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
 
   const handleSave = async () => {
     if (!isOnline) { setError("You're offline."); return }
-    if (!title.trim() || !customerName.trim()) { setError('Order ID and Customer Name are required.'); return }
+    if (!orderDescription.trim() || !customerName.trim()) { setError('Order Description and Customer Name are required.'); return }
     setLoading(true)
     setError('')
     try {
       await orderService.updateOrder(order.id, {
-        title: title.trim(), customer_name: customerName.trim(),
+        order_description: orderDescription.trim(), customer_name: customerName.trim(),
         contact_number: contactNumber.trim(), description: description.trim(),
         priority, assigned_to: assignedTo, due_date: dueDate || null, due_time: dueTime || null,
       })
@@ -304,8 +316,15 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
         <ScrollView style={{ padding: 20 }} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40) }} keyboardShouldPersistTaps="handled">
           {error ? <View style={E.errorBox}><Text style={E.errorText}>{error}</Text></View> : null}
 
-          <Text style={E.label}>Order ID *</Text>
-          <TextInput style={E.input} value={title} onChangeText={setTitle} autoCapitalize="characters" />
+          {/* Auto-generated Order ID notice */}
+          <Text style={E.label}>Order ID</Text>
+          <View style={[E.input, { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC' }]}>
+            <Ionicons name="lock-closed-outline" size={14} color="#9CA3AF" style={{ marginRight: 8 }} />
+            <Text style={{ fontSize: 15, color: '#6B7280' }}>Order #{order.order_number} (auto-generated)</Text>
+          </View>
+
+          <Text style={E.label}>Order Description *</Text>
+          <TextInput style={E.input} value={orderDescription} onChangeText={setOrderDescription} placeholder="e.g. Wedding Cake - John" placeholderTextColor="#94A3B8" />
 
           <Text style={E.label}>Customer Name *</Text>
           <TextInput style={E.input} value={customerName} onChangeText={setCustomerName} autoCapitalize="words" />

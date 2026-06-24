@@ -36,6 +36,7 @@ export interface DashboardOrder {
   id: string
   order_number: number
   title: string
+  order_description: string
   customer_name: string
   status: string
   priority: string

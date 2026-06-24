@@ -85,14 +85,11 @@ function OrderRow({ order, onPress }: { order: DashboardOrder; onPress: () => vo
   return (
     <TouchableOpacity style={S.orderRow} onPress={onPress} activeOpacity={0.7}>
       <View style={S.orderLeft}>
-        <Text style={S.orderIdBadge} numberOfLines={1}>#{order.title}</Text>
+        <Text style={S.orderIdBadge} numberOfLines={1}>#{order.order_number}</Text>
         <View style={S.orderBody}>
-          <Text style={S.orderTitle} numberOfLines={1}>{order.customer_name}</Text>
-          {order.assigned_names?.length > 0 && (
-            <Text style={S.orderCustomer} numberOfLines={1}>
-              {order.assigned_names[0].split(' ')[0]}
-            </Text>
-          )}
+          <Text style={S.orderTitle} numberOfLines={1}>
+            {order.order_description || 'No description'}
+          </Text>
         </View>
       </View>
       <View style={S.orderRight}>

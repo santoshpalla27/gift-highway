@@ -162,7 +162,12 @@ export default function OrderDetailScreen() {
           </TouchableOpacity>
 
           <View style={S.headerCenter}>
-            <Text style={S.headerTitle} numberOfLines={1}>#{order.title}</Text>
+            <Text style={S.headerTitle} numberOfLines={1}>Order #{order.order_number}</Text>
+            {!!order.order_description && (
+              <Text style={{ fontSize: 12, color: '#64748B', marginTop: 1 }} numberOfLines={1}>
+                {order.order_description}
+              </Text>
+            )}
           </View>
 
           <View style={S.headerActions}>

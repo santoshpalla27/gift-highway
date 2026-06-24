@@ -87,7 +87,7 @@ export default function ShareScreen() {
     ? orders.filter(o => {
         const q = search.toLowerCase()
         return (
-          o.title.toLowerCase().includes(q) ||
+          o.order_description.toLowerCase().includes(q) ||
           o.customer_name.toLowerCase().includes(q) ||
           String(o.order_number).includes(q)
         )
@@ -336,8 +336,9 @@ export default function ShareScreen() {
               >
                 <View style={S.orderLeft}>
                   <View style={S.orderMeta}>
+                    <Text style={[S.orderIdBadge, selected && { color: '#4F46E5' }]}>Order #{item.order_number}</Text>
                     <Text style={[S.orderTitle, selected && S.orderTitleSelected]} numberOfLines={1}>
-                      {item.title}
+                      {item.order_description || item.title}
                     </Text>
                     <Text style={S.orderCustomer} numberOfLines={1}>{item.customer_name}</Text>
                   </View>
@@ -371,7 +372,7 @@ export default function ShareScreen() {
               <Ionicons name="cloud-upload-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
               <Text style={S.uploadBtnText} numberOfLines={1} ellipsizeMode="tail">
                 {selectedOrder
-                  ? `Upload to ${selectedOrder.title}`
+                  ? `Upload to Order #${selectedOrder.order_number}`
                   : 'Select an order above'}
               </Text>
             </>
@@ -446,6 +447,7 @@ const S = StyleSheet.create({
   orderRowSelected: { borderColor: '#6366F1', backgroundColor: '#EEF2FF' },
   orderLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   orderMeta: { flex: 1 },
+  orderIdBadge: { fontSize: 11, fontWeight: '700', color: '#2563EB', marginBottom: 2 },
   orderTitle: { fontSize: 14, fontWeight: '600', color: '#111827' },
   orderTitleSelected: { color: '#4F46E5' },
   orderCustomer: { fontSize: 12, color: '#6B7280', marginTop: 1 },

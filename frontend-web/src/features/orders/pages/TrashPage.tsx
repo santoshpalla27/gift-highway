@@ -133,7 +133,7 @@ function ConfirmDeleteModal({ order, onClose, onConfirm }: {
         </div>
 
         <div style={{ background: '#FEF2F2', borderRadius: 8, padding: '10px 12px', marginBottom: 18, fontSize: 13, color: '#B91C1C' }}>
-          Order <strong>#{order.title}</strong> and all its data (events, attachments, portal messages) will be permanently deleted.
+          Order <strong>Order #{order.order_number}</strong> and all its data (events, attachments, portal messages) will be permanently deleted.
         </div>
 
         <div style={{ marginBottom: 18 }}>
@@ -231,7 +231,7 @@ export function TrashPage() {
   const filteredOrders = orders.filter(o => {
     const q = search.trim().toLowerCase()
     const matchesSearch = !q ||
-      o.title.toLowerCase().includes(q) ||
+      (o.order_description ?? '').toLowerCase().includes(q) ||
       o.customer_name.toLowerCase().includes(q) ||
       (o.archived_by_name ?? '').toLowerCase().includes(q)
     const matchesStatus = statusFilter === 'all' || o.status === statusFilter
@@ -252,7 +252,7 @@ export function TrashPage() {
       await orderService.restoreOrder(order.id)
       await queryClient.invalidateQueries({ queryKey: ['trash'] })
       await queryClient.invalidateQueries({ queryKey: ['orders'] })
-      showToast(`Order #${order.title} restored.`)
+      showToast(`Order #${order.order_number} restored.`)
     } catch {
       showToast('Failed to restore order.')
     } finally {
@@ -270,7 +270,7 @@ export function TrashPage() {
         queryClient.invalidateQueries({ queryKey: ['notifications'] }),
         queryClient.invalidateQueries({ queryKey: ['notifications-activity'] }),
       ])
-      showToast(`Order #${order.title} permanently deleted.`)
+      showToast(`Order #${order.order_number} permanently deleted.`)
     } catch {
       showToast('Failed to delete order.')
     } finally {
@@ -444,7 +444,7 @@ export function TrashPage() {
               <thead>
                 <tr>
                   <th style={{ width: '22%' }}>Order ID</th>
-                  <th style={{ width: '20%' }}>Customer</th>
+                  <th style={{ width: '20%' }}>Order Description</th>
                   <th style={{ width: '130px' }}>Status</th>
                   <th style={{ width: '15%' }}>Archived By</th>
                   <th style={{ width: '150px' }}>Archived Date</th>
@@ -462,10 +462,10 @@ export function TrashPage() {
                           onClick={() => navigate(`/orders/${order.id}`)}
                           style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 13.5, color: '#2563EB', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', textAlign: 'left' }}
                         >
-                          #{order.title}
+                          <span style={{ fontWeight: 700, color: '#2563EB' }}>Order #{order.order_number}</span>
                         </button>
                       </td>
-                      <td><span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#374151' }}>{order.customer_name}</span></td>
+                      <td><span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#374151' }}>{order.order_description}</span></td>
                       <td>
                         <span style={{
                           display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px',

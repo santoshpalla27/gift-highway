@@ -65,15 +65,11 @@ function OrderRow({ order, onClick }: { order: DashboardOrder; onClick: () => vo
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
     >
       <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent)', fontFamily: 'monospace', flexShrink: 0 }}>
-        #{order.title}
+        Order #{order.order_number}
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {order.title}
-        </div>
-        <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {order.customer_name}
-          {order.assigned_names?.length > 0 && ` · ${order.assigned_names[0].split(' ')[0]}`}
+          {order.order_description}
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>

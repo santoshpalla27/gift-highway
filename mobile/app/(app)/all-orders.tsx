@@ -465,7 +465,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
   const insets = useSafeAreaInsets()
   const isEdit = !!order
   const { isOnline } = useNetworkStatus()
-  const [title, setTitle] = useState('')
+  const [orderDescription, setOrderDescription] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [contactNumber, setContactNumber] = useState('')
   const [description, setDescription] = useState('')
@@ -491,11 +491,11 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
 
   useEffect(() => {
     if (order) {
-      setTitle(order.title); setCustomerName(order.customer_name)
+      setOrderDescription(order.order_description ?? ''); setCustomerName(order.customer_name)
       setContactNumber(order.contact_number ?? ''); setDescription(order.description)
       setPriority(order.priority); setAssignedTo(order.assigned_to ?? []); setDueDate(order.due_date ?? ''); setDueTime(order.due_time ?? '')
     } else {
-      setTitle(''); setCustomerName(''); setContactNumber(''); setDescription('')
+      setOrderDescription(''); setCustomerName(''); setContactNumber(''); setDescription('')
       setPriority('medium'); setAssignedTo([]); setDueDate(''); setDueTime(''); setCreatePortal(false)
     }
     setError('')
@@ -503,10 +503,10 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
 
   const handleSubmit = async () => {
     if (!isOnline) { setError("You're offline."); return }
-    if (!title.trim() || !customerName.trim()) { setError('Order ID and Customer Name are required.'); return }
+    if (!orderDescription.trim() || !customerName.trim()) { setError('Order Description and Customer Name are required.'); return }
     setLoading(true); setError('')
     try {
-      const payload = { title: title.trim(), customer_name: customerName.trim(), contact_number: contactNumber.trim(), description: description.trim(), priority, assigned_to: assignedTo, due_date: dueDate || null, due_time: dueTime || null }
+      const payload = { order_description: orderDescription.trim(), customer_name: customerName.trim(), contact_number: contactNumber.trim(), description: description.trim(), priority, assigned_to: assignedTo, due_date: dueDate || null, due_time: dueTime || null }
       if (isEdit) {
         await orderService.updateOrder(order!.id, payload)
       } else {
@@ -536,8 +536,25 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
         </View>
         <ScrollView style={F.body} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40) }} keyboardShouldPersistTaps="handled">
           {error ? <View style={F.errorBox}><Text style={F.errorText}>{error}</Text></View> : null}
-          <Text style={F.label}>Order ID *</Text>
-          <TextInput style={F.input} value={title} onChangeText={setTitle} autoCapitalize="characters" />
+          {isEdit ? (
+            <>
+              <Text style={F.label}>Order ID</Text>
+              <View style={[F.input, { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC' }]}>
+                <Ionicons name="lock-closed-outline" size={14} color="#9CA3AF" style={{ marginRight: 8 }} />
+                <Text style={{ fontSize: 15, color: '#6B7280' }}>Order #{order?.order_number} (auto-generated)</Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={F.label}>Order ID</Text>
+              <View style={[F.input, { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC' }]}>
+                <Ionicons name="lock-closed-outline" size={14} color="#9CA3AF" style={{ marginRight: 8 }} />
+                <Text style={{ fontSize: 15, color: '#6B7280' }}>Auto-assigned on creation</Text>
+              </View>
+            </>
+          )}
+          <Text style={F.label}>Order Description *</Text>
+          <TextInput style={F.input} value={orderDescription} onChangeText={setOrderDescription} placeholder="e.g. Wedding Cake - John" placeholderTextColor="#94A3B8" />
           <Text style={F.label}>Customer Name *</Text>
           <TextInput style={F.input} value={customerName} onChangeText={setCustomerName} autoCapitalize="words" />
           <Text style={F.label}>Contact Number</Text>
@@ -739,12 +756,12 @@ function OrderCard({ order, onOpen, unreadCount = 0 }: {
       onPress={onOpen}
       activeOpacity={0.6}
       accessibilityRole="button"
-      accessibilityLabel={`Order ${order.title}, ${order.customer_name}, ${sm.label}`}
+      accessibilityLabel={`Order ${order.order_number}, ${order.order_description || order.title}, ${order.customer_name}, ${sm.label}`}
     >
       {/* Top row: Order ID + unread badge (left) | Status (right) */}
       <View style={C.rowTop}>
         <View style={C.orderNumWrap}>
-          <Text style={C.orderNum} numberOfLines={1}>#{order.title}</Text>
+          <Text style={C.orderNum} numberOfLines={1}>Order #{order.order_number}</Text>
           {unreadCount > 0 && (
             <View style={C.unreadPill}>
               <Ionicons name="notifications" size={12} color="#fff" />
@@ -757,9 +774,11 @@ function OrderCard({ order, onOpen, unreadCount = 0 }: {
         </View>
       </View>
 
-      {/* Middle row: Customer name (left) | Priority (right) */}
+      {/* Middle row: Description (left) | Priority (right) */}
       <View style={C.rowMiddle}>
-        <Text style={C.customerName} numberOfLines={1} ellipsizeMode="tail">{order.customer_name}</Text>
+        <Text style={C.customerName} numberOfLines={1} ellipsizeMode="tail">
+          {order.order_description || 'No description'}
+        </Text>
         <View style={[C.priorityBadge, { backgroundColor: pm.bg }]}>
           <View style={[C.priorityDot, { backgroundColor: pm.color }]} />
           <Text style={[C.priorityText, { color: pm.color }]}>{pm.label}</Text>
