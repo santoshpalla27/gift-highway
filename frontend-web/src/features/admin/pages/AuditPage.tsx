@@ -198,7 +198,7 @@ export function AuditPage() {
           <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12, padding: '20px 24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Manual Export</div>
             <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 18, lineHeight: 1.6 }}>
-              Download the audit CSV filtered by time range. Each file contains order ID, customer name, contact, status, assigned staff, and timestamps.
+              Download the audit CSV filtered by time range. Each file contains order ID, order source, customer name, contact, status, assigned staff, and timestamps.
             </div>
 
             {!status.storage_configured ? (

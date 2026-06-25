@@ -466,6 +466,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
   const isEdit = !!order
   const { isOnline } = useNetworkStatus()
   const [orderDescription, setOrderDescription] = useState('')
+  const [orderSource, setOrderSource] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [contactNumber, setContactNumber] = useState('')
   const [description, setDescription] = useState('')
@@ -491,11 +492,11 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
 
   useEffect(() => {
     if (order) {
-      setOrderDescription(order.order_description ?? ''); setCustomerName(order.customer_name)
+      setOrderDescription(order.order_description ?? ''); setOrderSource(order.order_source ?? ''); setCustomerName(order.customer_name)
       setContactNumber(order.contact_number ?? ''); setDescription(order.description)
       setPriority(order.priority); setAssignedTo(order.assigned_to ?? []); setDueDate(order.due_date ?? ''); setDueTime(order.due_time ?? '')
     } else {
-      setOrderDescription(''); setCustomerName(''); setContactNumber(''); setDescription('')
+      setOrderDescription(''); setOrderSource(''); setCustomerName(''); setContactNumber(''); setDescription('')
       setPriority('medium'); setAssignedTo([]); setDueDate(''); setDueTime(''); setCreatePortal(false)
     }
     setError('')
@@ -506,7 +507,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
     if (!orderDescription.trim() || !customerName.trim()) { setError('Order Description and Customer Name are required.'); return }
     setLoading(true); setError('')
     try {
-      const payload = { order_description: orderDescription.trim(), customer_name: customerName.trim(), contact_number: contactNumber.trim(), description: description.trim(), priority, assigned_to: assignedTo, due_date: dueDate || null, due_time: dueTime || null }
+      const payload = { order_description: orderDescription.trim(), order_source: orderSource || undefined, customer_name: customerName.trim(), contact_number: contactNumber.trim(), description: description.trim(), priority, assigned_to: assignedTo, due_date: dueDate || null, due_time: dueTime || null }
       if (isEdit) {
         await orderService.updateOrder(order!.id, payload)
       } else {
@@ -555,6 +556,24 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
           )}
           <Text style={F.label}>Order Description *</Text>
           <TextInput style={F.input} value={orderDescription} onChangeText={setOrderDescription} placeholder="e.g. Wedding Cake - John" placeholderTextColor="#94A3B8" />
+          
+          <Text style={F.label}>Order Source</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 16 }}>
+            {['', 'amazon', 'b2b', 'store', 'whatsapp', 'online'].map(src => {
+              const isActive = orderSource === src
+              const label = src === '' ? 'None' : src.charAt(0).toUpperCase() + src.slice(1)
+              return (
+                <TouchableOpacity
+                  key={src}
+                  style={[F.chip, { minWidth: 60, justifyContent: 'center' }, isActive && { backgroundColor: '#F1F5F9', borderColor: '#CBD5E1' }]}
+                  onPress={() => setOrderSource(src)}
+                >
+                  <Text style={[F.chipText, isActive && { color: '#0F172A', fontWeight: '600' }]}>{label}</Text>
+                </TouchableOpacity>
+              )
+            })}
+          </ScrollView>
+
           <Text style={F.label}>Customer Name *</Text>
           <TextInput style={F.input} value={customerName} onChangeText={setCustomerName} autoCapitalize="words" />
           <Text style={F.label}>Contact Number</Text>

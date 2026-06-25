@@ -28,6 +28,7 @@ func NewOrderService(orderRepo *repositories.OrderRepository, cfg *config.Config
 
 type CreateOrderRequest struct {
 	OrderDescription string   `json:"order_description" binding:"required"`
+	OrderSource      string   `json:"order_source"`
 	Description      string   `json:"description"`
 	CustomerName     string   `json:"customer_name" binding:"required"`
 	ContactNumber    string   `json:"contact_number"`
@@ -39,6 +40,7 @@ type CreateOrderRequest struct {
 
 type UpdateOrderRequest struct {
 	OrderDescription string   `json:"order_description" binding:"required"`
+	OrderSource      string   `json:"order_source"`
 	Description      string   `json:"description"`
 	CustomerName     string   `json:"customer_name" binding:"required"`
 	ContactNumber    string   `json:"contact_number"`
@@ -110,6 +112,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, createdBy string, req Cr
 	o := &models.Order{
 		ID:               uuid.New().String(),
 		OrderDescription: req.OrderDescription,
+		OrderSource:      req.OrderSource,
 		Description:      req.Description,
 		CustomerName:     req.CustomerName,
 		ContactNumber:    req.ContactNumber,
@@ -134,7 +137,7 @@ func (s *OrderService) UpdateOrder(ctx context.Context, id string, req UpdateOrd
 	req.Description = utils.Strip(req.Description)
 	req.CustomerName = utils.Strip(req.CustomerName)
 	req.ContactNumber = utils.Strip(req.ContactNumber)
-	if err := s.orderRepo.Update(ctx, id, req.OrderDescription, req.Description, req.CustomerName, req.ContactNumber, req.Priority, req.AssignedTo, req.DueDate, req.DueTime); err != nil {
+	if err := s.orderRepo.Update(ctx, id, req.OrderDescription, req.OrderSource, req.Description, req.CustomerName, req.ContactNumber, req.Priority, req.AssignedTo, req.DueDate, req.DueTime); err != nil {
 		return err
 	}
 	if s.auditSvc != nil {

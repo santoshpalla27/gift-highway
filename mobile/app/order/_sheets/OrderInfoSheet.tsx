@@ -101,6 +101,25 @@ export function InfoSheet({ order, portal, onClose, onPortalChange, onArchived }
                 </View>
               </>
             )}
+            {!!order.order_source && (
+              <>
+                <View style={IN.divider} />
+                <View style={IN.row}>
+                  <View style={IN.rowLabel}>
+                    <Ionicons name="pricetag-outline" size={13} color="#9CA3AF" />
+                    <Text style={IN.label}>ORDER SOURCE</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                    {order.order_source === 'amazon' && <Ionicons name="logo-amazon" size={14} color="#475569" style={{ marginRight: 6 }} />}
+                    {order.order_source === 'b2b' && <Ionicons name="business-outline" size={14} color="#475569" style={{ marginRight: 6 }} />}
+                    {order.order_source === 'store' && <Ionicons name="storefront-outline" size={14} color="#475569" style={{ marginRight: 6 }} />}
+                    {order.order_source === 'whatsapp' && <Ionicons name="logo-whatsapp" size={14} color="#475569" style={{ marginRight: 6 }} />}
+                    {order.order_source === 'online' && <Ionicons name="globe-outline" size={14} color="#475569" style={{ marginRight: 6 }} />}
+                    <Text style={[IN.value, { fontSize: 13, textTransform: 'capitalize' }]}>{order.order_source}</Text>
+                  </View>
+                </View>
+              </>
+            )}
             <View style={IN.divider} />
             <View style={IN.row}>
               <View style={IN.rowLabel}>
@@ -257,6 +276,7 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
   const insets = useSafeAreaInsets()
   const { isOnline } = useNetworkStatus()
   const [orderDescription, setOrderDescription] = useState(order.order_description ?? '')
+  const [orderSource, setOrderSource] = useState(order.order_source ?? '')
   const [customerName, setCustomerName] = useState(order.customer_name)
   const [contactNumber, setContactNumber] = useState(order.contact_number ?? '')
   const [description, setDescription] = useState(order.description)
@@ -284,7 +304,7 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
     setError('')
     try {
       await orderService.updateOrder(order.id, {
-        order_description: orderDescription.trim(), customer_name: customerName.trim(),
+        order_description: orderDescription.trim(), order_source: orderSource || undefined, customer_name: customerName.trim(),
         contact_number: contactNumber.trim(), description: description.trim(),
         priority, assigned_to: assignedTo, due_date: dueDate || null, due_time: dueTime || null,
       })
@@ -325,6 +345,23 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
 
           <Text style={E.label}>Order Description *</Text>
           <TextInput style={E.input} value={orderDescription} onChangeText={setOrderDescription} placeholder="e.g. Wedding Cake - John" placeholderTextColor="#94A3B8" />
+
+          <Text style={E.label}>Order Source</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 16 }}>
+            {['', 'amazon', 'b2b', 'store', 'whatsapp', 'online'].map(src => {
+              const isActive = orderSource === src
+              const label = src === '' ? 'None' : src.charAt(0).toUpperCase() + src.slice(1)
+              return (
+                <TouchableOpacity
+                  key={src}
+                  style={[E.chip, { minWidth: 60, justifyContent: 'center' }, isActive && { backgroundColor: '#F1F5F9', borderColor: '#CBD5E1' }]}
+                  onPress={() => setOrderSource(src)}
+                >
+                  <Text style={[E.chipText, isActive && { color: '#0F172A', fontWeight: '600' }]}>{label}</Text>
+                </TouchableOpacity>
+              )
+            })}
+          </ScrollView>
 
           <Text style={E.label}>Customer Name *</Text>
           <TextInput style={E.input} value={customerName} onChangeText={setCustomerName} autoCapitalize="words" />

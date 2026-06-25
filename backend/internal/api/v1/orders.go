@@ -28,6 +28,7 @@ type orderResponse struct {
 	OrderNumber      int      `json:"order_number"`
 	Title            string   `json:"title"`
 	OrderDescription string   `json:"order_description"`
+	OrderSource      string   `json:"order_source"`
 	Description      string   `json:"description"`
 	CustomerName     string   `json:"customer_name"`
 	ContactNumber    string   `json:"contact_number"`
@@ -70,6 +71,7 @@ func toOrderResponse(o *models.OrderWithNames) orderResponse {
 		OrderNumber:      o.OrderNumber,
 		Title:            o.Title,
 		OrderDescription: o.OrderDescription,
+		OrderSource:      o.OrderSource,
 		Description:      o.Description,
 		CustomerName:     o.CustomerName,
 		ContactNumber:    o.ContactNumber,

@@ -11,6 +11,7 @@ type Order struct {
 	OrderNumber      int        `db:"order_number"`
 	Title            string     `db:"title"`
 	OrderDescription string     `db:"order_description"`
+	OrderSource      string     `db:"order_source"`
 	Description      string     `db:"description"`
 	CustomerName     string     `db:"customer_name"`
 	ContactNumber    string     `db:"contact_number"`
@@ -31,6 +32,7 @@ type OrderWithNames struct {
 	OrderNumber      int            `db:"order_number"`
 	Title            string         `db:"title"`
 	OrderDescription string         `db:"order_description"`
+	OrderSource      string         `db:"order_source"`
 	Description      string         `db:"description"`
 	CustomerName     string         `db:"customer_name"`
 	ContactNumber    string         `db:"contact_number"`

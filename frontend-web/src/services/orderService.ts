@@ -5,6 +5,7 @@ export interface Order {
   order_number: number
   title: string
   order_description: string
+  order_source: string
   description: string
   customer_name: string
   contact_number: string
@@ -79,6 +80,7 @@ export const orderService = {
 
   createOrder: async (data: {
     order_description: string
+    order_source?: string
     description: string
     customer_name: string
     contact_number?: string
@@ -93,6 +95,7 @@ export const orderService = {
 
   updateOrder: async (id: string, data: {
     order_description: string
+    order_source?: string
     description: string
     customer_name: string
     contact_number?: string

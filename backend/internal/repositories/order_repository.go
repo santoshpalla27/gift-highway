@@ -39,7 +39,7 @@ func NewOrderRepository(db *sqlx.DB) *OrderRepository {
 
 const orderSelectBase = `
 	SELECT
-		o.id, o.order_number, o.title, o.order_description, o.description, o.customer_name, o.contact_number,
+		o.id, o.order_number, o.title, o.order_description, COALESCE(o.order_source, '') AS order_source, o.description, o.customer_name, o.contact_number,
 		o.status, o.priority, o.created_by, o.due_date, o.due_time,
 		o.is_archived, o.archived_at, o.archived_by, o.created_at, o.updated_at,
 		ARRAY(
@@ -224,9 +224,9 @@ func (r *OrderRepository) Create(ctx context.Context, o *models.Order, assignedT
 	defer tx.Rollback()
 
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO orders (id, order_description, description, customer_name, contact_number, status, priority, created_by, due_date, due_time)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-	`, o.ID, o.OrderDescription, o.Description, o.CustomerName, o.ContactNumber, o.Status, o.Priority, o.CreatedBy, o.DueDate, o.DueTime)
+		INSERT INTO orders (id, order_description, order_source, description, customer_name, contact_number, status, priority, created_by, due_date, due_time)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+	`, o.ID, o.OrderDescription, nullableStr(o.OrderSource), o.Description, o.CustomerName, o.ContactNumber, o.Status, o.Priority, o.CreatedBy, o.DueDate, o.DueTime)
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
 			return nil, ErrDuplicateTitle
@@ -249,7 +249,7 @@ func (r *OrderRepository) Create(ctx context.Context, o *models.Order, assignedT
 	return r.GetByID(ctx, o.ID)
 }
 
-func (r *OrderRepository) Update(ctx context.Context, id, orderDescription, description, customerName, contactNumber, priority string, assignedTo []string, dueDate *string, dueTime *string) error {
+func (r *OrderRepository) Update(ctx context.Context, id, orderDescription, orderSource, description, customerName, contactNumber, priority string, assignedTo []string, dueDate *string, dueTime *string) error {
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return err
@@ -265,9 +265,9 @@ func (r *OrderRepository) Update(ctx context.Context, id, orderDescription, desc
 		dt = *dueTime
 	}
 	_, err = tx.ExecContext(ctx, `
-		UPDATE orders SET order_description=$1, description=$2, customer_name=$3, contact_number=$4, priority=$5, due_date=$6, due_time=$7, updated_at=NOW()
-		WHERE id=$8
-	`, orderDescription, description, customerName, contactNumber, priority, dd, dt, id)
+		UPDATE orders SET order_description=$1, order_source=$2, description=$3, customer_name=$4, contact_number=$5, priority=$6, due_date=$7, due_time=$8, updated_at=NOW()
+		WHERE id=$9
+	`, orderDescription, nullableStr(orderSource), description, customerName, contactNumber, priority, dd, dt, id)
 	if err != nil {
 		return err
 	}
@@ -380,4 +380,12 @@ func (r *OrderRepository) PermanentDelete(ctx context.Context, id string) ([]str
 		return nil, err
 	}
 	return r2Keys, nil
+}
+
+// nullableStr converts an empty string to nil for nullable DB columns.
+func nullableStr(s string) interface{} {
+	if s == "" {
+		return nil
+	}
+	return s
 }

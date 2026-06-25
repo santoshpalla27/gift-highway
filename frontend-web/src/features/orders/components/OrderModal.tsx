@@ -29,6 +29,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
   const { data: users = [] } = useUsersForAssignment()
 
   const [orderDescription, setOrderDescription] = useState('')
+  const [orderSource, setOrderSource] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [contactNumber, setContactNumber] = useState('')
   const [description, setDescription] = useState('')
@@ -43,6 +44,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
   useEffect(() => {
     if (order) {
       setOrderDescription(order.order_description ?? '')
+      setOrderSource(order.order_source ?? '')
       setCustomerName(order.customer_name)
       setContactNumber(order.contact_number ?? '')
       setDescription(order.description)
@@ -70,6 +72,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
     setError('')
     const payload = {
       order_description: orderDescription.trim(),
+      order_source: orderSource || undefined,
       customer_name: customerName.trim(),
       contact_number: contactNumber.trim(),
       description: description.trim(),
@@ -176,6 +179,17 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="modal-label">Order Description *</label>
               <input className="modal-input" value={orderDescription} onChange={e => setOrderDescription(e.target.value)} placeholder="e.g. Wedding Cake - John" />
+            </div>
+            <div>
+              <label className="modal-label">Order Source</label>
+              <select className="modal-input" value={orderSource} onChange={e => setOrderSource(e.target.value)}>
+                <option value="">— None —</option>
+                <option value="amazon">Amazon</option>
+                <option value="b2b">B2B</option>
+                <option value="store">Store</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="online">Online</option>
+              </select>
             </div>
             <div>
               <label className="modal-label">Customer Name *</label>
