@@ -116,6 +116,7 @@ export function InfoSheet({ order, portal, onClose, onPortalChange, onArchived }
                     {order.order_source === 'whatsapp' && <Ionicons name="logo-whatsapp" size={14} color="#475569" style={{ marginRight: 6 }} />}
                     {order.order_source === 'online' && <Ionicons name="globe-outline" size={14} color="#475569" style={{ marginRight: 6 }} />}
                     {order.order_source === 'google_ads' && <Ionicons name="megaphone-outline" size={14} color="#475569" style={{ marginRight: 6 }} />}
+                    {order.order_source === 'insta_ads' && <Ionicons name="logo-instagram" size={14} color="#475569" style={{ marginRight: 6 }} />}
                     <Text style={[IN.value, { fontSize: 13, textTransform: 'capitalize' }]}>{order.order_source}</Text>
                   </View>
                 </View>
@@ -349,9 +350,9 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
 
           <Text style={E.label}>Order Source</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 16 }}>
-            {['', 'amazon', 'b2b', 'store', 'whatsapp', 'online', 'google_ads'].map(src => {
+            {['', 'amazon', 'b2b', 'store', 'whatsapp', 'online', 'google_ads', 'insta_ads'].map(src => {
               const isActive = orderSource === src
-              const label = src === '' ? 'None' : src === 'google_ads' ? 'Google Ads' : src.charAt(0).toUpperCase() + src.slice(1)
+              const label = src === '' ? 'None' : src === 'google_ads' ? 'Google Ads' : src === 'insta_ads' ? 'Insta Ads' : src.charAt(0).toUpperCase() + src.slice(1)
               return (
                 <TouchableOpacity
                   key={src}

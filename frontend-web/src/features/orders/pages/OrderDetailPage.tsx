@@ -2199,6 +2199,13 @@ export function OrderDetailPage() {
                     <path d="M480,200.49A23.94,23.94,0,0,0,456.11,176H344.89l0-.11L381,55.82A23.92,23.92,0,0,0,352.5,26.16L224,132.44l0,0L59.59,256H56A23.94,23.94,0,0,0,32,279.51V456a24,24,0,0,0,24,24H196a24,24,0,0,0,24-24V392l216.43-149.46,0-.06A23.94,23.94,0,0,0,480,200.49Z"/>
                   </svg>
                 )}
+                {order.order_source === 'insta_ads' && (
+                  <svg viewBox="0 0 512 512" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="32" width="14" height="14" style={{ marginRight: 2 }}>
+                    <rect x="128" y="128" width="256" height="256" rx="60" ry="60"/>
+                    <circle cx="256" cy="256" r="68"/>
+                    <circle cx="346" cy="166" r="8" fill="currentColor" stroke="none"/>
+                  </svg>
+                )}
                 {order.order_source}
               </div>
             </PanelSection>
