@@ -559,9 +559,9 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
           
           <Text style={F.label}>Order Source</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 16 }}>
-            {['', 'amazon', 'b2b', 'store', 'whatsapp', 'online'].map(src => {
+            {['', 'amazon', 'b2b', 'store', 'whatsapp', 'online', 'google_ads'].map(src => {
               const isActive = orderSource === src
-              const label = src === '' ? 'None' : src.charAt(0).toUpperCase() + src.slice(1)
+              const label = src === '' ? 'None' : src === 'google_ads' ? 'Google Ads' : src.charAt(0).toUpperCase() + src.slice(1)
               return (
                 <TouchableOpacity
                   key={src}

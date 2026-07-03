@@ -2194,6 +2194,11 @@ export function OrderDetailPage() {
                     <line x1="464" y1="256" x2="48" y2="256" />
                   </svg>
                 )}
+                {order.order_source === 'google_ads' && (
+                  <svg viewBox="0 0 512 512" fill="currentColor" width="14" height="14" style={{ marginRight: 2 }}>
+                    <path d="M480,200.49A23.94,23.94,0,0,0,456.11,176H344.89l0-.11L381,55.82A23.92,23.92,0,0,0,352.5,26.16L224,132.44l0,0L59.59,256H56A23.94,23.94,0,0,0,32,279.51V456a24,24,0,0,0,24,24H196a24,24,0,0,0,24-24V392l216.43-149.46,0-.06A23.94,23.94,0,0,0,480,200.49Z"/>
+                  </svg>
+                )}
                 {order.order_source}
               </div>
             </PanelSection>

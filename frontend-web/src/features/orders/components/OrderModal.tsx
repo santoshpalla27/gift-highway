@@ -189,6 +189,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
                 <option value="store">Store</option>
                 <option value="whatsapp">WhatsApp</option>
                 <option value="online">Online</option>
+                <option value="google_ads">Google Ads</option>
               </select>
             </div>
             <div>
