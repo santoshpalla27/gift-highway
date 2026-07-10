@@ -28,7 +28,7 @@ var ist = time.FixedZone("IST", 5*60*60+30*60) // UTC+5:30
 // order_id = auto-generated title (e.g. "Order #42"); UUID is intentionally excluded
 var csvHeader = []string{
 	"order_id", "order_source", "order_description", "customer_name", "contact_number",
-	"priority", "status", "assigned_to", "due_date", "created_by", "created_at", "archived", "deleted",
+	"priority", "status", "assigned_to", "due_date", "created_by", "created_at", "archived", "deleted", "order_value",
 }
 
 type AuditService struct {
@@ -362,6 +362,10 @@ func (s *AuditService) orderToRow(o *models.OrderWithNames) []string {
 			archived = "yes"
 		}
 	}
+	orderValueStr := ""
+	if o.OrderValue != nil {
+		orderValueStr = fmt.Sprintf("₹%.2f", *o.OrderValue)
+	}
 	return []string{
 		o.Title,
 		o.OrderSource,
@@ -376,6 +380,7 @@ func (s *AuditService) orderToRow(o *models.OrderWithNames) []string {
 		o.CreatedAt.In(ist).Format("02/01/2006 3:04 PM"),
 		archived,
 		"—",
+		orderValueStr,
 	}
 }
 

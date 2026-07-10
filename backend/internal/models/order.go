@@ -23,6 +23,7 @@ type Order struct {
 	IsArchived       bool       `db:"is_archived"`
 	ArchivedAt       *time.Time `db:"archived_at"`
 	ArchivedBy       *string    `db:"archived_by"`
+	OrderValue       *float64   `db:"order_value"`
 	CreatedAt        time.Time  `db:"created_at"`
 	UpdatedAt        time.Time  `db:"updated_at"`
 }
@@ -45,6 +46,7 @@ type OrderWithNames struct {
 	ArchivedAt       *time.Time     `db:"archived_at"`
 	ArchivedBy       *string        `db:"archived_by"`
 	ArchivedByName   *string        `db:"archived_by_name"`
+	OrderValue       *float64       `db:"order_value"`
 	CreatedAt        time.Time      `db:"created_at"`
 	UpdatedAt        time.Time      `db:"updated_at"`
 	AssignedTo       pq.StringArray `db:"assigned_to"`

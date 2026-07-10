@@ -37,6 +37,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
   const [assignedTo, setAssignedTo] = useState<string[]>([])
   const [dueDate, setDueDate] = useState('')
   const [dueTime, setDueTime] = useState('')
+  const [orderValue, setOrderValue] = useState('')
   const [assignOpen, setAssignOpen] = useState(false)
   const [error, setError] = useState('')
   const [createPortal, _setCreatePortal] = useState(false)
@@ -52,6 +53,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
       setAssignedTo(order.assigned_to ?? [])
       setDueDate(order.due_date ?? '')
       setDueTime(order.due_time ?? '')
+      setOrderValue(order.order_value != null ? String(order.order_value) : '')
     }
   }, [order])
 
@@ -70,6 +72,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
     }
     if (isPending) return
     setError('')
+    const parsedOrderValue = orderValue.trim() !== '' ? parseFloat(orderValue) : null
     const payload = {
       order_description: orderDescription.trim(),
       order_source: orderSource || undefined,
@@ -80,6 +83,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
       assigned_to: assignedTo,
       due_date: dueDate || null,
       due_time: dueTime || null,
+      order_value: canReassign ? parsedOrderValue : undefined,
     }
     if (isEdit) {
       updateOrder({ id: order!.id, data: payload }, {
@@ -210,7 +214,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
                 onChange={e => setDescription(e.target.value)}
               />
             </div>
-            <div>
+            <div style={!canReassign ? { gridColumn: '1 / -1' } : {}}>
               <label className="modal-label">Priority</label>
               <select className="modal-input" value={priority} onChange={e => setPriority(e.target.value)}>
                 {PRIORITIES.map(p => (
@@ -218,6 +222,30 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
                 ))}
               </select>
             </div>
+            {canReassign && (
+              <div>
+                <label className="modal-label">
+                  Order Value
+                  <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 500, color: '#8B5CF6', background: '#EDE9FE', padding: '1px 7px', borderRadius: 999 }}>Admin only</span>
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{
+                    position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)',
+                    fontSize: 14, fontWeight: 600, color: '#475569', pointerEvents: 'none', userSelect: 'none'
+                  }}>₹</span>
+                  <input
+                    className="modal-input"
+                    style={{ paddingLeft: 28 }}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="e.g. 5000"
+                    value={orderValue}
+                    onChange={e => setOrderValue(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="modal-label">Due Date</label>
               <div style={{ display: 'flex', gap: '8px' }}>

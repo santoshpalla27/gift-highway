@@ -2271,6 +2271,17 @@ export function OrderDetailPage() {
             </PanelSection>
           )}
 
+          {perms.isAdmin && order.order_value != null && (
+            <PanelSection label="Order Value">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 16, fontWeight: 700, color: '#0F172A' }}>
+                  ₹{order.order_value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 500, color: '#8B5CF6', background: '#EDE9FE', padding: '1px 7px', borderRadius: 999 }}>Admin only</span>
+              </div>
+            </PanelSection>
+          )}
+
           {/* PORTAL HIDDEN: Customer Portal sidebar panel removed — see docs/portal-hidden.md to restore */}
 
           {/* Archive */}

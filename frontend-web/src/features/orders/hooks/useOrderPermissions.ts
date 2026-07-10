@@ -22,7 +22,7 @@ export function useOrderPermissions(order: Order | null): OrderPermissions {
   const isAssigned = order.assigned_to.includes(user.id)
 
   return {
-    canChangeStatus: isAdmin || isAssigned,
+    canChangeStatus: true,
     allowedStatuses: isAdmin
       ? ['yet_to_start', 'working', 'waiting_for_client', 'making', 'done', 'delivered', 'cancelled']
       : ['yet_to_start', 'working', 'waiting_for_client', 'making', 'done'],

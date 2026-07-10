@@ -465,6 +465,8 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
   const insets = useSafeAreaInsets()
   const isEdit = !!order
   const { isOnline } = useNetworkStatus()
+  const user = useAuthStore(s => s.user)
+  const isAdmin = user?.role === 'admin'
   const [orderDescription, setOrderDescription] = useState('')
   const [orderSource, setOrderSource] = useState('')
   const [customerName, setCustomerName] = useState('')
@@ -475,6 +477,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
   const [assignOpen, setAssignOpen] = useState(false)
   const [dueDate, setDueDate] = useState('')
   const [dueTime, setDueTime] = useState('')
+  const [orderValue, setOrderValue] = useState('')
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [showTimePicker, setShowTimePicker] = useState(false)
   const [tempDateObj, setTempDateObj] = useState(new Date())
@@ -483,6 +486,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
   const [users, setUsers] = useState<UserOption[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [focusedField, setFocusedField] = useState<string | null>(null)
   const datePickerRef = useRef<any>(null)
   const timePickerRef = useRef<any>(null)
 
@@ -495,9 +499,10 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
       setOrderDescription(order.order_description ?? ''); setOrderSource(order.order_source ?? ''); setCustomerName(order.customer_name)
       setContactNumber(order.contact_number ?? ''); setDescription(order.description)
       setPriority(order.priority); setAssignedTo(order.assigned_to ?? []); setDueDate(order.due_date ?? ''); setDueTime(order.due_time ?? '')
+      setOrderValue(order.order_value != null ? String(order.order_value) : '')
     } else {
       setOrderDescription(''); setOrderSource(''); setCustomerName(''); setContactNumber(''); setDescription('')
-      setPriority('medium'); setAssignedTo([]); setDueDate(''); setDueTime(''); setCreatePortal(false)
+      setPriority('medium'); setAssignedTo([]); setDueDate(''); setDueTime(''); setCreatePortal(false); setOrderValue('')
     }
     setError('')
   }, [order, visible])
@@ -507,7 +512,8 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
     if (!orderDescription.trim() || !customerName.trim()) { setError('Order Description and Customer Name are required.'); return }
     setLoading(true); setError('')
     try {
-      const payload = { order_description: orderDescription.trim(), order_source: orderSource || undefined, customer_name: customerName.trim(), contact_number: contactNumber.trim(), description: description.trim(), priority, assigned_to: assignedTo, due_date: dueDate || null, due_time: dueTime || null }
+      const parsedOrderValue = isAdmin && orderValue.trim() !== '' ? parseFloat(orderValue) : null
+      const payload = { order_description: orderDescription.trim(), order_source: orderSource || undefined, customer_name: customerName.trim(), contact_number: contactNumber.trim(), description: description.trim(), priority, assigned_to: assignedTo, due_date: dueDate || null, due_time: dueTime || null, order_value: isAdmin ? parsedOrderValue : undefined }
       if (isEdit) {
         await orderService.updateOrder(order!.id, payload)
       } else {
@@ -555,7 +561,15 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
             </>
           )}
           <Text style={F.label}>Order Description *</Text>
-          <TextInput style={F.input} value={orderDescription} onChangeText={setOrderDescription} placeholder="e.g. Wedding Cake - John" placeholderTextColor="#94A3B8" />
+          <TextInput
+            style={[F.input, focusedField === 'orderDescription' && { borderColor: '#6366F1', borderWidth: 1.5 }]}
+            value={orderDescription}
+            onChangeText={setOrderDescription}
+            placeholder="e.g. Wedding Cake - John"
+            placeholderTextColor="#94A3B8"
+            onFocus={() => setFocusedField('orderDescription')}
+            onBlur={() => setFocusedField(null)}
+          />
           
           <Text style={F.label}>Order Source</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 16 }}>
@@ -575,19 +589,66 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
           </ScrollView>
 
           <Text style={F.label}>Customer Name *</Text>
-          <TextInput style={F.input} value={customerName} onChangeText={setCustomerName} autoCapitalize="words" />
+          <TextInput
+            style={[F.input, focusedField === 'customerName' && { borderColor: '#6366F1', borderWidth: 1.5 }]}
+            value={customerName}
+            onChangeText={setCustomerName}
+            autoCapitalize="words"
+            onFocus={() => setFocusedField('customerName')}
+            onBlur={() => setFocusedField(null)}
+          />
           <Text style={F.label}>Contact Number</Text>
-          <TextInput style={F.input} value={contactNumber} onChangeText={setContactNumber} keyboardType="phone-pad" />
+          <TextInput
+            style={[F.input, focusedField === 'contactNumber' && { borderColor: '#6366F1', borderWidth: 1.5 }]}
+            value={contactNumber}
+            onChangeText={setContactNumber}
+            keyboardType="phone-pad"
+            onFocus={() => setFocusedField('contactNumber')}
+            onBlur={() => setFocusedField(null)}
+          />
           <Text style={F.label}>Description</Text>
-          <TextInput style={[F.input, { minHeight: 80 }]} value={description} onChangeText={setDescription} multiline textAlignVertical="top" />
-          <Text style={F.label}>Priority</Text>
-          <View style={F.chipRow}>
-            {PRIORITY_OPTIONS.map(p => (
-              <TouchableOpacity key={p} style={[F.chip, priority === p && { backgroundColor: PRIORITY_META[p].bg, borderColor: PRIORITY_META[p].bg }]} onPress={() => setPriority(p)}>
-                <Text style={[F.chipText, priority === p && { color: PRIORITY_META[p].color, fontWeight: '700' }]}>{p.charAt(0).toUpperCase() + p.slice(1)}</Text>
-              </TouchableOpacity>
-            ))}
+          <TextInput
+            style={[F.input, { minHeight: 80 }, focusedField === 'description' && { borderColor: '#6366F1', borderWidth: 1.5 }]}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            textAlignVertical="top"
+            onFocus={() => setFocusedField('description')}
+            onBlur={() => setFocusedField(null)}
+          />
+
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 16, marginBottom: 8 }}>
+            <View style={{ flex: isAdmin ? 1.3 : 1 }}>
+              <Text style={[F.label, { marginTop: 0 }]}>Priority</Text>
+              <View style={[F.chipRow, { gap: 6 }]}>
+                {PRIORITY_OPTIONS.map(p => (
+                  <TouchableOpacity key={p} style={[F.chip, { paddingHorizontal: 10, paddingVertical: 10 }, priority === p && { backgroundColor: PRIORITY_META[p].bg, borderColor: PRIORITY_META[p].bg }]} onPress={() => setPriority(p)}>
+                    <Text style={[F.chipText, { fontSize: 13 }, priority === p && { color: PRIORITY_META[p].color, fontWeight: '700' }]}>{p.charAt(0).toUpperCase() + p.slice(1)}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {isAdmin && (
+              <View style={{ flex: 0.7 }}>
+                <Text style={[F.label, { marginTop: 0 }]}>Order Value</Text>
+                <View style={[F.input, { flexDirection: 'row', alignItems: 'center', height: 38, paddingHorizontal: 12, paddingVertical: 0, marginTop: 8 }, focusedField === 'orderValue' && { borderColor: '#6366F1', borderWidth: 1.5 }]}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#475569', marginRight: 4 }}>₹</Text>
+                  <TextInput
+                    style={{ flex: 1, fontSize: 14, color: '#0F172A', padding: 0 }}
+                    value={orderValue}
+                    onChangeText={setOrderValue}
+                    keyboardType="numeric"
+                    placeholder="e.g. 5000"
+                    placeholderTextColor="#94A3B8"
+                    onFocus={() => setFocusedField('orderValue')}
+                    onBlur={() => setFocusedField(null)}
+                  />
+                </View>
+              </View>
+            )}
           </View>
+
           <Text style={F.label}>Due Date & Time</Text>
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
             {Platform.OS === 'web' ? (
@@ -650,7 +711,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
                 {/* iOS date picker */}
                 {Platform.OS === 'ios' ? (
                   <Modal visible={showDatePicker} transparent animationType="slide" onRequestClose={() => setShowDatePicker(false)}>
-                    <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                     <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' }}>
                       <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: Math.max(insets.bottom + 8, 24) }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
                           <TouchableOpacity onPress={() => setShowDatePicker(false)}>

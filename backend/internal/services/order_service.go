@@ -36,6 +36,7 @@ type CreateOrderRequest struct {
 	AssignedTo       []string `json:"assigned_to"`
 	DueDate          *string  `json:"due_date"`
 	DueTime          *string  `json:"due_time"`
+	OrderValue       *float64 `json:"order_value"`
 }
 
 type UpdateOrderRequest struct {
@@ -48,6 +49,7 @@ type UpdateOrderRequest struct {
 	AssignedTo       []string `json:"assigned_to"`
 	DueDate          *string  `json:"due_date"`
 	DueTime          *string  `json:"due_time"`
+	OrderValue       *float64 `json:"order_value"`
 }
 
 type UpdateOrderStatusRequest struct {
@@ -121,6 +123,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, createdBy string, req Cr
 		CreatedBy:        createdBy,
 		DueDate:          dueDate,
 		DueTime:          req.DueTime,
+		OrderValue:       req.OrderValue,
 	}
 	created, err := s.orderRepo.Create(ctx, o, req.AssignedTo)
 	if err != nil {
@@ -137,7 +140,7 @@ func (s *OrderService) UpdateOrder(ctx context.Context, id string, req UpdateOrd
 	req.Description = utils.Strip(req.Description)
 	req.CustomerName = utils.Strip(req.CustomerName)
 	req.ContactNumber = utils.Strip(req.ContactNumber)
-	if err := s.orderRepo.Update(ctx, id, req.OrderDescription, req.OrderSource, req.Description, req.CustomerName, req.ContactNumber, req.Priority, req.AssignedTo, req.DueDate, req.DueTime); err != nil {
+	if err := s.orderRepo.Update(ctx, id, req.OrderDescription, req.OrderSource, req.Description, req.CustomerName, req.ContactNumber, req.Priority, req.AssignedTo, req.DueDate, req.DueTime, req.OrderValue); err != nil {
 		return err
 	}
 	if s.auditSvc != nil {

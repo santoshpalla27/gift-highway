@@ -40,6 +40,7 @@ type orderResponse struct {
 	CreatedByName    string   `json:"created_by_name"`
 	DueDate          *string  `json:"due_date"`
 	DueTime          *string  `json:"due_time"`
+	OrderValue       *float64 `json:"order_value"`
 	IsArchived       bool     `json:"is_archived"`
 	ArchivedAt       *string  `json:"archived_at"`
 	ArchivedByName   *string  `json:"archived_by_name"`
@@ -83,6 +84,7 @@ func toOrderResponse(o *models.OrderWithNames) orderResponse {
 		CreatedByName:    o.CreatedByName,
 		DueDate:          dueDate,
 		DueTime:          o.DueTime,
+		OrderValue:       o.OrderValue,
 		IsArchived:       o.IsArchived,
 		ArchivedAt:       archivedAt,
 		ArchivedByName:   o.ArchivedByName,
@@ -315,9 +317,14 @@ func (h *OrderHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	if !isAssignedOrAdmin(c, old) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "only assigned users or admins can change status"})
-		return
+
+	// Only admins may mark an order as delivered or cancelled
+	if req.Status == "delivered" || req.Status == "cancelled" {
+		role, _ := c.Get("user_role")
+		if role != "admin" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "only admins can mark an order as delivered or cancelled"})
+			return
+		}
 	}
 
 	if err := h.orderService.UpdateStatus(ctx, id, req); err != nil {

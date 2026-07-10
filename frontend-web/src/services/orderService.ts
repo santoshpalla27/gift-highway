@@ -17,6 +17,7 @@ export interface Order {
   created_by_name: string
   due_date: string | null
   due_time: string | null
+  order_value: number | null
   is_archived: boolean
   archived_at: string | null
   archived_by_name: string | null
@@ -88,6 +89,7 @@ export const orderService = {
     assigned_to?: string[]
     due_date?: string | null
     due_time?: string | null
+    order_value?: number | null
   }): Promise<Order> => {
     const res = await apiClient.post<{ order: Order }>('/orders', data)
     return res.data.order
@@ -103,6 +105,7 @@ export const orderService = {
     assigned_to?: string[]
     due_date?: string | null
     due_time?: string | null
+    order_value?: number | null
   }): Promise<void> => {
     await apiClient.patch(`/orders/${id}`, data)
   },

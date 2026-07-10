@@ -226,6 +226,25 @@ export function InfoSheet({ order, portal, onClose, onPortalChange, onArchived }
             </View>
           )}
 
+          {isAdmin && order.order_value != null && (
+            <View style={IN.card}>
+              <View style={IN.row}>
+                <View style={IN.rowLabel}>
+                  <Ionicons name="cash-outline" size={13} color="#9CA3AF" />
+                  <Text style={IN.label}>ORDER VALUE</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[IN.value, { fontSize: 16, fontWeight: '700', color: '#0F172A' }]}>
+                    ₹{order.order_value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Text>
+                  <View style={{ backgroundColor: '#EDE9FE', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#8B5CF6' }}>Admin</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          )}
+
           {/* PORTAL HIDDEN: CUSTOMER PORTAL section removed — see docs/portal-hidden.md to restore */}
 
           {isAdmin && (
@@ -277,6 +296,8 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
 }) {
   const insets = useSafeAreaInsets()
   const { isOnline } = useNetworkStatus()
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'admin'
   const [orderDescription, setOrderDescription] = useState(order.order_description ?? '')
   const [orderSource, setOrderSource] = useState(order.order_source ?? '')
   const [customerName, setCustomerName] = useState(order.customer_name)
@@ -285,6 +306,7 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
   const [priority, setPriority] = useState(order.priority)
   const [dueDate, setDueDate] = useState(order.due_date ?? '')
   const [dueTime, setDueTime] = useState(order.due_time ?? '')
+  const [orderValue, setOrderValue] = useState(order.order_value != null ? String(order.order_value) : '')
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [showTimePicker, setShowTimePicker] = useState(false)
   // iOS: temp state so changes only commit when Done is pressed
@@ -294,6 +316,7 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
   const [users, setUsers] = useState<UserOption[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [focusedField, setFocusedField] = useState<string | null>(null)
 
   useEffect(() => {
     orderService.listUsersForAssignment().then(setUsers).catch(() => {})
@@ -305,10 +328,12 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
     setLoading(true)
     setError('')
     try {
+      const parsedOrderValue = isAdmin && orderValue.trim() !== '' ? parseFloat(orderValue) : null
       await orderService.updateOrder(order.id, {
         order_description: orderDescription.trim(), order_source: orderSource || undefined, customer_name: customerName.trim(),
         contact_number: contactNumber.trim(), description: description.trim(),
         priority, assigned_to: assignedTo, due_date: dueDate || null, due_time: dueTime || null,
+        order_value: isAdmin ? parsedOrderValue : undefined,
       })
       onSaved()
       onClose()
@@ -338,7 +363,7 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
         <ScrollView style={{ padding: 20 }} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40) }} keyboardShouldPersistTaps="handled">
           {error ? <View style={E.errorBox}><Text style={E.errorText}>{error}</Text></View> : null}
 
-          {/* Auto-generated Order ID notice */}
+           {/* Auto-generated Order ID notice */}
           <Text style={E.label}>Order ID</Text>
           <View style={[E.input, { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC' }]}>
             <Ionicons name="lock-closed-outline" size={14} color="#9CA3AF" style={{ marginRight: 8 }} />
@@ -346,7 +371,15 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
           </View>
 
           <Text style={E.label}>Order Description *</Text>
-          <TextInput style={E.input} value={orderDescription} onChangeText={setOrderDescription} placeholder="e.g. Wedding Cake - John" placeholderTextColor="#94A3B8" />
+          <TextInput
+            style={[E.input, focusedField === 'orderDescription' && { borderColor: '#6366F1', borderWidth: 1.5 }]}
+            value={orderDescription}
+            onChangeText={setOrderDescription}
+            placeholder="e.g. Wedding Cake - John"
+            placeholderTextColor="#94A3B8"
+            onFocus={() => setFocusedField('orderDescription')}
+            onBlur={() => setFocusedField(null)}
+          />
 
           <Text style={E.label}>Order Source</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 16 }}>
@@ -366,27 +399,72 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
           </ScrollView>
 
           <Text style={E.label}>Customer Name *</Text>
-          <TextInput style={E.input} value={customerName} onChangeText={setCustomerName} autoCapitalize="words" />
+          <TextInput
+            style={[E.input, focusedField === 'customerName' && { borderColor: '#6366F1', borderWidth: 1.5 }]}
+            value={customerName}
+            onChangeText={setCustomerName}
+            autoCapitalize="words"
+            onFocus={() => setFocusedField('customerName')}
+            onBlur={() => setFocusedField(null)}
+          />
 
           <Text style={E.label}>Contact Number</Text>
-          <TextInput style={E.input} value={contactNumber} onChangeText={setContactNumber} keyboardType="phone-pad" />
+          <TextInput
+            style={[E.input, focusedField === 'contactNumber' && { borderColor: '#6366F1', borderWidth: 1.5 }]}
+            value={contactNumber}
+            onChangeText={setContactNumber}
+            keyboardType="phone-pad"
+            onFocus={() => setFocusedField('contactNumber')}
+            onBlur={() => setFocusedField(null)}
+          />
 
           <Text style={E.label}>Description</Text>
-          <TextInput style={[E.input, { minHeight: 80 }]} value={description} onChangeText={setDescription} multiline textAlignVertical="top" />
+          <TextInput
+            style={[E.input, { minHeight: 80 }, focusedField === 'description' && { borderColor: '#6366F1', borderWidth: 1.5 }]}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            textAlignVertical="top"
+            onFocus={() => setFocusedField('description')}
+            onBlur={() => setFocusedField(null)}
+          />
 
-          <Text style={E.label}>Priority</Text>
-          <View style={E.chipRow}>
-            {PRIORITY_OPTIONS.map(p => (
-              <TouchableOpacity
-                key={p}
-                style={[E.chip, priority === p && { backgroundColor: PRIORITY_META[p].bg }]}
-                onPress={() => setPriority(p)}
-              >
-                <Text style={[E.chipText, priority === p && { color: PRIORITY_META[p].color, fontWeight: '700' }]}>
-                  {PRIORITY_META[p].label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 16, marginBottom: 8 }}>
+            <View style={{ flex: isAdmin ? 1.3 : 1 }}>
+              <Text style={[E.label, { marginTop: 0 }]}>Priority</Text>
+              <View style={[E.chipRow, { gap: 6 }]}>
+                {PRIORITY_OPTIONS.map(p => (
+                  <TouchableOpacity
+                    key={p}
+                    style={[E.chip, { paddingHorizontal: 10, paddingVertical: 10 }, priority === p && { backgroundColor: PRIORITY_META[p].bg }]}
+                    onPress={() => setPriority(p)}
+                  >
+                    <Text style={[E.chipText, { fontSize: 13 }, priority === p && { color: PRIORITY_META[p].color, fontWeight: '700' }]}>
+                      {PRIORITY_META[p].label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {isAdmin && (
+              <View style={{ flex: 0.7 }}>
+                <Text style={[E.label, { marginTop: 0 }]}>Order Value</Text>
+                <View style={[E.input, { flexDirection: 'row', alignItems: 'center', height: 38, paddingHorizontal: 12, paddingVertical: 0, marginTop: 8 }, focusedField === 'orderValue' && { borderColor: '#6366F1', borderWidth: 1.5 }]}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#475569', marginRight: 4 }}>₹</Text>
+                  <TextInput
+                    style={{ flex: 1, fontSize: 14, color: '#0F172A', padding: 0 }}
+                    value={orderValue}
+                    onChangeText={setOrderValue}
+                    keyboardType="numeric"
+                    placeholder="e.g. 5000"
+                    placeholderTextColor="#94A3B8"
+                    onFocus={() => setFocusedField('orderValue')}
+                    onBlur={() => setFocusedField(null)}
+                  />
+                </View>
+              </View>
+            )}
           </View>
 
           <Text style={E.label}>Due Date & Time</Text>
