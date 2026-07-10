@@ -450,10 +450,10 @@ export function EditOrderSheet({ order, onClose, onSaved }: {
             {isAdmin && (
               <View style={{ flex: 0.7 }}>
                 <Text style={[E.label, { marginTop: 0 }]}>Order Value</Text>
-                <View style={[E.input, { flexDirection: 'row', alignItems: 'center', height: 38, paddingHorizontal: 12, paddingVertical: 0, marginTop: 8 }, focusedField === 'orderValue' && { borderColor: '#6366F1', borderWidth: 1.5 }]}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#475569', marginRight: 4 }}>₹</Text>
+                <View style={[E.input, { flexDirection: 'row', alignItems: 'center', marginTop: 8 }, focusedField === 'orderValue' && { borderColor: '#6366F1', borderWidth: 1.5 }]}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#475569', marginRight: 6 }}>₹</Text>
                   <TextInput
-                    style={{ flex: 1, fontSize: 14, color: '#0F172A', padding: 0 }}
+                    style={[{ flex: 1, fontSize: 16, color: '#0F172A', padding: 0 }, Platform.OS === 'web' && ({ outlineStyle: 'none' } as any)]}
                     value={orderValue}
                     onChangeText={setOrderValue}
                     keyboardType="numeric"
