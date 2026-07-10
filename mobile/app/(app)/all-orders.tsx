@@ -643,6 +643,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
                     placeholderTextColor="#94A3B8"
                     onFocus={() => setFocusedField('orderValue')}
                     onBlur={() => setFocusedField(null)}
+                    {...({ onWheel: Platform.OS === 'web' ? (e: any) => e.target.blur() : undefined })}
                   />
                 </View>
               </View>

@@ -242,6 +242,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
                     placeholder="e.g. 5000"
                     value={orderValue}
                     onChange={e => setOrderValue(e.target.value)}
+                    onWheel={e => e.currentTarget.blur()}
                   />
                 </div>
               </div>
