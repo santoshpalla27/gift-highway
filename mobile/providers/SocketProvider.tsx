@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { AppState, AppStateStatus } from 'react-native'
 import { useAuthStore } from '../store/authStore'
 import { refreshAccessToken } from '../services/tokenRefresh'
+import { API_BASE_URL } from '../services/apiClient'
 
 export type SocketStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
 
@@ -30,7 +31,7 @@ export function useSocketEvent(handler: SocketEventHandler) {
 }
 
 // ── Connection ────────────────────────────────────────────────────────────────
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'https://gifthighway.store/api/v1'
+const API_BASE = API_BASE_URL
 const WS_BASE = API_BASE.replace(/^http/, 'ws').replace(/\/api\/v1\/?$/, '') + '/ws'
 const BACKOFF_DELAYS = [1_000, 2_000, 5_000, 10_000, 30_000]
 

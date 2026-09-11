@@ -2,7 +2,19 @@ import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
 import { refreshAccessToken } from './tokenRefresh'
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://gifthighway.store/api/v1'
+function normalizeApiUrl(url?: string): string {
+  let u = (url || 'https://gifthighway.store/api/v1').trim().replace(/\/+$/, '')
+  if (!u.endsWith('/api/v1')) {
+    if (u.endsWith('/api')) {
+      u += '/v1'
+    } else {
+      u += '/api/v1'
+    }
+  }
+  return u
+}
+
+export const API_BASE_URL = normalizeApiUrl(process.env.EXPO_PUBLIC_API_URL)
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
