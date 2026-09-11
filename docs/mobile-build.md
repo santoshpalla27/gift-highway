@@ -87,15 +87,6 @@ cd app/build/outputs/apk/release/
 python3 -m http.server 8000 --bind 0.0.0.0
 ```
 
-cd /root/company-app/mobile
-
-# Set production API URL
-
-echo "EXPO_PUBLIC_API_URL=https://main.santoshdevops.cloud/api/v1" > .env
-
-npx expo prebuild --clean --platform android
-cd android && ./gradlew assembleRelease --max-workers=2
-
 ---
 
 ## Firebase Push Notifications Setup

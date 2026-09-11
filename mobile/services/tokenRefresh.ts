@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1'
+const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'https://gifthighway.store/api/v1'
 
 // Single in-flight promise shared across all callers (apiClient + SocketProvider).
 // Prevents the rotation race: if two callers try to refresh at the same time,

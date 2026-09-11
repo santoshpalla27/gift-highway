@@ -18,7 +18,7 @@ import { adminService, AuditStatus } from '../../../services/adminService'
 import { useAuthStore } from '../../../store/authStore'
 import { formatDate, formatDateTime, datePickerToIST } from '../../../utils/date'
 
-const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1')
+const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'https://gifthighway.store/api/v1')
 
 function formatBytes(bytes: number) {
   if (bytes === 0) return '0 B'

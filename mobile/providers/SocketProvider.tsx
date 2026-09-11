@@ -30,7 +30,7 @@ export function useSocketEvent(handler: SocketEventHandler) {
 }
 
 // ── Connection ────────────────────────────────────────────────────────────────
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1'
+const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'https://gifthighway.store/api/v1'
 const WS_BASE = API_BASE.replace(/^http/, 'ws').replace(/\/api\/v1\/?$/, '') + '/ws'
 const BACKOFF_DELAYS = [1_000, 2_000, 5_000, 10_000, 30_000]
 

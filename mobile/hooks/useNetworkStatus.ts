@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { AppState } from 'react-native'
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1'
-const HEALTH_URL = API_BASE.replace(/\/api\/v1\/?$/, '') + '/health'
+const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'https://gifthighway.store/api/v1'
+const HEALTH_URL = `${API_BASE}/orders`
 
 async function checkOnline(): Promise<boolean> {
   try {
@@ -10,7 +10,8 @@ async function checkOnline(): Promise<boolean> {
     const timeout = setTimeout(() => controller.abort(), 4000)
     const res = await fetch(HEALTH_URL, { signal: controller.signal })
     clearTimeout(timeout)
-    return res.ok
+    // Any status response (even 401 Unauthorized) means backend server is reachable and online
+    return res.status > 0 && res.status < 500
   } catch {
     return false
   }

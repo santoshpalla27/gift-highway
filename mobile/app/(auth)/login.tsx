@@ -35,8 +35,10 @@ export default function LoginScreen() {
       await setAuth(response.user, response.tokens.access_token, response.tokens.refresh_token)
       router.replace('/(app)')
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } }
-      setError(e?.response?.data?.error ?? 'Invalid email or password.')
+      const e = err as { response?: { data?: { error?: string }; status?: number }; message?: string }
+      const backendError = e?.response?.data?.error
+      const networkError = e?.response?.status ? `Server error (HTTP ${e.response.status})` : e?.message
+      setError(backendError ?? networkError ?? 'Invalid email or password.')
     } finally {
       setLoading(false)
     }

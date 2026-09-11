@@ -65,7 +65,7 @@ export const staffPortalApi = {
 }
 
 export function getPortalURL(token: string): string {
-  const apiBase = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080/api/v1'
-  const webBase = (process.env.EXPO_PUBLIC_WEB_URL ?? apiBase.replace(/\/api\/v1\/?$/, '').replace(/:8080$/, ':3000'))
+  const apiBase = process.env.EXPO_PUBLIC_API_URL ?? 'https://gifthighway.store/api/v1'
+  const webBase = (process.env.EXPO_PUBLIC_WEB_URL ?? apiBase.replace(/\/api\/v1\/?$/, ''))
   return `${webBase}/portal/${token}`
 }
