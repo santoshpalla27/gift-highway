@@ -137,6 +137,10 @@ export default function LoginScreen() {
                 <Text style={styles.buttonText}>Sign In</Text>
               )}
             </TouchableOpacity>
+
+            <Text style={{ color: '#9CA3AF', fontSize: 11, textAlign: 'center', marginTop: 12 }}>
+              API: {process.env.EXPO_PUBLIC_API_URL ?? 'FALLBACK: http://localhost:8080/api/v1'}
+            </Text>
           </View>
 
           <Text style={styles.footerText}>
