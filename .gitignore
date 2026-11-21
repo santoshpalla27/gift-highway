@@ -61,3 +61,7 @@ logs/
 /frontend-sample/
 
 seed.sql
+
+agent
+.claude
+.agents
