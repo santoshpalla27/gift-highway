@@ -1,3 +1,5 @@
+import { OrderSheetHeader, sheetUI } from '../../components/order-sheet-ui'
+import { COLORS } from '../../constants/theme'
 import {
   View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, Pressable, KeyboardAvoidingView, Keyboard,
   TextInput, ActivityIndicator, Modal, Platform, Alert, RefreshControl, AppState,
@@ -117,36 +119,30 @@ function FilterSheet({
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => showAssigneeList ? setShowAssigneeList(false) : onClose()}>
       <View style={FS.container}>
         {/* Header */}
-        <View style={[FS.header, { paddingTop: insets.top + 16 }]}>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close filters" onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="close" size={24} color="#0F172A" />
-          </TouchableOpacity>
-          <Text style={FS.title}>Filters</Text>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Clear all filters" onPress={() => setDraft(emptyFilters)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={[FS.clearBtn, draftCount === 0 && { opacity: 0.3 }]}>Clear all</Text>
-          </TouchableOpacity>
-        </View>
+        <OrderSheetHeader title="Filters" subtitle="Focus on the orders that matter." onClose={onClose} topInset={Platform.OS === 'ios' ? 0 : insets.top} />
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40) }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
 
+          <View style={sheetUI.filterSummary}><Text style={sheetUI.summaryText}>{draftCount ? draftCount + ' active filters' : 'All orders included'}</Text><Pressable accessibilityRole="button" accessibilityLabel="Reset all filters" onPress={() => setDraft(emptyFilters)} style={sheetUI.reset}><Text style={sheetUI.resetText}>Reset all</Text></Pressable></View>
           {/* Status */}
           <View style={FS.section}>
             <Text accessibilityRole="header" style={FS.sectionLabel}>Status</Text><Text style={FS.helper}>Choose any combination of statuses</Text>
-            <View style={FS.optionRow}>
+            <View style={{ gap: 2 }}>
               {STATUS_OPTIONS.map(s => {
                 const active = draft.statuses.includes(s)
                 return (
                   <TouchableOpacity accessibilityRole="checkbox" accessibilityState={{ checked: active }} key={s}
-                    style={[FS.optionChip, active && { backgroundColor: STATUS_META[s].bg, borderColor: STATUS_META[s].color }]}
+                    style={[sheetUI.statusRow, active && sheetUI.rowSelected]}
                     onPress={() => setDraft(d => {
                       const next = d.statuses.includes(s) ? d.statuses.filter(x => x !== s) : [...d.statuses, s]
                       return { ...d, statuses: next }
                     })}
                   >
                     <View style={[FS.dot, { backgroundColor: STATUS_META[s].color }]} />
-                    <Text style={[FS.optionText, active && { color: STATUS_META[s].color, fontWeight: '700' }]}>
+                    <Text style={[sheetUI.statusText, active && sheetUI.selectedText]}>
                       {STATUS_META[s].label}
                     </Text>
+                    <Ionicons name={active ? 'checkbox' : 'square-outline'} size={22} color={active ? COLORS.primaryDark : COLORS.border} />
                   </TouchableOpacity>
                 )
               })}
@@ -161,14 +157,14 @@ function FilterSheet({
                 const active = draft.priorities.includes(p)
                 return (
                   <TouchableOpacity accessibilityRole="checkbox" accessibilityState={{ checked: active }} key={p}
-                    style={[FS.optionChip, active && { backgroundColor: PRIORITY_META[p].bg, borderColor: PRIORITY_META[p].color }]}
+                    style={[sheetUI.chip, active && sheetUI.chipSelected]}
                     onPress={() => setDraft(d => {
                       const next = d.priorities.includes(p) ? d.priorities.filter(x => x !== p) : [...d.priorities, p]
                       return { ...d, priorities: next }
                     })}
                   >
                     <View style={[FS.dot, { backgroundColor: PRIORITY_META[p].color }]} />
-                    <Text style={[FS.optionText, active && { color: PRIORITY_META[p].color, fontWeight: '700' }]}>
+                    <Text style={[FS.optionText, active && sheetUI.selectedText]}>
                       {PRIORITY_META[p].label}
                     </Text>
                   </TouchableOpacity>
@@ -342,10 +338,10 @@ function FilterSheet({
 
           {/* Quick filters */}
           <View style={FS.section}>
-            <Text style={FS.sectionLabel}>QUICK FILTERS</Text>
+            <Text style={FS.sectionLabel}>Quick filters</Text>
             <View style={{ gap: 10 }}>
               <TouchableOpacity
-                style={[FS.toggleRow, draft.overdueOnly && FS.toggleRowActive]}
+                accessibilityRole="switch" accessibilityState={{ checked: draft.overdueOnly }} style={[FS.toggleRow, draft.overdueOnly && FS.toggleRowActive]}
                 onPress={() => set({ overdueOnly: !draft.overdueOnly, dueTodayOnly: false })}
               >
                 <View style={{ flex: 1 }}>
@@ -357,7 +353,7 @@ function FilterSheet({
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[FS.toggleRow, draft.dueTodayOnly && FS.toggleRowToday]}
+                accessibilityRole="switch" accessibilityState={{ checked: draft.dueTodayOnly }} style={[FS.toggleRow, draft.dueTodayOnly && FS.toggleRowToday]}
                 onPress={() => set({ dueTodayOnly: !draft.dueTodayOnly, overdueOnly: false })}
               >
                 <View style={{ flex: 1 }}>
@@ -369,7 +365,7 @@ function FilterSheet({
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[FS.toggleRow, draft.unreadOnly && FS.toggleRowUnread]}
+                accessibilityRole="switch" accessibilityState={{ checked: draft.unreadOnly }} style={[FS.toggleRow, draft.unreadOnly && FS.toggleRowUnread]}
                 onPress={() => set({ unreadOnly: !draft.unreadOnly })}
               >
                 <View style={{ flex: 1 }}>
@@ -381,7 +377,7 @@ function FilterSheet({
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[FS.toggleRow, draft.staleOnly && { backgroundColor: '#FFF7ED' }]}
+                accessibilityRole="switch" accessibilityState={{ checked: draft.staleOnly }} style={[FS.toggleRow, draft.staleOnly && { backgroundColor: '#FFF7ED' }]}
                 onPress={() => set({ staleOnly: !draft.staleOnly })}
               >
                 <View style={{ flex: 1 }}>
@@ -542,34 +538,11 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => assignOpen ? setAssignOpen(false) : onClose()}>
       <KeyboardAvoidingView style={F.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <View style={[F.header, { paddingTop: insets.top + 16 }]}>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close order form" onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="close" size={24} color="#0F172A" />
-          </TouchableOpacity>
-          <Text style={F.title}>{isEdit ? 'Edit Order' : 'Create Order'}</Text>
-          <View style={{ width: 24 }} />
-        </View>
-        <ScrollView style={F.body} contentContainerStyle={{ padding: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-          <Text style={F.subtitle}>Add the details, set a deadline, and assign your team.</Text>
-          <Text accessibilityRole="header" style={F.sectionTitle}>Order details</Text>
-          {error ? <View style={F.errorBox}><Text style={F.errorText}>{error}</Text></View> : null}
-          {isEdit ? (
-            <>
-              <Text style={F.label}>Order ID</Text>
-              <View style={[F.input, { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC' }]}>
-                <Ionicons name="lock-closed-outline" size={14} color="#9CA3AF" style={{ marginRight: 8 }} />
-                <Text style={{ fontSize: 15, color: '#6B7280' }}>Order #{order?.order_number} (auto-generated)</Text>
-              </View>
-            </>
-          ) : (
-            <>
-              <Text style={F.label}>Order ID</Text>
-              <View style={[F.input, { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC' }]}>
-                <Ionicons name="lock-closed-outline" size={14} color="#9CA3AF" style={{ marginRight: 8 }} />
-                <Text style={{ fontSize: 15, color: '#6B7280' }}>Auto-assigned on creation</Text>
-              </View>
-            </>
-          )}
+        <OrderSheetHeader title={isEdit ? 'Edit order' : 'New order'} subtitle="The details your team needs to get started." onClose={onClose} topInset={Platform.OS === 'ios' ? 0 : insets.top} />
+        <ScrollView style={F.body} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+          {error ? <View style={F.errorBox} accessibilityRole="alert"><Text style={F.errorText}>{error}</Text></View> : null}
+          <View style={[sheetUI.metadata, { paddingHorizontal: 8 }]}><Ionicons name="lock-closed-outline" size={14} color={COLORS.textSecondary} /><Text style={sheetUI.metadataText}>{isEdit ? 'Order #' + order?.order_number : 'Order number assigned automatically'}</Text></View>
+          <View style={sheetUI.group}><Text accessibilityRole="header" style={sheetUI.sectionTitle}>Order details</Text>
           <Text style={F.label}>Order Description *</Text>
           <TextInput
             style={[F.input, focusedField === 'orderDescription' && { borderColor: '#6366F1', borderWidth: 1.5 }]}
@@ -589,16 +562,16 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
               return (
                 <TouchableOpacity
                   key={src}
-                  style={[F.chip, { minWidth: 60, justifyContent: 'center' }, isActive && { backgroundColor: '#F1F5F9', borderColor: '#CBD5E1' }]}
+                  accessibilityRole="radio" accessibilityState={{ selected: isActive }} style={[sheetUI.chip, isActive && sheetUI.chipSelected]}
                   onPress={() => setOrderSource(src)}
                 >
-                  <Text style={[F.chipText, isActive && { color: '#0F172A', fontWeight: '600' }]}>{label}</Text>
+                  <Text style={[F.chipText, isActive && sheetUI.selectedText]}>{label}</Text>
                 </TouchableOpacity>
               )
             })}
           </View>
 
-          <Text accessibilityRole="header" style={[F.sectionTitle, F.sectionDivider]}>Customer information</Text>
+          </View><View style={sheetUI.group}><Text accessibilityRole="header" style={sheetUI.sectionTitle}>Customer information</Text>
           <Text style={F.label}>Customer Name *</Text>
           <TextInput
             style={[F.input, focusedField === 'customerName' && { borderColor: '#6366F1', borderWidth: 1.5 }]}
@@ -628,14 +601,14 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
             onBlur={() => setFocusedField(null)}
           />
 
-          <Text accessibilityRole="header" style={[F.sectionTitle, F.sectionDivider]}>Scheduling &amp; assignment</Text>
+          </View><View style={sheetUI.group}><Text accessibilityRole="header" style={sheetUI.sectionTitle}>Schedule &amp; team</Text>
           <View style={{ gap: 12, marginBottom: 8 }}>
             <View>
               <Text style={[F.label, { marginTop: 0 }]}>Priority</Text>
               <View style={[F.chipRow, { gap: 6 }]}>
                 {PRIORITY_OPTIONS.map(p => (
-                  <TouchableOpacity key={p} style={[F.chip, { paddingHorizontal: 10, paddingVertical: 10 }, priority === p && { backgroundColor: PRIORITY_META[p].bg, borderColor: PRIORITY_META[p].bg }]} onPress={() => setPriority(p)}>
-                    <Text style={[F.chipText, { fontSize: 13 }, priority === p && { color: PRIORITY_META[p].color, fontWeight: '700' }]}>{p.charAt(0).toUpperCase() + p.slice(1)}</Text>
+                  <TouchableOpacity accessibilityRole="radio" accessibilityState={{ selected: priority === p }} key={p} style={[sheetUI.chip, priority === p && sheetUI.chipSelected]} onPress={() => setPriority(p)}>
+                    <Text style={[F.chipText, { fontSize: 13 }, priority === p && sheetUI.selectedText]}>{p.charAt(0).toUpperCase() + p.slice(1)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -804,6 +777,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
             <Ionicons name={assignOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#94A3B8" />
           </TouchableOpacity>
           {/* PORTAL HIDDEN: "Generate customer portal link" checkbox removed — see docs/portal-hidden.md to restore */}
+          </View>
         </ScrollView>
         <View style={[F.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           <Text style={F.requiredNote}>* Required fields</Text>
@@ -1291,7 +1265,7 @@ const FS = StyleSheet.create({
   assigneePanelHeader: { padding: 20, flexDirection: 'row', alignItems: 'center', gap: 12 },
   doneButton: { minHeight: 44, minWidth: 60, borderRadius: 10, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' },
   doneText: { fontSize: 15, fontWeight: '700', color: '#4338CA' },
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: sheetUI.canvas,
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 24, paddingVertical: 20,
@@ -1301,8 +1275,8 @@ const FS = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '800', color: '#111827', letterSpacing: -0.3 },
   clearBtn: { fontSize: 14, fontWeight: '600', color: '#4F46E5', paddingVertical: 10 },
 
-  section: { paddingHorizontal: 24, paddingVertical: 20, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  sectionLabel: { fontSize: 15, fontWeight: '700', color: '#334155', marginBottom: 12 },
+  section: sheetUI.group,
+  sectionLabel: sheetUI.sectionTitle,
   dimText: { fontSize: 14, color: '#9CA3AF' },
 
   optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -1357,9 +1331,9 @@ const FS = StyleSheet.create({
   toggleThumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 3, elevation: 2 },
   toggleThumbOn: { alignSelf: 'flex-end' },
 
-  footer: { padding: 24, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  applyBtn: { backgroundColor: '#0F172A', borderRadius: 12, minHeight: 50, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
-  applyText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
+  footer: sheetUI.footer,
+  applyBtn: sheetUI.primaryButton,
+  applyText: sheetUI.primaryText,
 })
 
 const C = StyleSheet.create({
@@ -1414,14 +1388,14 @@ const C = StyleSheet.create({
 })
 
 const F = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: sheetUI.canvas,
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 20, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   title: { fontSize: 20, fontWeight: '800', color: '#111827' },
   body: { flex: 1 },
   subtitle: { fontSize: 13, lineHeight: 20, color: '#64748B', marginBottom: 12 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#334155', marginBottom: 4 },
   sectionDivider: { borderTopWidth: 1, borderTopColor: '#E2E8F0', paddingTop: 24, marginTop: 24 },
-  footer: { paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E2E8F0', backgroundColor: '#FFFFFF', gap: 8 },
+  footer: sheetUI.footer,
   requiredNote: { fontSize: 12, color: '#64748B' },
   assignmentOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.35)' },
   assignmentPanel: { maxHeight: '75%', backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
@@ -1432,8 +1406,8 @@ const F = StyleSheet.create({
   avatarText: { fontSize: 11, fontWeight: '700', color: '#64748B' },
   errorBox: { backgroundColor: '#FEF2F2', borderRadius: 12, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#FECACA' },
   errorText: { fontSize: 14, color: '#DC2626', fontWeight: '600' },
-  label: { fontSize: 13, fontWeight: '700', color: '#4B5563', marginBottom: 8, marginTop: 16, letterSpacing: 0 },
-  input: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: '#111827', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.02, shadowRadius: 3, elevation: 1 },
+  label: sheetUI.label,
+  input: sheetUI.input,
   chipRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   chip: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#F3F4F6', backgroundColor: '#FFFFFF' },
   chipText: { fontSize: 14, fontWeight: '600', color: '#6B7280' },
@@ -1441,8 +1415,8 @@ const F = StyleSheet.create({
   assignRow: { minHeight: 56, gap: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F9FAFB' },
   assignRowActive: { backgroundColor: '#EEF2FF' },
   assignText: { flex: 1, fontSize: 15, color: '#374151', fontWeight: '500' },
-  submitBtn: { backgroundColor: '#0F172A', borderRadius: 12, minHeight: 50, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
-  submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
+  submitBtn: sheetUI.primaryButton,
+  submitText: sheetUI.primaryText,
   pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   pickerSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 32, overflow: 'hidden' },
   portalRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 28, marginBottom: 16, backgroundColor: '#FFFFFF', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#F3F4F6' },
