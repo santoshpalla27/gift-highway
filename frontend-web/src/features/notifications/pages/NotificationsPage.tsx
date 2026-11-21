@@ -1,3 +1,4 @@
+import { FilterPill } from '../../../components/system/FilterPill'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useInfiniteQuery } from '@tanstack/react-query'
@@ -146,70 +147,6 @@ function eventSummary(e: FlatActivityEvent): string {
 
 // ── FilterPill ────────────────────────────────────────────────────────────────
 
-function FilterPill({
-  label, value, onClear, children,
-}: {
-  label: string
-  value?: string
-  onClear?: () => void
-  children: (close: () => void) => React.ReactNode
-}) {
-  const [open, setOpen] = useState(false)
-  const pillRef = useRef<HTMLDivElement>(null)
-  const isActive = !!value
-
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (pillRef.current && !pillRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
-
-  return (
-    <div ref={pillRef} style={{ position: 'relative', flexShrink: 0 }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: 5,
-          padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-          border: `1.5px solid ${isActive ? '#6366F1' : '#E4E6EF'}`,
-          background: isActive ? '#EEF2FF' : '#FFFFFF',
-          color: isActive ? '#4F46E5' : '#374151',
-          cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 120ms ease',
-        }}
-        onMouseEnter={e => { if (!isActive) e.currentTarget.style.borderColor = '#C7CAD9' }}
-        onMouseLeave={e => { if (!isActive) e.currentTarget.style.borderColor = '#E4E6EF' }}
-      >
-        <span>{isActive ? `${label}: ${value}` : label}</span>
-        {isActive ? (
-          <span onClick={ev => { ev.stopPropagation(); onClear?.(); setOpen(false) }} style={{ display: 'flex', alignItems: 'center', marginLeft: 2, opacity: 0.7 }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </span>
-        ) : (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ opacity: 0.5 }}>
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        )}
-      </button>
-      {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 500,
-          background: '#FFFFFF', border: '1px solid #E4E6EF',
-          borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.10)',
-          minWidth: 200, maxHeight: 280, overflowY: 'auto',
-        }}>
-          {children(() => setOpen(false))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 const pillItem = (active: boolean): React.CSSProperties => ({
   padding: '9px 14px', fontSize: 13, cursor: 'pointer',
@@ -389,7 +326,7 @@ export function NotificationsPage() {
           {close => (
             <div style={{ padding: 4 }}>
               {EVENT_TYPE_OPTIONS.map(opt => (
-                <div key={opt.value} style={pillItem(eventTypeFilter === opt.value)}
+                <div role="button" tabIndex={0} onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.currentTarget.click() } }} key={opt.value} style={pillItem(eventTypeFilter === opt.value)}
                   onMouseEnter={e => { if (eventTypeFilter !== opt.value) e.currentTarget.style.background = '#F5F6FA' }}
                   onMouseLeave={e => { if (eventTypeFilter !== opt.value) e.currentTarget.style.background = 'transparent' }}
                   onClick={() => { setEventTypeFilter(eventTypeFilter === opt.value ? '' : opt.value); close() }}

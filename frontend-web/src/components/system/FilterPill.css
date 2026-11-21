@@ -1,0 +1,15 @@
+.filter-control { display: inline-flex; flex-shrink: 0; max-width: 100%; border: 1px solid #dbe1ea; border-radius: 9px; background: #fff; color: #475569; }
+.filter-control.is-active { border-color: #a5b4fc; background: #eef2ff; color: #4338ca; }
+.filter-trigger, .filter-clear { min-height: 38px; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.filter-trigger { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 13px; font-weight: 500; min-width: 0; }
+.filter-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filter-trigger svg { flex-shrink: 0; }
+.filter-clear { padding: 0 10px; border-left: 1px solid #c7d2fe; font-size: 20px; }
+.filter-trigger:hover, .filter-clear:hover { background: #f1f5f9; border-radius: 8px; }
+.filter-popover { position: fixed; z-index: 1200; min-width: min(240px, calc(100vw - 16px)); max-width: calc(100vw - 16px); overflow: auto; overscroll-behavior: contain; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 12px 36px #0f172a26; }
+.filter-popover > div { max-width: 100%; box-sizing: border-box; }
+.filter-popover-heading { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; border-bottom: 1px solid #f1f5f9; font-size: 13px; font-weight: 600; color: #334155; }
+.filter-popover-heading button { min-width: 32px; min-height: 32px; background: transparent; border: 0; border-radius: 6px; cursor: pointer; font-size: 20px; color: #64748b; }
+.filter-popover [role="button"] { min-height: 40px; border-radius: 6px; }
+.filter-popover :is(button, [role="button"]):hover { filter: brightness(.97); }
+.filter-control button:focus-visible, .filter-popover :is(button, input, [tabindex]):focus-visible { outline: 2px solid #6366f1; outline-offset: -2px; }

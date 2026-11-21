@@ -102,6 +102,7 @@ function FilterSheet({
   useEffect(() => {
     if (visible) {
       setDraft(filters)
+      setShowAssigneeList(false)
       if (!usersLoaded && !myOrdersOnly) {
         orderService.listUsersForAssignment().then(u => { setUsers(u); setUsersLoaded(true) }).catch(() => {})
       }
@@ -113,15 +114,15 @@ function FilterSheet({
   const draftCount = activeCount(draft)
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => showAssigneeList ? setShowAssigneeList(false) : onClose()}>
       <View style={FS.container}>
         {/* Header */}
         <View style={[FS.header, { paddingTop: insets.top + 16 }]}>
-          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close filters" onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="close" size={24} color="#0F172A" />
           </TouchableOpacity>
           <Text style={FS.title}>Filters</Text>
-          <TouchableOpacity onPress={() => setDraft(emptyFilters)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Clear all filters" onPress={() => setDraft(emptyFilters)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={[FS.clearBtn, draftCount === 0 && { opacity: 0.3 }]}>Clear all</Text>
           </TouchableOpacity>
         </View>
@@ -130,12 +131,12 @@ function FilterSheet({
 
           {/* Status */}
           <View style={FS.section}>
-            <Text style={FS.sectionLabel}>STATUS</Text>
+            <Text accessibilityRole="header" style={FS.sectionLabel}>Status</Text><Text style={FS.helper}>Choose any combination of statuses</Text>
             <View style={FS.optionRow}>
               {STATUS_OPTIONS.map(s => {
                 const active = draft.statuses.includes(s)
                 return (
-                  <TouchableOpacity key={s}
+                  <TouchableOpacity accessibilityRole="checkbox" accessibilityState={{ checked: active }} key={s}
                     style={[FS.optionChip, active && { backgroundColor: STATUS_META[s].bg, borderColor: STATUS_META[s].color }]}
                     onPress={() => setDraft(d => {
                       const next = d.statuses.includes(s) ? d.statuses.filter(x => x !== s) : [...d.statuses, s]
@@ -154,12 +155,12 @@ function FilterSheet({
 
           {/* Priority */}
           <View style={FS.section}>
-            <Text style={FS.sectionLabel}>PRIORITY</Text>
+            <Text style={FS.sectionLabel}>Priority</Text>
             <View style={FS.optionRow}>
               {PRIORITY_OPTIONS.map(p => {
                 const active = draft.priorities.includes(p)
                 return (
-                  <TouchableOpacity key={p}
+                  <TouchableOpacity accessibilityRole="checkbox" accessibilityState={{ checked: active }} key={p}
                     style={[FS.optionChip, active && { backgroundColor: PRIORITY_META[p].bg, borderColor: PRIORITY_META[p].color }]}
                     onPress={() => setDraft(d => {
                       const next = d.priorities.includes(p) ? d.priorities.filter(x => x !== p) : [...d.priorities, p]
@@ -179,11 +180,12 @@ function FilterSheet({
           {/* Assignee */}
           {!myOrdersOnly && (
             <View style={FS.section}>
-              <Text style={FS.sectionLabel}>ASSIGNEE</Text>
+              <Text style={FS.sectionLabel}>Assigned to</Text>
               {/* Trigger */}
               <TouchableOpacity
+                accessibilityRole="button" accessibilityLabel="Filter by assignee" accessibilityState={{ expanded: showAssigneeList }}
                 style={FS.assigneeTrigger}
-                onPress={() => { setShowAssigneeList(o => !o); if (!usersLoaded) {} }}
+                onPress={() => setShowAssigneeList(true)}
                 activeOpacity={0.7}
               >
                 <Text style={[FS.assigneeTriggerText, draft.assigneeIds.length === 0 && { color: '#94A3B8' }]} numberOfLines={1}>
@@ -205,53 +207,13 @@ function FilterSheet({
                 <Ionicons name={showAssigneeList ? 'chevron-up' : 'chevron-down'} size={18} color="#94A3B8" />
               </TouchableOpacity>
               {/* Dropdown list */}
-              {showAssigneeList && (
-                <ScrollView style={FS.assigneeList} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
-                  {/* Unassigned row */}
-                  {(() => {
-                    const active = draft.assigneeIds.includes('unassigned')
-                    const toggle = () => set({ assigneeIds: active ? draft.assigneeIds.filter(x => x !== 'unassigned') : ['unassigned', ...draft.assigneeIds] })
-                    return (
-                      <TouchableOpacity style={[FS.assigneeRow, active && FS.assigneeRowActive, FS.assigneeRowBorder]} onPress={toggle}>
-                        <View style={[FS.avatar, { backgroundColor: '#F3F4F6' }]}>
-                          <Text style={[FS.avatarText, { color: '#6B7280' }]}>—</Text>
-                        </View>
-                        <Text style={[FS.userRowText, active && { color: '#0F172A', fontWeight: '700' }]}>Unassigned</Text>
-                        {active
-                          ? <Ionicons name="checkbox" size={20} color="#6366F1" />
-                          : <Ionicons name="square-outline" size={20} color="#CBD5E1" />}
-                      </TouchableOpacity>
-                    )
-                  })()}
-                  {users.length === 0 ? (
-                    <Text style={[FS.dimText, { padding: 14 }]}>Loading…</Text>
-                  ) : users.map((u, i) => {
-                    const active = draft.assigneeIds.includes(u.id)
-                    const initials = u.name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
-                    const toggle = () => set({ assigneeIds: active ? draft.assigneeIds.filter(x => x !== u.id) : [...draft.assigneeIds, u.id] })
-                    return (
-                      <TouchableOpacity key={u.id}
-                        style={[FS.assigneeRow, active && FS.assigneeRowActive, i < users.length - 1 && FS.assigneeRowBorder]}
-                        onPress={toggle}
-                      >
-                        <View style={FS.avatar}>
-                          <Text style={FS.avatarText}>{initials}</Text>
-                        </View>
-                        <Text style={[FS.userRowText, active && { color: '#0F172A', fontWeight: '700' }]}>{u.name}</Text>
-                        {active
-                          ? <Ionicons name="checkbox" size={20} color="#6366F1" />
-                          : <Ionicons name="square-outline" size={20} color="#CBD5E1" />}
-                      </TouchableOpacity>
-                    )
-                  })}
-                </ScrollView>
-              )}
+
             </View>
           )}
 
           {/* Due Date range */}
           <View style={FS.section}>
-            <Text style={FS.sectionLabel}>DELIVERY DATE RANGE</Text>
+            <Text style={FS.sectionLabel}>Delivery date range</Text>
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <View style={{ flex: 1 }}>
                 <Text style={FS.dateLabel}>From</Text>
@@ -447,6 +409,51 @@ function FilterSheet({
             </Text>
           </TouchableOpacity>
         </View>
+        {showAssigneeList && <View style={FS.assigneeOverlay} accessibilityViewIsModal>
+          <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel="Close assignee filter" onPress={() => setShowAssigneeList(false)} />
+          <View style={[FS.assigneePanel, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+            <View style={FS.assigneePanelHeader}><View style={{ flex: 1 }}><Text style={FS.title}>Assigned to</Text><Text style={FS.helper}>Select one or more team members</Text></View><Pressable style={FS.doneButton} accessibilityRole="button" onPress={() => setShowAssigneeList(false)}><Text style={FS.doneText}>Done</Text></Pressable></View>
+            <ScrollView style={FS.assigneeList} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+                  {/* Unassigned row */}
+                  {(() => {
+                    const active = draft.assigneeIds.includes('unassigned')
+                    const toggle = () => set({ assigneeIds: active ? draft.assigneeIds.filter(x => x !== 'unassigned') : ['unassigned', ...draft.assigneeIds] })
+                    return (
+                      <TouchableOpacity accessibilityRole="checkbox" accessibilityState={{ checked: active }} style={[FS.assigneeRow, active && FS.assigneeRowActive, FS.assigneeRowBorder]} onPress={toggle}>
+                        <View style={[FS.avatar, { backgroundColor: '#F3F4F6' }]}>
+                          <Text style={[FS.avatarText, { color: '#6B7280' }]}>—</Text>
+                        </View>
+                        <Text style={[FS.userRowText, active && { color: '#0F172A', fontWeight: '700' }]}>Unassigned</Text>
+                        {active
+                          ? <Ionicons name="checkbox" size={20} color="#6366F1" />
+                          : <Ionicons name="square-outline" size={20} color="#CBD5E1" />}
+                      </TouchableOpacity>
+                    )
+                  })()}
+                  {users.length === 0 ? (
+                    <Text style={[FS.dimText, { padding: 14 }]}>{usersLoaded ? 'No team members available' : 'Loading…'}</Text>
+                  ) : users.map((u, i) => {
+                    const active = draft.assigneeIds.includes(u.id)
+                    const initials = u.name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
+                    const toggle = () => set({ assigneeIds: active ? draft.assigneeIds.filter(x => x !== u.id) : [...draft.assigneeIds, u.id] })
+                    return (
+                      <TouchableOpacity accessibilityRole="checkbox" accessibilityLabel={u.name} accessibilityState={{ checked: active }} key={u.id}
+                        style={[FS.assigneeRow, active && FS.assigneeRowActive, i < users.length - 1 && FS.assigneeRowBorder]}
+                        onPress={toggle}
+                      >
+                        <View style={FS.avatar}>
+                          <Text style={FS.avatarText}>{initials}</Text>
+                        </View>
+                        <Text style={[FS.userRowText, active && { color: '#0F172A', fontWeight: '700' }]}>{u.name}</Text>
+                        {active
+                          ? <Ionicons name="checkbox" size={20} color="#6366F1" />
+                          : <Ionicons name="square-outline" size={20} color="#CBD5E1" />}
+                      </TouchableOpacity>
+                    )
+                  })}
+                </ScrollView>
+          </View>
+        </View>}
       </View>
     </Modal>
   )
@@ -1278,7 +1285,13 @@ const AP = StyleSheet.create({
 })
 
 const FS = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  helper: { fontSize: 13, lineHeight: 19, color: '#64748B', marginBottom: 12 },
+  assigneeOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,.35)' },
+  assigneePanel: { maxHeight: '80%', backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
+  assigneePanelHeader: { padding: 20, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  doneButton: { minHeight: 44, minWidth: 60, borderRadius: 10, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' },
+  doneText: { fontSize: 15, fontWeight: '700', color: '#4338CA' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 24, paddingVertical: 20,
@@ -1286,20 +1299,20 @@ const FS = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
   title: { fontSize: 22, fontWeight: '800', color: '#111827', letterSpacing: -0.3 },
-  clearBtn: { fontSize: 14, fontWeight: '700', color: '#EF4444' },
+  clearBtn: { fontSize: 14, fontWeight: '600', color: '#4F46E5', paddingVertical: 10 },
 
   section: { paddingHorizontal: 24, paddingVertical: 20, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#6B7280', letterSpacing: 0.6, marginBottom: 16 },
+  sectionLabel: { fontSize: 15, fontWeight: '700', color: '#334155', marginBottom: 12 },
   dimText: { fontSize: 14, color: '#9CA3AF' },
 
   optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   optionChip: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 14, paddingVertical: 10,
+    minHeight: 44, maxWidth: '100%', paddingHorizontal: 14, paddingVertical: 10,
     borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF',
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  optionText: { fontSize: 14, fontWeight: '600', color: '#4B5563' },
+  optionText: { flexShrink: 1, fontSize: 14, fontWeight: '600', color: '#4B5563' },
 
   userList: { borderWidth: 1, borderColor: '#F3F4F6', borderRadius: 16, overflow: 'hidden', backgroundColor: '#FFFFFF' },
   userRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14 },
@@ -1317,7 +1330,7 @@ const FS = StyleSheet.create({
   assigneeTriggerText: { flex: 1, fontSize: 15, color: '#0F172A', marginRight: 8 },
   assigneeList: {
     marginTop: 6, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12,
-    overflow: 'hidden', backgroundColor: '#FFFFFF', maxHeight: 260,
+    overflow: 'hidden', backgroundColor: '#FFFFFF', maxHeight: 360,
   },
   assigneeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 13 },
   assigneeRowBorder: { borderBottomWidth: 1, borderBottomColor: '#F9FAFB' },
@@ -1337,7 +1350,7 @@ const FS = StyleSheet.create({
   toggleRowActive: { borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
   toggleRowToday: { borderColor: '#FDE68A', backgroundColor: '#FFFBEB' },
   toggleRowUnread: { borderColor: '#C7D2FE', backgroundColor: '#EEF2FF' },
-  toggleLabel: { fontSize: 15, fontWeight: '700', color: '#111827' },
+  toggleLabel: { flexShrink: 1, fontSize: 15, fontWeight: '700', color: '#111827' },
   toggleSub: { fontSize: 13, color: '#6B7280', marginTop: 2 },
   toggle: { width: 48, height: 26, borderRadius: 13, backgroundColor: '#E5E7EB', justifyContent: 'center', paddingHorizontal: 2 },
   toggleOn: { backgroundColor: '#EF4444' },
@@ -1345,7 +1358,7 @@ const FS = StyleSheet.create({
   toggleThumbOn: { alignSelf: 'flex-end' },
 
   footer: { padding: 24, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  applyBtn: { backgroundColor: '#6366F1', borderRadius: 16, paddingVertical: 16, alignItems: 'center', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 },
+  applyBtn: { backgroundColor: '#0F172A', borderRadius: 12, minHeight: 50, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
   applyText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
 })
 

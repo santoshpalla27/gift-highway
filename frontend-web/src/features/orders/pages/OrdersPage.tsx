@@ -351,7 +351,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
               {STATUS_OPTIONS.map(s => {
                 const active = statusFilters.includes(s)
                 return (
-                  <div key={s}
+                  <div role="button" tabIndex={0} onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.currentTarget.click() } }} key={s}
                     style={{ ...pillListItem(active), justifyContent: 'space-between' }}
                     onMouseEnter={e => { if (!active) e.currentTarget.style.background = '#F5F6FA' }}
                     onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
@@ -390,7 +390,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
               {PRIORITY_OPTIONS.map(p => {
                 const active = priorityFilters.includes(p)
                 return (
-                  <div key={p}
+                  <div role="button" tabIndex={0} onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.currentTarget.click() } }} key={p}
                     style={{ ...pillListItem(active), justifyContent: 'space-between' }}
                     onMouseEnter={e => { if (!active) e.currentTarget.style.background = '#F5F6FA' }}
                     onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
@@ -432,7 +432,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
               return (
                 <div style={{ padding: 4, maxHeight: 260, overflowY: 'auto', minWidth: 190 }}>
                   {/* Unassigned row */}
-                  <div style={pillListItem(assigneeIds.includes('unassigned'))}
+                  <div role="button" tabIndex={0} onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.currentTarget.click() } }} style={pillListItem(assigneeIds.includes('unassigned'))}
                     onMouseEnter={e => { if (!assigneeIds.includes('unassigned')) e.currentTarget.style.background = '#F5F6FA' }}
                     onMouseLeave={e => { if (!assigneeIds.includes('unassigned')) e.currentTarget.style.background = 'transparent' }}
                     onClick={() => toggle('unassigned')}>
@@ -445,7 +445,7 @@ export function OrdersPage({ myOrdersOnly = false }: { myOrdersOnly?: boolean })
                   ) : users.map(u => {
                     const active = assigneeIds.includes(u.id)
                     return (
-                      <div key={u.id} style={pillListItem(active)}
+                      <div role="button" tabIndex={0} onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.currentTarget.click() } }} key={u.id} style={pillListItem(active)}
                         onMouseEnter={e => { if (!active) e.currentTarget.style.background = '#F5F6FA' }}
                         onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
                         onClick={() => toggle(u.id)}>
