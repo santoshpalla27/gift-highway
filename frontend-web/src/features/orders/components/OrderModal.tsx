@@ -3,6 +3,7 @@ import { useCreateOrder, useUpdateOrder, useUsersForAssignment } from '../hooks/
 import type { Order } from '../../../services/orderService'
 import { staffPortalApi } from '../../../services/portalService'
 import { DateInput } from '../../../components/system/DateInput'
+import './OrderModal.css'
 
 interface Props {
   order?: Order | null
@@ -43,6 +44,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
   const assignRef = useRef<HTMLDivElement>(null)
   const assignTriggerRef = useRef<HTMLButtonElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
   const assignMenuId = useId()
   const [error, setError] = useState('')
   const [createPortal, _setCreatePortal] = useState(false)
@@ -50,12 +52,12 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
   useLayoutEffect(() => {
     if (!assignOpen) return
     const measure = () => {
-      if (!assignRef.current || !cardRef.current) return
-      const available = assignRef.current.getBoundingClientRect().top - cardRef.current.getBoundingClientRect().top - 12
+      if (!assignRef.current || !bodyRef.current) return
+      const available = assignRef.current.getBoundingClientRect().top - bodyRef.current.getBoundingClientRect().top - 12
       setAssignMenuHeight(Math.max(0, Math.min(260, available)))
     }
     measure()
-    const card = cardRef.current
+    const card = bodyRef.current
     card?.addEventListener('scroll', measure)
     window.addEventListener('resize', measure)
     return () => { card?.removeEventListener('scroll', measure); window.removeEventListener('resize', measure) }
@@ -176,24 +178,24 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
         .order-assignment :is(button, input):focus-visible { outline: 2px solid #6366F1; outline-offset: -3px; }
       `}</style>
 
-      <div ref={cardRef} style={{
-        background: '#FFFFFF', borderRadius: '16px', width: '100%', maxWidth: '560px',
-        maxHeight: '90vh', overflow: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+      <div ref={cardRef} className="order-dialog" role="dialog" aria-modal="true" aria-labelledby={assignMenuId + '-title'} style={{
+        background: '#FFFFFF', borderRadius: '16px', width: '100%', maxWidth: '640px',
+        maxHeight: 'min(900px, calc(100dvh - 32px))', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
         margin: '16px', animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
         display: 'flex', flexDirection: 'column'
       }} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div style={{ padding: '24px 32px 20px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div className="order-dialog-header" style={{ padding: '24px 32px 20px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: '#0F172A', letterSpacing: '-0.01em' }}>
+            <h2 id={assignMenuId + '-title'} style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: '#0F172A', letterSpacing: '-0.025em' }}>
               {isEdit ? 'Edit Order' : 'Create Order'}
-            </div>
+            </h2>
             <div style={{ fontSize: '14px', color: '#64748B', marginTop: '4px' }}>
-              {isEdit ? `Updating Order #${order!.order_number}` : 'Fill in the operational details'}
+              {isEdit ? `Updating Order #${order!.order_number}` : 'Add the details, set a deadline, and assign your team.'}
             </div>
           </div>
-          <button
+          <button type="button" aria-label="Close order dialog" className="order-dialog-close"
             onClick={onClose}
             style={{
               background: '#F8FAFC', padding: '6px', border: '1px solid #E2E8F0', borderRadius: '8px',
@@ -207,15 +209,16 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
         </div>
 
         {/* Body */}
-        <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div ref={bodyRef} className="order-dialog-body">
           {error && (
-            <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '8px', padding: '12px 16px', fontSize: '13px', color: '#B91C1C', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div role="alert" style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '8px', padding: '12px 16px', fontSize: '13px', color: '#B91C1C', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               {error}
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div className="order-dialog-grid">
+            <h3 className="order-section-heading">Order details</h3>
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="modal-label">Order ID</label>
               <div className="modal-input" style={{ background: '#F8FAFC', color: '#64748B', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'default' }}>
@@ -224,12 +227,12 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
               </div>
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label className="modal-label">Order Description *</label>
-              <input className="modal-input" value={orderDescription} onChange={e => setOrderDescription(e.target.value)} placeholder="e.g. Wedding Cake - John" />
+              <label className="modal-label" htmlFor="order-field-0">Order Description *</label>
+              <input id="order-field-0" className="modal-input" value={orderDescription} onChange={e => setOrderDescription(e.target.value)} placeholder="e.g. Wedding Cake - John" />
             </div>
-            <div>
-              <label className="modal-label">Order Source</label>
-              <select className="modal-input" value={orderSource} onChange={e => setOrderSource(e.target.value)}>
+            <div className="order-full-width">
+              <label className="modal-label" htmlFor="order-field-1">Order Source</label>
+              <select id="order-field-1" className="modal-input" value={orderSource} onChange={e => setOrderSource(e.target.value)}>
                 <option value="">— None —</option>
                 <option value="amazon">Amazon</option>
                 <option value="b2b">B2B</option>
@@ -240,26 +243,28 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
                 <option value="insta_ads">Insta Ads</option>
               </select>
             </div>
+            <h3 className="order-section-heading order-section-divider">Customer information</h3>
             <div>
-              <label className="modal-label">Customer Name *</label>
-              <input className="modal-input" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+              <label className="modal-label" htmlFor="order-field-2">Customer Name *</label>
+              <input id="order-field-2" className="modal-input" value={customerName} onChange={e => setCustomerName(e.target.value)} />
             </div>
             <div>
-              <label className="modal-label">Contact Number</label>
-              <input className="modal-input" value={contactNumber} onChange={e => setContactNumber(e.target.value)} type="tel" />
+              <label className="modal-label" htmlFor="order-field-3">Contact Number</label>
+              <input id="order-field-3" className="modal-input" value={contactNumber} onChange={e => setContactNumber(e.target.value)} type="tel" />
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label className="modal-label">Description</label>
-              <textarea
+              <label className="modal-label" htmlFor="order-field-4">Description</label>
+              <textarea id="order-field-4"
                 className="modal-input"
                 style={{ minHeight: '80px', resize: 'vertical' }}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
               />
             </div>
+            <h3 className="order-section-heading order-section-divider">Scheduling &amp; assignment</h3>
             <div style={!canReassign ? { gridColumn: '1 / -1' } : {}}>
-              <label className="modal-label">Priority</label>
-              <select className="modal-input" value={priority} onChange={e => setPriority(e.target.value)}>
+              <label className="modal-label" htmlFor="order-field-5">Priority</label>
+              <select id="order-field-5" className="modal-input" value={priority} onChange={e => setPriority(e.target.value)}>
                 {PRIORITIES.map(p => (
                   <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
                 ))}
@@ -267,7 +272,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
             </div>
             {canReassign && (
               <div>
-                <label className="modal-label">
+                <label className="modal-label" htmlFor="order-value">
                   Order Value
                   <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 500, color: '#8B5CF6', background: '#EDE9FE', padding: '1px 7px', borderRadius: 999 }}>Admin only</span>
                 </label>
@@ -279,6 +284,7 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
                   <input
                     className="modal-input"
                     style={{ paddingLeft: 28 }}
+                    id="order-value"
                     type="number"
                     min="0"
                     step="0.01"
@@ -292,9 +298,9 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
             )}
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="modal-label">Due Date</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div className="order-date-fields">
                 <DateInput value={dueDate} onChange={setDueDate} className="modal-input" style={{ flex: 1 }} />
-                <input className="modal-input" type="time" value={dueTime} onChange={e => setDueTime(e.target.value)} onClick={e => (e.currentTarget as any).showPicker?.() } style={{ width: '140px', flexShrink: 0, cursor: 'pointer' }} />
+                <input className="modal-input" type="time" aria-label="Due time" value={dueTime} onChange={e => setDueTime(e.target.value)} onClick={e => (e.currentTarget as any).showPicker?.() } style={{ width: '140px', flexShrink: 0, cursor: 'pointer' }} />
               </div>
             </div>
             {canReassign && <div ref={assignRef} className="order-assignment" style={{ gridColumn: '1 / -1', position: 'relative' }}>
@@ -330,7 +336,8 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
         {/* PORTAL HIDDEN: "Generate customer portal link" checkbox removed — see docs/portal-hidden.md to restore */}
 
         {/* Footer */}
-        <div style={{ padding: '20px 32px', borderTop: '1px solid #F1F5F9', background: '#FAFAFA', display: 'flex', gap: '12px', justifyContent: 'flex-end', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
+        <div className="order-dialog-footer" style={{ padding: '20px 32px', borderTop: '1px solid #F1F5F9', background: '#FAFAFA', display: 'flex', gap: '12px', justifyContent: 'flex-end', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
+          <span className="order-required-note">* Required fields</span>
           <button
             onClick={onClose}
             disabled={isPending}

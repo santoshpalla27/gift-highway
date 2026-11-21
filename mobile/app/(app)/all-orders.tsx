@@ -1,5 +1,5 @@
 import {
-  View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, Pressable, KeyboardAvoidingView, Keyboard,
   TextInput, ActivityIndicator, Modal, Platform, Alert, RefreshControl, AppState,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -505,6 +505,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
       setPriority('medium'); setAssignedTo([]); setDueDate(''); setDueTime(''); setCreatePortal(false); setOrderValue('')
     }
     setError('')
+    setAssignOpen(false)
   }, [order, visible])
 
   const handleSubmit = async () => {
@@ -532,16 +533,18 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
   }
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={F.container}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => assignOpen ? setAssignOpen(false) : onClose()}>
+      <KeyboardAvoidingView style={F.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={[F.header, { paddingTop: insets.top + 16 }]}>
-          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close order form" onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="close" size={24} color="#0F172A" />
           </TouchableOpacity>
           <Text style={F.title}>{isEdit ? 'Edit Order' : 'Create Order'}</Text>
           <View style={{ width: 24 }} />
         </View>
-        <ScrollView style={F.body} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 16, 40) }} keyboardShouldPersistTaps="handled">
+        <ScrollView style={F.body} contentContainerStyle={{ padding: 20, paddingBottom: 28 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+          <Text style={F.subtitle}>Add the details, set a deadline, and assign your team.</Text>
+          <Text accessibilityRole="header" style={F.sectionTitle}>Order details</Text>
           {error ? <View style={F.errorBox}><Text style={F.errorText}>{error}</Text></View> : null}
           {isEdit ? (
             <>
@@ -563,7 +566,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
           <Text style={F.label}>Order Description *</Text>
           <TextInput
             style={[F.input, focusedField === 'orderDescription' && { borderColor: '#6366F1', borderWidth: 1.5 }]}
-            value={orderDescription}
+            accessibilityLabel="Order description, required" value={orderDescription}
             onChangeText={setOrderDescription}
             placeholder="e.g. Wedding Cake - John"
             placeholderTextColor="#94A3B8"
@@ -572,7 +575,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
           />
           
           <Text style={F.label}>Order Source</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 16 }}>
+          <View style={F.chipRow}>
             {['', 'amazon', 'b2b', 'store', 'whatsapp', 'online', 'google_ads', 'insta_ads'].map(src => {
               const isActive = orderSource === src
               const label = src === '' ? 'None' : src === 'google_ads' ? 'Google Ads' : src === 'insta_ads' ? 'Insta Ads' : src.charAt(0).toUpperCase() + src.slice(1)
@@ -586,12 +589,13 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
                 </TouchableOpacity>
               )
             })}
-          </ScrollView>
+          </View>
 
+          <Text accessibilityRole="header" style={[F.sectionTitle, F.sectionDivider]}>Customer information</Text>
           <Text style={F.label}>Customer Name *</Text>
           <TextInput
             style={[F.input, focusedField === 'customerName' && { borderColor: '#6366F1', borderWidth: 1.5 }]}
-            value={customerName}
+            accessibilityLabel="Customer name, required" value={customerName}
             onChangeText={setCustomerName}
             autoCapitalize="words"
             onFocus={() => setFocusedField('customerName')}
@@ -600,7 +604,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
           <Text style={F.label}>Contact Number</Text>
           <TextInput
             style={[F.input, focusedField === 'contactNumber' && { borderColor: '#6366F1', borderWidth: 1.5 }]}
-            value={contactNumber}
+            accessibilityLabel="Contact number" value={contactNumber}
             onChangeText={setContactNumber}
             keyboardType="phone-pad"
             onFocus={() => setFocusedField('contactNumber')}
@@ -609,7 +613,7 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
           <Text style={F.label}>Description</Text>
           <TextInput
             style={[F.input, { minHeight: 80 }, focusedField === 'description' && { borderColor: '#6366F1', borderWidth: 1.5 }]}
-            value={description}
+            accessibilityLabel="Description" value={description}
             onChangeText={setDescription}
             multiline
             textAlignVertical="top"
@@ -617,8 +621,9 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
             onBlur={() => setFocusedField(null)}
           />
 
-          <View style={{ flexDirection: 'row', gap: 12, marginTop: 16, marginBottom: 8 }}>
-            <View style={{ flex: isAdmin ? 1.3 : 1 }}>
+          <Text accessibilityRole="header" style={[F.sectionTitle, F.sectionDivider]}>Scheduling &amp; assignment</Text>
+          <View style={{ gap: 12, marginBottom: 8 }}>
+            <View>
               <Text style={[F.label, { marginTop: 0 }]}>Priority</Text>
               <View style={[F.chipRow, { gap: 6 }]}>
                 {PRIORITY_OPTIONS.map(p => (
@@ -630,13 +635,13 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
             </View>
 
             {isAdmin && (
-              <View style={{ flex: 0.7 }}>
+              <View>
                 <Text style={[F.label, { marginTop: 0 }]}>Order Value</Text>
                 <View style={[F.input, { flexDirection: 'row', alignItems: 'center', marginTop: 8 }, focusedField === 'orderValue' && { borderColor: '#6366F1', borderWidth: 1.5 }]}>
                   <Text style={{ fontSize: 16, fontWeight: '700', color: '#475569', marginRight: 6 }}>₹</Text>
                   <TextInput
                     style={[{ flex: 1, fontSize: 16, color: '#0F172A', padding: 0 }, Platform.OS === 'web' && ({ outlineStyle: 'none' } as any)]}
-                    value={orderValue}
+                    accessibilityLabel="Order value" value={orderValue}
                     onChangeText={setOrderValue}
                     keyboardType="numeric"
                     placeholder="e.g. 5000"
@@ -785,35 +790,43 @@ function OrderFormModal({ visible, order, onClose, onRefresh }: OrderFormProps) 
             )}
           </View>
           <Text style={F.label}>Assign To</Text>
-          <TouchableOpacity style={[F.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setAssignOpen(o => !o)}>
-            <Text style={{ fontSize: 15, color: assignedTo.length > 0 ? '#0F172A' : '#94A3B8' }} numberOfLines={1}>
-              {assignedTo.length === 0 ? '— Unassigned —' : users.filter(u => assignedTo.includes(u.id)).map(u => u.name.split(' ')[0]).join(', ')}
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Assign team members" accessibilityState={{ expanded: assignOpen }} style={[F.input, { flexDirection: 'row', gap: 10, justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => { Keyboard.dismiss(); setAssignOpen(true) }}>
+            <Text style={{ flex: 1, fontSize: 15, color: assignedTo.length > 0 ? '#0F172A' : '#64748B' }} numberOfLines={1}>
+              {assignedTo.length === 0 ? 'Unassigned' : users.filter(u => assignedTo.includes(u.id)).map(u => u.name.split(' ')[0]).join(', ')}
             </Text>
             <Ionicons name={assignOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#94A3B8" />
           </TouchableOpacity>
-          {assignOpen && (
-            <View style={F.assignList}>
-              <TouchableOpacity style={[F.assignRow, assignedTo.length === 0 && F.assignRowActive]} onPress={() => setAssignedTo([])}>
-                <Text style={[F.assignText, assignedTo.length === 0 && { color: '#0F172A', fontWeight: '700' }]}>— Unassigned —</Text>
-                {assignedTo.length === 0 && <Ionicons name="checkmark-circle" size={18} color="#0F172A" />}
-              </TouchableOpacity>
-              {users.map(u => {
-                const selected = assignedTo.includes(u.id)
-                return (
-                  <TouchableOpacity key={u.id} style={[F.assignRow, selected && F.assignRowActive]} onPress={() => setAssignedTo(prev => prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id])}>
-                    <Text style={[F.assignText, selected && { color: '#0F172A', fontWeight: '700' }]}>{u.name}</Text>
-                    {selected ? <Ionicons name="checkbox" size={20} color="#0F172A" /> : <Ionicons name="square-outline" size={20} color="#CBD5E1" />}
-                  </TouchableOpacity>
-                )
-              })}
-            </View>
-          )}
           {/* PORTAL HIDDEN: "Generate customer portal link" checkbox removed — see docs/portal-hidden.md to restore */}
-          <TouchableOpacity style={F.submitBtn} onPress={handleSubmit} disabled={loading}>
+        </ScrollView>
+        <View style={[F.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <Text style={F.requiredNote}>* Required fields</Text>
+          <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: loading, busy: loading }} style={[F.submitBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
             {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={F.submitText}>{isEdit ? 'Save Changes' : 'Create Order'}</Text>}
           </TouchableOpacity>
-        </ScrollView>
-      </View>
+        </View>
+        {assignOpen && <View style={F.assignmentOverlay} accessibilityViewIsModal>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setAssignOpen(false)} accessibilityRole="button" accessibilityLabel="Close assignment picker" />
+          <View style={[F.assignmentPanel, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+            <View style={F.assignmentHeader}>
+              <View style={{ flex: 1 }}><Text style={F.sectionTitle}>Assign team members</Text><Text style={F.subtitle}>Select one or more · {assignedTo.length} selected</Text></View>
+              <Pressable accessibilityRole="button" onPress={() => setAssignOpen(false)} style={F.doneButton}><Text style={F.doneText}>Done</Text></Pressable>
+            </View>
+            <FlatList data={users} keyExtractor={u => u.id} keyboardShouldPersistTaps="handled"
+              ListHeaderComponent={<Pressable accessibilityRole="button" accessibilityState={{ selected: assignedTo.length === 0 }} style={[F.assignRow, assignedTo.length === 0 && F.assignRowActive]} onPress={() => setAssignedTo([])}>
+                <View style={F.avatar}><Ionicons name="person-outline" size={18} color="#64748B" /></View><Text style={F.assignText}>Unassigned</Text>
+                {assignedTo.length === 0 && <Ionicons name="checkmark" size={22} color="#4F46E5" />}
+              </Pressable>}
+              renderItem={({ item: u }) => {
+                const selected = assignedTo.includes(u.id)
+                return <Pressable accessibilityRole="checkbox" accessibilityLabel={u.name} accessibilityState={{ checked: selected }} style={[F.assignRow, selected && F.assignRowActive]} onPress={() => setAssignedTo(prev => prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id])}>
+                  <View style={F.avatar}><Text style={F.avatarText}>{u.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}</Text></View>
+                  <Text style={[F.assignText, selected && { color: '#3730A3', fontWeight: '700' }]}>{u.name}</Text>
+                  <Ionicons name={selected ? 'checkbox' : 'square-outline'} size={22} color={selected ? '#4F46E5' : '#94A3B8'} />
+                </Pressable>
+              }} />
+          </View>
+        </View>}
+      </KeyboardAvoidingView>
     </Modal>
   )
 }
@@ -1388,22 +1401,34 @@ const C = StyleSheet.create({
 })
 
 const F = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 20, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   title: { fontSize: 20, fontWeight: '800', color: '#111827' },
-  body: { padding: 24 },
+  body: { flex: 1 },
+  subtitle: { fontSize: 13, lineHeight: 20, color: '#64748B', marginBottom: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#334155', marginBottom: 4 },
+  sectionDivider: { borderTopWidth: 1, borderTopColor: '#E2E8F0', paddingTop: 24, marginTop: 24 },
+  footer: { paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E2E8F0', backgroundColor: '#FFFFFF', gap: 8 },
+  requiredNote: { fontSize: 12, color: '#64748B' },
+  assignmentOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.35)' },
+  assignmentPanel: { maxHeight: '75%', backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
+  assignmentHeader: { padding: 20, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  doneButton: { minWidth: 60, minHeight: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEF2FF', borderRadius: 10 },
+  doneText: { color: '#4338CA', fontSize: 15, fontWeight: '700' },
+  avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 11, fontWeight: '700', color: '#64748B' },
   errorBox: { backgroundColor: '#FEF2F2', borderRadius: 12, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#FECACA' },
   errorText: { fontSize: 14, color: '#DC2626', fontWeight: '600' },
-  label: { fontSize: 13, fontWeight: '700', color: '#4B5563', marginBottom: 8, marginTop: 16, letterSpacing: 0.5 },
+  label: { fontSize: 13, fontWeight: '700', color: '#4B5563', marginBottom: 8, marginTop: 16, letterSpacing: 0 },
   input: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: '#111827', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.02, shadowRadius: 3, elevation: 1 },
   chipRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   chip: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#F3F4F6', backgroundColor: '#FFFFFF' },
   chipText: { fontSize: 14, fontWeight: '600', color: '#6B7280' },
   assignList: { borderWidth: 1, borderColor: '#F3F4F6', borderRadius: 16, overflow: 'hidden', backgroundColor: '#FFFFFF', flexDirection: 'column', marginTop: 10 },
-  assignRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F9FAFB' },
-  assignRowActive: { backgroundColor: '#F8FAFC' },
-  assignText: { fontSize: 15, color: '#374151', fontWeight: '500' },
-  submitBtn: { backgroundColor: '#6366F1', borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginTop: 32, marginBottom: 40, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 },
+  assignRow: { minHeight: 56, gap: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F9FAFB' },
+  assignRowActive: { backgroundColor: '#EEF2FF' },
+  assignText: { flex: 1, fontSize: 15, color: '#374151', fontWeight: '500' },
+  submitBtn: { backgroundColor: '#0F172A', borderRadius: 12, minHeight: 50, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
   submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
   pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   pickerSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 32, overflow: 'hidden' },
