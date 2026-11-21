@@ -1,3 +1,4 @@
+import { COLORS, FONT_SIZE } from '../../../constants/theme'
 import { View, Text, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import type { OrderEvent } from '../../../services/orderService'
@@ -61,7 +62,7 @@ export function SystemEventRow({ event }: { event: OrderEvent }) {
         <Ionicons name={(meta?.icon ?? 'ellipse-outline') as any} size={13} color="#6B7280" />
       </View>
       <View style={R.content}>
-        <Text style={R.label} numberOfLines={2}>
+        <Text style={R.label}>
           <Text style={R.actor}>{event.actor_name}</Text>
           {label ? `  ·  ${label}` : ''}
         </Text>
@@ -73,13 +74,12 @@ export function SystemEventRow({ event }: { event: OrderEvent }) {
 
 const R = StyleSheet.create({
   row: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10,
-    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9',
-    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 4,
+    paddingHorizontal: 4, paddingVertical: 12,
   },
-  iconWrap: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  iconWrap: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.borderLight, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   content: { flex: 1 },
-  actor: { fontSize: 12.5, color: '#374151', fontWeight: '600' },
-  label: { fontSize: 12.5, color: '#64748B', fontWeight: '400' },
-  meta: { fontSize: 11, color: '#94A3B8', marginTop: 2 },
+  actor: { fontSize: FONT_SIZE.sm, color: COLORS.textPrimary, fontWeight: '600' },
+  label: { fontSize: FONT_SIZE.sm, lineHeight: 20, color: COLORS.textSecondary, fontWeight: '400' },
+  meta: { fontSize: FONT_SIZE.xs, color: COLORS.textSecondary, marginTop: 4 },
 })

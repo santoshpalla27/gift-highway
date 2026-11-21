@@ -32,7 +32,7 @@ export const C = {
   avatarPortalCustomerText:'#FFFFFF',
 
   textPrimary:   '#334155',
-  textSecondary: '#94A3B8',
+  textSecondary: '#64748B',
   textActor:     '#0F172A',
   textMuted:     '#6B7280',
 

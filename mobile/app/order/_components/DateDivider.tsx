@@ -1,3 +1,4 @@
+import { COLORS, FONT_SIZE, RADIUS } from '../../../constants/theme'
 import { View, Text, StyleSheet } from 'react-native'
 
 export function DateDivider({ label }: { label: string }) {
@@ -11,7 +12,7 @@ export function DateDivider({ label }: { label: string }) {
 }
 
 const D = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 12 },
-  line: { flex: 1, height: 1, backgroundColor: '#E2E8F0' },
-  label: { fontSize: 11.5, fontWeight: '600', color: '#94A3B8' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 20 },
+  line: { flex: 1, height: 1, backgroundColor: COLORS.border },
+  label: { fontSize: FONT_SIZE.xs, fontWeight: '600', color: COLORS.textSecondary, backgroundColor: COLORS.bgCard, paddingVertical: 6, paddingHorizontal: 12, borderRadius: RADIUS.pill },
 })

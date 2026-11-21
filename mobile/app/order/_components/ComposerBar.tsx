@@ -1,3 +1,4 @@
+import { COLORS } from '../../../constants/theme'
 import { View, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useState } from 'react'
@@ -10,6 +11,7 @@ export function ComposerBar({ onSend, onAttach, sending, placeholder, paddingBot
   paddingBottom?: number
 }) {
   const [text, setText] = useState('')
+  const [focused, setFocused] = useState(false)
   const canSend = text.trim().length > 0 && !sending
 
   const handleSend = () => {
@@ -32,10 +34,13 @@ export function ComposerBar({ onSend, onAttach, sending, placeholder, paddingBot
       </TouchableOpacity>
 
       <TextInput
-        style={C.input}
+        style={[C.input, focused && { borderColor: COLORS.primaryBorder, backgroundColor: COLORS.bgCard }]}
+        accessibilityLabel="Message"
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         value={text}
         onChangeText={setText}
-        placeholder={placeholder ?? 'Add a comment...'}
+        placeholder={placeholder ?? 'Write an update…'}
         placeholderTextColor="#94A3B8"
         multiline
         maxLength={2000}
@@ -62,8 +67,8 @@ export function ComposerBar({ onSend, onAttach, sending, placeholder, paddingBot
 const C = StyleSheet.create({
   composer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 10,
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 12,
     paddingTop: 10,
     backgroundColor: '#FFFFFF',
@@ -77,20 +82,22 @@ const C = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.bgSubtle,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   input: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 20,
+    borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 15,
+    lineHeight: 22,
     color: '#0F172A',
     maxHeight: 120,
     minHeight: 44,
@@ -99,15 +106,16 @@ const C = StyleSheet.create({
   sendBtn: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: '#6366F1',
+    flexShrink: 0,
+    borderRadius: 12,
+    backgroundColor: COLORS.primaryDark,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#6366F1',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 0,
   },
   sendBtnDisabled: {
     backgroundColor: '#CBD5E1',
