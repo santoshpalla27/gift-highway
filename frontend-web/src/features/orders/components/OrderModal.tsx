@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useId } from 'react'
 import { useCreateOrder, useUpdateOrder, useUsersForAssignment } from '../hooks/useOrders'
 import type { Order } from '../../../services/orderService'
 import { staffPortalApi } from '../../../services/portalService'
@@ -39,8 +39,44 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
   const [dueTime, setDueTime] = useState('')
   const [orderValue, setOrderValue] = useState('')
   const [assignOpen, setAssignOpen] = useState(false)
+  const [assignMenuHeight, setAssignMenuHeight] = useState(260)
+  const assignRef = useRef<HTMLDivElement>(null)
+  const assignTriggerRef = useRef<HTMLButtonElement>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const assignMenuId = useId()
   const [error, setError] = useState('')
   const [createPortal, _setCreatePortal] = useState(false)
+
+  useLayoutEffect(() => {
+    if (!assignOpen) return
+    const measure = () => {
+      if (!assignRef.current || !cardRef.current) return
+      const available = assignRef.current.getBoundingClientRect().top - cardRef.current.getBoundingClientRect().top - 12
+      setAssignMenuHeight(Math.max(0, Math.min(260, available)))
+    }
+    measure()
+    const card = cardRef.current
+    card?.addEventListener('scroll', measure)
+    window.addEventListener('resize', measure)
+    return () => { card?.removeEventListener('scroll', measure); window.removeEventListener('resize', measure) }
+  }, [assignOpen])
+
+  useEffect(() => {
+    if (!assignOpen) return
+    const dismiss = (event: PointerEvent) => {
+      if (!assignRef.current?.contains(event.target as Node)) setAssignOpen(false)
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setAssignOpen(false)
+        assignTriggerRef.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', dismiss)
+    document.addEventListener('keydown', escape)
+    return () => { document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', escape) }
+  }, [assignOpen])
 
   useEffect(() => {
     if (order) {
@@ -124,16 +160,23 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
         }
         .modal-input:focus { border-color: #94A3B8; box-shadow: 0 0 0 2px rgba(226,232,240,0.5); }
         .modal-label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
-        .assign-row {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #F1F5F9;
-          transition: background 0.1s ease;
-        }
-        .assign-row:last-child { border-bottom: none; }
-        .assign-row:hover { background: #F8FAFC; }
+        .order-assignment .assign-trigger { display: flex; align-items: center; gap: 10px; min-height: 44px; text-align: left; cursor: pointer; }
+        .assign-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .assign-count { background: #EEF2FF; color: #4338CA; border-radius: 6px; padding: 2px 7px; font-size: 12px; font-weight: 600; }
+        .assign-menu { position: absolute; bottom: calc(100% + 6px); left: 0; right: 0; z-index: 100; overflow-y: auto; overscroll-behavior: contain; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; box-shadow: 0 -4px 24px rgba(15,23,42,.12); }
+        .assign-menu-heading { padding: 12px 14px; border-bottom: 1px solid #F1F5F9; font-size: 13px; font-weight: 600; color: #0F172A; }
+        .assign-menu-heading span { display: block; margin-top: 3px; font-size: 12px; font-weight: 400; color: #64748B; }
+        .order-assignment .assign-option { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; margin: 0; padding: 10px 14px; border: 0; border-bottom: 1px solid #F1F5F9; background: #FFFFFF; text-align: left; font: inherit; color: #334155; cursor: pointer; }
+        .order-assignment .assign-option:hover, .order-assignment .assign-option:focus-within { background: #F8FAFC; }
+        .order-assignment .assign-option.is-selected { background: #EEF2FF; color: #3730A3; }
+        .assign-avatar { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex-shrink: 0; border-radius: 50%; background: #F1F5F9; color: #64748B; font-size: 11px; font-weight: 700; }
+        .assign-option-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
+        .assign-option input { width: 17px; height: 17px; flex-shrink: 0; accent-color: #4F46E5; cursor: pointer; }
+        .assign-check { color: #4F46E5; font-weight: 700; }
+        .order-assignment :is(button, input):focus-visible { outline: 2px solid #6366F1; outline-offset: -3px; }
       `}</style>
 
-      <div style={{
+      <div ref={cardRef} style={{
         background: '#FFFFFF', borderRadius: '16px', width: '100%', maxWidth: '560px',
         maxHeight: '90vh', overflow: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
         margin: '16px', animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -254,75 +297,32 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
                 <input className="modal-input" type="time" value={dueTime} onChange={e => setDueTime(e.target.value)} onClick={e => (e.currentTarget as any).showPicker?.() } style={{ width: '140px', flexShrink: 0, cursor: 'pointer' }} />
               </div>
             </div>
-            {canReassign && <div style={{ gridColumn: '1 / -1', position: 'relative' }}>
-              <label className="modal-label">Assign To</label>
-              <div
-                className="modal-input"
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
-                onClick={() => setAssignOpen(o => !o)}
-              >
-                <span style={{ color: assignedTo.length > 0 ? '#0F172A' : '#94A3B8', fontSize: '14px' }}>
-                  {assignedTo.length === 0
-                    ? '— Unassigned —'
-                    : users.filter(u => assignedTo.includes(u.id)).map(u => u.name.split(' ')[0]).join(', ')}
+            {canReassign && <div ref={assignRef} className="order-assignment" style={{ gridColumn: '1 / -1', position: 'relative' }}>
+              <label className="modal-label" htmlFor={assignMenuId + '-trigger'}>Assign To</label>
+              <button ref={assignTriggerRef} id={assignMenuId + '-trigger'} type="button"
+                className="modal-input assign-trigger" aria-expanded={assignOpen} aria-controls={assignOpen ? assignMenuId : undefined}
+                onClick={() => setAssignOpen(open => !open)}>
+                <span className="assign-value" style={{ color: assignedTo.length ? '#0F172A' : '#64748B' }}>
+                  {assignedTo.length === 0 ? 'Unassigned' : users.filter(u => assignedTo.includes(u.id)).map(u => u.name).join(', ')}
                 </span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" style={{ transform: assignOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease', flexShrink: 0 }}>
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
-              </div>
-              {assignOpen && (
-                <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 100, background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', boxShadow: '0 8px 24px rgba(0,0,0,0.1)', maxHeight: '220px', overflowY: 'auto' }}>
-                  <div
-                    className="assign-row"
-                    style={{ background: assignedTo.length === 0 ? '#F8FAFC' : undefined }}
-                    onClick={() => setAssignedTo([])}
-                  >
-                    <span style={{ fontSize: '14px', color: assignedTo.length === 0 ? '#0F172A' : '#64748B', fontWeight: assignedTo.length === 0 ? 600 : 400 }}>
-                      — Unassigned —
-                    </span>
-                    {assignedTo.length === 0 && (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                    )}
-                  </div>
-                  {users.map(u => {
-                    const selected = assignedTo.includes(u.id)
-                    return (
-                      <div
-                        key={u.id}
-                        className="assign-row"
-                        style={{ background: selected ? '#F8FAFC' : undefined }}
-                        onClick={() => toggleUser(u.id)}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <div style={{
-                            width: '28px', height: '28px', borderRadius: '50%',
-                            background: selected ? '#EEF2FF' : '#F1F5F9',
-                            color: selected ? '#6366F1' : '#64748B',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '11px', fontWeight: 700, flexShrink: 0
-                          }}>
-                            {u.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
-                          </div>
-                          <span style={{ fontSize: '14px', color: selected ? '#0F172A' : '#475569', fontWeight: selected ? 600 : 400 }}>
-                            {u.name}
-                          </span>
-                        </div>
-                        <div style={{
-                          width: '18px', height: '18px', borderRadius: '4px',
-                          border: selected ? 'none' : '1.5px solid #CBD5E1',
-                          background: selected ? '#6366F1' : 'transparent',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          flexShrink: 0
-                        }}>
-                          {selected && (
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                {assignedTo.length > 0 && <span className="assign-count">{assignedTo.length}</span>}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ flexShrink: 0, transform: assignOpen ? 'rotate(180deg)' : undefined }}><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              {assignOpen && <div id={assignMenuId} className="assign-menu" role="group" aria-label="Assign team members" style={{ maxHeight: assignMenuHeight }}>
+                <div className="assign-menu-heading">Assign team members<span>Select one or more</span></div>
+                <button type="button" className="assign-option" aria-pressed={assignedTo.length === 0} onClick={() => setAssignedTo([])}>
+                  <span className="assign-avatar">—</span><span className="assign-option-name">Unassigned</span>
+                  {assignedTo.length === 0 && <span aria-hidden="true" className="assign-check">✓</span>}
+                </button>
+                {users.map(u => {
+                  const selected = assignedTo.includes(u.id)
+                  return <label key={u.id} className={'assign-option' + (selected ? ' is-selected' : '')}>
+                    <span className="assign-avatar" aria-hidden="true">{u.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}</span>
+                    <span className="assign-option-name">{u.name}</span>
+                    <input type="checkbox" checked={selected} onChange={() => toggleUser(u.id)} />
+                  </label>
+                })}
+              </div>}
             </div>}
           </div>
         </div>
@@ -370,3 +370,4 @@ export function OrderModal({ order, onClose, onSuccess, canReassign = true }: Pr
     </div>
   )
 }
+
